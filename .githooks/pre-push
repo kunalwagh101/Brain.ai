@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+set -eu
+python scripts/verify_board.py
