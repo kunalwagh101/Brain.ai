@@ -4,8 +4,8 @@ Method: Scrum + Kanban hybrid. Two-week increments. WIP limit: IN_PROGRESS <= 2.
 
 Format: `STATUS | STORY_ID | FEATURE | NOTE`
 
-IN_PROGRESS | S-01.01.01 | F-01.01 | Increment 1 vertical slice: authenticated organisation ownership and membership boundary
-IN_PROGRESS | S-01.02.01 | F-01.02 | OQ-001 resolved: WorkOS AuthKit/JWT first provider; required by S-01.01.01
+DONE | S-01.01.01 | F-01.01 | Evidence in TRACEABILITY.md; authenticated organisation ownership and membership boundary verified
+DONE | S-01.02.01 | F-01.02 | Evidence in TRACEABILITY.md; WorkOS JWT identity verification and Brain identity linking verified
 BACKLOG | S-01.03.01 | F-01.03 | Depends on S-01.02.01 and OQ-002
 BACKLOG | S-02.01.01 | F-02.01 | Depends on S-01.03.01 and OQ-003
 BACKLOG | S-02.02.01 | F-02.02 | Depends on integration framework and raw event model
@@ -32,13 +32,22 @@ DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external
 
 ## Sprint planning
 
-Current sprint goal: **Increment 1 — a verified user can establish an organisation ownership boundary and manage membership without cross-tenant leakage.**
+Increment 1 goal: **a verified user can establish an organisation ownership boundary and manage membership without cross-tenant leakage.**
 
 Vertical slice: provider JWT -> Brain identity -> organisation owner membership -> membership read/write -> negative tenant tests.
 
+## Increment 1 review
+
+- WorkOS AuthKit selected as first managed auth authority while Brain keeps its own identity/permission domain.
+- Auth token validation pins RS256, issuer and audience and rejects missing/invalid credentials.
+- Organisation creation and owner membership are one database transaction.
+- Cross-tenant organisation reads return 404 without leaking resource fields.
+- Non-owner membership mutation is rejected with 403.
+- Backend CI passed lint and 14 tests on implementation commit `b53d3185000da2ebf05d730a07cb899917165707`.
+
 ## Session-open self-audit
 
-- Increment 0 delivery verifier passed before this slice was pulled.
-- WIP count: 2 stories, at the enforced limit.
-- OQ-001 is resolved in OPEN_QUESTIONS.md.
-- No additional story may enter IN_PROGRESS until one of these leaves WIP.
+- Increment 0 delivery verifier passed before Increment 1 was pulled.
+- Increment 1 implementation tests and lint passed before these stories moved to DONE.
+- WIP count: 0.
+- No additional story is silently pulled by this board update.
