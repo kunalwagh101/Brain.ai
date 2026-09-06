@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Increment 6 — tenant-safe identity resolution
+
+- Added tenant-scoped source identities separate from WorkOS authentication identities.
+- Added append-only source-identity observations tied one-to-one to canonical events while preserving original provider actor evidence.
+- Added optional canonical `source_identity_id` and `resolved_user_id` linkage without rewriting source actor IDs/names.
+- Added deterministic auto-resolution only for provider-verified exact email evidence matching an active member in the same Brain organisation.
+- Missing or unverified evidence remains unresolved; contradictory verified evidence moves the identity to `REVIEW_REQUIRED` and clears unsafe attribution.
+- Explicitly prohibited fuzzy name/username/domain matching, cross-tenant linking and LLM identity guessing from the automatic resolver.
+- Added Owner/Admin `identity.manage` APIs to list identities/history, manually resolve/reassign/unresolve, and reconcile existing canonical actors.
+- Manual targets must be active same-organisation members, and material changes write immutable previous/new-user resolution history.
+- Normalized identity observation timestamps to UTC so first/last-seen ordering behaves consistently across SQLite tests and PostgreSQL production.
+- Added Alembic revision `20260906_0007` with downgrade support.
+- Added tenant, idempotency, exact-match, cross-tenant, permission, reversible-history and canonical-linkage tests; Backend CI passed 82 tests.
+- Added operator/security guidance and real-provider/manual UAT steps. Engineering-DONE remains separate from user acceptance.
+
+Rollback: stop canonicalisation, identity reconciliation and downstream consumers of `source_identity_id`/`resolved_user_id` before downgrading `20260906_0007`. Export identity-resolution history if it is required for an investigation/audit. The downgrade removes source identities, observations, resolution history and canonical identity links, but original raw/canonical provider actor evidence from earlier revisions remains available for reconstruction.
+
 ### Increment 5 — GitHub connector and canonical event model
 
 - Added a verified GitHub App installation flow with Brain-signed, expiring organisation/user state and installation-selection tokens.

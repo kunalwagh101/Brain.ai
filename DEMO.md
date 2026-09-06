@@ -61,3 +61,28 @@ Expected engineering evidence:
 - migration/model uniqueness keeps one canonical event per raw event.
 
 GitHub Actions run `34037248953` passed lint and 73 tests. For actual feature acceptance, run `UAT/F-02.03.md` and `UAT/F-03.02.md` with a real GitHub App, realistic Slack/GitHub data and the production frontend.
+
+## Increment 6 — identity resolution
+
+Automated evidence command:
+
+```bash
+cd backend
+pytest -q
+```
+
+Expected engineering evidence:
+
+- repeated Slack/GitHub provider actors reuse the same tenant-scoped source identity;
+- canonical retry does not duplicate source identity observations;
+- WorkOS authentication identities are not overloaded as source identities;
+- unverified email never auto-resolves;
+- provider-verified exact email can resolve only an active same-organisation member;
+- a matching user in another organisation is not linked;
+- Owner/Admin can manually resolve, reassign and unresolve with immutable before/after history;
+- normal Members cannot use identity-management endpoints;
+- canonical source actor fields remain intact while optional `resolved_user_id` changes;
+- existing canonical events can be reconciled into the identity layer;
+- timezone normalization keeps first/last-seen ordering portable across database implementations.
+
+GitHub Actions run `34038863067` passed lint and 82 tests. Delivery Verifier run `34038863068` passed before engineering-DONE. For actual acceptance, run `UAT/F-03.03.md` using realistic provider identities and the production admin workflow.

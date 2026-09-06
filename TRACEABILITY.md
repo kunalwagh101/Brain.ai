@@ -13,7 +13,7 @@ This file is the engineering evidence index. A row is completed only after its s
 | S-02.04.01 | E-02 | meeting/document evidence | pending | pending | BACKLOG |
 | S-03.01.01 | E-03 | raw durable/idempotent ingestion | backend/tests/test_raw_events.py + backend/tests/test_slack.py | backend/app/raw_events.py + backend/app/models.py | DONE |
 | S-03.02.01 | E-03 | canonical event model | backend/tests/test_canonical_events.py + backend/tests/test_github_connector.py | backend/app/canonical_events.py + backend/app/models.py | DONE |
-| S-03.03.01 | E-03 | identity resolution | pending | pending | BACKLOG |
+| S-03.03.01 | E-03 | tenant-safe identity resolution | backend/tests/test_identity_resolution.py + backend/tests/test_canonical_events.py | backend/app/identity_resolution.py + backend/app/routes/identities.py + backend/app/canonical_events.py | DONE |
 | S-04.01.01 | E-04 | work graph | pending | pending | BACKLOG |
 | S-04.02.01 | E-04 | decision/blocker memory | pending | pending | BACKLOG |
 | S-05.01.01 | E-05 | permission-aware retrieval | pending | pending | BACKLOG |
@@ -85,3 +85,10 @@ command: cd backend && pytest -q
 result: 73 passed (GitHub Actions run 34037248953, 2026-09-06)
 code: backend/app/canonical_events.py
 commit: 59155580a3e743309d2b9cbeff83d324ef1bf053
+
+EVIDENCE S-03.03.01
+tests: backend/tests/test_identity_resolution.py::test_verified_exact_email_auto_resolves_only_same_org_member
+command: cd backend && pytest -q
+result: 82 passed (GitHub Actions run 34038863067, 2026-09-06)
+code: backend/app/identity_resolution.py + backend/app/routes/identities.py + backend/app/canonical_events.py
+commit: b814319f999d660cb267cca2a74fefa4567c855d

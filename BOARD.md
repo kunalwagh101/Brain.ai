@@ -13,8 +13,8 @@ DONE | S-02.03.01 | F-02.03 | Engineering evidence in TRACEABILITY.md; real GitH
 BACKLOG | S-02.04.01 | F-02.04 | OQ-004 selects first provider
 DONE | S-03.01.01 | F-03.01 | Engineering evidence in TRACEABILITY.md; realistic raw-data inspection UAT remains pending
 DONE | S-03.02.01 | F-03.02 | Engineering evidence in TRACEABILITY.md; Slack/GitHub real-data + frontend UAT remains pending
-IN_PROGRESS | S-03.03.01 | F-03.03 | Increment 6: tenant-scoped source identities + deterministic verified resolution + reversible manual approval/history
-BACKLOG | S-04.01.01 | F-04.01 | Depends on canonical events + identity resolution
+DONE | S-03.03.01 | F-03.03 | Engineering evidence in TRACEABILITY.md; real provider identity + frontend/manual UAT remains pending
+BACKLOG | S-04.01.01 | F-04.01 | Identity resolution dependency is engineering-DONE; eligible for refinement
 BACKLOG | S-04.02.01 | F-04.02 | Depends on work graph + retrieval evaluation
 BACKLOG | S-05.01.01 | F-05.01 | Depends on RBAC + canonical evidence
 BACKLOG | S-05.02.01 | F-05.02 | OQ-005 before provider contract is frozen
@@ -36,6 +36,23 @@ Increment 6 goal: **every Slack/GitHub source actor can be represented as a tena
 
 Vertical slice: source-identity/history schema -> canonical actor observation -> exact verified-email resolver -> unresolved/conflict states -> Owner/Admin identity-management API -> canonical resolved-user reference -> reconciliation for existing canonical events -> tests/migration/docs/UAT.
 
+## Increment 6 review
+
+- Added tenant-scoped source identities that are explicitly separate from WorkOS authentication identities.
+- Canonical Slack/GitHub person actors now create/reuse one source identity per organisation/provider/external ID while preserving the original source actor fields.
+- Added one append-only source-identity observation per canonical event; replay remains idempotent.
+- Automatic resolution is intentionally narrow: only a provider-verified exact email may link to an active member of the same Brain organisation.
+- Missing/unverified evidence stays `UNRESOLVED`; conflicting verified evidence moves the source identity to `REVIEW_REQUIRED` and clears unsafe attribution.
+- No name-only, username-similarity, domain-only, cross-tenant or LLM identity guessing is used.
+- Added Owner/Admin `identity.manage` routes for listing, history, manual resolve/reassign/unresolve and reconciliation of existing canonical events.
+- Manual resolution targets must be active members of the same organisation; every material change writes immutable previous/new-user history.
+- Canonical events gain optional `source_identity_id` and `resolved_user_id` without rewriting source-provider actor evidence.
+- UTC normalization prevents SQLite/PostgreSQL timezone representation differences from corrupting first/last-seen comparisons.
+- Alembic revision `20260906_0007` adds source identity, observation and resolution-history storage plus canonical linkage with downgrade support.
+- Backend CI passed lint and 82 tests on GitHub Actions run `34038863067`.
+- Delivery Verifier passed on run `34038863068` before engineering-DONE was claimed.
+- F-03.03 remains `UAT_PENDING`; real-provider identity evidence and frontend/manual acceptance are not claimed by engineering tests.
+
 ## Increment 5 review
 
 - Added schema-versioned canonical events with one canonical row per raw event and immutable raw-event provenance.
@@ -56,9 +73,10 @@ Vertical slice: source-identity/history schema -> canonical actor observation ->
 
 ## Session-open self-audit
 
-- Eight stories are engineering-DONE; user acceptance remains independently tracked in UAT.md.
-- Current WIP count: 1: S-03.03.01.
+- Nine stories are engineering-DONE; user acceptance remains independently tracked in UAT.md.
+- Current WIP count: 0.
+- F-03.03 is engineering-DONE only; real-provider/manual UAT remains pending.
 - WorkOS authentication identities remain separate from Slack/GitHub source identities.
 - Automatic source-identity linking requires provider-verified exact evidence inside the same organisation; incomplete evidence remains unresolved.
 - No fuzzy name/username/domain/LLM guessing is allowed for automatic identity resolution.
-- No second story will enter IN_PROGRESS until this identity slice leaves WIP unless the board explicitly re-plans it.
+- S-04.01.01 Work Graph is now dependency-unlocked and is the next product story eligible for refinement.
