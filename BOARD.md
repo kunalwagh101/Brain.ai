@@ -7,12 +7,12 @@ Format: `STATUS | STORY_ID | FEATURE | NOTE`
 DONE | S-01.01.01 | F-01.01 | Engineering evidence in TRACEABILITY.md; UAT remains pending in UAT.md
 DONE | S-01.02.01 | F-01.02 | Engineering evidence in TRACEABILITY.md; UAT remains pending in UAT.md
 DONE | S-01.03.01 | F-01.03 | Engineering evidence in TRACEABILITY.md; UAT remains pending in UAT.md
-DONE | S-02.01.01 | F-02.01 | Engineering evidence in TRACEABILITY.md; 46 tests + verifier green; real-data/frontend UAT remains pending
-BACKLOG | S-02.02.01 | F-02.02 | Depends on integration framework and raw event model
-BACKLOG | S-02.03.01 | F-02.03 | Depends on integration framework and raw event model
+DONE | S-02.01.01 | F-02.01 | Engineering evidence in TRACEABILITY.md; real-data/frontend UAT remains pending
+DONE | S-02.02.01 | F-02.02 | Engineering evidence in TRACEABILITY.md; real Slack + frontend UAT remains pending
+BACKLOG | S-02.03.01 | F-02.03 | Depends on integration framework and raw event model; dependencies now engineering-DONE
 BACKLOG | S-02.04.01 | F-02.04 | OQ-004 selects first provider
-BACKLOG | S-03.01.01 | F-03.01 | Depends on tenant/RBAC enforcement
-BACKLOG | S-03.02.01 | F-03.02 | Depends on S-03.01.01
+DONE | S-03.01.01 | F-03.01 | Engineering evidence in TRACEABILITY.md; realistic raw-data inspection UAT remains pending
+BACKLOG | S-03.02.01 | F-03.02 | Depends on S-03.01.01; dependency now engineering-DONE
 BACKLOG | S-03.03.01 | F-03.03 | Depends on identity + canonical event model
 BACKLOG | S-04.01.01 | F-04.01 | Depends on canonical events + identity resolution
 BACKLOG | S-04.02.01 | F-04.02 | Depends on work graph + retrieval evaluation
@@ -32,35 +32,29 @@ DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external
 
 ## Sprint planning
 
-Increment 3 goal: **an authorised admin can create, inspect and safely revoke a scoped external connection without storing plaintext credentials in PostgreSQL, while connector workers have persisted health and sync-cursor state.**
+Increment 4 goal: **an authorised admin can install Slack, explicitly select public/private channels, and have signed Slack messages/backfill pages land exactly once as permission-labelled raw evidence without ingesting DMs.**
 
-Vertical slice: integration schema -> AWS Secrets Manager reference -> create/list/read/revoke API -> sync-state helpers -> negative security/error tests -> migration/rollback -> docs.
+Vertical slice: Slack OAuth/state protection -> channel discovery/authorisation -> raw event schema -> signed webhook -> retry idempotency -> source visibility/ACL capture -> resumable one-page backfill -> tests/migration/docs/UAT script.
 
-## Increment 3 review
+## Increment 4 review
 
-- AWS Secrets Manager is the first production credential backend; PostgreSQL stores only a secret reference and non-secret connection metadata.
-- Owner/Admin can create, inspect and revoke connections through the central `integration.manage` permission; members are denied and cross-tenant access is hidden.
-- Duplicate organisation/provider/external-account connections are rejected before another secret is created.
-- Connector workers have one syncability guard plus persisted health, opaque cursor, last-sync timestamp and bounded error-code state.
-- Revocation is fail-closed: the connection leaves ACTIVE before AWS deletion is attempted; deletion failure leaves `REVOKE_FAILED`, which remains non-syncable.
-- Database failure after secret creation triggers best-effort orphan-secret retirement.
-- CI uses fake secret-store/AWS clients and therefore requires no real AWS credentials.
-- Backend CI passed lint and 46 tests on GitHub Actions run `34032491893`.
-- Delivery Verifier passed on run `34032491900` before engineering-DONE was claimed.
-- F-02.01 remains `UAT_PENDING` until real-data backend and manual frontend validation are recorded.
-
-## Increment 2 review
-
-- One Brain-owned role matrix covers owner, admin, executive, manager, member and guest.
-- Restricted resources require both role capability and an explicit user ACL grant.
-- Admin privilege escalation is blocked; only owners may assign owner/admin roles.
-- Authorization denial and ACL changes emit structured security events.
-- Slack DMs are excluded from MVP and private channels require explicit opt-in.
-- Backend CI passed lint and 34 tests before merge.
+- Slack OAuth uses a signed, expiring state containing organisation/user identifiers and re-checks the user's current `integration.manage` permission at callback time.
+- Required bot scopes are limited to channel/group read + history; direct-message scopes are not requested.
+- Admins explicitly authorise channels; the app must be a channel member first. DMs/MPDMs are rejected.
+- Private-channel authorisation records Slack member IDs as source ACL evidence and membership join/leave events update that state.
+- Slack Events API requests are HMAC-verified against the exact raw body before JSON parsing and rejected outside a five-minute timestamp window.
+- Live Slack payload bytes are stored exactly with SHA-256 provenance, source visibility, source ACL, source event ID and processing state.
+- Slack retries are idempotent on `(integration_connection_id, source_event_id)`.
+- History backfill is cursor-resumable, page-bounded, and replay-safe using deterministic per-message source IDs.
+- PostgreSQL is the durable raw-ingestion boundary in this increment; no premature queue/Slack SDK dependency was added.
+- Alembic revision `20260906_0005` has an explicit downgrade.
+- Backend CI passed lint and 62 tests on GitHub Actions run `34034605245`.
+- Delivery Verifier passed on run `34034605246` before engineering-DONE was claimed.
+- F-02.02 and F-03.01 remain `UAT_PENDING`; they are not called passed/accepted until real Slack/data and frontend/manual UAT are recorded.
 
 ## Session-open self-audit
 
-- Four stories are engineering-DONE; all corresponding feature acceptance remains tracked separately in UAT.md.
-- OQ-003 is resolved: AWS Secrets Manager is the first production secret backend.
+- Six stories are engineering-DONE; user acceptance remains independently tracked in UAT.md.
 - Current WIP count: 0.
-- Slack/GitHub ingestion is not yet pulled because the raw-event story must be sequenced with the first connector vertical slice.
+- No additional story is silently pulled by this evidence update.
+- The next dependency-unlocked data story is S-03.02.01 canonical event model; GitHub S-02.03.01 is also now eligible for refinement.

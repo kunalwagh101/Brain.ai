@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     workos_audience: str | None = None
     aws_region: str = "us-east-1"
     secrets_prefix: str = "brain"
+    slack_client_id: str | None = None
+    slack_client_secret: str | None = None
+    slack_signing_secret: str | None = None
+    slack_redirect_uri: str | None = None
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -34,6 +38,13 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_safety(self) -> "Settings":
+        oauth_values = (self.slack_client_id, self.slack_client_secret, self.slack_redirect_uri)
+        if any(oauth_values) and not all(oauth_values):
+            raise ValueError(
+                "BRAIN_SLACK_CLIENT_ID, BRAIN_SLACK_CLIENT_SECRET and "
+                "BRAIN_SLACK_REDIRECT_URI must be configured together"
+            )
+
         if self.environment.lower() == "production":
             if self.app_secret == "dev-only-change-me":
                 raise ValueError("BRAIN_APP_SECRET must be changed in production")

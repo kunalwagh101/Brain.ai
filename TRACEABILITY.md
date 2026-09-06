@@ -8,10 +8,10 @@ This file is the engineering evidence index. A row is completed only after its s
 | S-01.02.01 | E-01 | real authentication | backend/tests/test_auth.py | backend/app/auth.py | DONE |
 | S-01.03.01 | E-01 | RBAC/ACL before retrieval | backend/tests/test_permissions.py + backend/tests/test_organizations.py | backend/app/permissions.py + backend/app/routes/organizations.py | DONE |
 | S-02.01.01 | E-02 | scoped integration lifecycle | backend/tests/test_integrations.py + backend/tests/test_secrets.py | backend/app/routes/integrations.py + backend/app/secrets.py | DONE |
-| S-02.02.01 | E-02 | Slack ingestion | pending | pending | BACKLOG |
+| S-02.02.01 | E-02 | Slack ingestion | backend/tests/test_slack.py | backend/app/routes/slack_oauth.py + backend/app/routes/slack_channels.py + backend/app/routes/slack_webhooks.py | DONE |
 | S-02.03.01 | E-02 | GitHub ingestion | pending | pending | BACKLOG |
 | S-02.04.01 | E-02 | meeting/document evidence | pending | pending | BACKLOG |
-| S-03.01.01 | E-03 | raw durable/idempotent ingestion | pending | pending | BACKLOG |
+| S-03.01.01 | E-03 | raw durable/idempotent ingestion | backend/tests/test_raw_events.py + backend/tests/test_slack.py | backend/app/raw_events.py + backend/app/models.py | DONE |
 | S-03.02.01 | E-03 | canonical event model | pending | pending | BACKLOG |
 | S-03.03.01 | E-03 | identity resolution | pending | pending | BACKLOG |
 | S-04.01.01 | E-04 | work graph | pending | pending | BACKLOG |
@@ -57,3 +57,17 @@ command: cd backend && pytest -q
 result: 46 passed (GitHub Actions run 34032491893, 2026-09-06)
 code: backend/app/routes/integrations.py
 commit: 906985fad5c5cbf8a5419d94f3200cef0b259ae7
+
+EVIDENCE S-02.02.01
+tests: backend/tests/test_slack.py::test_signed_authorized_event_is_stored_once_with_exact_payload
+command: cd backend && pytest -q
+result: 62 passed (GitHub Actions run 34034605245, 2026-09-06)
+code: backend/app/routes/slack_webhooks.py
+commit: e75d9864fcf81331d332ae8a6959b79650887299
+
+EVIDENCE S-03.01.01
+tests: backend/tests/test_raw_events.py::test_raw_event_preserves_exact_bytes_and_checksum
+command: cd backend && pytest -q
+result: 62 passed (GitHub Actions run 34034605245, 2026-09-06)
+code: backend/app/raw_events.py
+commit: e75d9864fcf81331d332ae8a6959b79650887299
