@@ -6,11 +6,15 @@ from app.models import IntegrationConnection, IntegrationHealth, IntegrationStat
 
 
 class IntegrationNotSyncableError(RuntimeError):
-    pass
+    """Raised when a connector attempts to use an inactive connection."""
 
 
 def connection_can_sync(connection: IntegrationConnection) -> bool:
-    return connection.status == IntegrationStatus.ACTIVE and bool(connection.secret_ref)
+    if connection.status != IntegrationStatus.ACTIVE:
+        return False
+    if connection.provider == "github":
+        return bool(connection.external_account_id)
+    return bool(connection.secret_ref)
 
 
 def ensure_connection_can_sync(connection: IntegrationConnection) -> None:
