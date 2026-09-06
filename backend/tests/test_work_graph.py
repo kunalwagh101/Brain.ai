@@ -23,6 +23,7 @@ from app.work_graph import (
     create_manual_edge,
     create_manual_node,
     project_canonical_event,
+    sync_source_identity_node,
     traverse_work_graph,
 )
 from app.work_graph_models import (
@@ -178,6 +179,74 @@ def test_slack_projection_is_typed_and_idempotent(db_session: Session) -> None:
     assert all(edge.evidence_state == WorkGraphEvidenceState.VERIFIED for edge in edges)
 
 
+def test_identity_graph_resolution_is_reversible_without_stale_links(
+    db_session: Session,
+) -> None:
+    organization, owner, member = _seed_org(db_session, "identity-graph")
+    identity = SourceIdentity(
+        organization_id=organization.id,
+        provider="slack",
+        external_id="U-IDENTITY",
+        display_name="Identity",
+        email=None,
+        email_verified=False,
+        state=SourceIdentityState.RESOLVED,
+        resolved_user_id=owner.id,
+        resolution_method="manual",
+        first_seen_at=datetime.now(UTC),
+        last_seen_at=datetime.now(UTC),
+    )
+    db_session.add(identity)
+    db_session.commit()
+    db_session.refresh(identity)
+
+    source_node = sync_source_identity_node(db_session, identity)
+    first_edge = db_session.scalar(
+        select(WorkGraphEdge).where(
+            WorkGraphEdge.source_node_id == source_node.id,
+            WorkGraphEdge.edge_type == WorkGraphEdgeType.RESOLVES_TO,
+        )
+    )
+    assert first_edge is not None
+    first_target = db_session.get(WorkGraphNode, first_edge.target_node_id)
+    assert first_target is not None
+    assert first_target.user_id == owner.id
+
+    identity.resolved_user_id = member.id
+    identity.resolution_method = "manual"
+    db_session.commit()
+    sync_source_identity_node(db_session, identity)
+
+    edges = list(
+        db_session.scalars(
+            select(WorkGraphEdge).where(
+                WorkGraphEdge.source_node_id == source_node.id,
+                WorkGraphEdge.edge_type == WorkGraphEdgeType.RESOLVES_TO,
+            )
+        )
+    )
+    assert len(edges) == 1
+    reassigned_target = db_session.get(WorkGraphNode, edges[0].target_node_id)
+    assert reassigned_target is not None
+    assert reassigned_target.user_id == member.id
+
+    identity.resolved_user_id = None
+    identity.resolution_method = None
+    identity.state = SourceIdentityState.UNRESOLVED
+    db_session.commit()
+    sync_source_identity_node(db_session, identity)
+
+    assert (
+        db_session.scalar(
+            select(WorkGraphEdge).where(
+                WorkGraphEdge.source_node_id == source_node.id,
+                WorkGraphEdge.edge_type == WorkGraphEdgeType.RESOLVES_TO,
+            )
+        )
+        is None
+    )
+
+
 def test_private_slack_graph_uses_current_membership_not_historical_acl(
     db_session: Session,
 ) -> None:
@@ -251,7 +320,7 @@ def test_private_slack_graph_uses_current_membership_not_historical_acl(
     assert member_slack_id in track.source_acl
 
 
-def test_private_github_graph_fails_closed_until_explicit_grant(db_session: Session) -> None:
+def test_private_github_graph_requires_grant_even_for_owner(db_session: Session) -> None:
     organization, owner, member = _seed_org(db_session, "github-private")
     event = _canonical_event(
         db_session,
@@ -270,7 +339,17 @@ def test_private_github_graph_fails_closed_until_explicit_grant(db_session: Sess
     )
     assert project is not None
 
-    denied = traverse_work_graph(
+    owner_denied = traverse_work_graph(
+        db_session,
+        organization_id=organization.id,
+        start_node_id=project.id,
+        user_id=owner.id,
+        role=MembershipRole.OWNER,
+        depth=2,
+    )
+    assert owner_denied is None
+
+    member_denied = traverse_work_graph(
         db_session,
         organization_id=organization.id,
         start_node_id=project.id,
@@ -278,7 +357,7 @@ def test_private_github_graph_fails_closed_until_explicit_grant(db_session: Sess
         role=MembershipRole.MEMBER,
         depth=2,
     )
-    assert denied is None
+    assert member_denied is None
 
     db_session.add(
         ResourceGrant(
