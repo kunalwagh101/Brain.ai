@@ -1,4 +1,5 @@
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -13,7 +14,11 @@ from app.schemas import MembershipCreate, MembershipRead, OrganizationCreate, Or
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
 
-def _membership_for(db: Session, organization_id: uuid.UUID, user_id: uuid.UUID) -> Membership | None:
+def _membership_for(
+    db: Session,
+    organization_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> Membership | None:
     return db.scalar(
         select(Membership).where(
             Membership.organization_id == organization_id,
@@ -39,8 +44,8 @@ def _require_owner(db: Session, organization_id: uuid.UUID, user_id: uuid.UUID) 
 @router.post("", response_model=OrganizationRead, status_code=status.HTTP_201_CREATED)
 def create_organization(
     payload: OrganizationCreate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> Organization:
     organization = Organization(name=payload.name.strip(), slug=payload.slug)
     db.add(organization)
@@ -56,7 +61,10 @@ def create_organization(
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Organization slug exists") from None
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Organization slug exists",
+        ) from None
     db.refresh(organization)
     return organization
 
@@ -64,8 +72,8 @@ def create_organization(
 @router.get("/{organization_id}", response_model=OrganizationRead)
 def read_organization(
     organization_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> Organization:
     _require_member(db, organization_id, current_user.id)
     organization = db.get(Organization, organization_id)
@@ -82,8 +90,8 @@ def read_organization(
 def create_membership(
     organization_id: uuid.UUID,
     payload: MembershipCreate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> Membership:
     _require_owner(db, organization_id, current_user.id)
     target = db.scalar(select(User).where(User.email == payload.user_email.strip().lower()))
@@ -103,7 +111,10 @@ def create_membership(
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Membership already exists") from None
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Membership already exists",
+        ) from None
     db.refresh(membership)
     return membership
 
@@ -111,8 +122,8 @@ def create_membership(
 @router.get("/{organization_id}/memberships", response_model=list[MembershipRead])
 def list_memberships(
     organization_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> list[Membership]:
     _require_member(db, organization_id, current_user.id)
     return list(

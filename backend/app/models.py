@@ -1,6 +1,6 @@
-import enum
 import uuid
 from datetime import datetime
+from enum import StrEnum
 
 from sqlalchemy import DateTime, Enum, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -10,7 +10,7 @@ class Base(DeclarativeBase):
     pass
 
 
-class MembershipRole(str, enum.Enum):
+class MembershipRole(StrEnum):
     OWNER = "owner"
     ADMIN = "admin"
     EXECUTIVE = "executive"

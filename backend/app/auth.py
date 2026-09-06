@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import Annotated
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -70,10 +71,13 @@ def verify_access_token(token: str) -> AuthPrincipal:
 
 
 def get_current_principal(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
 ) -> AuthPrincipal:
     if credentials is None or credentials.scheme.lower() != "bearer":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+        )
     try:
         return verify_access_token(credentials.credentials)
     except RuntimeError as exc:
@@ -82,7 +86,10 @@ def get_current_principal(
             detail="Authentication service is not configured",
         ) from exc
     except (InvalidTokenError, ValueError, TypeError):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token") from None
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid access token",
+        ) from None
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -91,8 +98,8 @@ def get_current_principal(
 
 
 def get_current_user(
-    principal: AuthPrincipal = Depends(get_current_principal),
-    db: Session = Depends(get_db),
+    principal: Annotated[AuthPrincipal, Depends(get_current_principal)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> User:
     identity = db.scalar(
         select(ExternalIdentity).where(
