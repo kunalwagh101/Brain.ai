@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 
-from sqlalchemy import and_, cast, func, literal, or_, select, tuple_
+from sqlalchemy import and_, cast, func, literal, or_, select, tuple_, update
 from sqlalchemy.orm import Session
 
 from app.embeddings import EmbeddingClient, EmbeddingError
@@ -21,8 +21,6 @@ from app.models import (
 )
 from app.search_models import SearchDocument, SearchEmbeddingStatus, Vector, vector_literal
 from app.work_graph_models import WorkGraphNode
-
-PUBLIC_VISIBILITIES = frozenset({"organization", "public_channel", "public_repository"})
 
 
 class SearchMode(StrEnum):
@@ -73,6 +71,7 @@ def _github_text(raw: RawEvent, payload: dict[str, object]) -> str:
             _dict(payload.get("workflow_run")),
             _dict(payload.get("repository")),
         ]
+
     fields = ("title", "body", "name", "message", "description", "state", "ref")
     values: list[str] = []
     for obj in objects:
@@ -80,6 +79,7 @@ def _github_text(raw: RawEvent, payload: dict[str, object]) -> str:
             value = _text(obj.get(field))
             if value and value not in values:
                 values.append(value)
+
     commits = payload.get("commits")
     if isinstance(commits, list):
         for commit in commits[:100]:
@@ -100,6 +100,35 @@ def _searchable_content(event: CanonicalEvent, raw: RawEvent) -> tuple[str, str]
     return title, content[:100_000]
 
 
+def _reset_embedding(document: SearchDocument) -> None:
+    document.embedding = None
+    document.embedding_model = None
+    document.embedding_status = SearchEmbeddingStatus.PENDING
+    document.embedding_attempts = 0
+    document.next_retry_at = None
+    document.claimed_at = None
+    document.last_error_code = None
+
+
+def _hide_deleted_object_versions(db: Session, event: CanonicalEvent) -> None:
+    previous = list(
+        db.scalars(
+            select(SearchDocument).where(
+                SearchDocument.organization_id == event.organization_id,
+                SearchDocument.integration_connection_id
+                == event.integration_connection_id,
+                SearchDocument.source_provider == event.source_provider,
+                SearchDocument.object_type == event.object_type,
+                SearchDocument.object_external_id == event.object_external_id,
+            )
+        )
+    )
+    for document in previous:
+        document.is_deleted = True
+        document.content = ""
+        _reset_embedding(document)
+
+
 def project_search_document(db: Session, event: CanonicalEvent) -> SearchDocument:
     existing = db.scalar(
         select(SearchDocument).where(SearchDocument.canonical_event_id == event.id)
@@ -118,23 +147,7 @@ def project_search_document(db: Session, event: CanonicalEvent) -> SearchDocumen
     deleted = event.action == "deleted" or event.event_type.endswith(".deleted")
 
     if deleted:
-        prior = list(
-            db.scalars(
-                select(SearchDocument).where(
-                    SearchDocument.organization_id == event.organization_id,
-                    SearchDocument.integration_connection_id == event.integration_connection_id,
-                    SearchDocument.source_provider == event.source_provider,
-                    SearchDocument.object_type == event.object_type,
-                    SearchDocument.object_external_id == event.object_external_id,
-                )
-            )
-        )
-        for document in prior:
-            document.is_deleted = True
-            document.content = ""
-            document.embedding = None
-            document.embedding_model = None
-            document.embedding_status = SearchEmbeddingStatus.PENDING
+        _hide_deleted_object_versions(db, event)
 
     if existing is None:
         existing = SearchDocument(
@@ -146,7 +159,9 @@ def project_search_document(db: Session, event: CanonicalEvent) -> SearchDocumen
             source_visibility=event.source_visibility,
             source_acl=list(event.source_acl),
             channel_id=channel_id if isinstance(channel_id, str) else None,
-            repository_id=str(repository_id) if repository_id not in (None, "") else None,
+            repository_id=(
+                str(repository_id) if repository_id not in (None, "") else None
+            ),
             object_type=event.object_type,
             object_external_id=event.object_external_id,
             title=title,
@@ -164,21 +179,20 @@ def project_search_document(db: Session, event: CanonicalEvent) -> SearchDocumen
         db.add(existing)
     else:
         changed = existing.title != title or existing.content != content
-        existing.work_graph_node_id = evidence_node.id if evidence_node else existing.work_graph_node_id
+        if evidence_node is not None:
+            existing.work_graph_node_id = evidence_node.id
         existing.source_visibility = event.source_visibility
         existing.source_acl = list(event.source_acl)
         existing.channel_id = channel_id if isinstance(channel_id, str) else None
-        existing.repository_id = str(repository_id) if repository_id not in (None, "") else None
+        existing.repository_id = (
+            str(repository_id) if repository_id not in (None, "") else None
+        )
         existing.title = title
         existing.content = "" if deleted else content
         existing.is_deleted = deleted
         if changed and not deleted:
-            existing.embedding = None
-            existing.embedding_model = None
-            existing.embedding_status = SearchEmbeddingStatus.PENDING
-            existing.embedding_attempts = 0
-            existing.next_retry_at = None
-            existing.last_error_code = None
+            _reset_embedding(existing)
+
     db.commit()
     db.refresh(existing)
     return existing
@@ -206,6 +220,7 @@ def reconcile_search_documents(
     )
     for event in events:
         project_search_document(db, event)
+
     remaining = db.scalar(
         select(func.count())
         .select_from(CanonicalEvent)
@@ -217,13 +232,13 @@ def reconcile_search_documents(
     return len(events), int(remaining or 0)
 
 
-def _authorization_predicate(
+def _live_slack_channels(
     db: Session,
     *,
     organization_id: uuid.UUID,
     user_id: uuid.UUID,
-):
-    slack_ids = list(
+) -> tuple[list[tuple[uuid.UUID, str]], list[tuple[uuid.UUID, str]]]:
+    slack_ids = set(
         db.scalars(
             select(SourceIdentity.external_id).where(
                 SourceIdentity.organization_id == organization_id,
@@ -247,20 +262,33 @@ def _authorization_predicate(
     private_channels = [
         (row.integration_connection_id, row.channel_id)
         for row in channel_rows
-        if row.is_private and any(source_id in row.member_ids for source_id in slack_ids)
+        if row.is_private
+        and any(source_id in row.member_ids for source_id in slack_ids)
     ]
+    return public_channels, private_channels
 
+
+def _live_resource_grants(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> tuple[list[str], list[uuid.UUID]]:
     grants = list(
         db.scalars(
             select(ResourceGrant).where(
                 ResourceGrant.organization_id == organization_id,
                 ResourceGrant.user_id == user_id,
-                ResourceGrant.access.in_((ResourceAccessLevel.READ, ResourceAccessLevel.WRITE)),
+                ResourceGrant.access.in_(
+                    (ResourceAccessLevel.READ, ResourceAccessLevel.WRITE)
+                ),
             )
         )
     )
-    github_repository_ids = [
-        grant.resource_id for grant in grants if grant.resource_type == "github.repository"
+    repository_ids = [
+        grant.resource_id
+        for grant in grants
+        if grant.resource_type == "github.repository"
     ]
     graph_node_ids: list[uuid.UUID] = []
     for grant in grants:
@@ -270,12 +298,36 @@ def _authorization_predicate(
             graph_node_ids.append(uuid.UUID(grant.resource_id))
         except ValueError:
             continue
+    return repository_ids, graph_node_ids
 
-    slack_tuple = tuple_(SearchDocument.integration_connection_id, SearchDocument.channel_id)
+
+def _authorization_predicate(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    user_id: uuid.UUID,
+):
+    public_channels, private_channels = _live_slack_channels(
+        db,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    repository_ids, graph_node_ids = _live_resource_grants(
+        db,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+
+    slack_tuple = tuple_(
+        SearchDocument.integration_connection_id,
+        SearchDocument.channel_id,
+    )
     clauses = [
         and_(
             SearchDocument.source_provider != "slack",
-            SearchDocument.source_visibility.in_(("organization", "public_repository")),
+            SearchDocument.source_visibility.in_(
+                ("organization", "public_repository")
+            ),
         )
     ]
     if public_channels:
@@ -294,9 +346,10 @@ def _authorization_predicate(
                 slack_tuple.in_(private_channels),
             )
         )
+
     restricted_access = []
-    if github_repository_ids:
-        restricted_access.append(SearchDocument.repository_id.in_(github_repository_ids))
+    if repository_ids:
+        restricted_access.append(SearchDocument.repository_id.in_(repository_ids))
     if graph_node_ids:
         restricted_access.append(SearchDocument.work_graph_node_id.in_(graph_node_ids))
     if restricted_access:
@@ -343,27 +396,42 @@ def _keyword_hits(
     query: str,
     limit: int,
 ) -> list[SearchHit]:
-    base = _base_query(db, organization_id=organization_id, user_id=user_id)
+    base = _base_query(
+        db,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
     if db.bind is not None and db.bind.dialect.name == "postgresql":
         ts_query = func.plainto_tsquery("simple", query)
         vector = func.to_tsvector(
             "simple",
-            func.coalesce(SearchDocument.title, "") + literal(" ") + func.coalesce(SearchDocument.content, ""),
+            func.coalesce(SearchDocument.title, "")
+            + literal(" ")
+            + func.coalesce(SearchDocument.content, ""),
         )
         score = func.ts_rank_cd(vector, ts_query)
         rows = db.execute(
             base.add_columns(score.label("rank"))
             .where(vector.op("@@")(ts_query))
-            .order_by(score.desc(), SearchDocument.occurred_at.desc().nullslast())
+            .order_by(
+                score.desc(),
+                SearchDocument.occurred_at.desc().nullslast(),
+            )
             .limit(limit)
         ).all()
-        return [SearchHit(document=row[0], score=float(row.rank or 0.0)) for row in rows]
+        return [
+            SearchHit(document=row[0], score=float(row.rank or 0.0))
+            for row in rows
+        ]
 
     pattern = f"%{query}%"
     documents = list(
         db.scalars(
             base.where(
-                or_(SearchDocument.title.ilike(pattern), SearchDocument.content.ilike(pattern))
+                or_(
+                    SearchDocument.title.ilike(pattern),
+                    SearchDocument.content.ilike(pattern),
+                )
             )
             .order_by(SearchDocument.occurred_at.desc())
             .limit(limit)
@@ -402,7 +470,11 @@ def _semantic_hits(
     model: str,
     limit: int,
 ) -> list[SearchHit]:
-    base = _base_query(db, organization_id=organization_id, user_id=user_id).where(
+    base = _base_query(
+        db,
+        organization_id=organization_id,
+        user_id=user_id,
+    ).where(
         SearchDocument.embedding.is_not(None),
         SearchDocument.embedding_status == SearchEmbeddingStatus.READY,
         SearchDocument.embedding_model == model,
@@ -417,7 +489,10 @@ def _semantic_hits(
             .limit(limit)
         ).all()
         return [
-            SearchHit(document=row[0], score=max(0.0, 1.0 - float(row.distance)))
+            SearchHit(
+                document=row[0],
+                score=max(0.0, 1.0 - float(row.distance)),
+            )
             for row in rows
         ]
 
@@ -452,13 +527,25 @@ def search_documents(
         limit=max(limit * 3, 20),
     )
     if mode == SearchMode.KEYWORD:
-        return SearchResponseData(hits=keyword[:limit], semantic_status="not_requested")
+        return SearchResponseData(
+            hits=keyword[:limit],
+            semantic_status="not_requested",
+        )
     if embedding_client is None or embedding_model is None:
-        return SearchResponseData(hits=keyword[:limit], semantic_status="unconfigured")
+        return SearchResponseData(
+            hits=keyword[:limit],
+            semantic_status="unconfigured",
+        )
+
     try:
-        query_embedding = embedding_client.embed([query], model=embedding_model)[0]
+        query_embedding = embedding_client.embed(
+            [query], model=embedding_model
+        )[0]
     except (EmbeddingError, IndexError):
-        return SearchResponseData(hits=keyword[:limit], semantic_status="degraded")
+        return SearchResponseData(
+            hits=keyword[:limit],
+            semantic_status="degraded",
+        )
 
     semantic = _semantic_hits(
         db,
@@ -471,16 +558,102 @@ def search_documents(
     scores: dict[uuid.UUID, float] = {}
     documents: dict[uuid.UUID, SearchDocument] = {}
     for rank, hit in enumerate(keyword, start=1):
-        scores[hit.document.id] = scores.get(hit.document.id, 0.0) + 1.0 / (60 + rank)
+        scores[hit.document.id] = (
+            scores.get(hit.document.id, 0.0) + 1.0 / (60 + rank)
+        )
         documents[hit.document.id] = hit.document
     for rank, hit in enumerate(semantic, start=1):
-        scores[hit.document.id] = scores.get(hit.document.id, 0.0) + 1.0 / (60 + rank)
+        scores[hit.document.id] = (
+            scores.get(hit.document.id, 0.0) + 1.0 / (60 + rank)
+        )
         documents[hit.document.id] = hit.document
-    ordered = sorted(scores, key=scores.get, reverse=True)
+
+    ordered = sorted(
+        scores,
+        key=lambda document_id: scores[document_id],
+        reverse=True,
+    )
     return SearchResponseData(
-        hits=[SearchHit(document=documents[item], score=scores[item]) for item in ordered[:limit]],
+        hits=[
+            SearchHit(
+                document=documents[document_id],
+                score=scores[document_id],
+            )
+            for document_id in ordered[:limit]
+        ],
         semantic_status="ready",
     )
+
+
+def _recover_stale_claims(db: Session, *, now: datetime) -> None:
+    stale_before = now - timedelta(minutes=10)
+    db.execute(
+        update(SearchDocument)
+        .where(
+            SearchDocument.embedding_status == SearchEmbeddingStatus.PROCESSING,
+            SearchDocument.claimed_at.is_not(None),
+            SearchDocument.claimed_at < stale_before,
+        )
+        .values(
+            embedding_status=SearchEmbeddingStatus.FAILED,
+            claimed_at=None,
+            next_retry_at=now,
+            last_error_code="stale_claim",
+        )
+    )
+    db.commit()
+
+
+def _claim_embedding_batch(
+    db: Session,
+    *,
+    now: datetime,
+    limit: int,
+    max_attempts: int,
+) -> list[SearchDocument]:
+    statement = (
+        select(SearchDocument)
+        .where(
+            SearchDocument.is_deleted.is_(False),
+            SearchDocument.embedding_attempts < max_attempts,
+            SearchDocument.embedding_status.in_(
+                (SearchEmbeddingStatus.PENDING, SearchEmbeddingStatus.FAILED)
+            ),
+            or_(
+                SearchDocument.next_retry_at.is_(None),
+                SearchDocument.next_retry_at <= now,
+            ),
+        )
+        .order_by(SearchDocument.created_at, SearchDocument.id)
+        .limit(limit)
+    )
+    if db.bind is not None and db.bind.dialect.name == "postgresql":
+        statement = statement.with_for_update(skip_locked=True)
+
+    documents = list(db.scalars(statement))
+    for document in documents:
+        document.embedding_status = SearchEmbeddingStatus.PROCESSING
+        document.claimed_at = now
+        document.embedding_attempts += 1
+    if documents:
+        db.commit()
+    return documents
+
+
+def _mark_embedding_failure(
+    db: Session,
+    documents: list[SearchDocument],
+    error_code: str,
+) -> None:
+    failure_time = datetime.now(UTC)
+    for document in documents:
+        document.embedding_status = SearchEmbeddingStatus.FAILED
+        document.claimed_at = None
+        document.last_error_code = error_code[:128]
+        exponent = max(0, document.embedding_attempts - 1)
+        delay = min(3600, 60 * (2**exponent))
+        document.next_retry_at = failure_time + timedelta(seconds=delay)
+    db.commit()
 
 
 def process_embedding_batch(
@@ -492,40 +665,15 @@ def process_embedding_batch(
     max_attempts: int = 5,
 ) -> tuple[int, int]:
     now = datetime.now(UTC)
-    stale_before = now - timedelta(minutes=10)
-    db.query(SearchDocument).filter(
-        SearchDocument.embedding_status == SearchEmbeddingStatus.PROCESSING,
-        SearchDocument.claimed_at < stale_before,
-    ).update(
-        {
-            SearchDocument.embedding_status: SearchEmbeddingStatus.FAILED,
-            SearchDocument.claimed_at: None,
-            SearchDocument.next_retry_at: now,
-            SearchDocument.last_error_code: "stale_claim",
-        },
-        synchronize_session=False,
+    _recover_stale_claims(db, now=now)
+    documents = _claim_embedding_batch(
+        db,
+        now=now,
+        limit=limit,
+        max_attempts=max_attempts,
     )
-    db.commit()
-
-    criteria = [
-        SearchDocument.is_deleted.is_(False),
-        SearchDocument.embedding_attempts < max_attempts,
-        SearchDocument.embedding_status.in_(
-            (SearchEmbeddingStatus.PENDING, SearchEmbeddingStatus.FAILED)
-        ),
-        or_(SearchDocument.next_retry_at.is_(None), SearchDocument.next_retry_at <= now),
-    ]
-    stmt = select(SearchDocument).where(*criteria).order_by(SearchDocument.created_at).limit(limit)
-    if db.bind is not None and db.bind.dialect.name == "postgresql":
-        stmt = stmt.with_for_update(skip_locked=True)
-    documents = list(db.scalars(stmt))
     if not documents:
         return 0, 0
-    for document in documents:
-        document.embedding_status = SearchEmbeddingStatus.PROCESSING
-        document.claimed_at = now
-        document.embedding_attempts += 1
-    db.commit()
 
     try:
         vectors = embedding_client.embed(
@@ -535,14 +683,7 @@ def process_embedding_batch(
         if len(vectors) != len(documents):
             raise EmbeddingError("embedding_response_count_mismatch")
     except EmbeddingError as exc:
-        failure_time = datetime.now(UTC)
-        for document in documents:
-            document.embedding_status = SearchEmbeddingStatus.FAILED
-            document.claimed_at = None
-            document.last_error_code = str(exc)[:128]
-            delay = min(3600, 60 * (2 ** max(0, document.embedding_attempts - 1)))
-            document.next_retry_at = failure_time + timedelta(seconds=delay)
-        db.commit()
+        _mark_embedding_failure(db, documents, str(exc))
         return 0, len(documents)
 
     for document, vector in zip(documents, vectors, strict=True):
