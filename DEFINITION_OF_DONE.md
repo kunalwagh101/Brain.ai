@@ -13,9 +13,9 @@ A story may enter `READY` only when all are true:
 - migration/rollback impact is known when state changes;
 - leading indicator and business value are identified.
 
-## Definition of Done
+## Definition of Engineering Done
 
-A story may enter `DONE` only when all are true:
+A story may enter `DONE` on `BOARD.md` only when all are true:
 
 - [ ] production code implemented; no TODO/FIXME/NotImplemented/pass-stub/hardcoded production fixture inside the slice;
 - [ ] each acceptance criterion has a named automated test or an explicitly justified non-automatable check;
@@ -31,6 +31,19 @@ A story may enter `DONE` only when all are true:
 - [ ] `python scripts/verify_board.py` passes;
 - [ ] CI passes.
 
+`DONE` means **engineering-complete and automatically verified**. It does not mean the feature has passed user acceptance with realistic data.
+
+## Feature Acceptance / PASSED
+
+A feature may be described externally as **PASSED**, **fully tested**, or **accepted** only when `UAT.md` records both:
+
+- [ ] real-data backend validation in a deployed/test environment using realistic data and expected side-effect/permission/error checks;
+- [ ] manual frontend end-to-end validation through the actual user workflow, including loading, empty, error and success states where relevant;
+- [ ] defects found during UAT are fixed and the affected checks are rerun;
+- [ ] final acceptance decision is recorded with tester and date.
+
+Until then, the feature status is `UAT_PENDING` even when its engineering story is `DONE`.
+
 ## Evidence block format
 
 ```text
@@ -42,4 +55,4 @@ code: backend/app/organisations.py:1-120
 commit: <sha>
 ```
 
-No resolvable evidence means the item stays `IN_REVIEW`; it cannot be called DONE.
+No resolvable engineering evidence means the item stays `IN_REVIEW`; it cannot be called engineering-DONE.
