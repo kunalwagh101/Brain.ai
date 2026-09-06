@@ -6,7 +6,7 @@ Format: `STATUS | STORY_ID | FEATURE | NOTE`
 
 DONE | S-01.01.01 | F-01.01 | Evidence in TRACEABILITY.md; authenticated organisation ownership and membership boundary verified
 DONE | S-01.02.01 | F-01.02 | Evidence in TRACEABILITY.md; WorkOS JWT identity verification and Brain identity linking verified
-IN_PROGRESS | S-01.03.01 | F-01.03 | Increment 2: central RBAC policy + restricted-resource ACL + deny-before-handler guard + security audit hooks
+DONE | S-01.03.01 | F-01.03 | Evidence in TRACEABILITY.md; central RBAC + restricted-resource ACL + pre-handler denial verified
 BACKLOG | S-02.01.01 | F-02.01 | Depends on S-01.03.01 and OQ-003
 BACKLOG | S-02.02.01 | F-02.02 | Depends on integration framework and raw event model
 BACKLOG | S-02.03.01 | F-02.03 | Depends on integration framework and raw event model
@@ -36,6 +36,18 @@ Increment 2 goal: **every protected organisation or resource action passes throu
 
 Vertical slice: role matrix -> organisation permission dependency -> resource ACL grants -> pre-handler resource guard -> negative permission tests -> security audit events.
 
+## Increment 2 review
+
+- One Brain-owned role matrix now covers owner, admin, executive, manager, member and guest.
+- Existing organisation and membership routes use reusable server-side permission dependencies instead of route-specific owner/member checks.
+- Restricted resources require both role capability and an explicit user ACL grant; owners/admins do not automatically bypass private-resource ACLs.
+- A WRITE grant implies READ; a READ grant does not imply WRITE; an ACL grant cannot exceed the user's role capability ceiling.
+- Non-members receive tenant-safe 404 responses, role-denied members receive 403, inactive users are rejected, and restricted resources without a grant return 404.
+- Admins can manage ordinary memberships but cannot assign owner/admin roles; only owners can create those privileged roles.
+- Authorization denial and ACL create/delete paths emit structured `brain.security` events without tokens, secrets or source content.
+- OQ-002 is resolved: Slack DMs are excluded from MVP and private channels require explicit opt-in.
+- Backend CI passed lint and 34 tests on implementation commit `65d0fbc4a3d843e81c1bd036febe7749a9409a8d`.
+
 ## Increment 1 review
 
 - WorkOS AuthKit selected as first managed auth authority while Brain keeps its own identity/permission domain.
@@ -48,6 +60,6 @@ Vertical slice: role matrix -> organisation permission dependency -> resource AC
 ## Session-open self-audit
 
 - Increment 1 is DONE and merged to main.
-- OQ-002 is resolved before RBAC implementation: Slack DMs excluded from MVP; private channels opt-in only.
-- Current WIP count: 1.
-- No integration story enters WIP until S-01.03.01 is verified DONE.
+- Increment 2 implementation lint/tests and the delivery verifier passed before S-01.03.01 moved to DONE.
+- Current WIP count: 0.
+- No integration story is silently pulled by this board update.
