@@ -20,7 +20,11 @@ from app.github import (
 )
 from app.models import IntegrationConnection, IntegrationHealth, IntegrationStatus, User
 from app.permissions import AuthorizationContext, Permission, authorize_organization
-from app.routes.github_common import active_github_installations, github_failure, manage_integrations
+from app.routes.github_common import (
+    active_github_installations,
+    github_failure,
+    manage_integrations,
+)
 from app.schemas import (
     GitHubConnectRequest,
     GitHubInstallationCandidate,
@@ -82,11 +86,17 @@ def github_oauth_callback(
             secret=settings.app_secret,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
 
     user = db.get(User, user_id)
     if user is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied",
+        )
     authorize_organization(
         db=db,
         organization_id=organization_id,
@@ -148,7 +158,10 @@ def connect_github_installation(
     github_api: Annotated[GitHubAPIClient, Depends(get_github_api_client)],
 ) -> IntegrationConnection:
     try:
-        selection = verify_selection_token(payload.selection_token, secret=settings.app_secret)
+        selection = verify_selection_token(
+            payload.selection_token,
+            secret=settings.app_secret,
+        )
         token_organization_id = uuid.UUID(str(selection["organization_id"]))
         token_user_id = uuid.UUID(str(selection["user_id"]))
         installation_id = int(selection["installation_id"])
@@ -160,7 +173,10 @@ def connect_github_installation(
             detail="Invalid GitHub installation selection",
         ) from exc
     if token_organization_id != organization_id or token_user_id != authorization.user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied",
+        )
 
     try:
         verified = github_api.get_app_installation(installation_id)
