@@ -10,6 +10,7 @@ def test_core_tables_are_registered() -> None:
         "memberships",
         "external_identities",
         "resource_grants",
+        "integration_connections",
     }
 
 
@@ -54,3 +55,19 @@ def test_resource_grant_scope_is_unique() -> None:
         "user_id",
         "access",
     ) in unique_columns
+
+
+def test_integration_connection_is_unique_per_tenant_provider_account() -> None:
+    connection = Base.metadata.tables["integration_connections"]
+    unique_columns = {
+        tuple(column.name for column in constraint.columns)
+        for constraint in connection.constraints
+        if isinstance(constraint, UniqueConstraint)
+    }
+    assert (
+        "organization_id",
+        "provider",
+        "external_account_id",
+    ) in unique_columns
+    assert "secret_ref" in connection.columns
+    assert "sync_cursor" in connection.columns
