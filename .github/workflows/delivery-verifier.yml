@@ -16,5 +16,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: Install evidence test runtime
+        run: python -m pip install -e "./backend[dev]"
       - name: Verify board, backlog and evidence
         run: python scripts/verify_board.py
