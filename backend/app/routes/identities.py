@@ -64,7 +64,8 @@ def list_source_identities(
         statement = statement.where(SourceIdentity.provider == provider.strip().lower())
     if identity_state:
         statement = statement.where(SourceIdentity.state == identity_state)
-    return list(statement.order_by(SourceIdentity.provider, SourceIdentity.external_id) and db.scalars(statement.order_by(SourceIdentity.provider, SourceIdentity.external_id)))
+    statement = statement.order_by(SourceIdentity.provider, SourceIdentity.external_id)
+    return list(db.scalars(statement))
 
 
 @router.get("/{identity_id}/history", response_model=list[IdentityResolutionHistoryRead])
