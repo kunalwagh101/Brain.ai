@@ -9,10 +9,10 @@ DONE | S-01.02.01 | F-01.02 | Engineering evidence in TRACEABILITY.md; UAT remai
 DONE | S-01.03.01 | F-01.03 | Engineering evidence in TRACEABILITY.md; UAT remains pending in UAT.md
 DONE | S-02.01.01 | F-02.01 | Engineering evidence in TRACEABILITY.md; real-data/frontend UAT remains pending
 DONE | S-02.02.01 | F-02.02 | Engineering evidence in TRACEABILITY.md; real Slack + frontend UAT remains pending
-BACKLOG | S-02.03.01 | F-02.03 | Depends on integration framework and raw event model; dependencies now engineering-DONE
+IN_PROGRESS | S-02.03.01 | F-02.03 | Increment 5: GitHub App webhook + repository backfill + source visibility into raw/canonical evidence
 BACKLOG | S-02.04.01 | F-02.04 | OQ-004 selects first provider
 DONE | S-03.01.01 | F-03.01 | Engineering evidence in TRACEABILITY.md; realistic raw-data inspection UAT remains pending
-BACKLOG | S-03.02.01 | F-03.02 | Depends on S-03.01.01; dependency now engineering-DONE
+IN_PROGRESS | S-03.02.01 | F-03.02 | Increment 5: versioned provider-neutral canonical events proven with Slack + GitHub
 BACKLOG | S-03.03.01 | F-03.03 | Depends on identity + canonical event model
 BACKLOG | S-04.01.01 | F-04.01 | Depends on canonical events + identity resolution
 BACKLOG | S-04.02.01 | F-04.02 | Depends on work graph + retrieval evaluation
@@ -32,9 +32,9 @@ DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external
 
 ## Sprint planning
 
-Increment 4 goal: **an authorised admin can install Slack, explicitly select public/private channels, and have signed Slack messages/backfill pages land exactly once as permission-labelled raw evidence without ingesting DMs.**
+Increment 5 goal: **authorised GitHub App activity and backfill land exactly once as raw evidence and are normalised into the same versioned canonical event contract used for Slack, with repository visibility and provenance preserved.**
 
-Vertical slice: Slack OAuth/state protection -> channel discovery/authorisation -> raw event schema -> signed webhook -> retry idempotency -> source visibility/ACL capture -> resumable one-page backfill -> tests/migration/docs/UAT script.
+Vertical slice: canonical event schema/normaliser -> Slack canonical mapping -> GitHub App connection contract -> GitHub HMAC webhook -> repository visibility mapping -> repository/PR/issue/commit/deployment backfill -> canonical processing -> tests/migration/docs/UAT.
 
 ## Increment 4 review
 
@@ -48,13 +48,13 @@ Vertical slice: Slack OAuth/state protection -> channel discovery/authorisation 
 - History backfill is cursor-resumable, page-bounded, and replay-safe using deterministic per-message source IDs.
 - PostgreSQL is the durable raw-ingestion boundary in this increment; no premature queue/Slack SDK dependency was added.
 - Alembic revision `20260906_0005` has an explicit downgrade.
-- Backend CI passed lint and 62 tests on GitHub Actions run `34034605245`.
-- Delivery Verifier passed on run `34034605246` before engineering-DONE was claimed.
+- Backend CI and Delivery Verifier passed on the final DONE-state commit before merge.
 - F-02.02 and F-03.01 remain `UAT_PENDING`; they are not called passed/accepted until real Slack/data and frontend/manual UAT are recorded.
 
 ## Session-open self-audit
 
 - Six stories are engineering-DONE; user acceptance remains independently tracked in UAT.md.
-- Current WIP count: 0.
-- No additional story is silently pulled by this evidence update.
-- The next dependency-unlocked data story is S-03.02.01 canonical event model; GitHub S-02.03.01 is also now eligible for refinement.
+- Current WIP count: 2 (at limit): S-02.03.01 and S-03.02.01.
+- GitHub webhook signatures must be validated against the unmodified request body before parsing; only subscribed/handled event types are accepted.
+- Canonicalisation must preserve source permissions and raw-event provenance; unsupported fields/events must be explicitly retained as metadata or quarantined, never silently discarded.
+- No third story may enter IN_PROGRESS until one of the two current stories leaves WIP.
