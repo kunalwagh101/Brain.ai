@@ -1,4 +1,3 @@
-import uuid
 from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
@@ -344,7 +343,10 @@ def test_member_cannot_manage_source_identities(client: TestClient, db_session: 
     assert response.status_code == 403
 
 
-def test_owner_can_reconcile_existing_canonical_actor(client: TestClient, db_session: Session) -> None:
+def test_owner_can_reconcile_existing_canonical_actor(
+    client: TestClient,
+    db_session: Session,
+) -> None:
     organization, owner, connection = _seed_org(db_session, "identity-reconcile")
     event = _canonical_event(
         db_session,
