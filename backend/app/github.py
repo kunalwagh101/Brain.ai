@@ -254,6 +254,8 @@ class GitHubAPIClient:
             method="POST",
         )
         payload = self._send(request)
+        if not isinstance(payload, dict):
+            raise GitHubTransportError("GitHub returned invalid OAuth data")
         token = payload.get("access_token")
         if not isinstance(token, str) or not token:
             error = payload.get("error")
@@ -286,6 +288,8 @@ class GitHubAPIClient:
             method="POST",
         )
         payload = self._send(request)
+        if not isinstance(payload, dict):
+            raise GitHubTransportError("GitHub returned invalid installation token data")
         installation_token = payload.get("token")
         if not isinstance(installation_token, str) or not installation_token:
             raise GitHubTransportError("GitHub returned no installation token")
@@ -332,10 +336,7 @@ class GitHubAPIClient:
             f"https://api.github.com/repos/{full_name}/{endpoint}{separator}"
             f"per_page={per_page}&page={page}"
         )
-        payload = self._api_get_list(url, token)
-        if resource == "issues":
-            payload = [item for item in payload if "pull_request" not in item]
-        return payload
+        return self._api_get_list(url, token)
 
     def _app_jwt(self) -> str:
         credentials = load_github_credentials(self._settings, self._store)
