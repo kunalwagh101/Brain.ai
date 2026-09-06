@@ -8,7 +8,6 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
 from app.search_models import Vector
 
@@ -46,35 +45,93 @@ def upgrade() -> None:
         sa.Column("next_retry_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("claimed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("last_error_code", sa.String(length=128), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column(
-            "search_vector",
-            postgresql.TSVECTOR(),
-            sa.Computed(
-                "to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(content, ''))",
-                persisted=True,
-            ),
-            nullable=True,
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
         ),
-        sa.ForeignKeyConstraint(["canonical_event_id"], ["canonical_events.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["integration_connection_id"], ["integration_connections.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["work_graph_node_id"], ["work_graph_nodes.id"], ondelete="SET NULL"),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["canonical_event_id"],
+            ["canonical_events.id"],
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["integration_connection_id"],
+            ["integration_connections.id"],
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["organization_id"],
+            ["organizations.id"],
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["work_graph_node_id"],
+            ["work_graph_nodes.id"],
+            ondelete="SET NULL",
+        ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("canonical_event_id", name="uq_search_document_canonical_event"),
+        sa.UniqueConstraint(
+            "canonical_event_id",
+            name="uq_search_document_canonical_event",
+        ),
     )
-    op.create_index("ix_search_documents_org_created", "search_documents", ["organization_id", "created_at"])
-    op.create_index("ix_search_documents_org_provider", "search_documents", ["organization_id", "source_provider"])
-    op.create_index("ix_search_documents_embedding_status", "search_documents", ["embedding_status", "next_retry_at"])
-    op.create_index("ix_search_documents_org_object", "search_documents", ["organization_id", "integration_connection_id", "source_provider", "object_type", "object_external_id"])
-    op.create_index("ix_search_documents_channel_id", "search_documents", ["channel_id"])
-    op.create_index("ix_search_documents_repository_id", "search_documents", ["repository_id"])
-    op.create_index("ix_search_documents_work_graph_node_id", "search_documents", ["work_graph_node_id"])
-    op.create_index("ix_search_documents_search_vector", "search_documents", ["search_vector"], postgresql_using="gin")
+    op.create_index(
+        "ix_search_documents_org_created",
+        "search_documents",
+        ["organization_id", "created_at"],
+    )
+    op.create_index(
+        "ix_search_documents_org_provider",
+        "search_documents",
+        ["organization_id", "source_provider"],
+    )
+    op.create_index(
+        "ix_search_documents_embedding_status",
+        "search_documents",
+        ["embedding_status", "next_retry_at"],
+    )
+    op.create_index(
+        "ix_search_documents_org_object",
+        "search_documents",
+        [
+            "organization_id",
+            "integration_connection_id",
+            "source_provider",
+            "object_type",
+            "object_external_id",
+        ],
+    )
+    op.create_index(
+        "ix_search_documents_channel_id",
+        "search_documents",
+        ["channel_id"],
+    )
+    op.create_index(
+        "ix_search_documents_repository_id",
+        "search_documents",
+        ["repository_id"],
+    )
+    op.create_index(
+        "ix_search_documents_work_graph_node_id",
+        "search_documents",
+        ["work_graph_node_id"],
+    )
+    op.execute(
+        "CREATE INDEX ix_search_documents_search_vector "
+        "ON search_documents USING GIN "
+        "(to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(content, '')))"
+    )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_search_documents_search_vector", table_name="search_documents")
+    op.execute("DROP INDEX IF EXISTS ix_search_documents_search_vector")
     op.drop_table("search_documents")
     # The vector extension can be shared by other database objects; downgrade does not drop it.
