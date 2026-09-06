@@ -110,3 +110,39 @@ Expected engineering evidence:
 - migration `20260906_0008` can be rolled back without deleting the raw/canonical evidence needed to rebuild the graph.
 
 GitHub Actions run `34043847195` passed lint and 89 tests on implementation commit `a97d724416191ec8515f5ed90888321343013cda`. Delivery Verifier run `34043847222` also passed before the DONE-state documentation update. For actual acceptance, run `UAT/F-04.01.md` with realistic Slack/GitHub evidence and the production frontend/manual workflow.
+
+## Increment 8 — permission-aware retrieval
+
+Status: **NOT YET A VALID ENGINEERING DEMO.** The commands are recorded now so they are inspectable, but this section becomes valid only after a named passing CI run is recorded. Current GitHub Actions attempts have failed before runner startup and therefore provide no code-verification evidence.
+
+Commands to run:
+
+```bash
+docker compose up -d postgres
+cd backend
+pip install -e ".[dev]"
+alembic upgrade head
+ruff check app tests migrations
+pytest tests/test_search.py tests/test_search_evaluation.py -q
+pytest -q
+python ../scripts/verify_board.py
+python -m app.search_worker --once --batch-size 100
+```
+
+Expected engineering evidence:
+
+- cross-tenant search returns zero foreign identifiers/content/provenance;
+- public Slack requires current explicit channel authorisation;
+- private Slack additionally requires current resolved Slack membership;
+- removing Slack membership/authorisation removes search access immediately;
+- private/internal GitHub stays hidden without an explicit current grant, including for Owner/Admin;
+- inactive integrations and deleted source objects disappear from results while raw/canonical evidence remains;
+- keyword results carry source/canonical provenance;
+- hybrid semantic retrieval can find labelled synonym evidence on the synthetic evaluation set;
+- synthetic Recall@3 is at least 90%;
+- an embedding outage degrades explicitly to keyword retrieval;
+- embedding failure is retryable and does not duplicate the search projection;
+- historical search projection can be reconciled without requiring embeddings;
+- migration `20260907_0009` can be downgraded without deleting raw/canonical evidence.
+
+For real acceptance, execute `UAT/F-05.01.md` with realistic Slack/GitHub data, PostgreSQL + pgvector, a real embedding model, measured Recall@10/p95 latency, and the authenticated frontend.
