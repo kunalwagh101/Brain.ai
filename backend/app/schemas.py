@@ -118,5 +118,53 @@ class IntegrationConnectionRead(BaseModel):
     revoked_at: datetime | None
 
 
+class SlackInstallRead(BaseModel):
+    authorization_url: str
+    scopes: list[str]
+
+
+class SlackChannelRead(BaseModel):
+    id: str
+    name: str
+    is_private: bool
+    is_member: bool
+
+
+class SlackChannelPage(BaseModel):
+    channels: list[SlackChannelRead]
+    next_cursor: str | None
+
+
+class SlackChannelAuthorizationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    organization_id: uuid.UUID
+    integration_connection_id: uuid.UUID
+    channel_id: str
+    channel_name: str
+    is_private: bool
+    member_ids: list[str]
+    backfill_cursor: str | None
+    backfill_complete: bool
+    last_backfilled_at: datetime | None
+    authorized_by_user_id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class SlackBackfillRequest(BaseModel):
+    cursor: str | None = Field(default=None, max_length=2048)
+    limit: int = Field(default=15, ge=1, le=15)
+    reset: bool = False
+
+
+class SlackBackfillRead(BaseModel):
+    inserted: int
+    duplicates: int
+    next_cursor: str | None
+    complete: bool
+
+
 class CurrentUserRead(UserRead):
     pass

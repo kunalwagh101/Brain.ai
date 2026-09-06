@@ -3,6 +3,15 @@ from sqlalchemy import UniqueConstraint
 from app.models import Base, MembershipRole
 
 
+def _unique_columns(table_name: str) -> set[tuple[str, ...]]:
+    table = Base.metadata.tables[table_name]
+    return {
+        tuple(column.name for column in constraint.columns)
+        for constraint in table.constraints
+        if isinstance(constraint, UniqueConstraint)
+    }
+
+
 def test_core_tables_are_registered() -> None:
     assert set(Base.metadata.tables) == {
         "organizations",
@@ -11,6 +20,8 @@ def test_core_tables_are_registered() -> None:
         "external_identities",
         "resource_grants",
         "integration_connections",
+        "slack_channel_authorizations",
+        "raw_events",
     }
 
 
@@ -32,42 +43,39 @@ def test_supported_roles_are_explicit() -> None:
 
 
 def test_external_identity_provider_subject_is_unique() -> None:
-    identity = Base.metadata.tables["external_identities"]
-    unique_columns = {
-        tuple(column.name for column in constraint.columns)
-        for constraint in identity.constraints
-        if isinstance(constraint, UniqueConstraint)
-    }
-    assert ("provider", "subject") in unique_columns
+    assert ("provider", "subject") in _unique_columns("external_identities")
 
 
 def test_resource_grant_scope_is_unique() -> None:
-    grant = Base.metadata.tables["resource_grants"]
-    unique_columns = {
-        tuple(column.name for column in constraint.columns)
-        for constraint in grant.constraints
-        if isinstance(constraint, UniqueConstraint)
-    }
     assert (
         "organization_id",
         "resource_type",
         "resource_id",
         "user_id",
         "access",
-    ) in unique_columns
+    ) in _unique_columns("resource_grants")
 
 
 def test_integration_connection_is_unique_per_tenant_provider_account() -> None:
     connection = Base.metadata.tables["integration_connections"]
-    unique_columns = {
-        tuple(column.name for column in constraint.columns)
-        for constraint in connection.constraints
-        if isinstance(constraint, UniqueConstraint)
-    }
     assert (
         "organization_id",
         "provider",
         "external_account_id",
-    ) in unique_columns
+    ) in _unique_columns("integration_connections")
     assert "secret_ref" in connection.columns
     assert "sync_cursor" in connection.columns
+
+
+def test_slack_channel_authorization_is_unique_per_connection_channel() -> None:
+    assert (
+        "integration_connection_id",
+        "channel_id",
+    ) in _unique_columns("slack_channel_authorizations")
+
+
+def test_raw_event_idempotency_key_is_unique_per_connection() -> None:
+    assert (
+        "integration_connection_id",
+        "source_event_id",
+    ) in _unique_columns("raw_events")
