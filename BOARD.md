@@ -7,7 +7,7 @@ Format: `STATUS | STORY_ID | FEATURE | NOTE`
 DONE | S-01.01.01 | F-01.01 | Engineering evidence in TRACEABILITY.md; UAT remains pending in UAT.md
 DONE | S-01.02.01 | F-01.02 | Engineering evidence in TRACEABILITY.md; UAT remains pending in UAT.md
 DONE | S-01.03.01 | F-01.03 | Engineering evidence in TRACEABILITY.md; UAT remains pending in UAT.md
-IN_PROGRESS | S-02.01.01 | F-02.01 | Increment 3: scoped connection lifecycle + AWS secret references + health/sync cursor + safe revoke
+DONE | S-02.01.01 | F-02.01 | Engineering evidence in TRACEABILITY.md; 46 tests + verifier green; real-data/frontend UAT remains pending
 BACKLOG | S-02.02.01 | F-02.02 | Depends on integration framework and raw event model
 BACKLOG | S-02.03.01 | F-02.03 | Depends on integration framework and raw event model
 BACKLOG | S-02.04.01 | F-02.04 | OQ-004 selects first provider
@@ -36,6 +36,19 @@ Increment 3 goal: **an authorised admin can create, inspect and safely revoke a 
 
 Vertical slice: integration schema -> AWS Secrets Manager reference -> create/list/read/revoke API -> sync-state helpers -> negative security/error tests -> migration/rollback -> docs.
 
+## Increment 3 review
+
+- AWS Secrets Manager is the first production credential backend; PostgreSQL stores only a secret reference and non-secret connection metadata.
+- Owner/Admin can create, inspect and revoke connections through the central `integration.manage` permission; members are denied and cross-tenant access is hidden.
+- Duplicate organisation/provider/external-account connections are rejected before another secret is created.
+- Connector workers have one syncability guard plus persisted health, opaque cursor, last-sync timestamp and bounded error-code state.
+- Revocation is fail-closed: the connection leaves ACTIVE before AWS deletion is attempted; deletion failure leaves `REVOKE_FAILED`, which remains non-syncable.
+- Database failure after secret creation triggers best-effort orphan-secret retirement.
+- CI uses fake secret-store/AWS clients and therefore requires no real AWS credentials.
+- Backend CI passed lint and 46 tests on GitHub Actions run `34032491893`.
+- Delivery Verifier passed on run `34032491900` before engineering-DONE was claimed.
+- F-02.01 remains `UAT_PENDING` until real-data backend and manual frontend validation are recorded.
+
 ## Increment 2 review
 
 - One Brain-owned role matrix covers owner, admin, executive, manager, member and guest.
@@ -47,7 +60,7 @@ Vertical slice: integration schema -> AWS Secrets Manager reference -> create/li
 
 ## Session-open self-audit
 
-- Previous three stories are engineering-DONE but remain UAT_PENDING until real-data backend and manual frontend acceptance are recorded.
-- OQ-003 is resolved for Increment 3: AWS Secrets Manager is the first production secret backend.
-- Current WIP count: 1.
-- Slack/GitHub connector stories remain BACKLOG until S-02.01.01 is engineering-DONE.
+- Four stories are engineering-DONE; all corresponding feature acceptance remains tracked separately in UAT.md.
+- OQ-003 is resolved: AWS Secrets Manager is the first production secret backend.
+- Current WIP count: 0.
+- Slack/GitHub ingestion is not yet pulled because the raw-event story must be sequenced with the first connector vertical slice.
