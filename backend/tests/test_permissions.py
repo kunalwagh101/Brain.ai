@@ -16,8 +16,8 @@ from app.models import (
     User,
 )
 from app.permissions import (
-    Permission,
     ROLE_PERMISSIONS,
+    Permission,
     authorize_resource,
     require_resource_permission,
     role_has_permission,
@@ -168,16 +168,18 @@ def test_inactive_user_is_denied(db_session: Session) -> None:
 def test_denial_emits_security_audit_event(db_session: Session, caplog) -> None:
     user, organization = _seed_member(db_session, MembershipRole.GUEST)
 
-    with caplog.at_level(logging.WARNING, logger="brain.security"):
-        with pytest.raises(HTTPException):
-            authorize_resource(
-                db=db_session,
-                organization_id=organization.id,
-                user=user,
-                permission=Permission.RESOURCE_WRITE,
-                resource_type="project",
-                resource_id="p1",
-            )
+    with (
+        caplog.at_level(logging.WARNING, logger="brain.security"),
+        pytest.raises(HTTPException),
+    ):
+        authorize_resource(
+            db=db_session,
+            organization_id=organization.id,
+            user=user,
+            permission=Permission.RESOURCE_WRITE,
+            resource_type="project",
+            resource_id="p1",
+        )
 
     assert any('"event":"authorization.decision"' in record.message for record in caplog.records)
     assert any('"reason":"role_denied"' in record.message for record in caplog.records)
