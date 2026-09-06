@@ -14,7 +14,7 @@ BACKLOG | S-02.04.01 | F-02.04 | OQ-004 selects first provider
 DONE | S-03.01.01 | F-03.01 | Engineering evidence in TRACEABILITY.md; realistic raw-data inspection UAT remains pending
 DONE | S-03.02.01 | F-03.02 | Engineering evidence in TRACEABILITY.md; Slack/GitHub real-data + frontend UAT remains pending
 DONE | S-03.03.01 | F-03.03 | Engineering evidence in TRACEABILITY.md; real provider identity + frontend/manual UAT remains pending
-IN_PROGRESS | S-04.01.01 | F-04.01 | Increment 7: typed PostgreSQL work graph + evidence-backed edges + tenant-safe traversal
+DONE | S-04.01.01 | F-04.01 | Engineering evidence in TRACEABILITY.md; real Slack/GitHub graph + frontend/manual UAT remains pending
 BACKLOG | S-04.02.01 | F-04.02 | Depends on work graph + retrieval evaluation
 BACKLOG | S-05.01.01 | F-05.01 | Depends on RBAC + canonical evidence
 BACKLOG | S-05.02.01 | F-05.02 | OQ-005 before provider contract is frozen
@@ -44,8 +44,22 @@ Rules for this increment:
 - Project/track/work-item relationships are explicit/manual unless a deterministic source rule exists. The LLM may not create a verified edge.
 - Every edge has a relation type, state (`verified` or `inferred`), confidence and provenance.
 - Inferred edges are visibly distinguishable and cannot silently become verified.
-- Cross-tenant endpoints/edges are rejected. Restricted source evidence is fail-closed for non-admin traversal until F-05.01 provides the complete permission-aware retrieval layer.
+- Cross-tenant endpoints/edges are rejected. Restricted source evidence is fail-closed unless the current source/resource authorization proves access; role alone does not override an explicit restricted-resource ACL.
 - Graph nodes store references/minimal metadata, not copied message/code content.
+
+## Increment 7 review
+
+- Added PostgreSQL `work_graph_nodes` and `work_graph_edges`; no graph database dependency was introduced.
+- Added typed person/project/track/work-item/evidence nodes plus typed relationships with explicit source, verified/inferred state, confidence and provenance.
+- Wired graph projection into canonical Slack/GitHub processing and added bounded reconciliation for existing unprojected canonical events.
+- Kept source identities and Brain users as distinct person nodes; current attribution is represented by a reversible `resolves_to` edge.
+- Added manual project/track/work-item nodes and constrained manual organisational edges; person identity assertions and cross-tenant relationships are rejected.
+- Private Slack graph authorization uses current `SlackChannelAuthorization.member_ids`; historical event ACL snapshots remain provenance only and do not keep revoked access alive.
+- Restricted GitHub graph access requires an explicit matching resource grant. Owner/Admin role does not bypass the existing restricted-resource ACL contract.
+- Alembic revision `20260906_0008` adds graph storage with downgrade support; canonical/raw evidence remains available to rebuild the projection after rollback.
+- Backend CI run `34043847195` passed lint and 89 tests on implementation commit `a97d724416191ec8515f5ed90888321343013cda`.
+- Delivery Verifier run `34043847222` passed before the DONE-state documentation update.
+- F-04.01 remains `UAT_PENDING`; realistic Slack/GitHub backend validation and frontend/manual acceptance are not claimed by engineering tests.
 
 ## Increment 6 review
 
@@ -83,9 +97,10 @@ Rules for this increment:
 
 ## Session-open self-audit
 
-- Nine stories are engineering-DONE; user acceptance remains independently tracked in UAT.md.
-- Current WIP count: 1: S-04.01.01.
+- Ten stories are engineering-DONE; user acceptance remains independently tracked in UAT.md.
+- Current WIP count: 0.
 - Work Graph is a projection/reference layer, not a replacement for canonical/raw evidence.
 - No inferred edge is allowed to masquerade as verified evidence.
-- Restricted evidence traversal remains fail-closed for non-admin roles until the dedicated permission-aware retrieval story.
-- No second story will enter IN_PROGRESS until S-04.01.01 leaves WIP unless the board is explicitly re-planned.
+- Restricted evidence traversal uses current source/resource authorization and fails closed without a matching access basis; role alone is not a bypass.
+- F-04.01 remains UAT_PENDING until realistic backend and frontend/manual validation is recorded.
+- No new story is marked IN_PROGRESS in this closure commit.
