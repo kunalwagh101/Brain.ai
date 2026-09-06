@@ -109,6 +109,7 @@ class IntegrationConnectionRead(BaseModel):
     status: IntegrationStatus
     health: IntegrationHealth
     scopes: list[str]
+    provider_metadata: dict[str, object]
     sync_cursor: str | None
     last_synced_at: datetime | None
     last_error_code: str | None
@@ -164,6 +165,43 @@ class SlackBackfillRead(BaseModel):
     duplicates: int
     next_cursor: str | None
     complete: bool
+
+
+class GitHubInstallRead(BaseModel):
+    installation_url: str
+
+
+class GitHubInstallationCandidate(BaseModel):
+    installation_id: int
+    account_login: str
+    target_type: str
+    repository_selection: str
+    selection_token: str
+
+
+class GitHubOAuthCallbackRead(BaseModel):
+    installations: list[GitHubInstallationCandidate]
+
+
+class GitHubConnectRequest(BaseModel):
+    selection_token: str = Field(min_length=16, max_length=8192)
+
+
+class GitHubBackfillRequest(BaseModel):
+    cursor: str | None = Field(default=None, max_length=2048)
+    page_size: int = Field(default=30, ge=1, le=100)
+    reset: bool = False
+
+
+class GitHubBackfillRead(BaseModel):
+    inserted: int
+    duplicates: int
+    canonicalized: int
+    quarantined: int
+    next_cursor: str | None
+    complete: bool
+    repository: str | None
+    resource: str | None
 
 
 class CurrentUserRead(UserRead):
