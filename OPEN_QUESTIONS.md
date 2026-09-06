@@ -2,11 +2,10 @@
 
 Only questions that can materially change product shape, security or cost belong here.
 
-## OQ-001 Authentication provider
-Ambiguity: which identity provider is the first production auth authority?  
-Options: WorkOS/Auth0/Clerk/custom OIDC.  
-Recommended default: standards-based OIDC adapter with one managed provider first; avoid custom password auth.  
-Blast radius if wrong: user/session schema, SSO roadmap, tenant provisioning and security controls.
+## OQ-001 Authentication provider — RESOLVED 2026-09-06
+Decision: WorkOS AuthKit is the first managed authentication authority. FastAPI validates WorkOS access-token JWTs against provider JWKS and pins issuer/audience/RS256. Brain keeps its internal identity and permission model separate from the vendor so a later OIDC-compatible provider can be introduced without rewriting business-domain records.  
+Reason: Brain is B2B/multi-tenant; WorkOS provides organisations, memberships, SSO/OIDC and role/permission support that match this boundary.  
+Revisit trigger: measured product/customer requirement that WorkOS cannot satisfy, unacceptable unit economics, or provider availability/compliance issue.
 
 ## OQ-002 Slack private-message policy
 Ambiguity: whether Brain may ingest DMs/private channels and under whose consent/policy.  

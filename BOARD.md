@@ -4,8 +4,8 @@ Method: Scrum + Kanban hybrid. Two-week increments. WIP limit: IN_PROGRESS <= 2.
 
 Format: `STATUS | STORY_ID | FEATURE | NOTE`
 
-BACKLOG | S-01.01.01 | F-01.01 | Await backlog approval before READY
-BACKLOG | S-01.02.01 | F-01.02 | OQ-001 must be resolved before READY
+DONE | S-01.01.01 | F-01.01 | Evidence in TRACEABILITY.md; authenticated organisation ownership and membership boundary verified
+DONE | S-01.02.01 | F-01.02 | Evidence in TRACEABILITY.md; WorkOS JWT identity verification and Brain identity linking verified
 BACKLOG | S-01.03.01 | F-01.03 | Depends on S-01.02.01 and OQ-002
 BACKLOG | S-02.01.01 | F-02.01 | Depends on S-01.03.01 and OQ-003
 BACKLOG | S-02.02.01 | F-02.02 | Depends on integration framework and raw event model
@@ -26,19 +26,28 @@ BACKLOG | S-07.02.01 | F-07.02 | Depends on project status + usage/cost
 BACKLOG | S-08.01.01 | F-08.01 | Depends on AI gateway + audit/retention
 BACKLOG | S-09.01.01 | F-09.01 | Foundation exists; acceptance evidence incomplete
 BACKLOG | S-09.02.01 | F-09.02 | OQ-006 retention defaults unresolved
-BACKLOG | S-09.03.01 | F-09.03 | Phase 3 verifier is part of this process setup
+BACKLOG | S-09.03.01 | F-09.03 | Phase 3 verifier is merged and green; full production deployment story remains
 BACKLOG | S-09.04.01 | F-09.04 | Benchmarks attach to implemented vertical slices
 DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external-tool wedge
 
 ## Sprint planning
 
-Current sprint goal: **Increment 0 — make delivery truth machine-checkable before the next product feature is pulled.**
+Increment 1 goal: **a verified user can establish an organisation ownership boundary and manage membership without cross-tenant leakage.**
 
-Vertical slice: process artifacts -> verifier -> CI/pre-push gate. No product story enters READY until the backlog is approved and its open questions/dependencies satisfy Definition of Ready.
+Vertical slice: provider JWT -> Brain identity -> organisation owner membership -> membership read/write -> negative tenant tests.
+
+## Increment 1 review
+
+- WorkOS AuthKit selected as first managed auth authority while Brain keeps its own identity/permission domain.
+- Auth token validation pins RS256, issuer and audience and rejects missing/invalid credentials.
+- Organisation creation and owner membership are one database transaction.
+- Cross-tenant organisation reads return 404 without leaking resource fields.
+- Non-owner membership mutation is rejected with 403.
+- Backend CI passed lint and 14 tests on implementation commit `b53d3185000da2ebf05d730a07cb899917165707`.
 
 ## Session-open self-audit
 
-- Existing FastAPI foundation was merged before this stricter delivery contract existed.
-- No new product feature code will be added in this increment.
-- Current WIP count: 0 product stories.
-- BLOCKED count: 0. Stories with unresolved questions remain BACKLOG, not BLOCKED/READY.
+- Increment 0 delivery verifier passed before Increment 1 was pulled.
+- Increment 1 implementation tests and lint passed before these stories moved to DONE.
+- WIP count: 0.
+- No additional story is silently pulled by this board update.

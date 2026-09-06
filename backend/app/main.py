@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.health import router as health_router
+from app.routes.auth import router as auth_router
+from app.routes.organizations import router as organizations_router
 
 settings = get_settings()
 
@@ -48,3 +50,5 @@ def root() -> dict[str, str]:
 
 
 app.include_router(health_router)
+app.include_router(auth_router, prefix=settings.api_prefix)
+app.include_router(organizations_router, prefix=settings.api_prefix)
