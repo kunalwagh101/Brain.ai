@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Increment 4 — Slack connector and raw event ingestion
+
+- Added Slack OAuth v2 installation with signed, expiring state and permission re-check at callback time.
+- Added minimal Slack channel/group read/history scopes; no DM/MPDM scopes are requested.
+- Added explicit channel discovery/authorisation with private-channel source membership capture.
+- Added signed Slack Events API endpoint using the exact raw body, timestamp replay window and HMAC verification before JSON parsing.
+- Added durable `raw_events` storage with exact payload bytes, SHA-256 provenance, source visibility/ACL, processing state and retry-safe uniqueness.
+- Added Slack membership event handling to keep private-channel source ACL state current.
+- Added resumable, page-bounded Slack history backfill with deterministic historical message IDs and replay deduplication.
+- Added Slack channel authorisation and raw-event tables in Alembic revision `20260906_0005` with downgrade support.
+- Added tests for OAuth state tampering, signatures, replay window, DM rejection, channel authorisation, private ACL state, raw bytes/checksum, retry idempotency, payload limit and backfill replay.
+- Added real-data/manual UAT scripts; engineering-DONE remains separate from user acceptance.
+
+Rollback: stop Slack event delivery/backfill and any future raw-event processor before downgrading `20260906_0005`. The downgrade removes raw events and Slack channel authorisations, so export any evidence required for investigation/audit before rollback. Integration connection metadata and AWS secrets from Increment 3 are retained.
+
 ### Increment 3 — integration connection framework
 
 - Added provider-neutral integration connection lifecycle scoped to an organisation.
