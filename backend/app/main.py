@@ -7,6 +7,7 @@ from app.config import get_settings
 from app.health import router as health_router
 from app.routes.auth import router as auth_router
 from app.routes.github import router as github_router
+from app.routes.identities import router as identities_router
 from app.routes.integrations import router as integrations_router
 from app.routes.organizations import router as organizations_router
 from app.routes.slack import router as slack_router
@@ -58,3 +59,4 @@ app.include_router(organizations_router, prefix=settings.api_prefix)
 app.include_router(integrations_router, prefix=settings.api_prefix)
 app.include_router(slack_router, prefix=settings.api_prefix)
 app.include_router(github_router, prefix=settings.api_prefix)
+app.include_router(identities_router, prefix=settings.api_prefix)

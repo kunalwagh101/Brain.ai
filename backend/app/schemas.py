@@ -3,7 +3,13 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.models import IntegrationHealth, IntegrationStatus, MembershipRole, ResourceAccessLevel
+from app.models import (
+    IntegrationHealth,
+    IntegrationStatus,
+    MembershipRole,
+    ResourceAccessLevel,
+    SourceIdentityState,
+)
 
 
 class UserRead(BaseModel):
@@ -202,6 +208,58 @@ class GitHubBackfillRead(BaseModel):
     complete: bool
     repository: str | None
     resource: str | None
+
+
+class SourceIdentityRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    organization_id: uuid.UUID
+    provider: str
+    external_id: str
+    display_name: str | None
+    email: str | None
+    email_verified: bool
+    state: SourceIdentityState
+    resolved_user_id: uuid.UUID | None
+    resolution_method: str | None
+    first_seen_at: datetime
+    last_seen_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+
+class IdentityResolutionHistoryRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    organization_id: uuid.UUID
+    source_identity_id: uuid.UUID
+    previous_user_id: uuid.UUID | None
+    new_user_id: uuid.UUID | None
+    action: str
+    method: str
+    actor_user_id: uuid.UUID | None
+    evidence: dict[str, object]
+    created_at: datetime
+
+
+class SourceIdentityResolveRequest(BaseModel):
+    user_id: uuid.UUID
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class SourceIdentityUnresolveRequest(BaseModel):
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class IdentityReconcileRequest(BaseModel):
+    limit: int = Field(default=200, ge=1, le=500)
+
+
+class IdentityReconcileRead(BaseModel):
+    processed: int
+    remaining: int
 
 
 class CurrentUserRead(UserRead):

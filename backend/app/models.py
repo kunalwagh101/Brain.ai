@@ -58,6 +58,12 @@ class RawEventStatus(StrEnum):
     QUARANTINED = "quarantined"
 
 
+class SourceIdentityState(StrEnum):
+    UNRESOLVED = "unresolved"
+    RESOLVED = "resolved"
+    REVIEW_REQUIRED = "review_required"
+
+
 class Organization(Base):
     __tablename__ = "organizations"
 
@@ -311,6 +317,46 @@ class RawEvent(Base):
     )
 
 
+class SourceIdentity(Base):
+    __tablename__ = "source_identities"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "provider",
+            "external_id",
+            name="uq_source_identity_org_provider_external",
+        ),
+        Index("ix_source_identities_org_state", "organization_id", "state"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    provider: Mapped[str] = mapped_column(String(40), nullable=False)
+    external_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    state: Mapped[SourceIdentityState] = mapped_column(
+        Enum(SourceIdentityState, native_enum=False, length=32),
+        default=SourceIdentityState.UNRESOLVED,
+        nullable=False,
+    )
+    resolved_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), index=True, nullable=True
+    )
+    resolution_method: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 class CanonicalEvent(Base):
     __tablename__ = "canonical_events"
     __table_args__ = (
@@ -328,6 +374,12 @@ class CanonicalEvent(Base):
     )
     integration_connection_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("integration_connections.id", ondelete="CASCADE"), index=True
+    )
+    source_identity_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("source_identities.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    resolved_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True
     )
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False)
     event_type: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -350,6 +402,64 @@ class CanonicalEvent(Base):
     event_metadata: Mapped[dict[str, object]] = mapped_column(
         "metadata", JSON, default=dict, nullable=False
     )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class SourceIdentityObservation(Base):
+    __tablename__ = "source_identity_observations"
+    __table_args__ = (
+        UniqueConstraint(
+            "canonical_event_id",
+            name="uq_source_identity_observation_canonical_event",
+        ),
+        Index("ix_source_identity_observations_identity", "source_identity_id", "observed_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    source_identity_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("source_identities.id", ondelete="CASCADE"), index=True
+    )
+    canonical_event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("canonical_events.id", ondelete="CASCADE"), nullable=False
+    )
+    display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    evidence: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class IdentityResolutionHistory(Base):
+    __tablename__ = "identity_resolution_history"
+    __table_args__ = (
+        Index("ix_identity_resolution_history_identity", "source_identity_id", "created_at"),
+        Index("ix_identity_resolution_history_org", "organization_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    source_identity_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("source_identities.id", ondelete="CASCADE"), index=True
+    )
+    previous_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    new_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    method: Mapped[str] = mapped_column(String(32), nullable=False)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    evidence: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

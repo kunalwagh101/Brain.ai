@@ -22,7 +22,10 @@ def test_core_tables_are_registered() -> None:
         "integration_connections",
         "slack_channel_authorizations",
         "raw_events",
+        "source_identities",
         "canonical_events",
+        "source_identity_observations",
+        "identity_resolution_history",
     }
 
 
@@ -83,8 +86,22 @@ def test_raw_event_idempotency_key_is_unique_per_connection() -> None:
     ) in _unique_columns("raw_events")
 
 
+def test_source_identity_is_unique_inside_tenant_provider() -> None:
+    assert (
+        "organization_id",
+        "provider",
+        "external_id",
+    ) in _unique_columns("source_identities")
+
+
+def test_source_identity_observation_is_unique_per_canonical_event() -> None:
+    assert ("canonical_event_id",) in _unique_columns("source_identity_observations")
+
+
 def test_canonical_event_is_unique_per_raw_event() -> None:
     canonical = Base.metadata.tables["canonical_events"]
     assert ("raw_event_id",) in _unique_columns("canonical_events")
     assert "metadata" in canonical.columns
     assert "schema_version" in canonical.columns
+    assert "source_identity_id" in canonical.columns
+    assert "resolved_user_id" in canonical.columns
