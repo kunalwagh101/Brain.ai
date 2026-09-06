@@ -89,6 +89,6 @@ commit: 59155580a3e743309d2b9cbeff83d324ef1bf053
 EVIDENCE S-03.03.01
 tests: backend/tests/test_identity_resolution.py::test_verified_exact_email_auto_resolves_only_same_org_member
 command: cd backend && pytest -q
-result: 82 passed (GitHub Actions run 34038863067, 2026-09-06)
+result: 82 passed (GitHub Actions run 34039308232, 2026-09-06)
 code: backend/app/identity_resolution.py + backend/app/routes/identities.py + backend/app/canonical_events.py
-commit: b814319f999d660cb267cca2a74fefa4567c855d
+commit: be307d8b26bf97fa2ae8eaad52b1a370885a3123
