@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.identity_resolution import observe_canonical_actor
 from app.models import CanonicalEvent, RawEvent, RawEventStatus
 
 CANONICAL_EVENT_SCHEMA_VERSION = 1
@@ -281,6 +282,11 @@ def _github_data(raw_event: RawEvent, payload: dict[str, object]) -> dict[str, o
     }
 
 
+def _observe_persisted_actor(db: Session, event: CanonicalEvent) -> None:
+    if event.source_identity_id is None:
+        observe_canonical_actor(db, event)
+
+
 def canonicalize_raw_event(db: Session, raw_event: RawEvent) -> CanonicalizeResult:
     existing = db.scalar(
         select(CanonicalEvent).where(CanonicalEvent.raw_event_id == raw_event.id)
@@ -290,6 +296,7 @@ def canonicalize_raw_event(db: Session, raw_event: RawEvent) -> CanonicalizeResu
             raw_event.processing_status = RawEventStatus.PROCESSED
             raw_event.last_error_code = None
             db.commit()
+        _observe_persisted_actor(db, existing)
         return CanonicalizeResult(event=existing, created=False, quarantined=False)
 
     raw_event.processing_attempts += 1
@@ -345,8 +352,11 @@ def canonicalize_raw_event(db: Session, raw_event: RawEvent) -> CanonicalizeResu
         raw_event.processing_status = RawEventStatus.PROCESSED
         raw_event.last_error_code = None
         db.commit()
+        _observe_persisted_actor(db, existing)
         return CanonicalizeResult(event=existing, created=False, quarantined=False)
 
     db.refresh(canonical)
     db.refresh(raw_event)
+    _observe_persisted_actor(db, canonical)
+    db.refresh(canonical)
     return CanonicalizeResult(event=canonical, created=True, quarantined=False)
