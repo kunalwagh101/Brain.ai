@@ -195,7 +195,13 @@ def observe_canonical_actor(
                 db.add(observation)
                 db.flush()
         except IntegrityError:
-            pass
+            observation = db.scalar(
+                select(SourceIdentityObservation).where(
+                    SourceIdentityObservation.canonical_event_id == event.id
+                )
+            )
+            if observation is None:
+                raise
 
     verified_email = normalized_email if email_verified else None
     if verified_email:
