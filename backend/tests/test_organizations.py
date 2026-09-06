@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -21,7 +23,7 @@ def test_authenticated_user_creates_organization_as_owner(
     response = client.post("/api/v1/organizations", json={"name": "Acme", "slug": "acme"})
 
     assert response.status_code == 201
-    organization_id = response.json()["id"]
+    organization_id = uuid.UUID(response.json()["id"])
     membership = db_session.query(Membership).filter_by(organization_id=organization_id).one()
     assert membership.user_id == user.id
     assert membership.role == MembershipRole.OWNER
