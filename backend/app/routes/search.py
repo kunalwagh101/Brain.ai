@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import asdict
 from datetime import datetime
 from typing import Annotated
 
@@ -52,7 +53,7 @@ def search_organization_evidence(
         query=q,
         limit=limit,
     )
-    return [SearchResultRead(**result.__dict__) for result in results]
+    return [SearchResultRead(**asdict(result)) for result in results]
 
 
 @router.post("/reconcile", response_model=SearchReconcileRead)
