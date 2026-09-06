@@ -4,10 +4,10 @@ Method: Scrum + Kanban hybrid. Two-week increments. WIP limit: IN_PROGRESS <= 2.
 
 Format: `STATUS | STORY_ID | FEATURE | NOTE`
 
-DONE | S-01.01.01 | F-01.01 | Evidence in TRACEABILITY.md; authenticated organisation ownership and membership boundary verified
-DONE | S-01.02.01 | F-01.02 | Evidence in TRACEABILITY.md; WorkOS JWT identity verification and Brain identity linking verified
-DONE | S-01.03.01 | F-01.03 | Evidence in TRACEABILITY.md; central RBAC + restricted-resource ACL + pre-handler denial verified
-BACKLOG | S-02.01.01 | F-02.01 | Depends on S-01.03.01 and OQ-003
+DONE | S-01.01.01 | F-01.01 | Engineering evidence in TRACEABILITY.md; UAT remains pending in UAT.md
+DONE | S-01.02.01 | F-01.02 | Engineering evidence in TRACEABILITY.md; UAT remains pending in UAT.md
+DONE | S-01.03.01 | F-01.03 | Engineering evidence in TRACEABILITY.md; UAT remains pending in UAT.md
+DONE | S-02.01.01 | F-02.01 | Engineering evidence in TRACEABILITY.md; 46 tests + verifier green; real-data/frontend UAT remains pending
 BACKLOG | S-02.02.01 | F-02.02 | Depends on integration framework and raw event model
 BACKLOG | S-02.03.01 | F-02.03 | Depends on integration framework and raw event model
 BACKLOG | S-02.04.01 | F-02.04 | OQ-004 selects first provider
@@ -32,34 +32,35 @@ DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external
 
 ## Sprint planning
 
-Increment 2 goal: **every protected organisation or resource action passes through one server-side policy layer, with restricted resources denied before endpoint/AI/tool code executes.**
+Increment 3 goal: **an authorised admin can create, inspect and safely revoke a scoped external connection without storing plaintext credentials in PostgreSQL, while connector workers have persisted health and sync-cursor state.**
 
-Vertical slice: role matrix -> organisation permission dependency -> resource ACL grants -> pre-handler resource guard -> negative permission tests -> security audit events.
+Vertical slice: integration schema -> AWS Secrets Manager reference -> create/list/read/revoke API -> sync-state helpers -> negative security/error tests -> migration/rollback -> docs.
+
+## Increment 3 review
+
+- AWS Secrets Manager is the first production credential backend; PostgreSQL stores only a secret reference and non-secret connection metadata.
+- Owner/Admin can create, inspect and revoke connections through the central `integration.manage` permission; members are denied and cross-tenant access is hidden.
+- Duplicate organisation/provider/external-account connections are rejected before another secret is created.
+- Connector workers have one syncability guard plus persisted health, opaque cursor, last-sync timestamp and bounded error-code state.
+- Revocation is fail-closed: the connection leaves ACTIVE before AWS deletion is attempted; deletion failure leaves `REVOKE_FAILED`, which remains non-syncable.
+- Database failure after secret creation triggers best-effort orphan-secret retirement.
+- CI uses fake secret-store/AWS clients and therefore requires no real AWS credentials.
+- Backend CI passed lint and 46 tests on GitHub Actions run `34032491893`.
+- Delivery Verifier passed on run `34032491900` before engineering-DONE was claimed.
+- F-02.01 remains `UAT_PENDING` until real-data backend and manual frontend validation are recorded.
 
 ## Increment 2 review
 
-- One Brain-owned role matrix now covers owner, admin, executive, manager, member and guest.
-- Existing organisation and membership routes use reusable server-side permission dependencies instead of route-specific owner/member checks.
-- Restricted resources require both role capability and an explicit user ACL grant; owners/admins do not automatically bypass private-resource ACLs.
-- A WRITE grant implies READ; a READ grant does not imply WRITE; an ACL grant cannot exceed the user's role capability ceiling.
-- Non-members receive tenant-safe 404 responses, role-denied members receive 403, inactive users are rejected, and restricted resources without a grant return 404.
-- Admins can manage ordinary memberships but cannot assign owner/admin roles; only owners can create those privileged roles.
-- Authorization denial and ACL create/delete paths emit structured `brain.security` events without tokens, secrets or source content.
-- OQ-002 is resolved: Slack DMs are excluded from MVP and private channels require explicit opt-in.
-- Backend CI passed lint and 34 tests on implementation commit `65d0fbc4a3d843e81c1bd036febe7749a9409a8d`.
-
-## Increment 1 review
-
-- WorkOS AuthKit selected as first managed auth authority while Brain keeps its own identity/permission domain.
-- Auth token validation pins RS256, issuer and audience and rejects missing/invalid credentials.
-- Organisation creation and owner membership are one database transaction.
-- Cross-tenant organisation reads return 404 without leaking resource fields.
-- Non-owner membership mutation is rejected with 403.
-- Backend CI passed lint and 14 tests on implementation commit `b53d3185000da2ebf05d730a07cb899917165707`.
+- One Brain-owned role matrix covers owner, admin, executive, manager, member and guest.
+- Restricted resources require both role capability and an explicit user ACL grant.
+- Admin privilege escalation is blocked; only owners may assign owner/admin roles.
+- Authorization denial and ACL changes emit structured security events.
+- Slack DMs are excluded from MVP and private channels require explicit opt-in.
+- Backend CI passed lint and 34 tests before merge.
 
 ## Session-open self-audit
 
-- Increment 1 is DONE and merged to main.
-- Increment 2 implementation lint/tests and the delivery verifier passed before S-01.03.01 moved to DONE.
+- Four stories are engineering-DONE; all corresponding feature acceptance remains tracked separately in UAT.md.
+- OQ-003 is resolved: AWS Secrets Manager is the first production secret backend.
 - Current WIP count: 0.
-- No integration story is silently pulled by this board update.
+- Slack/GitHub ingestion is not yet pulled because the raw-event story must be sequenced with the first connector vertical slice.

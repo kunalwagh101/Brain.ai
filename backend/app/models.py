@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, UniqueConstraint, func
+from sqlalchemy import JSON, DateTime, Enum, ForeignKey, Index, String, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -22,6 +22,20 @@ class MembershipRole(StrEnum):
 class ResourceAccessLevel(StrEnum):
     READ = "read"
     WRITE = "write"
+
+
+class IntegrationStatus(StrEnum):
+    ACTIVE = "active"
+    REVOKING = "revoking"
+    REVOKE_FAILED = "revoke_failed"
+    REVOKED = "revoked"
+
+
+class IntegrationHealth(StrEnum):
+    UNKNOWN = "unknown"
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    ERROR = "error"
 
 
 class Organization(Base):
@@ -141,3 +155,49 @@ class ResourceGrant(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class IntegrationConnection(Base):
+    __tablename__ = "integration_connections"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "provider",
+            "external_account_id",
+            name="uq_integration_org_provider_account",
+        ),
+        Index("ix_integration_connections_org_status", "organization_id", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    provider: Mapped[str] = mapped_column(String(40), nullable=False)
+    external_account_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    status: Mapped[IntegrationStatus] = mapped_column(
+        Enum(IntegrationStatus, native_enum=False, length=32),
+        default=IntegrationStatus.ACTIVE,
+        nullable=False,
+    )
+    health: Mapped[IntegrationHealth] = mapped_column(
+        Enum(IntegrationHealth, native_enum=False, length=16),
+        default=IntegrationHealth.UNKNOWN,
+        nullable=False,
+    )
+    scopes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    secret_ref: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    sync_cursor: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error_code: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

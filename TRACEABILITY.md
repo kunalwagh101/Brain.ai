@@ -1,13 +1,13 @@
 # Brain Traceability
 
-This file is the evidence index. A row is completed only after its story is DONE and has a resolvable evidence block.
+This file is the engineering evidence index. A row is completed only after its story is engineering-DONE and has a resolvable evidence block. Real-data/manual feature acceptance is tracked separately in `UAT.md`.
 
 | Story | Epic | Requirement / outcome | Tests | Code | Status |
 |---|---|---|---|---|---|
 | S-01.01.01 | E-01 | organisation membership + tenant boundary | backend/tests/test_organizations.py | backend/app/routes/organizations.py | DONE |
 | S-01.02.01 | E-01 | real authentication | backend/tests/test_auth.py | backend/app/auth.py | DONE |
 | S-01.03.01 | E-01 | RBAC/ACL before retrieval | backend/tests/test_permissions.py + backend/tests/test_organizations.py | backend/app/permissions.py + backend/app/routes/organizations.py | DONE |
-| S-02.01.01 | E-02 | scoped integration lifecycle | pending | pending | BACKLOG |
+| S-02.01.01 | E-02 | scoped integration lifecycle | backend/tests/test_integrations.py + backend/tests/test_secrets.py | backend/app/routes/integrations.py + backend/app/secrets.py | DONE |
 | S-02.02.01 | E-02 | Slack ingestion | pending | pending | BACKLOG |
 | S-02.03.01 | E-02 | GitHub ingestion | pending | pending | BACKLOG |
 | S-02.04.01 | E-02 | meeting/document evidence | pending | pending | BACKLOG |
@@ -50,3 +50,10 @@ command: cd backend && pytest -q
 result: 34 passed (GitHub Actions run 34031342636, 2026-09-06)
 code: backend/app/permissions.py
 commit: 65d0fbc4a3d843e81c1bd036febe7749a9409a8d
+
+EVIDENCE S-02.01.01
+tests: backend/tests/test_integrations.py::test_admin_creates_connection_without_persisting_plaintext_credentials
+command: cd backend && pytest -q
+result: 46 passed (GitHub Actions run 34032491893, 2026-09-06)
+code: backend/app/routes/integrations.py
+commit: 906985fad5c5cbf8a5419d94f3200cef0b259ae7

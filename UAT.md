@@ -14,5 +14,6 @@ Until both are recorded, external status is `UAT_PENDING` even if CI is green.
 | F-01.01 Organisation & Identity | DONE | PENDING | PENDING | UAT_PENDING |
 | F-01.02 Authentication | DONE | PENDING | PENDING | UAT_PENDING |
 | F-01.03 RBAC + Resource ACL | DONE | PENDING | PENDING | UAT_PENDING |
+| F-02.01 Integration Framework | DONE | PENDING | PENDING | UAT_PENDING |
 
 When UAT is performed, append the environment, data set description, steps, observed result, defects found/fixed, tester, date and final ACCEPTED/REJECTED decision. Do not store production secrets or sensitive customer data in this file.

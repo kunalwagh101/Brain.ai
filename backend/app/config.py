@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     workos_client_id: str | None = None
     workos_issuer: str = "https://api.workos.com"
     workos_audience: str | None = None
+    aws_region: str = "us-east-1"
+    secrets_prefix: str = "brain"
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -39,6 +41,10 @@ class Settings(BaseSettings):
                 raise ValueError("Wildcard CORS is not allowed in production")
             if not self.workos_client_id:
                 raise ValueError("BRAIN_WORKOS_CLIENT_ID is required in production")
+            if not self.aws_region.strip():
+                raise ValueError("BRAIN_AWS_REGION is required in production")
+            if not self.secrets_prefix.strip("/"):
+                raise ValueError("BRAIN_SECRETS_PREFIX must not be empty in production")
         return self
 
 
