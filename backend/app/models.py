@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -17,6 +17,11 @@ class MembershipRole(StrEnum):
     MANAGER = "manager"
     MEMBER = "member"
     GUEST = "guest"
+
+
+class ResourceAccessLevel(StrEnum):
+    READ = "read"
+    WRITE = "write"
 
 
 class Organization(Base):
@@ -96,3 +101,43 @@ class Membership(Base):
 
     organization: Mapped[Organization] = relationship(back_populates="memberships")
     user: Mapped[User] = relationship(back_populates="memberships")
+
+
+class ResourceGrant(Base):
+    __tablename__ = "resource_grants"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "resource_type",
+            "resource_id",
+            "user_id",
+            "access",
+            name="uq_resource_grant_scope_user_access",
+        ),
+        Index(
+            "ix_resource_grants_org_resource",
+            "organization_id",
+            "resource_type",
+            "resource_id",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    resource_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    resource_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    access: Mapped[ResourceAccessLevel] = mapped_column(
+        Enum(ResourceAccessLevel, native_enum=False, length=16),
+        nullable=False,
+    )
+    created_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

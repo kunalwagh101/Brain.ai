@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Increment 2 — RBAC and resource ACL
+
+- Added one server-side role permission matrix for owner, admin, executive, manager, member and guest roles.
+- Added reusable FastAPI organisation and restricted-resource permission dependencies.
+- Added active-user enforcement and tenant-safe 404 behaviour for non-members.
+- Added explicit `resource_grants` ACL storage and owner/admin grant management endpoints.
+- Restricted-resource access now requires both role capability and a matching user grant before endpoint, connector, LLM or tool code can run.
+- Admins can manage normal members, but only owners may assign owner/admin roles.
+- Added structured `brain.security` authorization-denial and ACL-change audit hooks without secrets or content payloads.
+- Resolved the Slack privacy boundary: DMs excluded from MVP; private channels opt-in; public/shared channels still require admin authorisation.
+- Added Alembic revision `20260906_0003` with downgrade support and tenant/resource indexes.
+- Added role-matrix, cross-tenant, restricted-resource, ACL lifecycle and deny-before-handler tests.
+
+Rollback: disable code paths that depend on resource ACLs, then downgrade Alembic revision `20260906_0003`. The downgrade removes `resource_grants` and therefore all explicit restricted-resource grants; it does not modify users, memberships or external identities.
+
 ### Increment 1 — secure organisation boundary
 
 - Added WorkOS AuthKit access-token verification for FastAPI protected routes.

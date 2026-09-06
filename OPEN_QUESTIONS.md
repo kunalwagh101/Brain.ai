@@ -7,11 +7,10 @@ Decision: WorkOS AuthKit is the first managed authentication authority. FastAPI 
 Reason: Brain is B2B/multi-tenant; WorkOS provides organisations, memberships, SSO/OIDC and role/permission support that match this boundary.  
 Revisit trigger: measured product/customer requirement that WorkOS cannot satisfy, unacceptable unit economics, or provider availability/compliance issue.
 
-## OQ-002 Slack private-message policy
-Ambiguity: whether Brain may ingest DMs/private channels and under whose consent/policy.  
-Options: public/shared channels only; private channels opt-in; DMs excluded; enterprise compliance ingestion where contractually authorised.  
-Recommended default: channels explicitly authorised by workspace admins; exclude DMs from MVP.  
-Blast radius: permissions model, trust, privacy/compliance and connector scopes.
+## OQ-002 Slack private-message policy — RESOLVED 2026-09-06
+Decision: Brain may ingest only Slack channels explicitly authorised by a workspace administrator. Public/shared channels still require explicit authorisation; private channels are opt-in; direct messages are excluded from the production MVP. Brain must preserve source visibility and apply its own tenant/resource ACL before retrieval.  
+Reason: explicit opt-in is the smallest permission surface that still supports useful company memory without normalising employee surveillance or silently widening Slack visibility.  
+Revisit trigger: a customer has a documented compliance/consent requirement for private-message ingestion and the connector, retention, audit and ACL design has been reviewed for that use case.
 
 ## OQ-003 Secrets manager
 Ambiguity: first production secrets backend.  

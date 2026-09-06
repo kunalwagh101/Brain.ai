@@ -6,7 +6,7 @@ This file is the evidence index. A row is completed only after its story is DONE
 |---|---|---|---|---|---|
 | S-01.01.01 | E-01 | organisation membership + tenant boundary | backend/tests/test_organizations.py | backend/app/routes/organizations.py | DONE |
 | S-01.02.01 | E-01 | real authentication | backend/tests/test_auth.py | backend/app/auth.py | DONE |
-| S-01.03.01 | E-01 | RBAC/ACL before retrieval | pending | pending | BACKLOG |
+| S-01.03.01 | E-01 | RBAC/ACL before retrieval | backend/tests/test_permissions.py + backend/tests/test_organizations.py | backend/app/permissions.py + backend/app/routes/organizations.py | DONE |
 | S-02.01.01 | E-02 | scoped integration lifecycle | pending | pending | BACKLOG |
 | S-02.02.01 | E-02 | Slack ingestion | pending | pending | BACKLOG |
 | S-02.03.01 | E-02 | GitHub ingestion | pending | pending | BACKLOG |
@@ -43,3 +43,10 @@ command: cd backend && pytest -q
 result: 14 passed (GitHub Actions run 34027972498, 2026-09-06)
 code: backend/app/auth.py
 commit: b53d3185000da2ebf05d730a07cb899917165707
+
+EVIDENCE S-01.03.01
+tests: backend/tests/test_permissions.py::test_resource_dependency_denies_before_endpoint_body
+command: cd backend && pytest -q
+result: 34 passed (GitHub Actions run 34031342636, 2026-09-06)
+code: backend/app/permissions.py
+commit: 65d0fbc4a3d843e81c1bd036febe7749a9409a8d
