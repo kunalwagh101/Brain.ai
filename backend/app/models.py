@@ -207,6 +207,7 @@ class IntegrationConnection(Base):
         nullable=False,
     )
     scopes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    provider_metadata: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
     secret_ref: Mapped[str | None] = mapped_column(String(512), nullable=True)
     sync_cursor: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -304,5 +305,45 @@ class RawEvent(Base):
     processing_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_error_code: Mapped[str | None] = mapped_column(String(128), nullable=True)
     received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class CanonicalEvent(Base):
+    __tablename__ = "canonical_events"
+    __table_args__ = (
+        UniqueConstraint("raw_event_id", name="uq_canonical_event_raw_event"),
+        Index("ix_canonical_events_org_occurred", "organization_id", "occurred_at"),
+        Index("ix_canonical_events_org_type", "organization_id", "event_type"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    raw_event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("raw_events.id", ondelete="CASCADE"), nullable=False
+    )
+    integration_connection_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("integration_connections.id", ondelete="CASCADE"), index=True
+    )
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    action: Mapped[str] = mapped_column(String(64), nullable=False)
+    actor_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    actor_external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    actor_display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    object_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    object_external_id: Mapped[str] = mapped_column(String(512), nullable=False)
+    object_display_name: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    source_provider: Mapped[str] = mapped_column(String(40), nullable=False)
+    source_event_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    source_event_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    occurred_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    source_visibility: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_acl: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    provenance: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    metadata: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
