@@ -25,10 +25,18 @@ from app.work_graph_models import (
 PUBLIC_VISIBILITIES = frozenset({"organization", "public_channel", "public_repository"})
 ADMIN_ROLES = frozenset({MembershipRole.OWNER, MembershipRole.ADMIN})
 MANUAL_NODE_TYPES = frozenset(
-    {WorkGraphNodeType.PROJECT, WorkGraphNodeType.TRACK, WorkGraphNodeType.WORK_ITEM}
+    {
+        WorkGraphNodeType.PROJECT,
+        WorkGraphNodeType.TRACK,
+        WorkGraphNodeType.WORK_ITEM,
+    }
 )
 MANUAL_EDGE_TYPES = frozenset(
-    {WorkGraphEdgeType.CONTAINS, WorkGraphEdgeType.DEPENDS_ON, WorkGraphEdgeType.RELATED_TO}
+    {
+        WorkGraphEdgeType.CONTAINS,
+        WorkGraphEdgeType.DEPENDS_ON,
+        WorkGraphEdgeType.RELATED_TO,
+    }
 )
 
 
@@ -99,7 +107,10 @@ def _get_or_create_node(
         raise WorkGraphError("Stable graph key cannot change node type")
     if display_name:
         node.display_name = display_name
-    node.source_visibility = _merge_visibility(node.source_visibility, source_visibility)
+    node.source_visibility = _merge_visibility(
+        node.source_visibility,
+        source_visibility,
+    )
     if source_acl:
         node.source_acl = sorted(set(node.source_acl) | set(source_acl))
     if attributes:
@@ -128,7 +139,10 @@ def _get_or_create_edge(
     canonical_event_id: uuid.UUID | None = None,
     created_by_user_id: uuid.UUID | None = None,
 ) -> WorkGraphEdge:
-    if source_node.organization_id != organization_id or target_node.organization_id != organization_id:
+    if (
+        source_node.organization_id != organization_id
+        or target_node.organization_id != organization_id
+    ):
         raise WorkGraphError("Cross-tenant graph edges are prohibited")
 
     edge = db.scalar(
@@ -182,7 +196,9 @@ def _canonical_edge(
     target_node: WorkGraphNode,
     edge_type: WorkGraphEdgeType,
 ) -> WorkGraphEdge:
-    provenance_key = f"canonical:{event.id}:{edge_type.value}:{source_node.id}:{target_node.id}"
+    provenance_key = (
+        f"canonical:{event.id}:{edge_type.value}:{source_node.id}:{target_node.id}"
+    )
     return _get_or_create_edge(
         db,
         organization_id=event.organization_id,
@@ -251,7 +267,9 @@ def sync_source_identity_node(
             source_kind=WorkGraphEdgeSource.IDENTITY,
             evidence_state=WorkGraphEvidenceState.VERIFIED,
             confidence=1.0,
-            provenance_key=f"identity:{identity.id}:resolves_to:{identity.resolved_user_id}",
+            provenance_key=(
+                f"identity:{identity.id}:resolves_to:{identity.resolved_user_id}"
+            ),
             provenance={
                 "source_identity_id": str(identity.id),
                 "resolution_method": identity.resolution_method,
@@ -301,7 +319,9 @@ def project_canonical_event(db: Session, event: CanonicalEvent) -> WorkGraphNode
                 db,
                 organization_id=event.organization_id,
                 node_type=WorkGraphNodeType.TRACK,
-                stable_key=f"track:slack:{event.integration_connection_id}:{channel_id}",
+                stable_key=(
+                    f"track:slack:{event.integration_connection_id}:{channel_id}"
+                ),
                 display_name=f"Slack channel {channel_id}",
                 source_visibility=event.source_visibility,
                 source_acl=list(event.source_acl),
@@ -328,13 +348,24 @@ def project_canonical_event(db: Session, event: CanonicalEvent) -> WorkGraphNode
                 db,
                 organization_id=event.organization_id,
                 node_type=WorkGraphNodeType.PROJECT,
-                stable_key=f"project:github:{event.integration_connection_id}:{repository_key}",
-                display_name=repository_name if isinstance(repository_name, str) else repository_key,
+                stable_key=(
+                    f"project:github:{event.integration_connection_id}:"
+                    f"{repository_key}"
+                ),
+                display_name=(
+                    repository_name
+                    if isinstance(repository_name, str)
+                    else repository_key
+                ),
                 source_visibility=event.source_visibility,
                 source_acl=list(event.source_acl),
                 attributes={
                     "provider": "github",
-                    "repository_id": str(repository_id) if repository_id not in (None, "") else None,
+                    "repository_id": (
+                        str(repository_id)
+                        if repository_id not in (None, "")
+                        else None
+                    ),
                 },
             )
             _canonical_edge(
@@ -403,7 +434,10 @@ def create_manual_node(
         node_type=node_type,
         stable_key=f"manual:{node_type.value}:{normalized_key}",
         display_name=display_name.strip(),
-        attributes={"source": "manual", "created_by_user_id": str(actor_user_id)},
+        attributes={
+            "source": "manual",
+            "created_by_user_id": str(actor_user_id),
+        },
     )
     db.commit()
     db.refresh(node)
@@ -431,7 +465,10 @@ def create_manual_edge(
         or target_node.organization_id != organization_id
     ):
         raise WorkGraphError("Both graph nodes must belong to the organization")
-    if source_node.node_type == WorkGraphNodeType.PERSON or target_node.node_type == WorkGraphNodeType.PERSON:
+    if (
+        source_node.node_type == WorkGraphNodeType.PERSON
+        or target_node.node_type == WorkGraphNodeType.PERSON
+    ):
         raise WorkGraphError("Manual edges cannot assert person identity relationships")
 
     edge = _get_or_create_edge(
@@ -443,8 +480,13 @@ def create_manual_edge(
         source_kind=WorkGraphEdgeSource.MANUAL,
         evidence_state=WorkGraphEvidenceState.VERIFIED,
         confidence=1.0,
-        provenance_key=f"manual:{source_node.id}:{edge_type.value}:{target_node.id}",
-        provenance={"actor_user_id": str(actor_user_id), "reason": reason.strip()[:500]},
+        provenance_key=(
+            f"manual:{source_node.id}:{edge_type.value}:{target_node.id}"
+        ),
+        provenance={
+            "actor_user_id": str(actor_user_id),
+            "reason": reason.strip()[:500],
+        },
         created_by_user_id=actor_user_id,
     )
     db.commit()
@@ -467,7 +509,9 @@ def _has_resource_grant(
             ResourceGrant.user_id == user_id,
             ResourceGrant.resource_type == resource_type,
             ResourceGrant.resource_id == resource_id,
-            ResourceGrant.access.in_((ResourceAccessLevel.READ, ResourceAccessLevel.WRITE)),
+            ResourceGrant.access.in_(
+                (ResourceAccessLevel.READ, ResourceAccessLevel.WRITE)
+            ),
         )
         .limit(1)
     )
@@ -538,7 +582,12 @@ def traverse_work_graph(
             WorkGraphNode.organization_id == organization_id,
         )
     )
-    if start is None or not node_visible_to_user(db, start, user_id=user_id, role=role):
+    if start is None or not node_visible_to_user(
+        db,
+        start,
+        user_id=user_id,
+        role=role,
+    ):
         return None
 
     nodes: dict[uuid.UUID, WorkGraphNode] = {start.id: start}
@@ -561,7 +610,11 @@ def traverse_work_graph(
             )
         )
         for edge in candidates:
-            neighbor_id = edge.target_node_id if edge.source_node_id == current_id else edge.source_node_id
+            neighbor_id = (
+                edge.target_node_id
+                if edge.source_node_id == current_id
+                else edge.source_node_id
+            )
             neighbor = db.scalar(
                 select(WorkGraphNode).where(
                     WorkGraphNode.id == neighbor_id,
@@ -569,7 +622,10 @@ def traverse_work_graph(
                 )
             )
             if neighbor is None or not node_visible_to_user(
-                db, neighbor, user_id=user_id, role=role
+                db,
+                neighbor,
+                user_id=user_id,
+                role=role,
             ):
                 continue
             nodes[neighbor.id] = neighbor
