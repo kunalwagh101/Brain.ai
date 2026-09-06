@@ -24,7 +24,6 @@ from app.work_graph_models import (
 )
 
 PUBLIC_VISIBILITIES = frozenset({"organization", "public_channel", "public_repository"})
-ADMIN_ROLES = frozenset({MembershipRole.OWNER, MembershipRole.ADMIN})
 MANUAL_NODE_TYPES = frozenset(
     {
         WorkGraphNodeType.PROJECT,
@@ -582,7 +581,8 @@ def node_visible_to_user(
     user_id: uuid.UUID,
     role: MembershipRole,
 ) -> bool:
-    if role in ADMIN_ROLES or node.source_visibility in PUBLIC_VISIBILITIES:
+    del role
+    if node.source_visibility in PUBLIC_VISIBILITIES:
         return True
     if _has_resource_grant(
         db,
