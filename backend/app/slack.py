@@ -36,7 +36,11 @@ class SlackTransportError(RuntimeError):
 
 
 def require_slack_oauth_configuration(settings: Settings) -> None:
-    if not settings.slack_client_id or not settings.slack_client_secret or not settings.slack_redirect_uri:
+    if (
+        not settings.slack_client_id
+        or not settings.slack_client_secret
+        or not settings.slack_redirect_uri
+    ):
         raise SlackConfigurationError("Slack OAuth is not configured")
 
 
@@ -199,7 +203,10 @@ class SlackAPIClient:
         cursor: str | None,
         limit: int,
     ) -> dict[str, object]:
-        params: dict[str, object] = {"channel": channel_id, "limit": min(max(limit, 1), 15)}
+        params: dict[str, object] = {
+            "channel": channel_id,
+            "limit": min(max(limit, 1), 15),
+        }
         if cursor:
             params["cursor"] = cursor
         return self._api_get("conversations.history", token, params)
