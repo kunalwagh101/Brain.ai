@@ -26,6 +26,8 @@ def test_core_tables_are_registered() -> None:
         "canonical_events",
         "source_identity_observations",
         "identity_resolution_history",
+        "work_graph_nodes",
+        "work_graph_edges",
     }
 
 
@@ -105,3 +107,11 @@ def test_canonical_event_is_unique_per_raw_event() -> None:
     assert "schema_version" in canonical.columns
     assert "source_identity_id" in canonical.columns
     assert "resolved_user_id" in canonical.columns
+
+
+def test_work_graph_node_and_edge_keys_are_tenant_scoped() -> None:
+    assert ("organization_id", "stable_key") in _unique_columns("work_graph_nodes")
+    assert ("canonical_event_id",) in _unique_columns("work_graph_nodes")
+    assert ("organization_id", "provenance_key") in _unique_columns(
+        "work_graph_edges"
+    )
