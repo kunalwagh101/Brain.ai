@@ -86,3 +86,27 @@ Expected engineering evidence:
 - timezone normalization keeps first/last-seen ordering portable across database implementations.
 
 GitHub Actions run `34038863067` passed lint and 82 tests. Delivery Verifier run `34038863068` passed before engineering-DONE. For actual acceptance, run `UAT/F-03.03.md` using realistic provider identities and the production admin workflow.
+
+## Increment 7 — typed Work Graph
+
+Automated evidence command:
+
+```bash
+cd backend
+pytest -q
+```
+
+Expected engineering evidence:
+
+- canonical Slack/GitHub evidence projects into typed graph nodes without duplicating on replay;
+- source identities and Brain users remain distinct person nodes connected only by the current reversible `resolves_to` relationship;
+- GitHub repository evidence produces projects/work items and Slack channel evidence produces tracks;
+- every relationship exposes source, explicit verified/inferred state, confidence and provenance;
+- unsupported manual person-identity assertions and cross-tenant graph edges are rejected;
+- traversal is tenant-scoped and depth-bounded;
+- private Slack access is recalculated from current channel membership, so historical ACL provenance cannot keep revoked access alive;
+- restricted GitHub evidence requires an explicit resource grant and is not bypassed by Owner/Admin role;
+- reconciliation is bounded and idempotent;
+- migration `20260906_0008` can be rolled back without deleting the raw/canonical evidence needed to rebuild the graph.
+
+GitHub Actions run `34043847195` passed lint and 89 tests on implementation commit `a97d724416191ec8515f5ed90888321343013cda`. Delivery Verifier run `34043847222` also passed before the DONE-state documentation update. For actual acceptance, run `UAT/F-04.01.md` with realistic Slack/GitHub evidence and the production frontend/manual workflow.

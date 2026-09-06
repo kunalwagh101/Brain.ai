@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Increment 7 — typed tenant-safe Work Graph
+
+- Added PostgreSQL `work_graph_nodes` and `work_graph_edges` as a rebuildable projection over canonical evidence; no graph database dependency was introduced.
+- Added typed person, project, track, work-item and evidence nodes with stable tenant-scoped keys and minimal metadata rather than copied message/code content.
+- Added typed relationships carrying source kind, explicit `VERIFIED`/`INFERRED` evidence state, confidence and provenance.
+- Wired deterministic Slack/GitHub graph projection into the existing canonicalisation path and added bounded reconciliation for previously canonicalised events.
+- Kept source-identity person nodes separate from Brain-user person nodes and represented current attribution through reversible `resolves_to` edges.
+- Added manual project/track/work-item creation plus constrained manual `contains`, `depends_on` and `related_to` edges; manual person-identity assertions and cross-tenant edges are rejected.
+- Added tenant-scoped traversal with depth bounds and fail-closed restricted-resource behavior.
+- Private Slack traversal now consults current `SlackChannelAuthorization.member_ids`; historical event ACL snapshots remain provenance and cannot retain access after channel membership is revoked.
+- Private GitHub evidence requires an explicit repository or graph-node resource grant; Owner/Admin role does not bypass Brain's existing restricted-resource ACL contract.
+- Added Alembic revision `20260906_0008` with downgrade support.
+- Added typed/idempotent projection, current-ACL revocation, restricted GitHub, cross-tenant, inferred-state and reversible identity-link regression tests; Backend CI run `34043847195` passed lint and 89 tests.
+- Added Work Graph operating/security/rollback documentation and real-data/frontend UAT steps. Engineering-DONE remains separate from user acceptance.
+
+Rollback: stop canonicalisation paths that project graph rows, work-graph reconciliation and graph mutations before downgrading `20260906_0008`. The downgrade removes only Work Graph nodes/edges. Raw events, canonical events, source identities and identity-resolution history remain, so the graph can be deterministically rebuilt after forward recovery.
+
 ### Increment 6 — tenant-safe identity resolution
 
 - Added tenant-scoped source identities separate from WorkOS authentication identities.
