@@ -322,31 +322,28 @@ def project_canonical_event(db: Session, event: CanonicalEvent) -> WorkGraphNode
                 edge_type=WorkGraphEdgeType.PERFORMED,
             )
 
-    if event.source_provider == "slack":
-        if isinstance(channel_id, str) and channel_id:
-            track = _get_or_create_node(
-                db,
-                organization_id=event.organization_id,
-                node_type=WorkGraphNodeType.TRACK,
-                stable_key=(
-                    f"track:slack:{event.integration_connection_id}:{channel_id}"
-                ),
-                display_name=f"Slack channel {channel_id}",
-                source_visibility=event.source_visibility,
-                source_acl=list(event.source_acl),
-                attributes={
-                    "provider": "slack",
-                    "channel_id": channel_id,
-                    "integration_connection_id": str(event.integration_connection_id),
-                },
-            )
-            _canonical_edge(
-                db,
-                event=event,
-                source_node=track,
-                target_node=evidence,
-                edge_type=WorkGraphEdgeType.SUPPORTED_BY,
-            )
+    if event.source_provider == "slack" and isinstance(channel_id, str) and channel_id:
+        track = _get_or_create_node(
+            db,
+            organization_id=event.organization_id,
+            node_type=WorkGraphNodeType.TRACK,
+            stable_key=f"track:slack:{event.integration_connection_id}:{channel_id}",
+            display_name=f"Slack channel {channel_id}",
+            source_visibility=event.source_visibility,
+            source_acl=list(event.source_acl),
+            attributes={
+                "provider": "slack",
+                "channel_id": channel_id,
+                "integration_connection_id": str(event.integration_connection_id),
+            },
+        )
+        _canonical_edge(
+            db,
+            event=event,
+            source_node=track,
+            target_node=evidence,
+            edge_type=WorkGraphEdgeType.SUPPORTED_BY,
+        )
 
     if event.source_provider == "github":
         repository_name = metadata.get("repository")
