@@ -31,6 +31,12 @@ def normalize_email(value: str | None) -> str | None:
     return normalized
 
 
+def _utc_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 def _active_member_by_email(
     db: Session,
     *,
@@ -157,15 +163,15 @@ def observe_canonical_actor(
     if event.actor_type not in PERSON_ACTOR_TYPES or not event.actor_external_id:
         return None
 
-    observed_at = event.occurred_at or event.created_at or datetime.now(UTC)
+    observed_at = _utc_datetime(event.occurred_at or event.created_at or datetime.now(UTC))
     identity = _get_or_create_identity(db, event, observed_at=observed_at)
     event.source_identity_id = identity.id
 
     if event.actor_display_name:
         identity.display_name = event.actor_display_name
-    if observed_at < identity.first_seen_at:
+    if observed_at < _utc_datetime(identity.first_seen_at):
         identity.first_seen_at = observed_at
-    if observed_at > identity.last_seen_at:
+    if observed_at > _utc_datetime(identity.last_seen_at):
         identity.last_seen_at = observed_at
 
     normalized_email = normalize_email(email)
