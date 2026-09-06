@@ -142,21 +142,16 @@ def _slack_data(raw_event: RawEvent, payload: dict[str, object]) -> dict[str, ob
     raise CanonicalizationError(f"unsupported_slack_event:{source_type}")
 
 
-def _github_actor(payload: dict[str, object], item: dict[str, object]) -> tuple[str, str | None, str | None]:
+def _github_actor(
+    payload: dict[str, object],
+    item: dict[str, object],
+) -> tuple[str, str | None, str | None]:
     actor = _as_dict(payload.get("sender")) or _as_dict(item.get("user"))
     if not actor:
         actor = _as_dict(item.get("author"))
     actor_id = _identifier(actor.get("id")) or _string(actor.get("login"))
     actor_name = _string(actor.get("login")) or _string(actor.get("name"))
     return "github_user", actor_id, actor_name
-
-
-def _github_repository(payload: dict[str, object], item: dict[str, object]) -> dict[str, object]:
-    repository = _as_dict(payload.get("repository"))
-    if repository:
-        return repository
-    repository = _as_dict(item.get("repository"))
-    return repository
 
 
 def _github_data(raw_event: RawEvent, payload: dict[str, object]) -> dict[str, object]:
@@ -198,17 +193,42 @@ def _github_data(raw_event: RawEvent, payload: dict[str, object]) -> dict[str, o
         }
 
     mappings: dict[str, tuple[str, str, str, object]] = {
-        "pull_request": ("pull_request", source_action or "updated", "pull_request", payload.get("pull_request")),
-        "issues": ("issue", source_action or "updated", "issue", payload.get("issue")),
-        "deployment": ("deployment", source_action or "created", "deployment", payload.get("deployment")),
+        "pull_request": (
+            "pull_request",
+            source_action or "updated",
+            "pull_request",
+            payload.get("pull_request"),
+        ),
+        "issues": (
+            "issue",
+            source_action or "updated",
+            "issue",
+            payload.get("issue"),
+        ),
+        "deployment": (
+            "deployment",
+            source_action or "created",
+            "deployment",
+            payload.get("deployment"),
+        ),
         "deployment_status": (
             "deployment",
             "status_changed",
             "deployment_status",
             payload.get("deployment_status"),
         ),
-        "workflow_run": ("workflow_run", source_action or "updated", "workflow_run", payload.get("workflow_run")),
-        "repository": ("repository", source_action or "updated", "repository", payload.get("repository")),
+        "workflow_run": (
+            "workflow_run",
+            source_action or "updated",
+            "workflow_run",
+            payload.get("workflow_run"),
+        ),
+        "repository": (
+            "repository",
+            source_action or "updated",
+            "repository",
+            payload.get("repository"),
+        ),
         "backfill.repository": ("repository", "observed", "repository", item),
         "backfill.commit": ("commit", "observed", "commit", item),
         "backfill.pull_request": ("pull_request", "observed", "pull_request", item),
@@ -262,7 +282,9 @@ def _github_data(raw_event: RawEvent, payload: dict[str, object]) -> dict[str, o
 
 
 def canonicalize_raw_event(db: Session, raw_event: RawEvent) -> CanonicalizeResult:
-    existing = db.scalar(select(CanonicalEvent).where(CanonicalEvent.raw_event_id == raw_event.id))
+    existing = db.scalar(
+        select(CanonicalEvent).where(CanonicalEvent.raw_event_id == raw_event.id)
+    )
     if existing is not None:
         if raw_event.processing_status != RawEventStatus.PROCESSED:
             raw_event.processing_status = RawEventStatus.PROCESSED
