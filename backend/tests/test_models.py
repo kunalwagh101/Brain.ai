@@ -22,6 +22,7 @@ def test_core_tables_are_registered() -> None:
         "integration_connections",
         "slack_channel_authorizations",
         "raw_events",
+        "canonical_events",
     }
 
 
@@ -65,6 +66,7 @@ def test_integration_connection_is_unique_per_tenant_provider_account() -> None:
     ) in _unique_columns("integration_connections")
     assert "secret_ref" in connection.columns
     assert "sync_cursor" in connection.columns
+    assert "provider_metadata" in connection.columns
 
 
 def test_slack_channel_authorization_is_unique_per_connection_channel() -> None:
@@ -79,3 +81,10 @@ def test_raw_event_idempotency_key_is_unique_per_connection() -> None:
         "integration_connection_id",
         "source_event_id",
     ) in _unique_columns("raw_events")
+
+
+def test_canonical_event_is_unique_per_raw_event() -> None:
+    canonical = Base.metadata.tables["canonical_events"]
+    assert ("raw_event_id",) in _unique_columns("canonical_events")
+    assert "metadata" in canonical.columns
+    assert "schema_version" in canonical.columns

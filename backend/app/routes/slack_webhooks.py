@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.canonical_events import canonicalize_raw_event
 from app.config import Settings, get_settings
 from app.database import get_db
 from app.integrations import connection_can_sync
@@ -169,6 +170,8 @@ async def slack_events(
             detail=str(exc),
         ) from exc
 
+    canonical = canonicalize_raw_event(db, result.event)
+
     if channel_authorization.is_private and event_type in {
         "member_joined_channel",
         "member_left_channel",
@@ -183,4 +186,9 @@ async def slack_events(
             channel_authorization.member_ids = sorted(members)
             db.commit()
 
-    return {"ok": True, "created": result.created}
+    return {
+        "ok": True,
+        "created": result.created,
+        "canonical_created": canonical.created,
+        "quarantined": canonical.quarantined,
+    }

@@ -2,10 +2,27 @@
 
 ## Unreleased
 
+### Increment 5 — GitHub connector and canonical event model
+
+- Added a verified GitHub App installation flow with Brain-signed, expiring organisation/user state and installation-selection tokens.
+- Added GitHub installation re-verification against the configured App before a connection can be persisted; the generic integration endpoint rejects `provider=github` to prevent bypass.
+- Added secret-reference loading for the GitHub App private key, OAuth client secret and webhook secret; installation access tokens are short-lived and never persisted.
+- Added exact-body HMAC-SHA256 GitHub webhook verification and delivery-ID idempotency for supported engineering events.
+- Added repository visibility and `github:repository:<id>` ACL provenance for restricted repositories.
+- Added signed, connection-bound, resumable GitHub backfill for repository metadata, commits, pull requests, issues and deployments, with deterministic replay-safe source IDs.
+- Added schema-versioned `canonical_events`, one canonical row per raw event, carrying actor/action/object/source/timestamp/permissions/provenance/provider metadata.
+- Wired both Slack and GitHub live/backfill evidence through the same canonicalisation engine.
+- Unsupported or malformed mappings are quarantined while the original raw evidence remains intact.
+- Added Alembic revision `20260906_0006` with downgrade support.
+- Added GitHub/canonical model, signature, tamper, replay, ACL, cursor and cross-provider tests; Backend CI passed 73 tests.
+- Added GitHub deployment documentation and real-data/manual UAT scripts. Engineering-DONE remains separate from user acceptance.
+
+Rollback: stop Slack/GitHub ingestion and canonicalisation before downgrading `20260906_0006`. The downgrade removes canonical-event storage and GitHub provider metadata added by this increment. Raw events remain the recovery evidence; export any canonical records required for investigation before rollback.
+
 ### Increment 4 — Slack connector and raw event ingestion
 
 - Added Slack OAuth v2 installation with signed, expiring state and permission re-check at callback time.
-- Added minimal Slack channel/group read/history scopes; no DM/MPDM scopes are requested.
+- Added minimal Slack channel/group read/history scopes; no DM/MPIM scopes are requested.
 - Added explicit channel discovery/authorisation with private-channel source membership capture.
 - Added signed Slack Events API endpoint using the exact raw body, timestamp replay window and HMAC verification before JSON parsing.
 - Added durable `raw_events` storage with exact payload bytes, SHA-256 provenance, source visibility/ACL, processing state and retry-safe uniqueness.

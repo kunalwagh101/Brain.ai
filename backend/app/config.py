@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     slack_client_secret: str | None = None
     slack_signing_secret: str | None = None
     slack_redirect_uri: str | None = None
+    github_app_id: str | None = None
+    github_app_slug: str | None = None
+    github_client_id: str | None = None
+    github_callback_url: str | None = None
+    github_app_secret_ref: str | None = None
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -38,11 +43,29 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_safety(self) -> "Settings":
-        oauth_values = (self.slack_client_id, self.slack_client_secret, self.slack_redirect_uri)
-        if any(oauth_values) and not all(oauth_values):
+        slack_oauth_values = (
+            self.slack_client_id,
+            self.slack_client_secret,
+            self.slack_redirect_uri,
+        )
+        if any(slack_oauth_values) and not all(slack_oauth_values):
             raise ValueError(
                 "BRAIN_SLACK_CLIENT_ID, BRAIN_SLACK_CLIENT_SECRET and "
                 "BRAIN_SLACK_REDIRECT_URI must be configured together"
+            )
+
+        github_values = (
+            self.github_app_id,
+            self.github_app_slug,
+            self.github_client_id,
+            self.github_callback_url,
+            self.github_app_secret_ref,
+        )
+        if any(github_values) and not all(github_values):
+            raise ValueError(
+                "BRAIN_GITHUB_APP_ID, BRAIN_GITHUB_APP_SLUG, BRAIN_GITHUB_CLIENT_ID, "
+                "BRAIN_GITHUB_CALLBACK_URL and BRAIN_GITHUB_APP_SECRET_REF must be "
+                "configured together"
             )
 
         if self.environment.lower() == "production":

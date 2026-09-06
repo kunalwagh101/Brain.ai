@@ -16,7 +16,9 @@ Until both are recorded, external status is `UAT_PENDING` even if CI is green.
 | F-01.03 RBAC + Resource ACL | DONE | PENDING | PENDING | UAT_PENDING |
 | F-02.01 Integration Framework | DONE | PENDING | PENDING | UAT_PENDING |
 | F-02.02 Slack Connector | DONE | PENDING | PENDING | UAT_PENDING |
+| F-02.03 GitHub Connector | DONE | PENDING | PENDING | UAT_PENDING |
 | F-03.01 Raw Event Ingestion | DONE | PENDING | PENDING | UAT_PENDING |
+| F-03.02 Canonical Event Model | DONE | PENDING | PENDING | UAT_PENDING |
 
 Detailed scripts live under `UAT/`.
 

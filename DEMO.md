@@ -38,3 +38,26 @@ Expected engineering evidence:
 - oversized raw payload is rejected.
 
 For actual feature acceptance, run the real provider and frontend steps in `UAT/F-02.02.md` and `UAT/F-03.01.md`.
+
+## Increment 5 — GitHub + canonical events
+
+Automated evidence command:
+
+```bash
+cd backend
+pytest -q
+```
+
+Expected engineering evidence:
+
+- GitHub webhook HMAC verification is exact-body and tamper-sensitive;
+- install state and installation-selection tokens are signed and expiring;
+- GitHub cannot be connected through the generic credential endpoint;
+- a signed private-repository delivery is persisted/canonicalised exactly once;
+- private repository ACL provenance reaches the canonical event;
+- backfill cursor is signed, connection-bound, resumable and replay-safe;
+- Slack and GitHub both produce the same schema-versioned canonical dimensions;
+- unsupported mappings quarantine the raw event without losing source evidence;
+- migration/model uniqueness keeps one canonical event per raw event.
+
+GitHub Actions run `34037248953` passed lint and 73 tests. For actual feature acceptance, run `UAT/F-02.03.md` and `UAT/F-03.02.md` with a real GitHub App, realistic Slack/GitHub data and the production frontend.
