@@ -16,7 +16,7 @@ DONE | S-03.02.01 | F-03.02 | Engineering evidence in TRACEABILITY.md; Slack/Git
 DONE | S-03.03.01 | F-03.03 | Engineering evidence in TRACEABILITY.md; real provider identity + frontend/manual UAT remains pending
 DONE | S-04.01.01 | F-04.01 | Engineering evidence in TRACEABILITY.md; real Slack/GitHub graph + frontend/manual UAT remains pending
 BACKLOG | S-04.02.01 | F-04.02 | Depends on work graph + retrieval evaluation
-IN_PROGRESS | S-05.01.01 | F-05.01 | Increment 8: permission-aware keyword + semantic retrieval
+IN_REVIEW | S-05.01.01 | F-05.01 | Implementation/docs/tests exist; GitHub Actions cannot start a runner, so no passing verification evidence yet
 BACKLOG | S-05.02.01 | F-05.02 | OQ-005 before generation provider contract is frozen
 BACKLOG | S-06.01.01 | F-06.01 | Depends on RBAC
 BACKLOG | S-06.02.01 | F-06.02 | Depends on AI provider registry/gateway
@@ -102,10 +102,10 @@ Rules for this increment:
 ## Session-open self-audit
 
 - Ten stories are engineering-DONE; external/user acceptance remains independently tracked in UAT.md.
-- Current WIP count: 1 (`S-05.01.01`), within WIP <= 2.
+- Current WIP count: 0; `S-05.01.01` is now IN_REVIEW, not DONE.
 - Increment 7 Work Graph is merged on `main` at `ddd12921ec7ac025dc21de41275b8532c811ab24`.
 - F-05.01 dependencies S-01.03.01 and S-03.02.01 are engineering-DONE.
 - Existing Work Graph authorization semantics are reused rather than replaced.
 - OQ-005 does not block retrieval shape because this increment does not freeze a generation provider; embeddings are operator-configured behind a provider-neutral contract.
 - Existing frontend still contains preview/sample state. No fake search wiring will be used to claim frontend acceptance.
-- GitHub Actions for the first implementation commit failed before runner startup (`runner_id=0`, no steps); this is external verification blockage, not passing or failing code evidence.
+- Repeated Backend CI / Delivery Verifier attempts for Increment 8 failed before runner startup (`runner_id=0`, no steps). There is no passing test output, so engineering-DONE is prohibited by the Definition of Done.
