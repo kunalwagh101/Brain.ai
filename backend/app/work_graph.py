@@ -10,6 +10,7 @@ from app.models import (
     MembershipRole,
     ResourceAccessLevel,
     ResourceGrant,
+    SlackChannelAuthorization,
     SourceIdentity,
     User,
 )
@@ -283,6 +284,20 @@ def sync_source_identity_node(
 
 
 def project_canonical_event(db: Session, event: CanonicalEvent) -> WorkGraphNode:
+    metadata = event.event_metadata or {}
+    evidence_attributes: dict[str, object] = {
+        "event_type": event.event_type,
+        "object_type": event.object_type,
+        "source_provider": event.source_provider,
+        "integration_connection_id": str(event.integration_connection_id),
+    }
+    channel_id = metadata.get("channel_id")
+    if isinstance(channel_id, str) and channel_id:
+        evidence_attributes["channel_id"] = channel_id
+    repository_id = metadata.get("repository_id")
+    if repository_id not in (None, ""):
+        evidence_attributes["repository_id"] = str(repository_id)
+
     evidence = _get_or_create_node(
         db,
         organization_id=event.organization_id,
@@ -292,11 +307,7 @@ def project_canonical_event(db: Session, event: CanonicalEvent) -> WorkGraphNode
         canonical_event_id=event.id,
         source_visibility=event.source_visibility,
         source_acl=list(event.source_acl),
-        attributes={
-            "event_type": event.event_type,
-            "object_type": event.object_type,
-            "source_provider": event.source_provider,
-        },
+        attributes=evidence_attributes,
     )
 
     if event.source_identity_id is not None:
@@ -311,9 +322,7 @@ def project_canonical_event(db: Session, event: CanonicalEvent) -> WorkGraphNode
                 edge_type=WorkGraphEdgeType.PERFORMED,
             )
 
-    metadata = event.event_metadata or {}
     if event.source_provider == "slack":
-        channel_id = metadata.get("channel_id")
         if isinstance(channel_id, str) and channel_id:
             track = _get_or_create_node(
                 db,
@@ -325,7 +334,11 @@ def project_canonical_event(db: Session, event: CanonicalEvent) -> WorkGraphNode
                 display_name=f"Slack channel {channel_id}",
                 source_visibility=event.source_visibility,
                 source_acl=list(event.source_acl),
-                attributes={"provider": "slack", "channel_id": channel_id},
+                attributes={
+                    "provider": "slack",
+                    "channel_id": channel_id,
+                    "integration_connection_id": str(event.integration_connection_id),
+                },
             )
             _canonical_edge(
                 db,
@@ -336,7 +349,6 @@ def project_canonical_event(db: Session, event: CanonicalEvent) -> WorkGraphNode
             )
 
     if event.source_provider == "github":
-        repository_id = metadata.get("repository_id")
         repository_name = metadata.get("repository")
         repository_key = (
             str(repository_id)
@@ -366,6 +378,7 @@ def project_canonical_event(db: Session, event: CanonicalEvent) -> WorkGraphNode
                         if repository_id not in (None, "")
                         else None
                     ),
+                    "integration_connection_id": str(event.integration_connection_id),
                 },
             )
             _canonical_edge(
@@ -392,6 +405,14 @@ def project_canonical_event(db: Session, event: CanonicalEvent) -> WorkGraphNode
                         "provider": "github",
                         "object_type": event.object_type,
                         "object_external_id": event.object_external_id,
+                        "repository_id": (
+                            str(repository_id)
+                            if repository_id not in (None, "")
+                            else None
+                        ),
+                        "integration_connection_id": str(
+                            event.integration_connection_id
+                        ),
                     },
                 )
                 _canonical_edge(
@@ -518,6 +539,45 @@ def _has_resource_grant(
     return grant is not None
 
 
+def _current_private_slack_access(
+    db: Session,
+    node: WorkGraphNode,
+    *,
+    user_id: uuid.UUID,
+) -> bool:
+    channel_id = node.attributes.get("channel_id")
+    connection_value = node.attributes.get("integration_connection_id")
+    if not isinstance(channel_id, str) or not isinstance(connection_value, str):
+        return False
+    try:
+        connection_id = uuid.UUID(connection_value)
+    except ValueError:
+        return False
+
+    authorization = db.scalar(
+        select(SlackChannelAuthorization).where(
+            SlackChannelAuthorization.organization_id == node.organization_id,
+            SlackChannelAuthorization.integration_connection_id == connection_id,
+            SlackChannelAuthorization.channel_id == channel_id,
+            SlackChannelAuthorization.is_private.is_(True),
+        )
+    )
+    if authorization is None or not authorization.member_ids:
+        return False
+
+    slack_identity = db.scalar(
+        select(SourceIdentity.id)
+        .where(
+            SourceIdentity.organization_id == node.organization_id,
+            SourceIdentity.provider == "slack",
+            SourceIdentity.resolved_user_id == user_id,
+            SourceIdentity.external_id.in_(authorization.member_ids),
+        )
+        .limit(1)
+    )
+    return slack_identity is not None
+
+
 def node_visible_to_user(
     db: Session,
     node: WorkGraphNode,
@@ -536,18 +596,8 @@ def node_visible_to_user(
     ):
         return True
 
-    if node.source_visibility == "private_channel" and node.source_acl:
-        slack_identity = db.scalar(
-            select(SourceIdentity.id)
-            .where(
-                SourceIdentity.organization_id == node.organization_id,
-                SourceIdentity.provider == "slack",
-                SourceIdentity.resolved_user_id == user_id,
-                SourceIdentity.external_id.in_(node.source_acl),
-            )
-            .limit(1)
-        )
-        return slack_identity is not None
+    if node.source_visibility == "private_channel":
+        return _current_private_slack_access(db, node, user_id=user_id)
 
     for marker in node.source_acl:
         prefix = "github:repository:"
@@ -642,39 +692,30 @@ def reconcile_work_graph(
     organization_id: uuid.UUID,
     limit: int,
 ) -> tuple[int, int]:
+    projected_event_ids = select(WorkGraphNode.canonical_event_id).where(
+        WorkGraphNode.organization_id == organization_id,
+        WorkGraphNode.canonical_event_id.is_not(None),
+    )
     events = list(
         db.scalars(
             select(CanonicalEvent)
-            .where(CanonicalEvent.organization_id == organization_id)
+            .where(
+                CanonicalEvent.organization_id == organization_id,
+                ~CanonicalEvent.id.in_(projected_event_ids),
+            )
             .order_by(CanonicalEvent.created_at, CanonicalEvent.id)
+            .limit(limit)
         )
     )
-    processed = 0
     for event in events:
-        exists = db.scalar(
-            select(WorkGraphNode.id).where(
-                WorkGraphNode.organization_id == organization_id,
-                WorkGraphNode.canonical_event_id == event.id,
-            )
-        )
-        if exists is not None:
-            continue
         project_canonical_event(db, event)
-        processed += 1
-        if processed >= limit:
-            break
 
     remaining = db.scalar(
         select(func.count())
         .select_from(CanonicalEvent)
         .where(
             CanonicalEvent.organization_id == organization_id,
-            ~CanonicalEvent.id.in_(
-                select(WorkGraphNode.canonical_event_id).where(
-                    WorkGraphNode.organization_id == organization_id,
-                    WorkGraphNode.canonical_event_id.is_not(None),
-                )
-            ),
+            ~CanonicalEvent.id.in_(projected_event_ids),
         )
     )
-    return processed, int(remaining or 0)
+    return len(events), int(remaining or 0)
