@@ -13,7 +13,7 @@ MAX_RAW_EVENT_BYTES = 2_000_000
 
 
 class RawEventRejectedError(ValueError):
-    pass
+    """Raised when an incoming source event violates the ingestion contract."""
 
 
 @dataclass(frozen=True, slots=True)
