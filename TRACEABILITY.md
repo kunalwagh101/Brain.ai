@@ -9,10 +9,10 @@ This file is the engineering evidence index. A row is completed only after its s
 | S-01.03.01 | E-01 | RBAC/ACL before retrieval | backend/tests/test_permissions.py + backend/tests/test_organizations.py | backend/app/permissions.py + backend/app/routes/organizations.py | DONE |
 | S-02.01.01 | E-02 | scoped integration lifecycle | backend/tests/test_integrations.py + backend/tests/test_secrets.py | backend/app/routes/integrations.py + backend/app/secrets.py | DONE |
 | S-02.02.01 | E-02 | Slack ingestion | backend/tests/test_slack.py | backend/app/routes/slack_oauth.py + backend/app/routes/slack_channels.py + backend/app/routes/slack_webhooks.py | DONE |
-| S-02.03.01 | E-02 | GitHub ingestion | pending | pending | BACKLOG |
+| S-02.03.01 | E-02 | GitHub ingestion | backend/tests/test_github_connector.py | backend/app/routes/github_oauth.py + backend/app/routes/github_webhooks.py + backend/app/routes/github_backfill.py | DONE |
 | S-02.04.01 | E-02 | meeting/document evidence | pending | pending | BACKLOG |
 | S-03.01.01 | E-03 | raw durable/idempotent ingestion | backend/tests/test_raw_events.py + backend/tests/test_slack.py | backend/app/raw_events.py + backend/app/models.py | DONE |
-| S-03.02.01 | E-03 | canonical event model | pending | pending | BACKLOG |
+| S-03.02.01 | E-03 | canonical event model | backend/tests/test_canonical_events.py + backend/tests/test_github_connector.py | backend/app/canonical_events.py + backend/app/models.py | DONE |
 | S-03.03.01 | E-03 | identity resolution | pending | pending | BACKLOG |
 | S-04.01.01 | E-04 | work graph | pending | pending | BACKLOG |
 | S-04.02.01 | E-04 | decision/blocker memory | pending | pending | BACKLOG |
@@ -71,3 +71,17 @@ command: cd backend && pytest -q
 result: 62 passed (GitHub Actions run 34034605245, 2026-09-06)
 code: backend/app/raw_events.py
 commit: e75d9864fcf81331d332ae8a6959b79650887299
+
+EVIDENCE S-02.03.01
+tests: backend/tests/test_github_connector.py::test_signed_private_repo_webhook_is_exactly_once_and_acl_preserved
+command: cd backend && pytest -q
+result: 73 passed (GitHub Actions run 34037248953, 2026-09-06)
+code: backend/app/routes/github_webhooks.py
+commit: 59155580a3e743309d2b9cbeff83d324ef1bf053
+
+EVIDENCE S-03.02.01
+tests: backend/tests/test_canonical_events.py::test_slack_backfill_message_maps_to_versioned_canonical_event
+command: cd backend && pytest -q
+result: 73 passed (GitHub Actions run 34037248953, 2026-09-06)
+code: backend/app/canonical_events.py
+commit: 59155580a3e743309d2b9cbeff83d324ef1bf053

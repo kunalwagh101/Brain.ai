@@ -9,11 +9,11 @@ DONE | S-01.02.01 | F-01.02 | Engineering evidence in TRACEABILITY.md; UAT remai
 DONE | S-01.03.01 | F-01.03 | Engineering evidence in TRACEABILITY.md; UAT remains pending in UAT.md
 DONE | S-02.01.01 | F-02.01 | Engineering evidence in TRACEABILITY.md; real-data/frontend UAT remains pending
 DONE | S-02.02.01 | F-02.02 | Engineering evidence in TRACEABILITY.md; real Slack + frontend UAT remains pending
-IN_PROGRESS | S-02.03.01 | F-02.03 | Increment 5: GitHub App webhook + repository backfill + source visibility into raw/canonical evidence
+DONE | S-02.03.01 | F-02.03 | Engineering evidence in TRACEABILITY.md; real GitHub + frontend UAT remains pending
 BACKLOG | S-02.04.01 | F-02.04 | OQ-004 selects first provider
 DONE | S-03.01.01 | F-03.01 | Engineering evidence in TRACEABILITY.md; realistic raw-data inspection UAT remains pending
-IN_PROGRESS | S-03.02.01 | F-03.02 | Increment 5: versioned provider-neutral canonical events proven with Slack + GitHub
-BACKLOG | S-03.03.01 | F-03.03 | Depends on identity + canonical event model
+DONE | S-03.02.01 | F-03.02 | Engineering evidence in TRACEABILITY.md; Slack/GitHub real-data + frontend UAT remains pending
+BACKLOG | S-03.03.01 | F-03.03 | Depends on identity + canonical event model; dependency now engineering-DONE
 BACKLOG | S-04.01.01 | F-04.01 | Depends on canonical events + identity resolution
 BACKLOG | S-04.02.01 | F-04.02 | Depends on work graph + retrieval evaluation
 BACKLOG | S-05.01.01 | F-05.01 | Depends on RBAC + canonical evidence
@@ -36,25 +36,28 @@ Increment 5 goal: **authorised GitHub App activity and backfill land exactly onc
 
 Vertical slice: canonical event schema/normaliser -> Slack canonical mapping -> GitHub App connection contract -> GitHub HMAC webhook -> repository visibility mapping -> repository/PR/issue/commit/deployment backfill -> canonical processing -> tests/migration/docs/UAT.
 
-## Increment 4 review
+## Increment 5 review
 
-- Slack OAuth uses a signed, expiring state containing organisation/user identifiers and re-checks the user's current `integration.manage` permission at callback time.
-- Required bot scopes are limited to channel/group read + history; direct-message scopes are not requested.
-- Admins explicitly authorise channels; the app must be a channel member first. DMs/MPDMs are rejected.
-- Private-channel authorisation records Slack member IDs as source ACL evidence and membership join/leave events update that state.
-- Slack Events API requests are HMAC-verified against the exact raw body before JSON parsing and rejected outside a five-minute timestamp window.
-- Live Slack payload bytes are stored exactly with SHA-256 provenance, source visibility, source ACL, source event ID and processing state.
-- Slack retries are idempotent on `(integration_connection_id, source_event_id)`.
-- History backfill is cursor-resumable, page-bounded, and replay-safe using deterministic per-message source IDs.
-- PostgreSQL is the durable raw-ingestion boundary in this increment; no premature queue/Slack SDK dependency was added.
-- Alembic revision `20260906_0005` has an explicit downgrade.
-- Backend CI and Delivery Verifier passed on the final DONE-state commit before merge.
-- F-02.02 and F-03.01 remain `UAT_PENDING`; they are not called passed/accepted until real Slack/data and frontend/manual UAT are recorded.
+- Added schema-versioned canonical events with one canonical row per raw event and immutable raw-event provenance.
+- Slack and GitHub now map into the same actor/action/object/source/permissions/provenance contract.
+- Unsupported or malformed mappings are quarantined; raw source evidence remains intact instead of being silently discarded.
+- GitHub uses a verified GitHub App installation flow rather than PATs or arbitrary client-supplied installation IDs.
+- Brain-signed expiring state binds the initiating Brain organisation/user; a second signed selection token binds the verified GitHub installation/account choice.
+- A selected installation is re-fetched and verified as belonging to the configured GitHub App before it is connected.
+- The generic integration endpoint rejects `provider=github`, preventing bypass of the verified GitHub App flow.
+- GitHub App private key, OAuth client secret and webhook secret are loaded by secret reference; installation access tokens are short-lived and are not persisted.
+- Webhooks validate `X-Hub-Signature-256` against the exact raw body before parsing; `X-GitHub-Delivery` provides retry-safe idempotency.
+- Private/internal repository evidence carries `github:repository:<id>` source ACL provenance for the later retrieval-authorisation layer.
+- GitHub backfill walks repository metadata, commits, pull requests, issues and deployments using a signed, connection-bound, replay-safe cursor.
+- Alembic revision `20260906_0006` adds provider metadata and canonical event storage with downgrade support.
+- Backend CI passed lint and 73 tests on GitHub Actions run `34037248953`.
+- Delivery Verifier passed on run `34037248958` before engineering-DONE was claimed.
+- F-02.03 and F-03.02 remain `UAT_PENDING`; they are not called passed/accepted until real GitHub/Slack data and frontend/manual UAT are recorded.
 
 ## Session-open self-audit
 
-- Six stories are engineering-DONE; user acceptance remains independently tracked in UAT.md.
-- Current WIP count: 2 (at limit): S-02.03.01 and S-03.02.01.
-- GitHub webhook signatures must be validated against the unmodified request body before parsing; only subscribed/handled event types are accepted.
-- Canonicalisation must preserve source permissions and raw-event provenance; unsupported fields/events must be explicitly retained as metadata or quarantined, never silently discarded.
-- No third story may enter IN_PROGRESS until one of the two current stories leaves WIP.
+- Eight stories are engineering-DONE; user acceptance remains independently tracked in UAT.md.
+- Current WIP count: 0.
+- F-02.03 and F-03.02 are engineering-DONE only; UAT acceptance remains pending.
+- S-03.03.01 identity resolution is now dependency-unlocked and is the next product story eligible for refinement.
+- No new story is silently pulled by this evidence update.
