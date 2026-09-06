@@ -16,7 +16,7 @@ This file is the engineering evidence index. A row is completed only after its s
 | S-03.03.01 | E-03 | tenant-safe identity resolution | backend/tests/test_identity_resolution.py + backend/tests/test_canonical_events.py | backend/app/identity_resolution.py + backend/app/routes/identities.py + backend/app/canonical_events.py | DONE |
 | S-04.01.01 | E-04 | typed tenant-safe work graph | backend/tests/test_work_graph.py | backend/app/work_graph.py + backend/app/routes/work_graph.py | DONE |
 | S-04.02.01 | E-04 | decision/blocker memory | pending | pending | BACKLOG |
-| S-05.01.01 | E-05 | permission-aware retrieval | pending | pending | BACKLOG |
+| S-05.01.01 | E-05 | permission-aware retrieval | backend/tests/test_search.py + backend/tests/test_search_evaluation.py | backend/app/search.py + backend/app/routes/search.py + backend/app/search_worker.py | IN_REVIEW |
 | S-05.02.01 | E-05 | evidence-backed Ask Brain | pending | pending | BACKLOG |
 | S-06.01.01 | E-06 | governed AI gateway | pending | pending | BACKLOG |
 | S-06.02.01 | E-06 | AI/API usage and budgets | pending | pending | BACKLOG |
@@ -99,3 +99,5 @@ command: cd backend && pytest -q
 result: 89 passed (GitHub Actions run 34043847195, 2026-09-06)
 code: backend/app/work_graph.py + backend/app/routes/work_graph.py + backend/app/work_graph_models.py
 commit: a97d724416191ec8515f5ed90888321343013cda
+
+S-05.01.01 intentionally has no EVIDENCE block yet. GitHub Actions has repeatedly failed before runner startup (`runner_id=0`, no steps), so there is no truthful passing test result to record and the story remains IN_REVIEW.
