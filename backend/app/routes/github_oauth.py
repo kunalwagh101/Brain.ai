@@ -2,7 +2,6 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -60,12 +59,12 @@ def github_install(
     response_model=GitHubOAuthCallbackRead,
 )
 def github_oauth_callback(
+    settings: Annotated[Settings, Depends(get_settings)],
+    db: Annotated[Session, Depends(get_db)],
+    github_api: Annotated[GitHubAPIClient, Depends(get_github_api_client)],
     code: str | None = None,
     state: str | None = None,
     error: str | None = None,
-    settings: Annotated[Settings, Depends(get_settings)] = None,
-    db: Annotated[Session, Depends(get_db)] = None,
-    github_api: Annotated[GitHubAPIClient, Depends(get_github_api_client)] = None,
 ) -> GitHubOAuthCallbackRead:
     if error:
         raise HTTPException(
@@ -77,7 +76,6 @@ def github_oauth_callback(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid GitHub OAuth callback",
         )
-    assert settings is not None and db is not None and github_api is not None
     try:
         organization_id, user_id = verify_install_state(
             state,
