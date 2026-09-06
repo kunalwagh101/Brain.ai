@@ -1,9 +1,9 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.models import MembershipRole, ResourceAccessLevel
+from app.models import IntegrationHealth, IntegrationStatus, MembershipRole, ResourceAccessLevel
 
 
 class UserRead(BaseModel):
@@ -61,6 +61,61 @@ class ResourceGrantRead(BaseModel):
     access: ResourceAccessLevel
     created_by_user_id: uuid.UUID
     created_at: datetime
+
+
+class IntegrationConnectionCreate(BaseModel):
+    provider: str = Field(pattern=r"^[a-z][a-z0-9_-]{0,39}$", max_length=40)
+    external_account_id: str = Field(min_length=1, max_length=255)
+    display_name: str = Field(min_length=1, max_length=160)
+    scopes: list[str] = Field(default_factory=list, max_length=64)
+    credentials: dict[str, str] = Field(min_length=1, max_length=32)
+
+    @field_validator("scopes")
+    @classmethod
+    def normalize_scopes(cls, scopes: list[str]) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for scope in scopes:
+            value = scope.strip()
+            if not value or len(value) > 255:
+                raise ValueError("Scopes must be non-empty and at most 255 characters")
+            if value not in seen:
+                seen.add(value)
+                normalized.append(value)
+        return normalized
+
+    @field_validator("credentials")
+    @classmethod
+    def validate_credentials(cls, credentials: dict[str, str]) -> dict[str, str]:
+        cleaned: dict[str, str] = {}
+        for key, value in credentials.items():
+            name = key.strip()
+            if not name or len(name) > 128:
+                raise ValueError("Credential names must be 1-128 characters")
+            if not value or len(value) > 16384:
+                raise ValueError("Credential values must be 1-16384 characters")
+            cleaned[name] = value
+        return cleaned
+
+
+class IntegrationConnectionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    organization_id: uuid.UUID
+    provider: str
+    external_account_id: str
+    display_name: str
+    status: IntegrationStatus
+    health: IntegrationHealth
+    scopes: list[str]
+    sync_cursor: str | None
+    last_synced_at: datetime | None
+    last_error_code: str | None
+    created_by_user_id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+    revoked_at: datetime | None
 
 
 class CurrentUserRead(UserRead):
