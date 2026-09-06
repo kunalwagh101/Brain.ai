@@ -19,6 +19,7 @@ Until both are recorded, external status is `UAT_PENDING` even if CI is green.
 | F-02.03 GitHub Connector | DONE | PENDING | PENDING | UAT_PENDING |
 | F-03.01 Raw Event Ingestion | DONE | PENDING | PENDING | UAT_PENDING |
 | F-03.02 Canonical Event Model | DONE | PENDING | PENDING | UAT_PENDING |
+| F-03.03 Identity Resolution | DONE | PENDING | PENDING | UAT_PENDING |
 
 Detailed scripts live under `UAT/`.
 

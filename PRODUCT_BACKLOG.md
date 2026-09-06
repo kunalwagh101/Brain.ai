@@ -106,8 +106,10 @@ Dependencies: S-03.01.01. Size: L. Indicator: canonicalisation success. Value: E
 #### F-03.03 Identity resolution
 **S-03.03.01 — Link external identities without unsafe guessing**  
 As an admin, I want Slack/GitHub/AI identities linked to Brain users with evidence, so that activity attribution is trustworthy.  
-Acceptance: deterministic verified links auto-resolve; ambiguous links remain unresolved or require approval; merges are reversible/audited.  
-Dependencies: S-01.01.01, S-03.02.01. Size: M. Indicator: verified attribution rate. Value: E-03.
+Acceptance: Given a source identity with an exact provider ID, when it is observed again in the same organisation, then the same source identity is reused; Given a source identity with a provider-verified email that exactly matches one active member in the same organisation, when resolution runs, then it auto-resolves with deterministic evidence; Given an unverified, missing or ambiguous identity, when resolution runs, then it remains unresolved and no Brain user is guessed; Given an Owner/Admin manually resolves, reassigns or unresolves an identity, then the target user must be an active member of that organisation and an immutable before/after history record is written.  
+Dependencies: S-01.01.01, S-01.03.01, S-03.02.01. Blocking risk: provider events frequently lack verified email, so unresolved/manual is a valid production state rather than a reason to guess. Size: M. Indicator: verified attribution rate and false-link count = 0 in the evaluation set. Value: E-03.  
+Rules: source identities are tenant-scoped; WorkOS authentication identities remain separate; no name-only, username-similarity, email-domain-only, cross-tenant or LLM auto-linking; canonical source observations are append-only evidence; all manual changes are reversible and audited.  
+Tasks: T-03.03.01.a source-identity + immutable resolution-history schema/migration; T-03.03.01.b idempotent canonical-actor observation and verified-email deterministic resolver; T-03.03.01.c Owner/Admin list/resolve/reassign/unresolve/reconcile API with tenant checks; T-03.03.01.d canonical-event resolved-user linkage without rewriting source actor evidence; T-03.03.01.e positive/negative/concurrency/idempotency tests; T-03.03.01.f migration rollback, UAT, security and operator docs.
 
 ### E-04 Work graph and organisational memory
 

@@ -21,6 +21,7 @@ class Permission(StrEnum):
     RESOURCE_WRITE = "resource.write"
     RESOURCE_ACL_MANAGE = "resource_acl.manage"
     INTEGRATION_MANAGE = "integration.manage"
+    IDENTITY_MANAGE = "identity.manage"
     AI_USE = "ai.use"
     AUDIT_READ = "audit.read"
 

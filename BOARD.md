@@ -13,8 +13,8 @@ DONE | S-02.03.01 | F-02.03 | Engineering evidence in TRACEABILITY.md; real GitH
 BACKLOG | S-02.04.01 | F-02.04 | OQ-004 selects first provider
 DONE | S-03.01.01 | F-03.01 | Engineering evidence in TRACEABILITY.md; realistic raw-data inspection UAT remains pending
 DONE | S-03.02.01 | F-03.02 | Engineering evidence in TRACEABILITY.md; Slack/GitHub real-data + frontend UAT remains pending
-BACKLOG | S-03.03.01 | F-03.03 | Depends on identity + canonical event model; dependency now engineering-DONE
-BACKLOG | S-04.01.01 | F-04.01 | Depends on canonical events + identity resolution
+DONE | S-03.03.01 | F-03.03 | Engineering evidence in TRACEABILITY.md; real provider identity + frontend/manual UAT remains pending
+BACKLOG | S-04.01.01 | F-04.01 | Identity resolution dependency is engineering-DONE; eligible for refinement
 BACKLOG | S-04.02.01 | F-04.02 | Depends on work graph + retrieval evaluation
 BACKLOG | S-05.01.01 | F-05.01 | Depends on RBAC + canonical evidence
 BACKLOG | S-05.02.01 | F-05.02 | OQ-005 before provider contract is frozen
@@ -32,9 +32,26 @@ DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external
 
 ## Sprint planning
 
-Increment 5 goal: **authorised GitHub App activity and backfill land exactly once as raw evidence and are normalised into the same versioned canonical event contract used for Slack, with repository visibility and provenance preserved.**
+Increment 6 goal: **every Slack/GitHub source actor can be represented as a tenant-scoped source identity without pretending it is a Brain user; only verified exact evidence may auto-resolve, while Owner/Admin manual resolve/reassign/unresolve actions are tenant-safe, reversible and immutably audited.**
 
-Vertical slice: canonical event schema/normaliser -> Slack canonical mapping -> GitHub App connection contract -> GitHub HMAC webhook -> repository visibility mapping -> repository/PR/issue/commit/deployment backfill -> canonical processing -> tests/migration/docs/UAT.
+Vertical slice: source-identity/history schema -> canonical actor observation -> exact verified-email resolver -> unresolved/conflict states -> Owner/Admin identity-management API -> canonical resolved-user reference -> reconciliation for existing canonical events -> tests/migration/docs/UAT.
+
+## Increment 6 review
+
+- Added tenant-scoped source identities that are explicitly separate from WorkOS authentication identities.
+- Canonical Slack/GitHub person actors now create/reuse one source identity per organisation/provider/external ID while preserving the original source actor fields.
+- Added one append-only source-identity observation per canonical event; replay remains idempotent.
+- Automatic resolution is intentionally narrow: only a provider-verified exact email may link to an active member of the same Brain organisation.
+- Missing/unverified evidence stays `UNRESOLVED`; conflicting verified evidence moves the source identity to `REVIEW_REQUIRED` and clears unsafe attribution.
+- No name-only, username-similarity, domain-only, cross-tenant or LLM identity guessing is used.
+- Added Owner/Admin `identity.manage` routes for listing, history, manual resolve/reassign/unresolve and reconciliation of existing canonical events.
+- Manual resolution targets must be active members of the same organisation; every material change writes immutable previous/new-user history.
+- Canonical events gain optional `source_identity_id` and `resolved_user_id` without rewriting source-provider actor evidence.
+- UTC normalization prevents SQLite/PostgreSQL timezone representation differences from corrupting first/last-seen comparisons.
+- Alembic revision `20260906_0007` adds source identity, observation and resolution-history storage plus canonical linkage with downgrade support.
+- Backend CI passed lint and 82 tests on GitHub Actions run `34038863067`.
+- Delivery Verifier passed on run `34038863068` before engineering-DONE was claimed.
+- F-03.03 remains `UAT_PENDING`; real-provider identity evidence and frontend/manual acceptance are not claimed by engineering tests.
 
 ## Increment 5 review
 
@@ -51,13 +68,15 @@ Vertical slice: canonical event schema/normaliser -> Slack canonical mapping -> 
 - GitHub backfill walks repository metadata, commits, pull requests, issues and deployments using a signed, connection-bound, replay-safe cursor.
 - Alembic revision `20260906_0006` adds provider metadata and canonical event storage with downgrade support.
 - Backend CI passed lint and 73 tests on GitHub Actions run `34037248953`.
-- Delivery Verifier passed on run `34037248958` before engineering-DONE was claimed.
+- Delivery Verifier passed on run `34037248958` before engineering-DONE was claimed; the final DONE-state gate also passed before merge.
 - F-02.03 and F-03.02 remain `UAT_PENDING`; they are not called passed/accepted until real GitHub/Slack data and frontend/manual UAT are recorded.
 
 ## Session-open self-audit
 
-- Eight stories are engineering-DONE; user acceptance remains independently tracked in UAT.md.
+- Nine stories are engineering-DONE; user acceptance remains independently tracked in UAT.md.
 - Current WIP count: 0.
-- F-02.03 and F-03.02 are engineering-DONE only; UAT acceptance remains pending.
-- S-03.03.01 identity resolution is now dependency-unlocked and is the next product story eligible for refinement.
-- No new story is silently pulled by this evidence update.
+- F-03.03 is engineering-DONE only; real-provider/manual UAT remains pending.
+- WorkOS authentication identities remain separate from Slack/GitHub source identities.
+- Automatic source-identity linking requires provider-verified exact evidence inside the same organisation; incomplete evidence remains unresolved.
+- No fuzzy name/username/domain/LLM guessing is allowed for automatic identity resolution.
+- S-04.01.01 Work Graph is now dependency-unlocked and is the next product story eligible for refinement.

@@ -11,6 +11,8 @@ from app.models import (
     IntegrationStatus,
     Organization,
     RawEventStatus,
+    SourceIdentity,
+    SourceIdentityObservation,
     User,
 )
 from app.raw_events import persist_raw_event
@@ -84,6 +86,14 @@ def test_slack_backfill_message_maps_to_versioned_canonical_event(db_session: Se
     assert result.event.provenance["raw_event_id"] == str(persisted.event.id)
     assert result.event.provenance["payload_sha256"] == persisted.event.payload_sha256
     assert result.event.event_metadata["thread_ts"] == "1719999999.999"
+    assert result.event.source_identity_id is not None
+    assert result.event.resolved_user_id is None
+    identity = db_session.get(SourceIdentity, result.event.source_identity_id)
+    assert identity is not None
+    assert identity.organization_id == organization.id
+    assert identity.provider == "slack"
+    assert identity.external_id == "U123"
+    assert db_session.scalar(select(func.count()).select_from(SourceIdentityObservation)) == 1
     assert persisted.event.processing_status == RawEventStatus.PROCESSED
 
 
@@ -109,7 +119,13 @@ def test_canonicalization_is_idempotent_per_raw_event(db_session: Session) -> No
     assert first.created is True
     assert second.created is False
     count = db_session.scalar(select(func.count()).select_from(CanonicalEvent))
+    identity_count = db_session.scalar(select(func.count()).select_from(SourceIdentity))
+    observation_count = db_session.scalar(
+        select(func.count()).select_from(SourceIdentityObservation)
+    )
     assert count == 1
+    assert identity_count == 1
+    assert observation_count == 1
 
 
 def test_unsupported_event_is_quarantined_without_losing_raw_evidence(
@@ -139,6 +155,7 @@ def test_unsupported_event_is_quarantined_without_losing_raw_evidence(
     assert persisted.event.last_error_code == "unsupported_slack_event:reaction_added"
     assert persisted.event.raw_payload == raw_payload
     assert db_session.scalar(select(func.count()).select_from(CanonicalEvent)) == 0
+    assert db_session.scalar(select(func.count()).select_from(SourceIdentity)) == 0
 
 
 def test_github_pull_request_preserves_repository_acl_and_provenance(
@@ -194,3 +211,8 @@ def test_github_pull_request_preserves_repository_acl_and_provenance(
     assert result.event.source_acl == ["github:repository:101"]
     assert result.event.provenance["raw_event_id"] == str(persisted.event.id)
     assert result.event.event_metadata["repository"] == "acme/private-repo"
+    assert result.event.source_identity_id is not None
+    identity = db_session.get(SourceIdentity, result.event.source_identity_id)
+    assert identity is not None
+    assert identity.provider == "github"
+    assert identity.external_id == "7"
