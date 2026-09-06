@@ -13,6 +13,7 @@ from app.models import (
     RawEvent,
     ResourceAccessLevel,
     ResourceGrant,
+    SlackChannelAuthorization,
     SourceIdentity,
     SourceIdentityState,
     User,
@@ -175,6 +176,79 @@ def test_slack_projection_is_typed_and_idempotent(db_session: Session) -> None:
     }
     assert len(edges) == 3
     assert all(edge.evidence_state == WorkGraphEvidenceState.VERIFIED for edge in edges)
+
+
+def test_private_slack_graph_uses_current_membership_not_historical_acl(
+    db_session: Session,
+) -> None:
+    organization, owner, member = _seed_org(db_session, "slack-private")
+    member_slack_id = "U-MEMBER"
+    event = _canonical_event(
+        db_session,
+        organization=organization,
+        owner=owner,
+        provider="slack",
+        visibility="private_channel",
+        source_acl=[member_slack_id],
+        object_type="message",
+        object_external_id="C-private:100.0",
+        metadata={"channel_id": "C-private"},
+    )
+    db_session.add(
+        SourceIdentity(
+            organization_id=organization.id,
+            provider="slack",
+            external_id=member_slack_id,
+            display_name="Private Member",
+            email=None,
+            email_verified=False,
+            state=SourceIdentityState.RESOLVED,
+            resolved_user_id=member.id,
+            resolution_method="manual",
+            first_seen_at=datetime.now(UTC),
+            last_seen_at=datetime.now(UTC),
+        )
+    )
+    authorization = SlackChannelAuthorization(
+        organization_id=organization.id,
+        integration_connection_id=event.integration_connection_id,
+        channel_id="C-private",
+        channel_name="private",
+        is_private=True,
+        member_ids=[member_slack_id],
+        authorized_by_user_id=owner.id,
+    )
+    db_session.add(authorization)
+    db_session.commit()
+
+    project_canonical_event(db_session, event)
+    track = db_session.scalar(
+        select(WorkGraphNode).where(WorkGraphNode.node_type == WorkGraphNodeType.TRACK)
+    )
+    assert track is not None
+    allowed = traverse_work_graph(
+        db_session,
+        organization_id=organization.id,
+        start_node_id=track.id,
+        user_id=member.id,
+        role=MembershipRole.MEMBER,
+        depth=1,
+    )
+    assert allowed is not None
+
+    authorization.member_ids = []
+    db_session.commit()
+
+    denied = traverse_work_graph(
+        db_session,
+        organization_id=organization.id,
+        start_node_id=track.id,
+        user_id=member.id,
+        role=MembershipRole.MEMBER,
+        depth=1,
+    )
+    assert denied is None
+    assert member_slack_id in track.source_acl
 
 
 def test_private_github_graph_fails_closed_until_explicit_grant(db_session: Session) -> None:
