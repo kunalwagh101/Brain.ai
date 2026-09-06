@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.canonical_events import canonicalize_raw_event
 from app.database import get_db
 from app.integrations import record_sync_failure, record_sync_success
 from app.models import SlackChannelAuthorization
@@ -319,6 +320,7 @@ def backfill_slack_channel(
             source_acl=source_acl,
             source_timestamp=source_timestamp,
         )
+        canonicalize_raw_event(db, result.event)
         if result.created:
             inserted += 1
         else:
