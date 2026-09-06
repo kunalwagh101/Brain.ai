@@ -14,7 +14,7 @@ This file is the engineering evidence index. A row is completed only after its s
 | S-03.01.01 | E-03 | raw durable/idempotent ingestion | backend/tests/test_raw_events.py + backend/tests/test_slack.py | backend/app/raw_events.py + backend/app/models.py | DONE |
 | S-03.02.01 | E-03 | canonical event model | backend/tests/test_canonical_events.py + backend/tests/test_github_connector.py | backend/app/canonical_events.py + backend/app/models.py | DONE |
 | S-03.03.01 | E-03 | tenant-safe identity resolution | backend/tests/test_identity_resolution.py + backend/tests/test_canonical_events.py | backend/app/identity_resolution.py + backend/app/routes/identities.py + backend/app/canonical_events.py | DONE |
-| S-04.01.01 | E-04 | work graph | pending | pending | BACKLOG |
+| S-04.01.01 | E-04 | typed tenant-safe work graph | backend/tests/test_work_graph.py | backend/app/work_graph.py + backend/app/routes/work_graph.py | DONE |
 | S-04.02.01 | E-04 | decision/blocker memory | pending | pending | BACKLOG |
 | S-05.01.01 | E-05 | permission-aware retrieval | pending | pending | BACKLOG |
 | S-05.02.01 | E-05 | evidence-backed Ask Brain | pending | pending | BACKLOG |
@@ -92,3 +92,10 @@ command: cd backend && pytest -q
 result: 82 passed (GitHub Actions run 34039308232, 2026-09-06)
 code: backend/app/identity_resolution.py + backend/app/routes/identities.py + backend/app/canonical_events.py
 commit: be307d8b26bf97fa2ae8eaad52b1a370885a3123
+
+EVIDENCE S-04.01.01
+tests: backend/tests/test_work_graph.py::test_private_slack_graph_uses_current_membership_not_historical_acl
+command: cd backend && pytest -q
+result: 89 passed (GitHub Actions run 34043847195, 2026-09-06)
+code: backend/app/work_graph.py + backend/app/routes/work_graph.py + backend/app/work_graph_models.py
+commit: a97d724416191ec8515f5ed90888321343013cda
