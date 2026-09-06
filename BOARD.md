@@ -6,7 +6,7 @@ Format: `STATUS | STORY_ID | FEATURE | NOTE`
 
 DONE | S-01.01.01 | F-01.01 | Evidence in TRACEABILITY.md; authenticated organisation ownership and membership boundary verified
 DONE | S-01.02.01 | F-01.02 | Evidence in TRACEABILITY.md; WorkOS JWT identity verification and Brain identity linking verified
-BACKLOG | S-01.03.01 | F-01.03 | Depends on S-01.02.01 and OQ-002
+IN_PROGRESS | S-01.03.01 | F-01.03 | Increment 2: central RBAC policy + restricted-resource ACL + deny-before-handler guard + security audit hooks
 BACKLOG | S-02.01.01 | F-02.01 | Depends on S-01.03.01 and OQ-003
 BACKLOG | S-02.02.01 | F-02.02 | Depends on integration framework and raw event model
 BACKLOG | S-02.03.01 | F-02.03 | Depends on integration framework and raw event model
@@ -32,9 +32,9 @@ DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external
 
 ## Sprint planning
 
-Increment 1 goal: **a verified user can establish an organisation ownership boundary and manage membership without cross-tenant leakage.**
+Increment 2 goal: **every protected organisation or resource action passes through one server-side policy layer, with restricted resources denied before endpoint/AI/tool code executes.**
 
-Vertical slice: provider JWT -> Brain identity -> organisation owner membership -> membership read/write -> negative tenant tests.
+Vertical slice: role matrix -> organisation permission dependency -> resource ACL grants -> pre-handler resource guard -> negative permission tests -> security audit events.
 
 ## Increment 1 review
 
@@ -47,7 +47,7 @@ Vertical slice: provider JWT -> Brain identity -> organisation owner membership 
 
 ## Session-open self-audit
 
-- Increment 0 delivery verifier passed before Increment 1 was pulled.
-- Increment 1 implementation tests and lint passed before these stories moved to DONE.
-- WIP count: 0.
-- No additional story is silently pulled by this board update.
+- Increment 1 is DONE and merged to main.
+- OQ-002 is resolved before RBAC implementation: Slack DMs excluded from MVP; private channels opt-in only.
+- Current WIP count: 1.
+- No integration story enters WIP until S-01.03.01 is verified DONE.
