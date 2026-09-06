@@ -28,6 +28,7 @@ def test_core_tables_are_registered() -> None:
         "identity_resolution_history",
         "work_graph_nodes",
         "work_graph_edges",
+        "search_documents",
     }
 
 
@@ -115,3 +116,10 @@ def test_work_graph_node_and_edge_keys_are_tenant_scoped() -> None:
     assert ("organization_id", "provenance_key") in _unique_columns(
         "work_graph_edges"
     )
+
+
+def test_search_document_is_unique_per_canonical_event() -> None:
+    assert ("canonical_event_id",) in _unique_columns("search_documents")
+    search_document = Base.metadata.tables["search_documents"]
+    assert "organization_id" in search_document.columns
+    assert "search_text" in search_document.columns
