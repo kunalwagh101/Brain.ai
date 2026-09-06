@@ -1,7 +1,6 @@
 import uuid
-from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -79,6 +78,3 @@ def active_github_installations(
             )
         )
     )
-
-
-GitHubManageDependency = Annotated[object, Depends(manage_integrations)]
