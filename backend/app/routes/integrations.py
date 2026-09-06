@@ -53,6 +53,11 @@ def create_integration(
     secret_store: Annotated[SecretStore, Depends(get_secret_store)],
 ) -> IntegrationConnection:
     provider = payload.provider.strip().lower()
+    if provider == "github":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Use the verified GitHub App installation flow",
+        )
     external_account_id = payload.external_account_id.strip()
     duplicate = db.scalar(
         select(IntegrationConnection.id).where(
@@ -90,6 +95,7 @@ def create_integration(
         status=IntegrationStatus.ACTIVE,
         health=IntegrationHealth.UNKNOWN,
         scopes=payload.scopes,
+        provider_metadata={},
         secret_ref=secret_ref,
         created_by_user_id=authorization.user_id,
     )
