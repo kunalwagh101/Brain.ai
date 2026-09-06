@@ -9,13 +9,6 @@ from app.search import process_embedding_batch, reconcile_search_documents
 
 
 def run_once(*, batch_size: int) -> tuple[int, int, int]:
-    try:
-        client, model = build_embedding_client()
-    except EmbeddingError as exc:
-        raise SystemExit(f"Embedding configuration unavailable: {exc}") from exc
-    if client is None or model is None:
-        raise SystemExit("Embedding service is not configured")
-
     reconciled = embedded = failed = 0
     factory = get_session_factory()
     with factory() as db:
@@ -27,6 +20,14 @@ def run_once(*, batch_size: int) -> tuple[int, int, int]:
                 limit=batch_size,
             )
             reconciled += processed
+
+        try:
+            client, model = build_embedding_client()
+        except EmbeddingError:
+            return reconciled, 0, 0
+        if client is None or model is None:
+            return reconciled, 0, 0
+
         embedded, failed = process_embedding_batch(
             db,
             embedding_client=client,
