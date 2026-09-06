@@ -120,7 +120,9 @@ def test_canonicalization_is_idempotent_per_raw_event(db_session: Session) -> No
     assert second.created is False
     count = db_session.scalar(select(func.count()).select_from(CanonicalEvent))
     identity_count = db_session.scalar(select(func.count()).select_from(SourceIdentity))
-    observation_count = db_session.scalar(select(func.count()).select_from(SourceIdentityObservation))
+    observation_count = db_session.scalar(
+        select(func.count()).select_from(SourceIdentityObservation)
+    )
     assert count == 1
     assert identity_count == 1
     assert observation_count == 1
