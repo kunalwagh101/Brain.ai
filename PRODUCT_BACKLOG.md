@@ -242,8 +242,8 @@ Dependencies: E-01 through E-05. Size: L. Indicator: active native tracks. Value
 | Migrations/rollback/backup | S-09.03.01 |
 | Latency/cost benchmarks | S-09.04.01 |
 | Accessibility | S-07.01.01, S-07.02.01, S-10.01.01 |
-| CI and lie-detector verifier | S-09.03.01 / Phase 3 process gate |
-| Agile/Scrum/Kanban artifacts | Phase 1-3 delivery contract |
+| CI and lie-detector verifier | S-09.03.01 |
+| Agile/Scrum/Kanban artifacts | S-09.03.01 |
 
 Orphan requirements: **0**.
 
