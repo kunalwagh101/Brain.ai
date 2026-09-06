@@ -251,7 +251,9 @@ class SlackChannelAuthorization(Base):
     member_ids: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     backfill_cursor: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     backfill_complete: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    last_backfilled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_backfilled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     authorized_by_user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
@@ -286,7 +288,9 @@ class RawEvent(Base):
     source_event_id: Mapped[str] = mapped_column(String(255), nullable=False)
     source_event_type: Mapped[str] = mapped_column(String(128), nullable=False)
     delivery_kind: Mapped[str] = mapped_column(String(32), nullable=False)
-    source_timestamp: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    source_timestamp: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     content_type: Mapped[str] = mapped_column(String(128), nullable=False)
     payload_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     raw_payload: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
