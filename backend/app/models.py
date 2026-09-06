@@ -207,7 +207,9 @@ class IntegrationConnection(Base):
         nullable=False,
     )
     scopes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
-    provider_metadata: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    provider_metadata: Mapped[dict[str, object]] = mapped_column(
+        JSON, default=dict, nullable=False
+    )
     secret_ref: Mapped[str | None] = mapped_column(String(512), nullable=True)
     sync_cursor: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -339,11 +341,15 @@ class CanonicalEvent(Base):
     source_provider: Mapped[str] = mapped_column(String(40), nullable=False)
     source_event_id: Mapped[str] = mapped_column(String(255), nullable=False)
     source_event_type: Mapped[str] = mapped_column(String(128), nullable=False)
-    occurred_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    occurred_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     source_visibility: Mapped[str] = mapped_column(String(32), nullable=False)
     source_acl: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     provenance: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
-    metadata: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    event_metadata: Mapped[dict[str, object]] = mapped_column(
+        "metadata", JSON, default=dict, nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
