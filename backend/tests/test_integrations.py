@@ -99,6 +99,7 @@ def test_admin_creates_connection_without_persisting_plaintext_credentials(
     body = response.json()
     assert body["provider"] == "slack"
     assert body["scopes"] == ["channels:read"]
+    assert body["provider_metadata"] == {}
     assert "credentials" not in body
     assert "secret_ref" not in body
     assert "xoxb-realistic-secret" not in response.text
@@ -119,10 +120,10 @@ def test_duplicate_connection_is_rejected_before_secret_creation(
     _use_user(owner)
     _use_secret_store(store)
     payload = {
-        "provider": "github",
-        "external_account_id": "installation-42",
-        "display_name": "Acme GitHub",
-        "credentials": {"installation_token": "token-1"},
+        "provider": "linear",
+        "external_account_id": "workspace-42",
+        "display_name": "Acme Linear",
+        "credentials": {"api_token": "token-1"},
     }
 
     first = client.post(f"/api/v1/organizations/{organization.id}/integrations", json=payload)
@@ -181,6 +182,7 @@ def test_revoke_disables_sync_and_removes_database_secret_reference(
         status=IntegrationStatus.ACTIVE,
         health=IntegrationHealth.HEALTHY,
         scopes=["channels:read"],
+        provider_metadata={},
         secret_ref="arn:secret:one",
         created_by_user_id=owner.id,
     )
@@ -211,12 +213,13 @@ def test_failed_secret_delete_leaves_connection_non_syncable(
     _use_secret_store(store)
     connection = IntegrationConnection(
         organization_id=organization.id,
-        provider="github",
-        external_account_id="installation-42",
-        display_name="Acme GitHub",
+        provider="notion",
+        external_account_id="workspace-42",
+        display_name="Acme Notion",
         status=IntegrationStatus.ACTIVE,
         health=IntegrationHealth.UNKNOWN,
         scopes=[],
+        provider_metadata={},
         secret_ref="arn:secret:two",
         created_by_user_id=owner.id,
     )
@@ -238,12 +241,13 @@ def test_sync_success_persists_health_and_cursor(db_session: Session) -> None:
     owner, organization = _seed_org(db_session)
     connection = IntegrationConnection(
         organization_id=organization.id,
-        provider="github",
-        external_account_id="installation-42",
-        display_name="Acme GitHub",
+        provider="notion",
+        external_account_id="workspace-42",
+        display_name="Acme Notion",
         status=IntegrationStatus.ACTIVE,
         health=IntegrationHealth.UNKNOWN,
         scopes=[],
+        provider_metadata={},
         secret_ref="arn:secret:three",
         created_by_user_id=owner.id,
     )
