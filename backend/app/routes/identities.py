@@ -22,6 +22,7 @@ from app.schemas import (
     SourceIdentityResolveRequest,
     SourceIdentityUnresolveRequest,
 )
+from app.work_graph import sync_source_identity_node
 
 router = APIRouter(
     prefix="/organizations/{organization_id}/source-identities",
@@ -96,7 +97,7 @@ def resolve_source_identity(
 ) -> SourceIdentity:
     identity = _get_identity(db, organization_id=organization_id, identity_id=identity_id)
     try:
-        return resolve_identity_manually(
+        resolved = resolve_identity_manually(
             db,
             identity,
             target_user_id=payload.user_id,
@@ -108,6 +109,8 @@ def resolve_source_identity(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+    sync_source_identity_node(db, resolved)
+    return resolved
 
 
 @router.post("/{identity_id}/unresolve", response_model=SourceIdentityRead)
@@ -119,12 +122,14 @@ def unresolve_source_identity(
     db: Annotated[Session, Depends(get_db)],
 ) -> SourceIdentity:
     identity = _get_identity(db, organization_id=organization_id, identity_id=identity_id)
-    return unresolve_identity_manually(
+    unresolved = unresolve_identity_manually(
         db,
         identity,
         actor_user_id=authorization.user_id,
         reason=payload.reason,
     )
+    sync_source_identity_node(db, unresolved)
+    return unresolved
 
 
 @router.post("/reconcile", response_model=IdentityReconcileRead)
