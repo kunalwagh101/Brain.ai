@@ -14,7 +14,7 @@ BACKLOG | S-02.04.01 | F-02.04 | OQ-004 selects first provider
 DONE | S-03.01.01 | F-03.01 | Engineering evidence in TRACEABILITY.md; realistic raw-data inspection UAT remains pending
 DONE | S-03.02.01 | F-03.02 | Engineering evidence in TRACEABILITY.md; Slack/GitHub real-data + frontend UAT remains pending
 DONE | S-03.03.01 | F-03.03 | Engineering evidence in TRACEABILITY.md; real provider identity + frontend/manual UAT remains pending
-BACKLOG | S-04.01.01 | F-04.01 | Identity resolution dependency is engineering-DONE; eligible for refinement
+IN_PROGRESS | S-04.01.01 | F-04.01 | Increment 7: typed PostgreSQL work graph + evidence-backed edges + tenant-safe traversal
 BACKLOG | S-04.02.01 | F-04.02 | Depends on work graph + retrieval evaluation
 BACKLOG | S-05.01.01 | F-05.01 | Depends on RBAC + canonical evidence
 BACKLOG | S-05.02.01 | F-05.02 | OQ-005 before provider contract is frozen
@@ -32,9 +32,20 @@ DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external
 
 ## Sprint planning
 
-Increment 6 goal: **every Slack/GitHub source actor can be represented as a tenant-scoped source identity without pretending it is a Brain user; only verified exact evidence may auto-resolve, while Owner/Admin manual resolve/reassign/unresolve actions are tenant-safe, reversible and immutably audited.**
+Increment 7 goal: **represent people, projects, tracks, work items and canonical evidence as a typed tenant-scoped graph in PostgreSQL, with every relationship carrying explicit state, confidence and provenance so deterministic/manual facts remain distinguishable from inference.**
 
-Vertical slice: source-identity/history schema -> canonical actor observation -> exact verified-email resolver -> unresolved/conflict states -> Owner/Admin identity-management API -> canonical resolved-user reference -> reconciliation for existing canonical events -> tests/migration/docs/UAT.
+Vertical slice: typed graph nodes/edges -> canonical evidence/person projection -> source-identity to Brain-user resolution edges -> explicit project/track/work-item creation -> verified/inferred edge rules -> bounded tenant-scoped traversal -> restricted-evidence fail-closed behavior -> idempotency/tests/migration/docs/UAT.
+
+Rules for this increment:
+
+- PostgreSQL relationship tables only; no Neo4j/graph database dependency.
+- Source identity person nodes and Brain user person nodes remain distinct; a `resolves_to` edge links them when identity resolution is current.
+- Canonical evidence becomes a graph node by stable canonical-event ID; original evidence/provenance remains in canonical storage.
+- Project/track/work-item relationships are explicit/manual unless a deterministic source rule exists. The LLM may not create a verified edge.
+- Every edge has a relation type, state (`verified` or `inferred`), confidence and provenance.
+- Inferred edges are visibly distinguishable and cannot silently become verified.
+- Cross-tenant endpoints/edges are rejected. Restricted source evidence is fail-closed for non-admin traversal until F-05.01 provides the complete permission-aware retrieval layer.
+- Graph nodes store references/minimal metadata, not copied message/code content.
 
 ## Increment 6 review
 
@@ -49,8 +60,7 @@ Vertical slice: source-identity/history schema -> canonical actor observation ->
 - Canonical events gain optional `source_identity_id` and `resolved_user_id` without rewriting source-provider actor evidence.
 - UTC normalization prevents SQLite/PostgreSQL timezone representation differences from corrupting first/last-seen comparisons.
 - Alembic revision `20260906_0007` adds source identity, observation and resolution-history storage plus canonical linkage with downgrade support.
-- Backend CI passed lint and 82 tests on GitHub Actions run `34038863067`.
-- Delivery Verifier passed on run `34038863068` before engineering-DONE was claimed.
+- Backend CI passed lint and 82 tests; the final DONE-state Backend CI and Delivery Verifier were green before PR #8 merged.
 - F-03.03 remains `UAT_PENDING`; real-provider identity evidence and frontend/manual acceptance are not claimed by engineering tests.
 
 ## Increment 5 review
@@ -74,9 +84,8 @@ Vertical slice: source-identity/history schema -> canonical actor observation ->
 ## Session-open self-audit
 
 - Nine stories are engineering-DONE; user acceptance remains independently tracked in UAT.md.
-- Current WIP count: 0.
-- F-03.03 is engineering-DONE only; real-provider/manual UAT remains pending.
-- WorkOS authentication identities remain separate from Slack/GitHub source identities.
-- Automatic source-identity linking requires provider-verified exact evidence inside the same organisation; incomplete evidence remains unresolved.
-- No fuzzy name/username/domain/LLM guessing is allowed for automatic identity resolution.
-- S-04.01.01 Work Graph is now dependency-unlocked and is the next product story eligible for refinement.
+- Current WIP count: 1: S-04.01.01.
+- Work Graph is a projection/reference layer, not a replacement for canonical/raw evidence.
+- No inferred edge is allowed to masquerade as verified evidence.
+- Restricted evidence traversal remains fail-closed for non-admin roles until the dedicated permission-aware retrieval story.
+- No second story will enter IN_PROGRESS until S-04.01.01 leaves WIP unless the board is explicitly re-planned.
