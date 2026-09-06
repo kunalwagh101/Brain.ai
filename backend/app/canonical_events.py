@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.identity_resolution import observe_canonical_actor
 from app.models import CanonicalEvent, RawEvent, RawEventStatus
+from app.work_graph import project_canonical_event
 
 CANONICAL_EVENT_SCHEMA_VERSION = 1
 
@@ -285,6 +286,7 @@ def _github_data(raw_event: RawEvent, payload: dict[str, object]) -> dict[str, o
 def _observe_persisted_actor(db: Session, event: CanonicalEvent) -> None:
     if event.source_identity_id is None:
         observe_canonical_actor(db, event)
+    project_canonical_event(db, event)
 
 
 def canonicalize_raw_event(db: Session, raw_event: RawEvent) -> CanonicalizeResult:
