@@ -4,8 +4,8 @@ Method: Scrum + Kanban hybrid. Two-week increments. WIP limit: IN_PROGRESS <= 2.
 
 Format: `STATUS | STORY_ID | FEATURE | NOTE`
 
-BACKLOG | S-01.01.01 | F-01.01 | Await backlog approval before READY
-BACKLOG | S-01.02.01 | F-01.02 | OQ-001 must be resolved before READY
+IN_PROGRESS | S-01.01.01 | F-01.01 | Increment 1 vertical slice: authenticated organisation ownership and membership boundary
+IN_PROGRESS | S-01.02.01 | F-01.02 | OQ-001 resolved: WorkOS AuthKit/JWT first provider; required by S-01.01.01
 BACKLOG | S-01.03.01 | F-01.03 | Depends on S-01.02.01 and OQ-002
 BACKLOG | S-02.01.01 | F-02.01 | Depends on S-01.03.01 and OQ-003
 BACKLOG | S-02.02.01 | F-02.02 | Depends on integration framework and raw event model
@@ -26,19 +26,19 @@ BACKLOG | S-07.02.01 | F-07.02 | Depends on project status + usage/cost
 BACKLOG | S-08.01.01 | F-08.01 | Depends on AI gateway + audit/retention
 BACKLOG | S-09.01.01 | F-09.01 | Foundation exists; acceptance evidence incomplete
 BACKLOG | S-09.02.01 | F-09.02 | OQ-006 retention defaults unresolved
-BACKLOG | S-09.03.01 | F-09.03 | Phase 3 verifier is part of this process setup
+BACKLOG | S-09.03.01 | F-09.03 | Phase 3 verifier is merged and green; full production deployment story remains
 BACKLOG | S-09.04.01 | F-09.04 | Benchmarks attach to implemented vertical slices
 DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external-tool wedge
 
 ## Sprint planning
 
-Current sprint goal: **Increment 0 — make delivery truth machine-checkable before the next product feature is pulled.**
+Current sprint goal: **Increment 1 — a verified user can establish an organisation ownership boundary and manage membership without cross-tenant leakage.**
 
-Vertical slice: process artifacts -> verifier -> CI/pre-push gate. No product story enters READY until the backlog is approved and its open questions/dependencies satisfy Definition of Ready.
+Vertical slice: provider JWT -> Brain identity -> organisation owner membership -> membership read/write -> negative tenant tests.
 
 ## Session-open self-audit
 
-- Existing FastAPI foundation was merged before this stricter delivery contract existed.
-- No new product feature code will be added in this increment.
-- Current WIP count: 0 product stories.
-- BLOCKED count: 0. Stories with unresolved questions remain BACKLOG, not BLOCKED/READY.
+- Increment 0 delivery verifier passed before this slice was pulled.
+- WIP count: 2 stories, at the enforced limit.
+- OQ-001 is resolved in OPEN_QUESTIONS.md.
+- No additional story may enter IN_PROGRESS until one of these leaves WIP.

@@ -18,10 +18,17 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://brain:brain@localhost:5432/brain"
     cors_origins: str = "http://localhost:3000"
     app_secret: str = "dev-only-change-me"
+    workos_client_id: str | None = None
+    workos_issuer: str = "https://api.workos.com"
+    workos_audience: str | None = None
 
     @property
     def allowed_origins(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def auth_audience(self) -> str | None:
+        return self.workos_audience or self.workos_client_id
 
     @model_validator(mode="after")
     def validate_production_safety(self) -> "Settings":
@@ -30,6 +37,8 @@ class Settings(BaseSettings):
                 raise ValueError("BRAIN_APP_SECRET must be changed in production")
             if "*" in self.allowed_origins:
                 raise ValueError("Wildcard CORS is not allowed in production")
+            if not self.workos_client_id:
+                raise ValueError("BRAIN_WORKOS_CLIENT_ID is required in production")
         return self
 
 
