@@ -12,11 +12,10 @@ Decision: Brain may ingest only Slack channels explicitly authorised by a worksp
 Reason: explicit opt-in is the smallest permission surface that still supports useful company memory without normalising employee surveillance or silently widening Slack visibility.  
 Revisit trigger: a customer has a documented compliance/consent requirement for private-message ingestion and the connector, retention, audit and ACL design has been reviewed for that use case.
 
-## OQ-003 Secrets manager
-Ambiguity: first production secrets backend.  
-Options: AWS Secrets Manager, GCP Secret Manager, Azure Key Vault, Vault.  
-Recommended default: deployment-cloud native secret manager behind a tiny reference interface.  
-Blast radius: integration credential lifecycle and deployment infrastructure.
+## OQ-003 Secrets manager — RESOLVED 2026-09-06
+Decision: AWS Secrets Manager is the first production credential backend. PostgreSQL stores only the secret ARN/reference and non-secret connection metadata. Brain uses the AWS SDK credential chain and a small `SecretStore` contract so provider-specific connector code never persists OAuth/API tokens in application tables. Revocation first moves the connection out of ACTIVE state, then schedules secret deletion; connector workers may sync ACTIVE connections only.  
+Reason: the planned production architecture is AWS-based, Secrets Manager provides managed encryption, IAM control, versioning and auditability, and this avoids inventing our own secret encryption/storage system.  
+Revisit trigger: deployment moves to another cloud, customer-managed Vault/KMS is required, or measured cost/compliance constraints justify another backend.
 
 ## OQ-004 First meeting/document provider
 Ambiguity: whether first evidence adapter targets Google Drive, Loom, Zoom/Meet transcript export, or generic upload.  
