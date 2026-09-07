@@ -81,6 +81,10 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             nullable=False,
         ),
+        sa.CheckConstraint(
+            "max_output_tokens IS NULL OR max_output_tokens > 0",
+            name="ck_ai_model_positive_max_output_tokens",
+        ),
         sa.ForeignKeyConstraint(
             ["organization_id"], ["organizations.id"], ondelete="CASCADE"
         ),
@@ -131,6 +135,26 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.CheckConstraint(
+            "input_char_count >= 0",
+            name="ck_ai_request_input_char_count",
+        ),
+        sa.CheckConstraint(
+            "output_char_count IS NULL OR output_char_count >= 0",
+            name="ck_ai_request_output_char_count",
+        ),
+        sa.CheckConstraint(
+            "input_tokens IS NULL OR input_tokens >= 0",
+            name="ck_ai_request_input_tokens",
+        ),
+        sa.CheckConstraint(
+            "output_tokens IS NULL OR output_tokens >= 0",
+            name="ck_ai_request_output_tokens",
+        ),
+        sa.CheckConstraint(
+            "latency_ms IS NULL OR latency_ms >= 0",
+            name="ck_ai_request_latency_ms",
+        ),
         sa.ForeignKeyConstraint(
             ["organization_id"], ["organizations.id"], ondelete="CASCADE"
         ),
