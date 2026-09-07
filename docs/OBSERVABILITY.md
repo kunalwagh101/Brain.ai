@@ -20,11 +20,11 @@ Every HTTP request receives `X-Request-ID`.
 
 A caller-supplied ID is reused only when it matches the bounded safe form `[A-Za-z0-9._:-]{1,128}`. Unsafe/high-cardinality values are replaced with a UUID.
 
-The request ID is returned in the response and included in JSON logs.
+The request ID is returned in the response and included in JSON logs. CORS exposes `X-Request-ID` so browser clients can correlate an application error with backend telemetry without reading sensitive headers.
 
 ### Trace context
 
-Brain accepts standard W3C trace propagation headers and creates an OpenTelemetry server span for the request. Governed AI execution creates a child span with:
+Brain accepts standard W3C `traceparent`, `tracestate` and `baggage` headers and creates an OpenTelemetry server span for the request. Governed AI execution creates a child span with:
 
 - organisation ID
 - internal AI request ID
@@ -37,11 +37,11 @@ Brain accepts standard W3C trace propagation headers and creates an OpenTelemetr
 
 Production OTLP endpoints must use HTTPS.
 
-### Organisation and integration context
+### Organisation, integration, provider and model context
 
-Organisation IDs and integration IDs may be present in logs/traces because operators need them to isolate an incident. They are not Prometheus labels.
+Organisation IDs, integration IDs, provider keys and model keys may be present in structured logs/traces because operators need them to isolate an incident. They are deliberately not Prometheus labels.
 
-User IDs are deliberately not emitted as Prometheus labels. This prevents high-cardinality series growth and reduces accidental employee/tenant exposure through monitoring systems.
+Tenant-configurable values are not permitted as metric labels. This prevents unbounded multi-tenant time-series growth and reduces accidental tenant metadata exposure through monitoring systems.
 
 ## Structured logging
 
@@ -86,11 +86,13 @@ Key metrics:
 - `brain_http_request_duration_seconds{method,route}`
 - `brain_dependency_ready{dependency}`
 - `brain_dependency_check_duration_seconds{dependency}`
-- `brain_connector_events_total{provider,result}`
-- `brain_connector_sync_total{provider,status}`
-- `brain_ai_requests_total{provider,model,status}`
-- `brain_ai_request_duration_seconds{provider,model}`
-- `brain_ai_cost_nano_usd_total{provider,model}`
+- `brain_connector_events_total{result}`
+- `brain_connector_sync_total{status}`
+- `brain_ai_requests_total{status}`
+- `brain_ai_request_duration_seconds`
+- `brain_ai_cost_nano_usd_total`
+
+Only finite, code-controlled dimensions are used as labels. Provider/model/integration/organisation/user identity is resolved through logs, traces and durable database records instead of becoming a Prometheus label.
 
 The AI cost counter includes only exact calculated cost. Unknown/unresolved cost remains represented in the durable AI usage ledger and must not be interpreted as zero spend.
 
@@ -98,7 +100,7 @@ Route labels use FastAPI route templates instead of raw URLs, so organisation/re
 
 ## Connector telemetry
 
-Raw event persistence emits:
+Raw event persistence emits structured log/trace context for:
 
 - organisation
 - integration ID
@@ -109,11 +111,13 @@ Raw event persistence emits:
 
 It never emits the raw payload or source ACL content.
 
+Prometheus exports only created/duplicate counts and sync success/failure. Provider and integration identity remain in logs/traces.
+
 Shared connector sync lifecycle functions emit success/failure with provider, integration and bounded error code. When a sync runs inside an HTTP request, those events inherit the request trace context.
 
 ## AI telemetry
 
-Governed AI provider execution emits:
+Governed AI provider execution emits into logs/traces:
 
 - provider/model
 - success/failure
@@ -121,6 +125,8 @@ Governed AI provider execution emits:
 - bounded error code on failure
 - exact resolved cost when available
 - trace correlation to the originating HTTP request
+
+Prometheus aggregates AI success/failure, latency and exact resolved cost without provider/model labels. Use the correlated trace/log plus the durable F-06.01/F-06.02 records when diagnosing one provider/model.
 
 Prompt/system/completion content and provider credentials are not logged or stored in telemetry.
 
@@ -167,12 +173,14 @@ Prometheus-compatible rules live in:
 They cover:
 
 - PostgreSQL readiness down
-- elevated API 5xx rate
+- elevated core API 5xx rate, excluding governed AI provider execution
 - core API p95 breach
 - search p95 breach
-- governed AI p95 breach
-- governed AI provider/model error rate
+- aggregate governed AI p95 breach
+- aggregate governed AI error rate
 - connector sync failures
+
+Provider/model/integration drill-down happens through correlated logs/traces rather than high-cardinality metric labels.
 
 Alert routing/paging vendor configuration is deployment-specific and intentionally outside application code.
 
