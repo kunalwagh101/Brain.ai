@@ -20,7 +20,7 @@ This file is the engineering evidence index. A row is completed only after its s
 | S-05.02.01 | E-05 | evidence-backed Ask Brain | pending | pending | BACKLOG |
 | S-06.01.01 | E-06 | governed AI gateway | backend/tests/test_ai_gateway.py + backend/tests/test_ai_gateway_adapter.py + backend/tests/test_ai_gateway_routes.py | backend/app/ai_provider_registry.py + backend/app/ai_provider_adapter.py + backend/app/routes/ai_gateway.py | IN_REVIEW |
 | S-06.02.01 | E-06 | AI/API usage and budgets | backend/tests/test_ai_usage.py + backend/tests/test_ai_usage_reconciliation.py | backend/app/ai_usage.py + backend/app/ai_usage_reconciliation.py + backend/app/routes/ai_usage.py | BLOCKED |
-| S-06.03.01 | E-06 | API access registry | pending | pending | BACKLOG |
+| S-06.03.01 | E-06 | external API credential registry | backend/tests/test_api_registry.py + backend/tests/test_api_registry_worker.py + backend/tests/test_secrets.py | backend/app/api_registry.py + backend/app/routes/api_registry.py + backend/app/api_registry_worker.py | IN_REVIEW |
 | S-07.01.01 | E-07 | project command centre | pending | pending | BACKLOG |
 | S-07.02.01 | E-07 | executive overview | pending | pending | BACKLOG |
 | S-08.01.01 | E-08 | governed agent runtime | pending | pending | BACKLOG |
@@ -107,3 +107,5 @@ S-04.02.01 intentionally has no EVIDENCE block yet. Its implementation/tests are
 S-06.01.01 intentionally has no EVIDENCE block yet. Provider registry/gateway code, tests, migration, docs and UAT are staged on `increment-10-ai-provider-gateway`, but there is no executable Ruff/Pytest/Delivery Verifier result while GitHub-hosted jobs fail before runner startup. The story remains IN_REVIEW.
 
 S-06.02.01 intentionally has no EVIDENCE block yet. Deterministic nano-USD cost accounting, explicit unknown-cost state, usage aggregation, budget alerts/hard-stop, reconciliation worker, migration, tests, docs and UAT are staged on the same branch. Its S-06.01.01 dependency is not engineering-DONE and F-06.02 has no executable passing verification, so the story remains BLOCKED.
+
+S-06.03.01 intentionally has no EVIDENCE block yet. Tenant-scoped API service/grant inventory, secret-reference credential lifecycle, owner/scope/environment history, rotation, fail-closed revocation, expiry cleanup, internal usage observation, migration, tests, docs and UAT are staged on the same branch. The latest Backend CI attempt for head `42d88827a535520e550fce58c12e04431b6ac83d` failed before runner startup with `runner_id=0` and `steps=[]`, so Ruff/Pytest did not execute and the story remains IN_REVIEW.
