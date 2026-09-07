@@ -1,0 +1,99 @@
+groups:
+  - name: brain-slos
+    rules:
+      - alert: BrainDatabaseReadinessDown
+        expr: brain_dependency_ready{dependency="database"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Brain database readiness is down
+          runbook: docs/runbooks/OBSERVABILITY.md#database-readiness-down
+
+      - alert: BrainCoreApiHighErrorRate
+        expr: |
+          sum(rate(brain_http_requests_total{status_class="5xx"}[5m]))
+          /
+          clamp_min(sum(rate(brain_http_requests_total[5m])), 0.001)
+          > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Brain API 5xx rate is above 1%
+          runbook: docs/runbooks/OBSERVABILITY.md#api-error-rate
+
+      - alert: BrainCoreApiLatencySLOBreach
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(
+                brain_http_request_duration_seconds_bucket{
+                  route!~".*/ai/invoke|.*/search|/health/.*|/metrics"
+                }[10m]
+              )
+            )
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Brain core API p95 latency is above 500 ms
+          runbook: docs/runbooks/OBSERVABILITY.md#core-api-latency
+
+      - alert: BrainSearchLatencySLOBreach
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(brain_http_request_duration_seconds_bucket{route=~".*/search"}[10m])
+            )
+          ) > 1.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Brain search p95 latency is above 1.5 seconds
+          runbook: docs/runbooks/OBSERVABILITY.md#search-latency
+
+      - alert: BrainAIProviderLatencySLOBreach
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le, provider, model) (
+              rate(brain_ai_request_duration_seconds_bucket[10m])
+            )
+          ) > 10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Brain governed AI p95 latency is above 10 seconds
+          runbook: docs/runbooks/OBSERVABILITY.md#ai-provider-latency
+
+      - alert: BrainAIProviderHighErrorRate
+        expr: |
+          sum by (provider, model) (
+            rate(brain_ai_requests_total{status="failed"}[10m])
+          )
+          /
+          clamp_min(
+            sum by (provider, model) (rate(brain_ai_requests_total[10m])),
+            0.001
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Brain governed AI error rate is above 5%
+          runbook: docs/runbooks/OBSERVABILITY.md#ai-provider-errors
+
+      - alert: BrainConnectorSyncFailure
+        expr: increase(brain_connector_sync_total{status="failed"}[10m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: A Brain connector sync failed
+          runbook: docs/runbooks/OBSERVABILITY.md#connector-sync-failure
