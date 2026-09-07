@@ -15,7 +15,7 @@ DONE | S-03.01.01 | F-03.01 | Engineering evidence in TRACEABILITY.md; realistic
 DONE | S-03.02.01 | F-03.02 | Engineering evidence in TRACEABILITY.md; Slack/GitHub real-data + frontend UAT remains pending
 DONE | S-03.03.01 | F-03.03 | Engineering evidence in TRACEABILITY.md; real provider identity + frontend/manual UAT remains pending
 DONE | S-04.01.01 | F-04.01 | Engineering evidence in TRACEABILITY.md; real Slack/GitHub graph + frontend/manual UAT remains pending
-BACKLOG | S-04.02.01 | F-04.02 | Depends on work graph + retrieval evaluation
+BLOCKED | S-04.02.01 | F-04.02 | Implementation is staged on Increment 9, but formal readiness/review is blocked until S-05.01.01 has executable passing verification
 IN_REVIEW | S-05.01.01 | F-05.01 | Implementation/docs/tests exist; GitHub Actions cannot start a runner, so no passing verification evidence yet
 BACKLOG | S-05.02.01 | F-05.02 | OQ-005 before generation provider contract is frozen
 BACKLOG | S-06.01.01 | F-06.01 | Depends on RBAC
@@ -30,7 +30,30 @@ BACKLOG | S-09.03.01 | F-09.03 | Phase 3 verifier is merged and green; full prod
 BACKLOG | S-09.04.01 | F-09.04 | Benchmarks attach to implemented vertical slices
 DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external-tool wedge
 
-## Sprint planning
+## Increment 9 planning — dependency-blocked staged implementation
+
+Increment 9 goal: **surface explicit decisions and blockers from authorised company evidence as reviewable candidates with evidence, confidence and immutable human correction history, without ever presenting machine inference as confirmed fact.**
+
+Dependency state: S-04.01.01 Work Graph is engineering-DONE. S-05.01.01 Permission-Aware Retrieval has a usable implementation contract but is still IN_REVIEW because GitHub-hosted runners have not executed its verification. Under the Definition of Ready, S-04.02.01 therefore remains `BLOCKED`; code may be staged on the stacked branch, but review/DONE is prohibited until the dependency gate is satisfied.
+
+Vertical slice staged: whitelisted SearchDocument evidence -> conservative explicit-marker extractor -> tenant-scoped candidate/extraction ledger -> live retrieval authorization boundary -> decision/blocker read API -> human confirm/reject/edit/resolve/reopen -> immutable review history -> bounded reconciliation worker -> migration/tests/docs/UAT.
+
+Rules for this increment:
+
+- Machine extraction creates `candidate` state only. It can never create `confirmed` state.
+- Extraction reads whitelisted `SearchDocument` content, not arbitrary raw JSON.
+- Current integration/channel/resource authorization is reused before candidate content/provenance is returned.
+- Decisions and blockers remain explicit kinds with confidence and extractor method/version.
+- Statement fingerprints and extraction content/version ledgers make replay and extractor upgrades idempotent.
+- Unreviewed candidates that disappear on re-extraction become `superseded`; human-reviewed state/summary is not silently overwritten.
+- Blockers may be resolved/reopened; decisions cannot be resolved like blockers.
+- Every human mutation records actor, reason, previous/new state and previous/new summary.
+- No employee scoring, sentiment scoring or hidden performance judgement is introduced.
+- The first extractor is intentionally conservative/deterministic and precision-first. Future model extraction must preserve the same candidate/review contract.
+- Synthetic fixtures validate plumbing only. A >=90% production precision claim requires representative labelled company evidence and separate real-data/frontend UAT.
+- No F-04.02 DONE evidence block may be added until S-05.01.01 is verified and this increment itself has passing executable verification.
+
+## Sprint planning — Increment 8
 
 Increment 8 goal: **make authorised Slack/GitHub evidence searchable by keyword and semantic similarity without ever allowing restricted evidence to enter an unauthorised result set, while preserving source provenance and live revocation semantics.**
 
@@ -102,10 +125,10 @@ Rules for this increment:
 ## Session-open self-audit
 
 - Ten stories are engineering-DONE; external/user acceptance remains independently tracked in UAT.md.
-- Current WIP count: 0; `S-05.01.01` is now IN_REVIEW, not DONE.
+- Current IN_PROGRESS WIP count: 0. S-05.01.01 is IN_REVIEW; S-04.02.01 is BLOCKED while its implementation is staged on the stacked Increment 9 branch.
 - Increment 7 Work Graph is merged on `main` at `ddd12921ec7ac025dc21de41275b8532c811ab24`.
 - F-05.01 dependencies S-01.03.01 and S-03.02.01 are engineering-DONE.
-- Existing Work Graph authorization semantics are reused rather than replaced.
-- OQ-005 does not block retrieval shape because this increment does not freeze a generation provider; embeddings are operator-configured behind a provider-neutral contract.
-- Existing frontend still contains preview/sample state. No fake search wiring will be used to claim frontend acceptance.
-- Repeated Backend CI / Delivery Verifier attempts for Increment 8 failed before runner startup (`runner_id=0`, no steps). There is no passing test output, so engineering-DONE is prohibited by the Definition of Done.
+- Existing Work Graph and retrieval authorization semantics are reused rather than replaced by Decision Memory.
+- OQ-005 does not block deterministic candidate extraction because Increment 9 does not choose a model-generation provider.
+- Existing frontend still contains preview/sample state. No fake search/memory wiring will be used to claim frontend acceptance.
+- Repeated Backend CI / Delivery Verifier attempts for Increment 8 failed before runner startup (`runner_id=0`, no steps). There is no passing test output for Increment 8, so its engineering-DONE state and dependent Increment 9 review/DONE are prohibited by the Definition of Done/Ready.
