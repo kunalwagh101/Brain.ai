@@ -23,6 +23,15 @@ class SecretStore(Protocol):
         credentials: dict[str, str],
     ) -> str: ...
 
+    def store_ai_provider_secret(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        provider_configuration_id: uuid.UUID,
+        provider: str,
+        credentials: dict[str, str],
+    ) -> str: ...
+
     def load_connection_secret(self, reference: str) -> dict[str, str]: ...
 
     def schedule_delete(self, reference: str) -> None: ...
@@ -46,22 +55,29 @@ class AWSSecretsManagerStore:
             f"{organization_id}/{provider}/{connection_id}"
         )
 
-    def store_connection_secret(
+    def _ai_provider_name(
         self,
         *,
         organization_id: uuid.UUID,
-        connection_id: uuid.UUID,
+        provider_configuration_id: uuid.UUID,
         provider: str,
+    ) -> str:
+        return (
+            f"{self._prefix}/{self._environment}/ai-providers/"
+            f"{organization_id}/{provider}/{provider_configuration_id}"
+        )
+
+    def _create_secret(
+        self,
+        *,
+        name: str,
+        description: str,
         credentials: dict[str, str],
     ) -> str:
         try:
             response = self._client.create_secret(
-                Name=self._name(
-                    organization_id=organization_id,
-                    connection_id=connection_id,
-                    provider=provider,
-                ),
-                Description="Brain external integration credential",
+                Name=name,
+                Description=description,
                 SecretString=json.dumps(credentials, separators=(",", ":"), sort_keys=True),
             )
         except (BotoCoreError, ClientError) as exc:
@@ -71,6 +87,42 @@ class AWSSecretsManagerStore:
         if not isinstance(reference, str) or not reference:
             raise SecretStoreError("Credential storage returned no secret reference")
         return reference
+
+    def store_connection_secret(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        connection_id: uuid.UUID,
+        provider: str,
+        credentials: dict[str, str],
+    ) -> str:
+        return self._create_secret(
+            name=self._name(
+                organization_id=organization_id,
+                connection_id=connection_id,
+                provider=provider,
+            ),
+            description="Brain external integration credential",
+            credentials=credentials,
+        )
+
+    def store_ai_provider_secret(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        provider_configuration_id: uuid.UUID,
+        provider: str,
+        credentials: dict[str, str],
+    ) -> str:
+        return self._create_secret(
+            name=self._ai_provider_name(
+                organization_id=organization_id,
+                provider_configuration_id=provider_configuration_id,
+                provider=provider,
+            ),
+            description="Brain AI provider credential",
+            credentials=credentials,
+        )
 
     def load_connection_secret(self, reference: str) -> dict[str, str]:
         try:
