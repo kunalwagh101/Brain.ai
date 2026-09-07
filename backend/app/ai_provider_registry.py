@@ -26,8 +26,10 @@ from app.ai_provider_adapter import (
     validate_provider_api_url,
 )
 from app.ai_usage import exhausted_hard_budget, materialize_request_cost
+from app.ai_usage_models import AICostResolutionStatus
 from app.config import get_settings
 from app.models import MembershipRole
+from app.observability import get_tracer, log_event, record_ai_request
 from app.secrets import SecretStore, SecretStoreError
 from app.work_graph import node_visible_to_user
 from app.work_graph_models import WorkGraphNode, WorkGraphNodeType
@@ -290,12 +292,32 @@ def _mark_failed(
     *,
     code: str,
     started: float,
+    organization_id: uuid.UUID,
+    provider: str,
+    model: str,
 ) -> None:
+    latency_ms = max(0, round((time.perf_counter() - started) * 1000))
     record.status = AIRequestStatus.FAILED
     record.error_code = code[:128]
-    record.latency_ms = max(0, round((time.perf_counter() - started) * 1000))
+    record.latency_ms = latency_ms
     record.completed_at = datetime.now(UTC)
     db.commit()
+    record_ai_request(
+        provider=provider,
+        model=model,
+        status_value="failed",
+        latency_ms=latency_ms,
+    )
+    log_event(
+        logger,
+        logging.ERROR,
+        "ai.request.failed",
+        organization_id=organization_id,
+        provider=provider,
+        model=model,
+        error_code=code[:128],
+        duration_ms=latency_ms,
+    )
 
 
 def invoke_ai(
@@ -380,70 +402,136 @@ def invoke_ai(
     db.commit()
     db.refresh(record)
     started = time.perf_counter()
+    tracer = get_tracer("brain.ai")
 
-    if not provider.secret_ref:
-        _mark_failed(db, record, code="provider_revoked", started=started)
-        raise AIInvocationError(request_id=record.id, code="provider_revoked")
-    try:
-        credentials = secret_store.load_connection_secret(provider.secret_ref)
-    except SecretStoreError as exc:
-        _mark_failed(db, record, code="credential_unavailable", started=started)
-        raise AIInvocationError(
-            request_id=record.id,
-            code="credential_unavailable",
-        ) from exc
-    api_key = credentials.get("api_key")
-    if not isinstance(api_key, str) or not api_key:
-        _mark_failed(db, record, code="invalid_provider_credentials", started=started)
-        raise AIInvocationError(
-            request_id=record.id,
-            code="invalid_provider_credentials",
-        )
+    with tracer.start_as_current_span("ai.provider.invoke") as span:
+        span.set_attribute("brain.organization_id", str(organization_id))
+        span.set_attribute("brain.ai_request_id", str(record.id))
+        span.set_attribute("brain.provider", provider.provider_key)
+        span.set_attribute("brain.model", model.model_key)
 
-    runtime = adapter or adapter_for(provider.adapter_kind)
-    timeout = timeout_seconds or get_settings().ai_provider_timeout_seconds
-    if timeout <= 0 or timeout > 120:
-        _mark_failed(db, record, code="invalid_gateway_timeout", started=started)
-        raise AIInvocationError(
-            request_id=record.id,
-            code="invalid_gateway_timeout",
-        )
-    try:
-        result = runtime.invoke(
-            api_url=provider.api_url,
-            api_key=api_key,
+        failure_fields = {
+            "organization_id": organization_id,
+            "provider": provider.provider_key,
+            "model": model.model_key,
+        }
+        if not provider.secret_ref:
+            _mark_failed(
+                db,
+                record,
+                code="provider_revoked",
+                started=started,
+                **failure_fields,
+            )
+            raise AIInvocationError(request_id=record.id, code="provider_revoked")
+        try:
+            credentials = secret_store.load_connection_secret(provider.secret_ref)
+        except SecretStoreError as exc:
+            _mark_failed(
+                db,
+                record,
+                code="credential_unavailable",
+                started=started,
+                **failure_fields,
+            )
+            raise AIInvocationError(
+                request_id=record.id,
+                code="credential_unavailable",
+            ) from exc
+        api_key = credentials.get("api_key")
+        if not isinstance(api_key, str) or not api_key:
+            _mark_failed(
+                db,
+                record,
+                code="invalid_provider_credentials",
+                started=started,
+                **failure_fields,
+            )
+            raise AIInvocationError(
+                request_id=record.id,
+                code="invalid_provider_credentials",
+            )
+
+        runtime = adapter or adapter_for(provider.adapter_kind)
+        timeout = timeout_seconds or get_settings().ai_provider_timeout_seconds
+        if timeout <= 0 or timeout > 120:
+            _mark_failed(
+                db,
+                record,
+                code="invalid_gateway_timeout",
+                started=started,
+                **failure_fields,
+            )
+            raise AIInvocationError(
+                request_id=record.id,
+                code="invalid_gateway_timeout",
+            )
+        try:
+            result = runtime.invoke(
+                api_url=provider.api_url,
+                api_key=api_key,
+                model=model.model_key,
+                input_text=text,
+                system_text=normalized_system,
+                max_output_tokens=effective_max,
+                timeout_seconds=timeout,
+            )
+        except AIProviderCallError as exc:
+            _mark_failed(
+                db,
+                record,
+                code=exc.code,
+                started=started,
+                **failure_fields,
+            )
+            raise AIInvocationError(request_id=record.id, code=exc.code) from exc
+
+        latency_ms = max(0, round((time.perf_counter() - started) * 1000))
+        record.status = AIRequestStatus.SUCCEEDED
+        record.output_char_count = len(result.output_text)
+        record.input_tokens = result.input_tokens
+        record.output_tokens = result.output_tokens
+        record.latency_ms = latency_ms
+        record.provider_request_id = result.provider_request_id
+        record.error_code = None
+        record.completed_at = datetime.now(UTC)
+        db.commit()
+
+        resolved_cost: int | None = None
+        try:
+            cost = materialize_request_cost(db, request=record)
+            if cost.status == AICostResolutionStatus.CALCULATED:
+                resolved_cost = cost.total_cost_nano_usd
+        except SQLAlchemyError:
+            db.rollback()
+            logger.exception("AI cost materialization failed request_id=%s", record.id)
+
+        record_ai_request(
+            provider=provider.provider_key,
             model=model.model_key,
-            input_text=text,
-            system_text=normalized_system,
-            max_output_tokens=effective_max,
-            timeout_seconds=timeout,
+            status_value="succeeded",
+            latency_ms=latency_ms,
+            cost_nano_usd=resolved_cost,
         )
-    except AIProviderCallError as exc:
-        _mark_failed(db, record, code=exc.code, started=started)
-        raise AIInvocationError(request_id=record.id, code=exc.code) from exc
+        log_event(
+            logger,
+            logging.INFO,
+            "ai.request.succeeded",
+            organization_id=organization_id,
+            provider=provider.provider_key,
+            model=model.model_key,
+            duration_ms=latency_ms,
+            cost_nano_usd=resolved_cost,
+        )
+        span.set_attribute("brain.latency_ms", latency_ms)
+        if resolved_cost is not None:
+            span.set_attribute("brain.cost_nano_usd", resolved_cost)
 
-    latency_ms = max(0, round((time.perf_counter() - started) * 1000))
-    record.status = AIRequestStatus.SUCCEEDED
-    record.output_char_count = len(result.output_text)
-    record.input_tokens = result.input_tokens
-    record.output_tokens = result.output_tokens
-    record.latency_ms = latency_ms
-    record.provider_request_id = result.provider_request_id
-    record.error_code = None
-    record.completed_at = datetime.now(UTC)
-    db.commit()
-
-    try:
-        materialize_request_cost(db, request=record)
-    except SQLAlchemyError:
-        db.rollback()
-        logger.exception("AI cost materialization failed request_id=%s", record.id)
-
-    return AIInvocationResult(
-        request_id=record.id,
-        output_text=result.output_text,
-        provider_request_id=result.provider_request_id,
-        input_tokens=result.input_tokens,
-        output_tokens=result.output_tokens,
-        latency_ms=latency_ms,
-    )
+        return AIInvocationResult(
+            request_id=record.id,
+            output_text=result.output_text,
+            provider_request_id=result.provider_request_id,
+            input_tokens=result.input_tokens,
+            output_tokens=result.output_tokens,
+            latency_ms=latency_ms,
+        )
