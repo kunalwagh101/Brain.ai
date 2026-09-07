@@ -49,27 +49,29 @@ Alert: `BrainSearchLatencySLOBreach`
 
 Alert: `BrainAIProviderLatencySLOBreach`
 
-1. Break down `brain_ai_request_duration_seconds` by provider/model.
-2. Compare Brain HTTP latency with provider span latency. If only the provider span is slow, the bottleneck is external/provider-side.
-3. Check provider status page/account quota separately if available.
-4. Confirm gateway timeout configuration has not been raised to mask a provider incident.
-5. Check whether a permitted alternate provider/model is configured before failover; never bypass provider governance or egress policy.
+1. Confirm the aggregate `brain_ai_request_duration_seconds` p95 breach.
+2. Use request IDs/traces and structured `brain.ai` logs to identify the affected provider/model; provider/model are intentionally not Prometheus labels.
+3. Compare Brain HTTP latency with the `ai.provider.invoke` span. If only the provider span is slow, the bottleneck is external/provider-side.
+4. Check provider status page/account quota separately if available.
+5. Confirm gateway timeout configuration has not been raised to mask a provider incident.
+6. Check whether a permitted alternate provider/model is configured before failover; never bypass provider governance or egress policy.
 
 ## AI provider errors
 
 Alert: `BrainAIProviderHighErrorRate`
 
-1. Break down failures by provider/model and bounded error code in structured logs.
-2. Distinguish rate limiting, credential failure, provider 5xx/timeout and Brain-side validation.
-3. For credential errors, use the provider registry lifecycle. Never print or fetch credentials into logs/incident chat.
-4. For budget exhaustion, treat the 429 as policy enforcement rather than provider outage.
-5. Confirm failure rate returns below threshold and request/cost ledgers remain consistent.
+1. Confirm the aggregate failed-request ratio from `brain_ai_requests_total`.
+2. Break down the incident by provider/model and bounded error code using correlated structured logs/traces and the durable AI request ledger.
+3. Distinguish rate limiting, credential failure, provider 5xx/timeout and Brain-side validation.
+4. For credential errors, use the provider registry lifecycle. Never print or fetch credentials into logs/incident chat.
+5. For budget exhaustion, treat the 429 as policy enforcement rather than provider outage.
+6. Confirm failure rate returns below threshold and request/cost ledgers remain consistent.
 
 ## Connector sync failure
 
 Alert: `BrainConnectorSyncFailure`
 
-1. Identify provider and integration ID from the structured connector event.
+1. Identify provider and integration ID from the structured connector event; these are intentionally not metric labels.
 2. Check integration lifecycle health and bounded `last_error_code`.
 3. Use the same request/trace ID to inspect the corresponding backfill/webhook request when the sync was HTTP-triggered.
 4. Confirm the integration is still active and its required authorization/grants remain current.
