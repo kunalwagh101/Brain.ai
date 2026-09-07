@@ -10,6 +10,7 @@ from app.secrets import AWSSecretsManagerStore, SecretStoreError
 class FakeAWSSecretsClient:
     def __init__(self) -> None:
         self.created: dict[str, object] | None = None
+        self.updated: dict[str, object] | None = None
         self.deleted: dict[str, object] | None = None
         self.loaded_secret = '{"access_token":"secret"}'
         self.fail_create = False
@@ -22,6 +23,10 @@ class FakeAWSSecretsClient:
             )
         self.created = kwargs
         return {"ARN": "arn:aws:secretsmanager:us-east-1:123:secret:brain-test"}
+
+    def put_secret_value(self, **kwargs):
+        self.updated = kwargs
+        return {"ARN": kwargs["SecretId"]}
 
     def get_secret_value(self, **kwargs):
         return {"SecretString": self.loaded_secret}
@@ -50,6 +55,39 @@ def test_aws_secret_store_serializes_only_secret_payload() -> None:
     assert json.loads(client.created["SecretString"]) == {
         "access_token": "a1",
         "refresh_token": "r1",
+    }
+
+
+def test_aws_secret_store_uses_dedicated_api_credential_namespace() -> None:
+    client = FakeAWSSecretsClient()
+    store = AWSSecretsManagerStore(client, prefix="brain", environment="test")
+    organization_id = uuid.uuid4()
+    grant_id = uuid.uuid4()
+
+    reference = store.store_api_credential_secret(
+        organization_id=organization_id,
+        grant_id=grant_id,
+        service_key="crm",
+        credentials={"api_key": "secret-value"},
+    )
+
+    assert reference.startswith("arn:aws:secretsmanager:")
+    assert client.created is not None
+    assert client.created["Name"].endswith(
+        f"/api-credentials/{organization_id}/crm/{grant_id}"
+    )
+    assert json.loads(client.created["SecretString"]) == {"api_key": "secret-value"}
+
+
+def test_aws_secret_store_replaces_secret_without_changing_reference() -> None:
+    client = FakeAWSSecretsClient()
+    store = AWSSecretsManagerStore(client, prefix="brain", environment="test")
+
+    store.replace_secret("arn:one", {"api_key": "rotated"})
+
+    assert client.updated == {
+        "SecretId": "arn:one",
+        "SecretString": '{"api_key":"rotated"}',
     }
 
 
