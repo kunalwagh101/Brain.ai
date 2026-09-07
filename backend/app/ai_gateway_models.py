@@ -4,6 +4,7 @@ from enum import StrEnum
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -21,6 +22,8 @@ from app.models import Base
 class AIProviderStatus(StrEnum):
     ENABLED = "enabled"
     DISABLED = "disabled"
+    REVOKING = "revoking"
+    REVOKE_FAILED = "revoke_failed"
     REVOKED = "revoked"
 
 
@@ -91,6 +94,10 @@ class AIModelConfiguration(Base):
             "model_key",
             name="uq_ai_model_provider_key",
         ),
+        CheckConstraint(
+            "max_output_tokens IS NULL OR max_output_tokens > 0",
+            name="ck_ai_model_positive_max_output_tokens",
+        ),
         Index(
             "ix_ai_model_org_enabled",
             "organization_id",
@@ -126,6 +133,26 @@ class AIModelConfiguration(Base):
 class AIRequestRecord(Base):
     __tablename__ = "ai_request_records"
     __table_args__ = (
+        CheckConstraint(
+            "input_char_count >= 0",
+            name="ck_ai_request_input_char_count",
+        ),
+        CheckConstraint(
+            "output_char_count IS NULL OR output_char_count >= 0",
+            name="ck_ai_request_output_char_count",
+        ),
+        CheckConstraint(
+            "input_tokens IS NULL OR input_tokens >= 0",
+            name="ck_ai_request_input_tokens",
+        ),
+        CheckConstraint(
+            "output_tokens IS NULL OR output_tokens >= 0",
+            name="ck_ai_request_output_tokens",
+        ),
+        CheckConstraint(
+            "latency_ms IS NULL OR latency_ms >= 0",
+            name="ck_ai_request_latency_ms",
+        ),
         Index(
             "ix_ai_request_org_created",
             "organization_id",
