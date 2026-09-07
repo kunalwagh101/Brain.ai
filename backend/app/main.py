@@ -1,10 +1,14 @@
-import uuid
-
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.health import router as health_router
+from app.observability import (
+    configure_logging,
+    configure_tracing,
+    metrics_response,
+    observe_http_request,
+)
 from app.routes.ai_gateway import router as ai_gateway_router
 from app.routes.ai_usage import router as ai_usage_router
 from app.routes.api_registry import router as api_registry_router
@@ -19,6 +23,8 @@ from app.routes.slack import router as slack_router
 from app.routes.work_graph import router as work_graph_router
 
 settings = get_settings()
+configure_logging(settings)
+configure_tracing(settings)
 
 app = FastAPI(
     title=settings.app_name,
@@ -32,31 +38,23 @@ app.add_middleware(
     allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "traceparent"],
 )
 
 
 @app.middleware("http")
 async def request_context(request: Request, call_next):
-    supplied_request_id = request.headers.get("X-Request-ID")
-    request_id = (
-        supplied_request_id
-        if supplied_request_id and len(supplied_request_id) <= 128
-        else str(uuid.uuid4())
-    )
-    request.state.request_id = request_id
-
-    response = await call_next(request)
-    response.headers["X-Request-ID"] = request_id
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "no-referrer"
-    return response
+    return await observe_http_request(request, call_next)
 
 
 @app.get("/", tags=["system"])
 def root() -> dict[str, str]:
     return {"service": "brain-api", "version": "0.1.0"}
+
+
+@app.get("/metrics", include_in_schema=False)
+def metrics(request: Request):
+    return metrics_response(request, settings)
 
 
 app.include_router(health_router)
