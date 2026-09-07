@@ -32,6 +32,15 @@ class SecretStore(Protocol):
         credentials: dict[str, str],
     ) -> str: ...
 
+    def store_api_credential_secret(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        grant_id: uuid.UUID,
+        service_key: str,
+        credentials: dict[str, str],
+    ) -> str: ...
+
     def replace_secret(self, reference: str, credentials: dict[str, str]) -> None: ...
 
     def load_connection_secret(self, reference: str) -> dict[str, str]: ...
@@ -67,6 +76,18 @@ class AWSSecretsManagerStore:
         return (
             f"{self._prefix}/{self._environment}/ai-providers/"
             f"{organization_id}/{provider}/{provider_configuration_id}"
+        )
+
+    def _api_credential_name(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        grant_id: uuid.UUID,
+        service_key: str,
+    ) -> str:
+        return (
+            f"{self._prefix}/{self._environment}/api-credentials/"
+            f"{organization_id}/{service_key}/{grant_id}"
         )
 
     @staticmethod
@@ -127,6 +148,24 @@ class AWSSecretsManagerStore:
                 provider=provider,
             ),
             description="Brain AI provider credential",
+            credentials=credentials,
+        )
+
+    def store_api_credential_secret(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        grant_id: uuid.UUID,
+        service_key: str,
+        credentials: dict[str, str],
+    ) -> str:
+        return self._create_secret(
+            name=self._api_credential_name(
+                organization_id=organization_id,
+                grant_id=grant_id,
+                service_key=service_key,
+            ),
+            description="Brain governed external API credential",
             credentials=credentials,
         )
 
