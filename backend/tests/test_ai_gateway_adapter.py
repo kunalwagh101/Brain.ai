@@ -36,7 +36,7 @@ def test_openai_compatible_adapter_parses_bounded_metadata(monkeypatch) -> None:
             }
         )
 
-    monkeypatch.setattr("app.ai_gateway.urlopen", fake_urlopen)
+    monkeypatch.setattr("app.ai_provider_adapter.urlopen", fake_urlopen)
     result = OpenAIChatCompletionsAdapter().invoke(
         api_url="https://ai.example.com/v1/chat/completions",
         api_key="secret-token",
@@ -76,7 +76,7 @@ def test_openai_compatible_adapter_maps_rate_limit_without_body(monkeypatch) -> 
         del request, timeout
         raise error
 
-    monkeypatch.setattr("app.ai_gateway.urlopen", fake_urlopen)
+    monkeypatch.setattr("app.ai_provider_adapter.urlopen", fake_urlopen)
     with pytest.raises(AIProviderCallError) as failed:
         OpenAIChatCompletionsAdapter().invoke(
             api_url="https://ai.example.com/v1/chat/completions",
@@ -93,7 +93,7 @@ def test_openai_compatible_adapter_maps_rate_limit_without_body(monkeypatch) -> 
 
 def test_openai_compatible_adapter_rejects_malformed_success(monkeypatch) -> None:
     monkeypatch.setattr(
-        "app.ai_gateway.urlopen",
+        "app.ai_provider_adapter.urlopen",
         lambda request, timeout: FakeResponse({"choices": []}),
     )
     with pytest.raises(AIProviderCallError) as failed:
