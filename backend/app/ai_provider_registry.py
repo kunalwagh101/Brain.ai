@@ -25,6 +25,7 @@ from app.ai_provider_adapter import (
     normalize_provider_key,
     validate_provider_api_url,
 )
+from app.ai_usage import exhausted_hard_budget, materialize_request_cost
 from app.config import get_settings
 from app.models import MembershipRole
 from app.secrets import SecretStore, SecretStoreError
@@ -274,6 +275,7 @@ def _validate_attribution(
     )
     if node is None or node.node_type not in {
         WorkGraphNodeType.PROJECT,
+        WorkGraphNodeType.TRACK,
         WorkGraphNodeType.WORK_ITEM,
     }:
         raise AIGatewayError("AI request attribution resource not found")
@@ -350,6 +352,18 @@ def invoke_ai(
     if effective_max is not None and not 1 <= effective_max <= 1_000_000:
         raise AIGatewayError("max_output_tokens is outside the supported range")
 
+    exhausted = exhausted_hard_budget(
+        db,
+        organization_id=organization_id,
+        provider_configuration_id=provider.id,
+        model_configuration_id=model.id,
+        user_id=user_id,
+        attribution_node_id=node_id,
+        at=datetime.now(UTC),
+    )
+    if exhausted is not None:
+        raise AIGatewayError("AI budget exhausted")
+
     record = AIRequestRecord(
         organization_id=organization_id,
         user_id=user_id,
@@ -418,6 +432,13 @@ def invoke_ai(
     record.error_code = None
     record.completed_at = datetime.now(UTC)
     db.commit()
+
+    try:
+        materialize_request_cost(db, request=record)
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("AI cost materialization failed request_id=%s", record.id)
+
     return AIInvocationResult(
         request_id=record.id,
         output_text=result.output_text,
