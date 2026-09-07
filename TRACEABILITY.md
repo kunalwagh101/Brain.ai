@@ -18,8 +18,8 @@ This file is the engineering evidence index. A row is completed only after its s
 | S-04.02.01 | E-04 | decision/blocker memory | backend/tests/test_decision_memory.py + backend/tests/test_decision_memory_evaluation.py | backend/app/decision_memory.py + backend/app/routes/decision_memory.py + backend/app/decision_memory_worker.py | BLOCKED |
 | S-05.01.01 | E-05 | permission-aware retrieval | backend/tests/test_search.py + backend/tests/test_search_evaluation.py | backend/app/search.py + backend/app/routes/search.py + backend/app/search_worker.py | IN_REVIEW |
 | S-05.02.01 | E-05 | evidence-backed Ask Brain | pending | pending | BACKLOG |
-| S-06.01.01 | E-06 | governed AI gateway | pending | pending | BACKLOG |
-| S-06.02.01 | E-06 | AI/API usage and budgets | pending | pending | BACKLOG |
+| S-06.01.01 | E-06 | governed AI gateway | backend/tests/test_ai_gateway.py + backend/tests/test_ai_gateway_adapter.py + backend/tests/test_ai_gateway_routes.py | backend/app/ai_provider_registry.py + backend/app/ai_provider_adapter.py + backend/app/routes/ai_gateway.py | IN_REVIEW |
+| S-06.02.01 | E-06 | AI/API usage and budgets | backend/tests/test_ai_usage.py + backend/tests/test_ai_usage_reconciliation.py | backend/app/ai_usage.py + backend/app/ai_usage_reconciliation.py + backend/app/routes/ai_usage.py | BLOCKED |
 | S-06.03.01 | E-06 | API access registry | pending | pending | BACKLOG |
 | S-07.01.01 | E-07 | project command centre | pending | pending | BACKLOG |
 | S-07.02.01 | E-07 | executive overview | pending | pending | BACKLOG |
@@ -102,4 +102,8 @@ commit: a97d724416191ec8515f5ed90888321343013cda
 
 S-05.01.01 intentionally has no EVIDENCE block yet. GitHub Actions has repeatedly failed before runner startup (`runner_id=0`, no steps), so there is no truthful passing test result to record and the story remains IN_REVIEW.
 
-S-04.02.01 intentionally has no EVIDENCE block yet. Its implementation/tests are staged on the stacked Increment 9 branch, but its S-05.01.01 dependency is not engineering-DONE and the latest Increment 9 Backend CI also failed before runner startup (`runner_id=0`, no steps). The story therefore remains BLOCKED and no passing test result is claimed.
+S-04.02.01 intentionally has no EVIDENCE block yet. Its implementation/tests are staged on the stacked Increment 9 branch, but its S-05.01.01 dependency is not engineering-DONE and Increment 9 CI has not executed. The story therefore remains BLOCKED and no passing result is claimed.
+
+S-06.01.01 intentionally has no EVIDENCE block yet. Provider registry/gateway code, tests, migration, docs and UAT are staged on `increment-10-ai-provider-gateway`, but there is no executable Ruff/Pytest/Delivery Verifier result while GitHub-hosted jobs fail before runner startup. The story remains IN_REVIEW.
+
+S-06.02.01 intentionally has no EVIDENCE block yet. Deterministic nano-USD cost accounting, explicit unknown-cost state, usage aggregation, budget alerts/hard-stop, reconciliation worker, migration, tests, docs and UAT are staged on the same branch. Its S-06.01.01 dependency is not engineering-DONE and F-06.02 has no executable passing verification, so the story remains BLOCKED.
