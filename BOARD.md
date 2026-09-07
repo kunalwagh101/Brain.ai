@@ -24,11 +24,36 @@ IN_REVIEW | S-06.03.01 | F-06.03 | External API registry, lifecycle, expiry work
 BACKLOG | S-07.01.01 | F-07.01 | Depends on work graph + decision/blocker memory
 BACKLOG | S-07.02.01 | F-07.02 | Depends on project status + usage/cost
 BACKLOG | S-08.01.01 | F-08.01 | Depends on AI gateway + audit/retention
-BACKLOG | S-09.01.01 | F-09.01 | Foundation exists; acceptance evidence incomplete
+IN_REVIEW | S-09.01.01 | F-09.01 | Structured logs, Prometheus metrics, OpenTelemetry tracing, readiness, SLO alerts, tests, docs and UAT are staged; executable passing verification is still unavailable
 BACKLOG | S-09.02.01 | F-09.02 | OQ-006 retention defaults unresolved
 BACKLOG | S-09.03.01 | F-09.03 | Phase 3 verifier is merged and green; full production deployment story remains
 BACKLOG | S-09.04.01 | F-09.04 | Benchmarks attach to implemented vertical slices
 DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external-tool wedge
+
+## Increment 13 planning — production observability on the existing branch
+
+Increment 13 goal: **make Brain incidents diagnosable from correlated, secret-safe request, connector, dependency and governed-AI telemetry, with measurable SLOs and actionable runbooks.**
+
+Branch rule: Increment 13 intentionally continues on `increment-10-ai-provider-gateway`; no additional branch is created.
+
+Dependency state: S-09.01.01 depends only on the foundation, which is engineering-DONE. The story is therefore not dependency-blocked. It remains `IN_REVIEW` because Ruff/Pytest/Delivery Verifier have not obtained an executable runner and real deployed monitoring/frontend UAT is still pending.
+
+Vertical slice staged: bounded request ID + W3C trace context -> structured JSON logs with allowlist/redaction -> route-template Prometheus HTTP metrics -> PostgreSQL readiness metrics -> connector raw-event/sync telemetry -> governed AI latency/error/exact-cost telemetry -> protected metrics endpoint -> SLO/alert rules -> incident runbook -> security/health/correlation tests -> deployed UAT.
+
+Rules for this increment:
+
+- Telemetry must not contain prompts, completions, webhook bodies, API keys, OAuth tokens or customer message/document content.
+- Tenant-configurable organisation/user/integration/provider/model values may exist in correlated logs/traces or durable ledgers, but never as Prometheus labels.
+- Prometheus labels use only finite code-controlled dimensions such as route templates, status class, dependency name and lifecycle result.
+- Browser clients receive and can read `X-Request-ID`; unsafe caller-supplied IDs are replaced with UUIDs.
+- `/health/live` is process-only. `/health/ready` checks PostgreSQL and exposes dependency status/latency.
+- Slack/GitHub/AI provider outages do not make the whole process unready; their capability failures are measured separately.
+- Core API, search and governed-AI latency objectives remain separate so external provider latency cannot be misclassified as Brain core latency.
+- Metrics are bearer-protected in production and should additionally be network/ingress restricted.
+- OTLP export is optional; production OTLP endpoints must use HTTPS and exporter availability does not gate readiness.
+- The initial targets are >=99.9% monthly accepted core-API availability, core p95 <500 ms, search p95 <1.5 s and governed AI/provider p95 <10 s.
+- Short UAT traffic proves measurement mechanics only; it does not prove monthly SLO compliance.
+- No S-09.01.01 DONE evidence block may be added until Ruff, tests and the delivery verifier have executable passing results.
 
 ## Increment 12 planning — external API registry on the existing branch
 
@@ -193,8 +218,8 @@ Rules for this increment:
 ## Session-open self-audit
 
 - Ten stories are engineering-DONE; external/user acceptance remains independently tracked in UAT.md.
-- Current IN_PROGRESS WIP count: 0. S-05.01.01, S-06.01.01 and S-06.03.01 are IN_REVIEW; S-04.02.01 and S-06.02.01 are BLOCKED while their implementations are staged behind unverified dependencies.
+- Current IN_PROGRESS WIP count: 0. S-05.01.01, S-06.01.01, S-06.03.01 and S-09.01.01 are IN_REVIEW; S-04.02.01 and S-06.02.01 are BLOCKED while their implementations are staged behind unverified dependencies.
 - Increment 7 Work Graph is merged on `main` at `ddd12921ec7ac025dc21de41275b8532c811ab24`.
 - Existing Work Graph/retrieval authorization semantics are reused rather than replaced by Decision Memory or AI governance.
-- Existing frontend still contains preview/sample state. No fake search/memory/AI-cost/API-registry UI wiring will be used to claim frontend acceptance.
+- Existing frontend still contains preview/sample state. No fake search/memory/AI-cost/API-registry/observability UI wiring will be used to claim frontend acceptance.
 - Repeated Backend CI / Delivery Verifier attempts have failed before runner startup (`runner_id=0`, no steps). There is no passing test output for Increment 8 or later staged increments, so engineering-DONE is prohibited by the Definition of Done/Ready.
