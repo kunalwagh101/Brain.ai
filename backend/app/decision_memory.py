@@ -28,27 +28,25 @@ MAX_SUMMARY_LENGTH = 1000
 _SEGMENT_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
 _DECISION_PATTERNS: tuple[tuple[re.Pattern[str], float], ...] = (
     (
-        re.compile(
-            r"(?i)^\s*(?:final\s+)?decision\s*:\s*(?P<body>.+)$"
-        ),
+        re.compile(r"(?i)^\s*(?:final\s+)?decision\s*:\s*(?P<body>.+)$"),
         0.99,
     ),
     (
         re.compile(
-            r"(?i)\bwe\s+(?:have\s+)?decided\s+(?:to\s+|that\s+)?(?P<body>.+)$"
+            r"(?i)\bwe\s+(?:have\s+)?decided\s+"
+            r"(?:to\s+|that\s+)?(?P<body>.+)$"
         ),
         0.97,
     ),
     (
         re.compile(
-            r"(?i)\bthe\s+decision\s+is\s+(?:to\s+|that\s+)?(?P<body>.+)$"
+            r"(?i)\bthe\s+decision\s+is\s+"
+            r"(?:to\s+|that\s+)?(?P<body>.+)$"
         ),
         0.97,
     ),
     (
-        re.compile(
-            r"(?i)\bwe\s+(?:have\s+)?agreed\s+to\s+(?P<body>.+)$"
-        ),
+        re.compile(r"(?i)\bwe\s+(?:have\s+)?agreed\s+to\s+(?P<body>.+)$"),
         0.94,
     ),
 )
@@ -58,7 +56,10 @@ _BLOCKER_PATTERNS: tuple[tuple[re.Pattern[str], float], ...] = (
         0.99,
     ),
     (
-        re.compile(r"(?i)\b(?:is|are|we(?:'re|\s+are)?)\s+blocked\s+by\s+(?P<body>.+)$"),
+        re.compile(
+            r"(?i)\b(?:is|are|we(?:'re|\s+are)?)\s+"
+            r"blocked\s+by\s+(?P<body>.+)$"
+        ),
         0.97,
     ),
     (
@@ -66,11 +67,15 @@ _BLOCKER_PATTERNS: tuple[tuple[re.Pattern[str], float], ...] = (
         0.96,
     ),
     (
-        re.compile(r"(?i)\b(?:cannot|can't)\s+proceed\s+until\s+(?P<body>.+)$"),
+        re.compile(
+            r"(?i)\b(?:cannot|can't)\s+proceed\s+until\s+(?P<body>.+)$"
+        ),
         0.95,
     ),
     (
-        re.compile(r"(?i)\bwe(?:'re|\s+are)\s+waiting\s+on\s+(?P<body>.+)$"),
+        re.compile(
+            r"(?i)\bwe(?:'re|\s+are)\s+waiting\s+on\s+(?P<body>.+)$"
+        ),
         0.91,
     ),
 )
@@ -132,11 +137,17 @@ def _extract_from_segment(segment: str) -> list[ExtractedMemory]:
     return extracted
 
 
-def extract_decision_blocker_candidates(document: SearchDocument) -> list[ExtractedMemory]:
+def extract_decision_blocker_candidates(
+    document: SearchDocument,
+) -> list[ExtractedMemory]:
     if document.is_deleted:
         return []
     text = "\n".join(part for part in (document.title, document.content) if part)
-    segments = [segment.strip() for segment in _SEGMENT_SPLIT.split(text) if segment.strip()]
+    segments = [
+        segment.strip()
+        for segment in _SEGMENT_SPLIT.split(text)
+        if segment.strip()
+    ]
     seen: set[tuple[MemoryKind, str]] = set()
     extracted: list[ExtractedMemory] = []
     for segment in segments[:MAX_SEGMENTS]:
@@ -165,10 +176,34 @@ def _candidate_has_human_history(db: Session, candidate_id: uuid.UUID) -> bool:
     return review_id is not None
 
 
+def _locked_search_document(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    document_id: uuid.UUID,
+) -> SearchDocument:
+    document = db.scalar(
+        select(SearchDocument)
+        .where(
+            SearchDocument.id == document_id,
+            SearchDocument.organization_id == organization_id,
+        )
+        .with_for_update()
+    )
+    if document is None:
+        raise DecisionMemoryError("Search evidence is unavailable")
+    return document
+
+
 def project_memory_candidates(
     db: Session,
     document: SearchDocument,
 ) -> ProjectionResult:
+    document = _locked_search_document(
+        db,
+        organization_id=document.organization_id,
+        document_id=document.id,
+    )
     digest = _document_digest(document)
     extraction = db.scalar(
         select(DecisionMemoryExtraction).where(
@@ -192,7 +227,8 @@ def project_memory_candidates(
         db.scalars(
             select(DecisionMemoryCandidate).where(
                 DecisionMemoryCandidate.organization_id == document.organization_id,
-                DecisionMemoryCandidate.search_document_id == document.id,
+                DecisionMemoryCandidate.canonical_event_id
+                == document.canonical_event_id,
                 DecisionMemoryCandidate.extraction_method == EXTRACTION_METHOD,
             )
         )
@@ -207,7 +243,8 @@ def project_memory_candidates(
         candidate = db.scalar(
             select(DecisionMemoryCandidate).where(
                 DecisionMemoryCandidate.organization_id == document.organization_id,
-                DecisionMemoryCandidate.canonical_event_id == document.canonical_event_id,
+                DecisionMemoryCandidate.canonical_event_id
+                == document.canonical_event_id,
                 DecisionMemoryCandidate.kind == item.kind,
                 DecisionMemoryCandidate.fingerprint == item.fingerprint,
             )
@@ -314,14 +351,20 @@ def _visible_candidate_ids(
     organization_id: uuid.UUID,
     user_id: uuid.UUID,
 ):
-    visible_documents = _authorized_search_documents_query(
-        db,
-        organization_id=organization_id,
-        user_id=user_id,
-    ).subquery()
+    visible_documents = (
+        _authorized_search_documents_query(
+            db,
+            organization_id=organization_id,
+            user_id=user_id,
+        )
+        .with_only_columns(SearchDocument.id)
+        .subquery()
+    )
     return select(DecisionMemoryCandidate.id).where(
         DecisionMemoryCandidate.organization_id == organization_id,
-        DecisionMemoryCandidate.search_document_id.in_(select(visible_documents.c.id)),
+        DecisionMemoryCandidate.search_document_id.in_(
+            select(visible_documents.c.id)
+        ),
     )
 
 
