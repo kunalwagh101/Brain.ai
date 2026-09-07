@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.health import router as health_router
 from app.routes.ai_gateway import router as ai_gateway_router
+from app.routes.ai_usage import router as ai_usage_router
 from app.routes.auth import router as auth_router
 from app.routes.decision_memory import router as decision_memory_router
 from app.routes.github import router as github_router
@@ -68,3 +69,4 @@ app.include_router(work_graph_router, prefix=settings.api_prefix)
 app.include_router(search_router, prefix=settings.api_prefix)
 app.include_router(decision_memory_router, prefix=settings.api_prefix)
 app.include_router(ai_gateway_router, prefix=settings.api_prefix)
+app.include_router(ai_usage_router, prefix=settings.api_prefix)
