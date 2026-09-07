@@ -13,6 +13,26 @@ A story may enter `READY` only when all conditions below are true. `IN_PROGRESS`
 - Out-of-scope items are explicit; nothing is silently removed from scope.
 - Tasks are small engineering steps and the story remains an independently shippable vertical slice.
 
+## Increment 9 readiness record — S-04.02.01
+
+Decision: `BLOCKED` on 2026-09-07. The implementation is being staged on a stacked branch because the user explicitly asked to begin the next feature, but the story does not satisfy formal Ready while S-05.01.01 remains `IN_REVIEW` without executable passing verification.
+
+Dependencies: S-04.01.01 Work Graph = engineering-DONE. S-05.01.01 Permission-Aware Retrieval = usable implementation contract but not engineering-DONE; this is the blocking dependency.
+
+Data/contracts known: `CanonicalEvent`, `SearchDocument`, Work Graph evidence, integration/channel/resource authorisation and the current retrieval predicate provide the evidence/provenance/access inputs.
+
+Open questions: OQ-005 does not block the deterministic `explicit-markers-v1` extractor because this increment does not choose an LLM provider. Any future model-backed extractor must preserve the same candidate/review contract and undergo its own data-policy/evaluation gate.
+
+Security boundary: machine candidates are derived only from whitelisted search evidence; user-facing reads reuse the live retrieval authorisation boundary; role alone cannot widen restricted evidence access; cross-tenant access fails closed.
+
+State/idempotency: machine output starts only as `candidate`; statement fingerprints plus extraction version/content digest prevent unchanged replay; stale unreviewed machine candidates become `superseded`; human review appends immutable before/after history.
+
+Rollback: migration `20260907_0010` removes decision-memory candidate/extraction/review tables only. Raw/canonical/search/work-graph evidence remains. Human review history must be exported before downgrade if it must survive the rollback itself.
+
+Leading indicators: unauthorised memory retrieval failures = 0; synthetic explicit-marker precision instrumentation >=90%; representative labelled decision and blocker precision each >=90% before production acceptance.
+
+Unblock condition: S-05.01.01 receives truthful executable passing verification and is moved to engineering-DONE; then S-04.02.01 may be reevaluated for READY/IN_PROGRESS against this record.
+
 ## Increment 8 readiness record — S-05.01.01
 
 Decision: `READY` then pulled to `IN_PROGRESS` on 2026-09-07.
