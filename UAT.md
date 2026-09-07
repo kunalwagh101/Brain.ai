@@ -25,6 +25,7 @@ Until both are recorded, external status is `UAT_PENDING` even if CI is green.
 | F-05.01 Permission-Aware Retrieval | IN_REVIEW | PENDING | PENDING | UAT_PENDING |
 | F-06.01 AI Provider Registry & Gateway | IN_REVIEW | PENDING | PENDING | UAT_PENDING |
 | F-06.02 Usage, Cost & Budgets | BLOCKED | PENDING | PENDING | UAT_PENDING |
+| F-06.03 External API Registry | IN_REVIEW | PENDING | PENDING | UAT_PENDING |
 
 Detailed scripts live under `UAT/`.
 
