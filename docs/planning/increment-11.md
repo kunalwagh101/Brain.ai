@@ -4,6 +4,8 @@ Branch policy: this increment intentionally continues on `increment-10-ai-provid
 
 Story: S-06.02.01 — Attribute AI/API usage and enforce budgets.
 
+Dependency state: S-06.01.01 is implemented on this same branch but has no executable passing CI evidence because GitHub-hosted runners are still failing before startup. Under the repository's Definition of Ready/Done, F-06.02 implementation may be staged but cannot be called engineering-DONE until F-06.01 and F-06.02 both receive passing executable verification.
+
 ## Goal
 
 Turn the governed AI request ledger into deterministic cost accounting and enforceable budget controls without inventing attribution or treating missing pricing/token data as zero cost.
