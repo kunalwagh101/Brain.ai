@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import Membership, MembershipRole, ResourceAccessLevel, ResourceGrant, User
+from app.observability import bind_organization_context
 from app.security_audit import audit_authorization_decision
 
 
@@ -87,6 +88,7 @@ def authorize_organization(
     user: User,
     permission: Permission,
 ) -> AuthorizationContext:
+    bind_organization_context(organization_id)
     if user.status != "active":
         audit_authorization_decision(
             allowed=False,
