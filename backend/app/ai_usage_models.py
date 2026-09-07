@@ -149,7 +149,7 @@ class AIBudgetPolicy(Base):
         UniqueConstraint(
             "organization_id",
             "scope_type",
-            "scope_target_id",
+            "scope_key",
             "period",
             name="uq_ai_budget_scope_period",
         ),
@@ -167,6 +167,7 @@ class AIBudgetPolicy(Base):
     scope_type: Mapped[AIBudgetScopeType] = mapped_column(
         Enum(AIBudgetScopeType, native_enum=False, length=32), nullable=False
     )
+    scope_key: Mapped[str] = mapped_column(String(64), nullable=False)
     scope_target_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     period: Mapped[AIBudgetPeriod] = mapped_column(
         Enum(AIBudgetPeriod, native_enum=False, length=32),
