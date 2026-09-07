@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Increment 13 — Production observability and SLOs
+
+- Added correlated structured JSON logging with bounded request IDs, W3C trace/span context, tenant/integration/provider/model operational context and strict structured-field allowlisting.
+- Added defense-in-depth redaction for bearer credentials, API/access/refresh/secret fields and common OpenAI/GitHub/Slack token shapes; prompts, completions, webhook bodies and customer content remain forbidden telemetry inputs.
+- Added OpenTelemetry HTTP server spans plus governed AI child spans, with optional OTLP/HTTP export and production HTTPS enforcement for configured exporters.
+- Added protected Prometheus `/metrics` exposure with production bearer-token enforcement and finite code-controlled metric labels only; tenant-configurable organisation/user/integration/provider/model values are deliberately excluded from metric labels.
+- Added route-template HTTP request/error/latency metrics, PostgreSQL readiness/latency metrics, aggregate connector lifecycle metrics and aggregate governed-AI success/failure/latency/exact-cost metrics.
+- Preserved provider/model/integration drill-down in structured logs, traces and durable domain ledgers instead of high-cardinality Prometheus series.
+- Separated process liveness from PostgreSQL readiness; readiness now reports dependency status/latency and returns 503 while liveness remains process-only.
+- Added raw connector persistence spans/logs and shared connector sync success/failure telemetry without raw event payloads.
+- Added SLO/error-budget documentation, Prometheus-compatible alert rules and an incident runbook for database, API, search, AI and connector failures.
+- Added observability security/health/correlation tests plus deployed backend/monitoring/frontend UAT instructions.
+
+Verification is not yet claimed. `S-09.01.01` remains `IN_REVIEW` until Ruff, Pytest and the Delivery Verifier obtain an executable passing run. Deployed metrics/trace collection, alert firing and representative monthly SLO compliance remain separate `UAT_PENDING` evidence.
+
 ### Increment 12 — External API registry
 
 - Added tenant-scoped external API service and credential-grant inventory with explicit owner, scopes, environment, status and optional expiry.
