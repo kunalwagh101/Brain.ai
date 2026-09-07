@@ -149,12 +149,15 @@ def validate_provider_api_url(url: str, *, settings: Settings | None = None) -> 
 
     host = parsed.hostname.lower()
     production = settings.environment.lower() == "production"
-    if production:
-        if parsed.scheme != "https":
-            raise AIGatewayError("Production AI provider URLs must use HTTPS")
-        if host not in settings.allowed_ai_provider_hosts:
-            raise AIGatewayError("AI provider host is not approved for production egress")
-    elif parsed.scheme == "http" and host not in {"localhost", "127.0.0.1", "::1"}:
+    if production and parsed.scheme != "https":
+        raise AIGatewayError("Production AI provider URLs must use HTTPS")
+    if production and host not in settings.allowed_ai_provider_hosts:
+        raise AIGatewayError("AI provider host is not approved for production egress")
+    if not production and parsed.scheme == "http" and host not in {
+        "localhost",
+        "127.0.0.1",
+        "::1",
+    }:
         raise AIGatewayError("Non-local AI provider URLs must use HTTPS")
 
     try:
