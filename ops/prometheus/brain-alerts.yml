@@ -12,15 +12,30 @@ groups:
 
       - alert: BrainCoreApiHighErrorRate
         expr: |
-          sum(rate(brain_http_requests_total{status_class="5xx"}[5m]))
+          sum(
+            rate(
+              brain_http_requests_total{
+                status_class="5xx",
+                route!~".*/ai/invoke|/health/.*|/metrics"
+              }[5m]
+            )
+          )
           /
-          clamp_min(sum(rate(brain_http_requests_total[5m])), 0.001)
-          > 0.01
+          clamp_min(
+            sum(
+              rate(
+                brain_http_requests_total{
+                  route!~".*/ai/invoke|/health/.*|/metrics"
+                }[5m]
+              )
+            ),
+            0.001
+          ) > 0.01
         for: 5m
         labels:
           severity: critical
         annotations:
-          summary: Brain API 5xx rate is above 1%
+          summary: Brain core API 5xx rate is above 1%
           runbook: docs/runbooks/OBSERVABILITY.md#api-error-rate
 
       - alert: BrainCoreApiLatencySLOBreach
