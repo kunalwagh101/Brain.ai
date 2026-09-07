@@ -66,6 +66,14 @@ class DecisionMemoryCandidate(Base):
             "organization_id",
             "created_at",
         ),
+        Index(
+            "ix_decision_memory_search_document",
+            "search_document_id",
+        ),
+        Index(
+            "ix_decision_memory_canonical_event",
+            "canonical_event_id",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
