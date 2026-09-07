@@ -84,18 +84,16 @@ DEPENDENCY_LATENCY = Histogram(
 AI_REQUESTS = Counter(
     "brain_ai_requests_total",
     "Governed AI provider requests",
-    ("provider", "model", "status"),
+    ("status",),
 )
 AI_LATENCY = Histogram(
     "brain_ai_request_duration_seconds",
     "Governed AI provider request duration",
-    ("provider", "model"),
     buckets=(0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 30, 60, 120),
 )
 AI_COST_NANO_USD = Counter(
     "brain_ai_cost_nano_usd_total",
     "Resolved governed AI cost in nano-USD",
-    ("provider", "model"),
 )
 CONNECTOR_EVENTS = Counter(
     "brain_connector_events_total",
@@ -216,10 +214,14 @@ def record_ai_request(
     latency_ms: int,
     cost_nano_usd: int | None = None,
 ) -> None:
-    AI_REQUESTS.labels(provider=provider, model=model, status=status_value).inc()
-    AI_LATENCY.labels(provider=provider, model=model).observe(max(0, latency_ms) / 1000)
+    # Provider/model remain in logs/traces and the durable usage ledger. They are
+    # intentionally not Prometheus labels because tenant-configured values would
+    # create unbounded multi-tenant metric cardinality.
+    del provider, model
+    AI_REQUESTS.labels(status=status_value).inc()
+    AI_LATENCY.observe(max(0, latency_ms) / 1000)
     if cost_nano_usd is not None and cost_nano_usd >= 0:
-        AI_COST_NANO_USD.labels(provider=provider, model=model).inc(cost_nano_usd)
+        AI_COST_NANO_USD.inc(cost_nano_usd)
 
 
 def record_connector_event(*, provider: str, created: bool) -> None:
