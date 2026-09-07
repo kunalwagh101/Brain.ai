@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+### Increment 12 — External API registry
+
+- Added tenant-scoped external API service and credential-grant inventory with explicit owner, scopes, environment, status and optional expiry.
+- Added dedicated `api.manage` administration permission while organisation-wide registry/history/usage reads reuse `audit.read`.
+- Added AWS Secrets Manager storage for external API credentials; PostgreSQL persists only secret references and read APIs expose only `credential_present`.
+- Added safe internal credential loading that refuses disabled, revoked, revoke-failed and time-expired grants before secret retrieval; no public credential-read endpoint exists.
+- Added credential rotation without changing the stored reference or persisting old/new credential values.
+- Added fail-closed `revoking`, `revoke_failed` and `revoked` transitions with retryable secret deletion and immutable lifecycle history.
+- Added bounded expiry processing plus separate secret-cleanup retries so an expired grant remains unusable even when external secret deletion temporarily fails.
+- Added trusted internal, idempotent API usage observations with PostgreSQL grant-row locking to avoid lost concurrent usage-count updates; normal clients cannot fabricate usage through a public write route.
+- Added Alembic revision `20260907_0013`, security/lifecycle/worker/secret-store tests, operator documentation and realistic-data/frontend UAT instructions.
+
+Verification is not yet claimed. The latest checked Backend CI job for this branch failed before runner startup with `runner_id=0` and no executed steps, so Ruff/Pytest/Delivery Verifier evidence does not exist and `S-06.03.01` remains `IN_REVIEW`.
+
+### Increment 11 — Usage, cost and budgets
+
+- Added historical provider/model rate cards and deterministic integer nano-USD cost accounting.
+- Added explicit `calculated` versus `unknown` cost-resolution state; missing provider token counts or pricing are never silently treated as zero spend.
+- Added usage aggregation by organisation, provider, model, user and existing Work Graph attribution node without guessing missing attribution.
+- Added UTC calendar-month budgets for organisation/provider/model/user/project-track-work-item scopes with tenant-validated targets.
+- Added deduplicated warning and 100% alerts plus a post-exhaustion hard-stop before provider secret lookup/execution.
+- Added explicit incomplete-enforcement state when a budget period contains unknown-cost requests rather than pretending known spend equals the invoice.
+- Added bounded cost reconciliation with PostgreSQL `FOR UPDATE SKIP LOCKED` for successful requests whose cost is missing or later becomes resolvable.
+- Added Alembic revision `20260907_0012`, API routes, accounting/security tests, operator documentation and real-provider/frontend UAT instructions.
+
+Verification is not yet claimed. `S-06.02.01` is staged on the same branch but remains `BLOCKED` because its S-06.01.01 dependency has not received executable passing verification and F-06.02 itself has no passing CI evidence.
+
+### Increment 10 — Governed AI provider gateway
+
+- Added tenant-scoped AI provider/model configuration with separate `ai.manage` administration and `ai.use` invocation permissions.
+- Added secret-reference provider credentials, credential rotation, fail-closed revocation and no plaintext API-key persistence.
+- Added production HTTPS/provider-host egress controls, redirect rejection and bounded provider response/error handling.
+- Added a provider-neutral runtime contract with an isolated OpenAI-compatible chat-completions adapter.
+- Added durable AI request metadata for organisation, user, provider, model, optional Work Graph attribution, status, latency, provider request ID and provider-returned token counts.
+- Prompts, system text and model completions are not persisted in the AI request ledger by default.
+- Added Alembic revision `20260907_0011`, gateway/adapter/route/security tests, documentation and real-provider/frontend UAT instructions.
+
+Verification is not yet claimed because GitHub-hosted Actions cannot currently obtain a runner; `S-06.01.01` remains `IN_REVIEW` until Ruff, Pytest and the Delivery Verifier actually execute successfully.
+
 ### Increment 9 — Decision and blocker memory
 
 - Added tenant-scoped decision/blocker candidate storage plus versioned extraction bookkeeping and immutable human review history.
