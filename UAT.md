@@ -21,6 +21,7 @@ Until both are recorded, external status is `UAT_PENDING` even if CI is green.
 | F-03.02 Canonical Event Model | DONE | PENDING | PENDING | UAT_PENDING |
 | F-03.03 Identity Resolution | DONE | PENDING | PENDING | UAT_PENDING |
 | F-04.01 Work Graph | DONE | PENDING | PENDING | UAT_PENDING |
+| F-04.02 Decision & Blocker Memory | BLOCKED | PENDING | PENDING | UAT_PENDING |
 | F-05.01 Permission-Aware Retrieval | IN_REVIEW | PENDING | PENDING | UAT_PENDING |
 
 Detailed scripts live under `UAT/`.
