@@ -4,6 +4,8 @@
 
 F-06.02 turns governed AI gateway requests into auditable usage and cost data. It does not infer spend from prompts, employee activity, or model guesses.
 
+This feature is intentionally staged on the existing `increment-10-ai-provider-gateway` branch. No additional feature branch was created.
+
 ## Accounting unit
 
 All configured rates and calculated costs use integer nano-USD:
