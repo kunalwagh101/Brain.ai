@@ -20,7 +20,7 @@ IN_REVIEW | S-05.01.01 | F-05.01 | Implementation/docs/tests exist; GitHub Actio
 BACKLOG | S-05.02.01 | F-05.02 | OQ-005 before generation provider contract is frozen
 IN_REVIEW | S-06.01.01 | F-06.01 | Provider registry/gateway implementation, migration, tests, docs and UAT exist on the current branch; no executable passing verification exists because GitHub Actions cannot start a runner
 BLOCKED | S-06.02.01 | F-06.02 | Usage/cost/budget implementation is staged on the same branch; S-06.01.01 is still unverified and F-06.02 itself has no executable passing verification
-BACKLOG | S-06.03.01 | F-06.03 | Depends on RBAC + integration secret-reference model
+IN_REVIEW | S-06.03.01 | F-06.03 | External API registry, lifecycle, expiry worker, migration, tests, docs and UAT exist on the same branch; latest Backend CI again had runner_id=0 and steps=[]
 BACKLOG | S-07.01.01 | F-07.01 | Depends on work graph + decision/blocker memory
 BACKLOG | S-07.02.01 | F-07.02 | Depends on project status + usage/cost
 BACKLOG | S-08.01.01 | F-08.01 | Depends on AI gateway + audit/retention
@@ -29,6 +29,31 @@ BACKLOG | S-09.02.01 | F-09.02 | OQ-006 retention defaults unresolved
 BACKLOG | S-09.03.01 | F-09.03 | Phase 3 verifier is merged and green; full production deployment story remains
 BACKLOG | S-09.04.01 | F-09.04 | Benchmarks attach to implemented vertical slices
 DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external-tool wedge
+
+## Increment 12 planning — external API registry on the existing branch
+
+Increment 12 goal: **inventory external API services and credential grants with explicit owner, scopes, environment, lifecycle, expiry and usage evidence while keeping plaintext credentials exclusively in the configured secret store.**
+
+Branch rule: Increment 12 intentionally continues on `increment-10-ai-provider-gateway`; no additional branch is created.
+
+Dependency state: S-01.03.01 RBAC and S-02.01.01 integration secret-reference patterns are engineering-DONE, so F-06.03 is not dependency-blocked. It remains `IN_REVIEW` only because executable Ruff/Pytest/Delivery Verifier evidence is unavailable while GitHub Actions cannot start a runner.
+
+Vertical slice staged: tenant-scoped API service inventory -> secret-reference credential grant -> active same-org owner/scopes/environment/expiry -> immutable lifecycle history -> safe rotation -> fail-closed revoke/retry -> expiry worker + secret cleanup retry -> internal idempotent usage observation -> permissioned read/mutation API -> migration/tests/docs/UAT.
+
+Rules for this increment:
+
+- Registry mutations require `api.manage`; organisation-wide reads reuse `audit.read`.
+- PostgreSQL never stores plaintext API credential material; read APIs expose only whether a credential reference exists.
+- Owner targets must be active members of the same organisation.
+- Scope/environment identifiers are explicit and bounded; Brain never guesses them from traffic.
+- Metadata becomes immutable after revocation or expiry.
+- Revocation uses explicit `revoking` / `revoke_failed` / `revoked` fail-closed states and cannot be re-enabled once revocation starts.
+- Expiry changes database state before secret cleanup, so compliant callers fail closed even if external secret deletion must be retried.
+- Credential rotation changes the secret in place and records only rotation metadata, never old/new credential values.
+- Usage observations are internal/trusted-service writes only; there is no public endpoint that lets normal clients fabricate usage evidence.
+- Replayed usage observations are idempotent; PostgreSQL locks grant state so concurrent observations do not lose usage-count increments.
+- Real calling-system coverage and frontend/manual acceptance remain UAT evidence. Do not claim all API usage is governed until those integrations are actually wired and checked.
+- No S-06.03.01 DONE evidence block may be added until Ruff, tests, migration checks and the delivery verifier have executable passing results.
 
 ## Increment 11 planning — staged on the existing AI governance branch
 
@@ -168,8 +193,8 @@ Rules for this increment:
 ## Session-open self-audit
 
 - Ten stories are engineering-DONE; external/user acceptance remains independently tracked in UAT.md.
-- Current IN_PROGRESS WIP count: 0. S-05.01.01 and S-06.01.01 are IN_REVIEW; S-04.02.01 and S-06.02.01 are BLOCKED while their implementations are staged behind unverified dependencies.
+- Current IN_PROGRESS WIP count: 0. S-05.01.01, S-06.01.01 and S-06.03.01 are IN_REVIEW; S-04.02.01 and S-06.02.01 are BLOCKED while their implementations are staged behind unverified dependencies.
 - Increment 7 Work Graph is merged on `main` at `ddd12921ec7ac025dc21de41275b8532c811ab24`.
 - Existing Work Graph/retrieval authorization semantics are reused rather than replaced by Decision Memory or AI governance.
-- Existing frontend still contains preview/sample state. No fake search/memory/AI-cost UI wiring will be used to claim frontend acceptance.
+- Existing frontend still contains preview/sample state. No fake search/memory/AI-cost/API-registry UI wiring will be used to claim frontend acceptance.
 - Repeated Backend CI / Delivery Verifier attempts have failed before runner startup (`runner_id=0`, no steps). There is no passing test output for Increment 8 or later staged increments, so engineering-DONE is prohibited by the Definition of Done/Ready.
