@@ -10,7 +10,13 @@ from starlette.requests import Request
 
 from app import health
 from app.config import Settings
-from app.observability import JSONLogFormatter, metrics_response
+from app.observability import (
+    JSONLogFormatter,
+    metrics_response,
+    record_ai_request,
+    record_connector_event,
+    record_connector_sync,
+)
 
 
 class ReadyConnection:
@@ -39,7 +45,14 @@ def _request(authorization: str | None = None) -> Request:
     headers = []
     if authorization is not None:
         headers.append((b"authorization", authorization.encode()))
-    return Request({"type": "http", "headers": headers, "method": "GET", "path": "/metrics"})
+    return Request(
+        {
+            "type": "http",
+            "headers": headers,
+            "method": "GET",
+            "path": "/metrics",
+        }
+    )
 
 
 def test_json_logging_redacts_credentials_and_bearer_tokens() -> None:
@@ -80,6 +93,38 @@ def test_metrics_require_configured_bearer_token_and_do_not_expose_tenant_labels
     assert b"brain_http_requests_total" in body
     assert b"organization_id=" not in body
     assert b"user_id=" not in body
+
+
+def test_metrics_can_be_disabled() -> None:
+    settings = Settings(_env_file=None, metrics_enabled=False)
+
+    with pytest.raises(HTTPException) as disabled:
+        metrics_response(_request(), settings)
+
+    assert disabled.value.status_code == 404
+
+
+def test_ai_and_connector_metrics_materialize_bounded_dimensions() -> None:
+    record_ai_request(
+        provider="observability-test-provider",
+        model="observability-test-model",
+        status_value="succeeded",
+        latency_ms=125,
+        cost_nano_usd=42,
+    )
+    record_connector_event(provider="observability-test-connector", created=True)
+    record_connector_sync(provider="observability-test-connector", succeeded=False)
+    response = metrics_response(
+        _request(),
+        Settings(_env_file=None, metrics_enabled=True),
+    )
+    body = bytes(response.body)
+
+    assert b'observability-test-provider' in body
+    assert b'observability-test-model' in body
+    assert b'observability-test-connector' in body
+    assert b"brain_ai_cost_nano_usd_total" in body
+    assert b"brain_connector_sync_total" in body
 
 
 def test_production_requires_metrics_token_when_metrics_are_enabled() -> None:
@@ -139,3 +184,14 @@ def test_http_request_id_is_preserved_only_when_safe(client) -> None:
     assert replaced.status_code == 200
     assert replaced.headers["X-Request-ID"] != unsafe_value
     uuid.UUID(replaced.headers["X-Request-ID"])
+
+
+def test_cors_exposes_request_id_to_frontend(client) -> None:
+    response = client.get(
+        "/",
+        headers={"Origin": "http://localhost:3000"},
+    )
+
+    assert response.status_code == 200
+    exposed = response.headers.get("access-control-expose-headers", "")
+    assert "X-Request-ID" in exposed
