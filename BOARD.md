@@ -18,8 +18,8 @@ DONE | S-04.01.01 | F-04.01 | Engineering evidence in TRACEABILITY.md; real Slac
 BLOCKED | S-04.02.01 | F-04.02 | Implementation is staged on Increment 9, but formal readiness/review is blocked until S-05.01.01 has executable passing verification
 IN_REVIEW | S-05.01.01 | F-05.01 | Implementation/docs/tests exist; GitHub Actions cannot start a runner, so no passing verification evidence yet
 BACKLOG | S-05.02.01 | F-05.02 | OQ-005 before generation provider contract is frozen
-BACKLOG | S-06.01.01 | F-06.01 | Depends on RBAC
-BACKLOG | S-06.02.01 | F-06.02 | Depends on AI provider registry/gateway
+IN_REVIEW | S-06.01.01 | F-06.01 | Provider registry/gateway implementation, migration, tests, docs and UAT exist on the current branch; no executable passing verification exists because GitHub Actions cannot start a runner
+BLOCKED | S-06.02.01 | F-06.02 | Usage/cost/budget implementation is staged on the same branch; S-06.01.01 is still unverified and F-06.02 itself has no executable passing verification
 BACKLOG | S-06.03.01 | F-06.03 | Depends on RBAC + integration secret-reference model
 BACKLOG | S-07.01.01 | F-07.01 | Depends on work graph + decision/blocker memory
 BACKLOG | S-07.02.01 | F-07.02 | Depends on project status + usage/cost
@@ -29,6 +29,49 @@ BACKLOG | S-09.02.01 | F-09.02 | OQ-006 retention defaults unresolved
 BACKLOG | S-09.03.01 | F-09.03 | Phase 3 verifier is merged and green; full production deployment story remains
 BACKLOG | S-09.04.01 | F-09.04 | Benchmarks attach to implemented vertical slices
 DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external-tool wedge
+
+## Increment 11 planning — staged on the existing AI governance branch
+
+Increment 11 goal: **turn governed AI requests into deterministic usage/cost accounting and enforceable monthly budget controls without inventing attribution or treating unknown spend as zero.**
+
+Branch rule: Increment 11 intentionally continues on `increment-10-ai-provider-gateway`; no additional branch is created.
+
+Dependency state: S-06.01.01 has a usable implementation contract on the same branch but remains IN_REVIEW because no GitHub-hosted runner has executed its tests. S-06.02.01 is therefore `BLOCKED` under the Definition of Ready/Done even though its implementation is staged for efficient review.
+
+Vertical slice staged: AI request ledger -> historical provider/model rate card -> deterministic nano-USD cost resolution -> explicit unknown-cost state -> organisation/provider/model/user/Work Graph aggregation -> monthly budget policy -> deduplicated warning/100% alerts -> pre-provider post-exhaustion hard-stop -> bounded PostgreSQL-safe reconciliation worker -> API/migration/tests/docs/UAT.
+
+Rules for this increment:
+
+- Persisted cost uses integer nano-USD; no floating-point currency accounting.
+- Missing token metadata or an effective rate card produces an explicit `unknown` cost record, never silent zero spend.
+- Missing project/track/work-item attribution remains NULL/unknown; Brain never guesses attribution from prompt text.
+- Budget targets are validated against the same organisation before persistence.
+- Organisation-wide spend reads reuse `audit.read`; budget/rate administration requires `ai.manage`.
+- Alert uniqueness is enforced by budget + UTC calendar month + threshold.
+- The hard-stop is checked before secret lookup/provider execution once known spend is already exhausted.
+- This is a post-exhaustion hard stop, not an exact prepaid reservation; concurrent in-flight requests may overshoot the configured limit and that limitation remains documented.
+- Unknown-cost requests make budget enforcement explicitly incomplete rather than falsely complete.
+- A bounded reconciliation worker can resolve previously unknown/missing cost rows after pricing becomes available; PostgreSQL workers use `FOR UPDATE SKIP LOCKED`.
+- Real provider pricing, invoice comparison, PostgreSQL concurrency, and frontend/manual acceptance remain UAT evidence, not assumptions.
+- No S-06.02.01 DONE evidence block may be added until S-06.01.01 is verified and F-06.02 has its own passing executable verification.
+
+## Increment 10 planning — governed AI provider gateway
+
+Increment 10 goal: **route approved AI calls through one tenant-scoped gateway that keeps provider credentials out of the database, records provider/model/user/project attribution, fails closed on revocation, and does not persist prompts/completions by default.**
+
+Vertical slice staged: admin provider/model registry -> secret-reference credential storage -> production egress allowlist -> provider-neutral adapter -> AI-use authorization -> optional Work Graph attribution -> durable request ledger -> bounded provider failures -> provider/model lifecycle -> migration/tests/docs/UAT.
+
+Rules for this increment:
+
+- Provider/model administration uses `ai.manage`; invocation uses `ai.use`.
+- API keys live in the configured secret store; PostgreSQL persists only secret references.
+- Production provider URLs require HTTPS and an explicitly approved egress hostname.
+- Redirects are rejected so an allowed host cannot redirect the gateway to an internal target.
+- Provider response bodies and credentials are not surfaced in bounded gateway errors.
+- Prompt/system text and completion content are not persisted in `ai_request_records`.
+- Every accepted provider call records organisation, user, provider, model, status and latency; optional project/track/work-item attribution is permission checked.
+- Revocation is fail-closed and has explicit `revoking` / `revoke_failed` / `revoked` state; a failed revocation cannot be re-enabled.
+- Real-provider interoperability, latency and frontend/manual acceptance remain UAT_PENDING.
 
 ## Increment 9 planning — dependency-blocked staged implementation
 
@@ -125,10 +168,8 @@ Rules for this increment:
 ## Session-open self-audit
 
 - Ten stories are engineering-DONE; external/user acceptance remains independently tracked in UAT.md.
-- Current IN_PROGRESS WIP count: 0. S-05.01.01 is IN_REVIEW; S-04.02.01 is BLOCKED while its implementation is staged on the stacked Increment 9 branch.
+- Current IN_PROGRESS WIP count: 0. S-05.01.01 and S-06.01.01 are IN_REVIEW; S-04.02.01 and S-06.02.01 are BLOCKED while their implementations are staged behind unverified dependencies.
 - Increment 7 Work Graph is merged on `main` at `ddd12921ec7ac025dc21de41275b8532c811ab24`.
-- F-05.01 dependencies S-01.03.01 and S-03.02.01 are engineering-DONE.
-- Existing Work Graph and retrieval authorization semantics are reused rather than replaced by Decision Memory.
-- OQ-005 does not block deterministic candidate extraction because Increment 9 does not choose a model-generation provider.
-- Existing frontend still contains preview/sample state. No fake search/memory wiring will be used to claim frontend acceptance.
-- Repeated Backend CI / Delivery Verifier attempts for Increment 8 failed before runner startup (`runner_id=0`, no steps). There is no passing test output for Increment 8, so its engineering-DONE state and dependent Increment 9 review/DONE are prohibited by the Definition of Done/Ready.
+- Existing Work Graph/retrieval authorization semantics are reused rather than replaced by Decision Memory or AI governance.
+- Existing frontend still contains preview/sample state. No fake search/memory/AI-cost UI wiring will be used to claim frontend acceptance.
+- Repeated Backend CI / Delivery Verifier attempts have failed before runner startup (`runner_id=0`, no steps). There is no passing test output for Increment 8 or later staged increments, so engineering-DONE is prohibited by the Definition of Done/Ready.
