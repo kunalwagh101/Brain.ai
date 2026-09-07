@@ -24,7 +24,7 @@ No floating-point arithmetic is used for persisted cost.
 
 ## Rate cards
 
-Rate cards are tenant-scoped and tied to one configured provider/model. They have an explicit effective window and a human-readable `source_label` describing where the configured price came from. Overlapping rate windows for the same model are rejected by the service; PostgreSQL row locking is used during rate administration so concurrent changes cannot intentionally create overlapping current windows.
+Rate cards are tenant-scoped and tied to one configured provider/model. They have an explicit effective window and a human-readable `source_label` describing where the configured price came from. Overlapping rate windows for the same model are rejected by the service. The schema also prevents duplicate model/effective-start entries; concurrent overlap behavior must be verified against PostgreSQL before production acceptance rather than assumed from unit fixtures.
 
 Brain does not scrape or silently update provider prices. An authorised operator must configure the source rate and effective date. Provider invoice reconciliation, taxes, credits, and currency conversion are outside this feature.
 
@@ -107,7 +107,7 @@ Repeated evaluation, worker replay, or concurrent calls therefore cannot create 
 
 ## Hard-stop semantics
 
-Before provider credential lookup or external execution, the gateway checks every matching enabled hard budget. If known spend is already at or above a limit, the next request is blocked.
+Before provider credential lookup or external execution, the gateway checks every matching enabled hard budget. If known spend is already at or above a limit, the next request is blocked with an explicit budget-exhausted response.
 
 This is a **post-exhaustion hard stop**, not a prepaid reservation system. Concurrent requests already in flight can make final spend exceed the configured limit. Exact pre-reservation would require a deterministic upper-bound cost before provider execution, which is not currently available for arbitrary provider tokenisation. This limitation must remain visible rather than being described as an exact financial cap.
 
