@@ -284,6 +284,8 @@ async def observe_http_request(
                 span.set_attribute("http.route", route)
                 span.set_attribute("http.response.status_code", status_code)
                 span.set_attribute("brain.request_id", request_id)
+                if status_code >= 500:
+                    span.set_status(Status(StatusCode.ERROR))
                 organization_id = _organization_id.get()
                 if organization_id:
                     span.set_attribute("brain.organization_id", organization_id)
