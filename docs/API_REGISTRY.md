@@ -77,6 +77,8 @@ Credential creation writes the supplied credential dictionary directly to the co
 
 Rotation calls `replace_secret` and retains the same reference. The registry records only `credential_rotated_at` plus a history event.
 
+Backend components that need to use a governed credential must use `load_active_api_credentials(...)`. This internal helper checks the tenant, requires `status=active`, checks the configured expiry timestamp even if the expiry worker has not run yet, requires a secret reference and only then loads the credential from the secret store. There is no public credential-read endpoint.
+
 Revocation is fail closed:
 
 `active|disabled -> revoking -> revoked`
@@ -96,7 +98,7 @@ cd backend
 python -m app.api_registry_worker --once --batch-size 100
 ```
 
-The database transition to `expired` happens first, which makes the grant unusable to compliant callers immediately. Secret deletion is then scheduled. If secret deletion fails, the grant remains `expired` with its secret reference retained only for cleanup retry; the next worker run retries deletion and clears the reference after successful scheduling.
+The safe internal credential loader rejects a grant as soon as its expiry timestamp passes, even before the worker has persisted the `expired` status. The worker then records the durable `expired` transition and immutable history event. Secret deletion is scheduled afterward. If secret deletion fails, the grant remains `expired` with its secret reference retained only for cleanup retry; the next worker run retries deletion and clears the reference after successful scheduling.
 
 PostgreSQL workers use row locking / `SKIP LOCKED` where multiple workers could otherwise claim the same lifecycle row.
 
@@ -132,4 +134,4 @@ Downgrade removes only the registry-derived tables. Secret-manager objects are e
 
 ## Production acceptance limitation
 
-The registry can be engineering-complete before it has broad usage coverage. Do not claim “all API usage is governed” until each real calling subsystem has been wired to the internal usage-observation contract and realistic UAT proves that observed usage matches actual calls.
+The registry can be engineering-complete before it has broad usage coverage. Do not claim “all API usage is governed” until each real calling subsystem has been wired to the internal credential-loader and usage-observation contracts and realistic UAT proves that observed usage matches actual calls.
