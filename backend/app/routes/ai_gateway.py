@@ -52,6 +52,7 @@ class AIProviderRead(BaseModel):
     status: AIProviderStatus
     created_at: datetime
     updated_at: datetime
+    credential_rotated_at: datetime | None
     revoked_at: datetime | None
 
     model_config = {"from_attributes": True}
@@ -109,6 +110,8 @@ def _raise_gateway_error(exc: AIGatewayError) -> None:
         code = status.HTTP_409_CONFLICT
     elif "not found" in message:
         code = status.HTTP_404_NOT_FOUND
+    elif message == "AI budget exhausted":
+        code = status.HTTP_429_TOO_MANY_REQUESTS
     elif "credential storage failed" in message or "revocation is incomplete" in message:
         code = status.HTTP_503_SERVICE_UNAVAILABLE
     else:
