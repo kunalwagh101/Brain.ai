@@ -135,8 +135,11 @@ def create_model_configuration(
     )
     if provider is None:
         raise AIGatewayError("AI provider configuration not found")
-    if provider.status == AIProviderStatus.REVOKED:
-        raise AIGatewayError("AI provider configuration is revoked")
+    if provider.status not in {
+        AIProviderStatus.ENABLED,
+        AIProviderStatus.DISABLED,
+    }:
+        raise AIGatewayError("AI provider revocation has started")
     model_key = normalize_model_key(model_key)
     if not display_name.strip():
         raise AIGatewayError("Model display name is required")
@@ -185,8 +188,11 @@ def set_provider_enabled(
     )
     if provider is None:
         raise AIGatewayError("AI provider configuration not found")
-    if provider.status == AIProviderStatus.REVOKED:
-        raise AIGatewayError("AI provider configuration is revoked")
+    if provider.status not in {
+        AIProviderStatus.ENABLED,
+        AIProviderStatus.DISABLED,
+    }:
+        raise AIGatewayError("AI provider cannot be re-enabled after revocation starts")
     provider.status = AIProviderStatus.ENABLED if enabled else AIProviderStatus.DISABLED
     db.commit()
     db.refresh(provider)
@@ -232,13 +238,15 @@ def revoke_provider_configuration(
     if provider.status == AIProviderStatus.REVOKED:
         return provider
 
-    provider.status = AIProviderStatus.DISABLED
+    provider.status = AIProviderStatus.REVOKING
     db.commit()
     reference = provider.secret_ref
     if reference:
         try:
             secret_store.schedule_delete(reference)
         except SecretStoreError as exc:
+            provider.status = AIProviderStatus.REVOKE_FAILED
+            db.commit()
             raise AIGatewayError("AI provider revocation is incomplete") from exc
     provider.status = AIProviderStatus.REVOKED
     provider.secret_ref = None
@@ -321,6 +329,7 @@ def invoke_ai(
         raise AIGatewayError("AI provider or model not found")
     if provider.status != AIProviderStatus.ENABLED or not model.enabled:
         raise AIGatewayError("AI provider or model is disabled")
+    validate_provider_api_url(provider.api_url)
     text = input_text.strip()
     if not text:
         raise AIGatewayError("AI input is required")
@@ -379,6 +388,12 @@ def invoke_ai(
 
     runtime = adapter or adapter_for(provider.adapter_kind)
     timeout = timeout_seconds or get_settings().ai_provider_timeout_seconds
+    if timeout <= 0 or timeout > 120:
+        _mark_failed(db, record, code="invalid_gateway_timeout", started=started)
+        raise AIInvocationError(
+            request_id=record.id,
+            code="invalid_gateway_timeout",
+        )
     try:
         result = runtime.invoke(
             api_url=provider.api_url,
