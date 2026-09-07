@@ -24,7 +24,7 @@ This file is the engineering evidence index. A row is completed only after its s
 | S-07.01.01 | E-07 | project command centre | pending | pending | BACKLOG |
 | S-07.02.01 | E-07 | executive overview | pending | pending | BACKLOG |
 | S-08.01.01 | E-08 | governed agent runtime | pending | pending | BACKLOG |
-| S-09.01.01 | E-09 | production observability | pending | pending | BACKLOG |
+| S-09.01.01 | E-09 | production observability and SLOs | backend/tests/test_observability.py | backend/app/observability.py + backend/app/health.py + backend/app/integrations.py + backend/app/raw_events.py + backend/app/ai_provider_registry.py | IN_REVIEW |
 | S-09.02.01 | E-09 | audit/retention/deletion | pending | pending | BACKLOG |
 | S-09.03.01 | E-09 | CI/deploy/rollback/restore | pending | pending | BACKLOG |
 | S-09.04.01 | E-09 | latency/cost benchmarks | pending | pending | BACKLOG |
@@ -108,4 +108,6 @@ S-06.01.01 intentionally has no EVIDENCE block yet. Provider registry/gateway co
 
 S-06.02.01 intentionally has no EVIDENCE block yet. Deterministic nano-USD cost accounting, explicit unknown-cost state, usage aggregation, budget alerts/hard-stop, reconciliation worker, migration, tests, docs and UAT are staged on the same branch. Its S-06.01.01 dependency is not engineering-DONE and F-06.02 has no executable passing verification, so the story remains BLOCKED.
 
-S-06.03.01 intentionally has no EVIDENCE block yet. Tenant-scoped API service/grant inventory, secret-reference credential lifecycle, owner/scope/environment history, rotation, fail-closed revocation, expiry cleanup, internal usage observation, migration, tests, docs and UAT are staged on the same branch. The latest Backend CI attempt for head `42d88827a535520e550fce58c12e04431b6ac83d` failed before runner startup with `runner_id=0` and `steps=[]`, so Ruff/Pytest did not execute and the story remains IN_REVIEW.
+S-06.03.01 intentionally has no EVIDENCE block yet. Tenant-scoped API service/grant inventory, secret-reference credential lifecycle, owner/scope/environment history, rotation, fail-closed revocation, expiry cleanup, internal usage observation, migration, tests, docs and UAT are staged on the same branch. Repeated Backend CI attempts continue to fail before runner startup, so Ruff/Pytest did not execute and the story remains IN_REVIEW.
+
+S-09.01.01 intentionally has no EVIDENCE block yet. Structured JSON logging/redaction, bounded Prometheus metrics, OpenTelemetry request/AI tracing, PostgreSQL readiness telemetry, connector/AI instrumentation, protected metrics access, SLO alert rules, incident runbook, tests and deployed-UAT instructions are staged on the same branch. No Ruff/Pytest/Delivery Verifier pass is claimed until an executable runner actually starts; the story remains IN_REVIEW.
