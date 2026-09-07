@@ -104,27 +104,33 @@ def test_metrics_can_be_disabled() -> None:
     assert disabled.value.status_code == 404
 
 
-def test_ai_and_connector_metrics_materialize_bounded_dimensions() -> None:
+def test_ai_and_connector_metrics_drop_tenant_configurable_dimensions() -> None:
+    provider = "observability-test-provider"
+    model = "observability-test-model"
+    connector = "observability-test-connector"
     record_ai_request(
-        provider="observability-test-provider",
-        model="observability-test-model",
+        provider=provider,
+        model=model,
         status_value="succeeded",
         latency_ms=125,
         cost_nano_usd=42,
     )
-    record_connector_event(provider="observability-test-connector", created=True)
-    record_connector_sync(provider="observability-test-connector", succeeded=False)
+    record_connector_event(provider=connector, created=True)
+    record_connector_sync(provider=connector, succeeded=False)
     response = metrics_response(
         _request(),
         Settings(_env_file=None, metrics_enabled=True),
     )
     body = bytes(response.body)
 
-    assert b'observability-test-provider' in body
-    assert b'observability-test-model' in body
-    assert b'observability-test-connector' in body
+    assert b"brain_ai_requests_total" in body
+    assert b"brain_ai_request_duration_seconds" in body
     assert b"brain_ai_cost_nano_usd_total" in body
+    assert b"brain_connector_events_total" in body
     assert b"brain_connector_sync_total" in body
+    assert provider.encode() not in body
+    assert model.encode() not in body
+    assert connector.encode() not in body
 
 
 def test_production_requires_metrics_token_when_metrics_are_enabled() -> None:
