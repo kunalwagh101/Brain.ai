@@ -12,7 +12,7 @@ Make Brain incidents diagnosable from correlated, secret-safe telemetry and defi
 
 1. Every HTTP request receives a bounded safe request ID, returns it to the caller and emits method, route template, status and duration without logging request bodies or authorization headers.
 2. W3C trace context is accepted and Brain creates OpenTelemetry spans for HTTP and governed AI execution; optional OTLP export is operator-configured.
-3. Tenant identifiers may appear in structured logs/traces for incident correlation but are never Prometheus labels. User IDs are not emitted as metric labels.
+3. Tenant-configurable identifiers such as organisation, user, integration, provider and model may appear only in structured logs/traces or durable ledgers for incident correlation; they are never Prometheus labels. Metric labels are restricted to finite code-controlled dimensions.
 4. Raw connector persistence emits provider/integration/source-event-type lifecycle telemetry without raw payload content, while shared integration sync success/failure emits provider/integration/error metadata.
 5. Governed AI calls emit provider/model/status/latency and resolved cost metadata without prompt, completion or credential values.
 6. `/health/live` reports process liveness only. `/health/ready` verifies PostgreSQL dependency health and reports bounded dependency latency; dependency failure returns 503 without making liveness fail.
@@ -46,6 +46,6 @@ Make Brain incidents diagnosable from correlated, secret-safe telemetry and defi
 
 - Buying or selecting a hosted observability vendor.
 - Logging prompts, completions, webhook bodies, API keys, OAuth tokens or customer document/message content.
-- Using organisation/user IDs as Prometheus labels.
+- Using tenant-configurable organisation/user/integration/provider/model values as Prometheus labels.
 - Claiming exact SLO compliance before representative production traffic exists.
 - Distributed tracing across third-party SaaS systems that do not propagate Brain trace context.
