@@ -146,3 +146,39 @@ Expected engineering evidence:
 - migration `20260907_0009` can be downgraded without deleting raw/canonical evidence.
 
 For real acceptance, execute `UAT/F-05.01.md` with realistic Slack/GitHub data, PostgreSQL + pgvector, a real embedding model, measured Recall@10/p95 latency, and the authenticated frontend.
+
+## Increment 9 — decision and blocker memory
+
+Status: **NOT YET A VALID ENGINEERING DEMO.** S-04.02.01 is formally `BLOCKED` on the unverified S-05.01.01 dependency. The latest Increment 9 GitHub Actions attempt also failed before runner startup (`runner_id=0`, no steps), so no automated passing evidence exists yet.
+
+Commands to run after the dependency/runner gate is available:
+
+```bash
+docker compose up -d postgres
+cd backend
+pip install -e ".[dev]"
+alembic upgrade head
+ruff check app tests migrations
+pytest tests/test_decision_memory.py tests/test_decision_memory_evaluation.py -q
+pytest -q
+python ../scripts/verify_board.py
+python -m app.search_worker --once --batch-size 100
+python -m app.decision_memory_worker --once --batch-size 100
+```
+
+Expected engineering evidence:
+
+- explicit decision/blocker markers produce only `candidate` machine state;
+- ordinary/tentative hard-negative statements are not promoted to confirmed facts;
+- unchanged replay and zero-candidate documents do not create duplicate extraction work;
+- public/private Slack and private/internal GitHub candidates obey current source authorisation;
+- cross-tenant candidates, excerpts, provenance and review history are never returned;
+- integration revocation/source deletion removes candidate visibility without rewriting source/audit evidence;
+- confirm/reject/edit/blocker-resolve/reopen transitions are validated and append immutable before/after review history;
+- decisions cannot use blocker-only resolve semantics;
+- changed extraction supersedes stale unreviewed machine candidates without silently overwriting human-reviewed state;
+- same-document PostgreSQL row locking serialises concurrent extraction workers;
+- migration `20260907_0010` can be downgraded without deleting raw/canonical/search/work-graph evidence;
+- synthetic explicit-marker precision instrumentation is at least 90%, while remaining explicitly non-representative of real production quality.
+
+For real acceptance, execute `UAT/F-04.02.md` with representative labelled company evidence. Decision and blocker precision must each reach the agreed >=90% production threshold, and the actual frontend/manual review workflow must be validated.
