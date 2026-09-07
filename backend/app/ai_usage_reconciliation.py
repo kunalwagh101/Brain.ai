@@ -1,11 +1,18 @@
 import uuid
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.ai_gateway_models import AIRequestRecord, AIRequestStatus
 from app.ai_usage import _effective_rate_card, evaluate_budget_alerts_for_request
 from app.ai_usage_models import AICostResolutionStatus, AIUsageCostRecord
+
+
+def _needs_cost_resolution():
+    return or_(
+        AIUsageCostRecord.id.is_(None),
+        AIUsageCostRecord.status == AICostResolutionStatus.UNKNOWN,
+    )
 
 
 def reconcile_usage_costs(
@@ -14,23 +21,22 @@ def reconcile_usage_costs(
     organization_id: uuid.UUID,
     limit: int,
 ) -> tuple[int, int, int]:
-    rows = db.execute(
+    query = (
         select(AIRequestRecord, AIUsageCostRecord)
         .outerjoin(AIUsageCostRecord, AIUsageCostRecord.request_id == AIRequestRecord.id)
         .where(
             AIRequestRecord.organization_id == organization_id,
             AIRequestRecord.status == AIRequestStatus.SUCCEEDED,
-            or_(
-                AIUsageCostRecord.id.is_(None),
-                AIUsageCostRecord.status == AICostResolutionStatus.UNKNOWN,
-            ),
+            _needs_cost_resolution(),
         )
         .order_by(AIRequestRecord.created_at, AIRequestRecord.id)
         .limit(limit)
-    ).all()
+    )
+    if db.get_bind().dialect.name == "postgresql":
+        query = query.with_for_update(skip_locked=True, of=AIRequestRecord)
+    rows = db.execute(query).all()
 
     resolved = 0
-    unknown = 0
     for request, cost in rows:
         rate = _effective_rate_card(db, request)
         can_calculate = (
@@ -70,22 +76,19 @@ def reconcile_usage_costs(
             cost.input_cost_nano_usd = None
             cost.output_cost_nano_usd = None
             cost.total_cost_nano_usd = None
-            unknown += 1
         db.commit()
         if cost.status == AICostResolutionStatus.CALCULATED:
             evaluate_budget_alerts_for_request(db, request=request)
 
-    remaining = db.scalar(
-        select(AIRequestRecord.id)
+    remaining_query = (
+        select(func.count(AIRequestRecord.id))
+        .select_from(AIRequestRecord)
         .outerjoin(AIUsageCostRecord, AIUsageCostRecord.request_id == AIRequestRecord.id)
         .where(
             AIRequestRecord.organization_id == organization_id,
             AIRequestRecord.status == AIRequestStatus.SUCCEEDED,
-            or_(
-                AIUsageCostRecord.id.is_(None),
-                AIUsageCostRecord.status == AICostResolutionStatus.UNKNOWN,
-            ),
+            _needs_cost_resolution(),
         )
-        .limit(1)
     )
-    return len(rows), resolved, unknown + int(remaining is not None and len(rows) == limit)
+    remaining = int(db.scalar(remaining_query) or 0)
+    return len(rows), resolved, remaining
