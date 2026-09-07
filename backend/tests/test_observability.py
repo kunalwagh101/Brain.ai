@@ -62,8 +62,10 @@ def test_json_logging_redacts_credentials_and_bearer_tokens() -> None:
         pathname=__file__,
         lineno=1,
         msg=(
-            "api_key=super-secret Authorization: Bearer bearer-secret "
-            "sk-abcdefghijklmnop"
+            'api_key=super-secret "access_token":"json-secret" '
+            "Authorization: Bearer bearer-secret sk-abcdefghijklmnop "
+            "ghp_abcdefghijklmnopqrstuvwxyz123456 "
+            "xoxb-123456789012-abcdefghijklmnop"
         ),
         args=(),
         exc_info=None,
@@ -72,10 +74,39 @@ def test_json_logging_redacts_credentials_and_bearer_tokens() -> None:
     payload = json.loads(JSONLogFormatter().format(record))
 
     assert payload["level"] == "ERROR"
-    assert "super-secret" not in payload["message"]
-    assert "bearer-secret" not in payload["message"]
-    assert "sk-abcdefghijklmnop" not in payload["message"]
+    for secret in (
+        "super-secret",
+        "json-secret",
+        "bearer-secret",
+        "sk-abcdefghijklmnop",
+        "ghp_abcdefghijklmnopqrstuvwxyz123456",
+        "xoxb-123456789012-abcdefghijklmnop",
+    ):
+        assert secret not in payload["message"]
     assert "[REDACTED]" in payload["message"]
+
+
+def test_json_logging_keeps_safe_background_context_and_drops_unknown_extra() -> None:
+    organization_id = str(uuid.uuid4())
+    record = logging.LogRecord(
+        name="brain.connector",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg="connector.sync.succeeded",
+        args=(),
+        exc_info=None,
+    )
+    record.organization_id = organization_id
+    record.integration_id = str(uuid.uuid4())
+    record.secret_payload = "must-not-be-emitted"
+
+    payload = json.loads(JSONLogFormatter().format(record))
+
+    assert payload["organization_id"] == organization_id
+    assert "integration_id" in payload
+    assert "secret_payload" not in payload
+    assert "must-not-be-emitted" not in json.dumps(payload)
 
 
 def test_metrics_require_configured_bearer_token_and_do_not_expose_tenant_labels() -> None:
