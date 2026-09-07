@@ -32,6 +32,8 @@ class SecretStore(Protocol):
         credentials: dict[str, str],
     ) -> str: ...
 
+    def replace_secret(self, reference: str, credentials: dict[str, str]) -> None: ...
+
     def load_connection_secret(self, reference: str) -> dict[str, str]: ...
 
     def schedule_delete(self, reference: str) -> None: ...
@@ -67,6 +69,10 @@ class AWSSecretsManagerStore:
             f"{organization_id}/{provider}/{provider_configuration_id}"
         )
 
+    @staticmethod
+    def _serialize(credentials: dict[str, str]) -> str:
+        return json.dumps(credentials, separators=(",", ":"), sort_keys=True)
+
     def _create_secret(
         self,
         *,
@@ -78,7 +84,7 @@ class AWSSecretsManagerStore:
             response = self._client.create_secret(
                 Name=name,
                 Description=description,
-                SecretString=json.dumps(credentials, separators=(",", ":"), sort_keys=True),
+                SecretString=self._serialize(credentials),
             )
         except (BotoCoreError, ClientError) as exc:
             raise SecretStoreError("Credential storage failed") from exc
@@ -123,6 +129,15 @@ class AWSSecretsManagerStore:
             description="Brain AI provider credential",
             credentials=credentials,
         )
+
+    def replace_secret(self, reference: str, credentials: dict[str, str]) -> None:
+        try:
+            self._client.put_secret_value(
+                SecretId=reference,
+                SecretString=self._serialize(credentials),
+            )
+        except (BotoCoreError, ClientError) as exc:
+            raise SecretStoreError("Credential rotation failed") from exc
 
     def load_connection_secret(self, reference: str) -> dict[str, str]:
         try:
