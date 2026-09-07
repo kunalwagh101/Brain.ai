@@ -15,7 +15,7 @@ This file is the engineering evidence index. A row is completed only after its s
 | S-03.02.01 | E-03 | canonical event model | backend/tests/test_canonical_events.py + backend/tests/test_github_connector.py | backend/app/canonical_events.py + backend/app/models.py | DONE |
 | S-03.03.01 | E-03 | tenant-safe identity resolution | backend/tests/test_identity_resolution.py + backend/tests/test_canonical_events.py | backend/app/identity_resolution.py + backend/app/routes/identities.py + backend/app/canonical_events.py | DONE |
 | S-04.01.01 | E-04 | typed tenant-safe work graph | backend/tests/test_work_graph.py | backend/app/work_graph.py + backend/app/routes/work_graph.py | DONE |
-| S-04.02.01 | E-04 | decision/blocker memory | pending | pending | BACKLOG |
+| S-04.02.01 | E-04 | decision/blocker memory | backend/tests/test_decision_memory.py + backend/tests/test_decision_memory_evaluation.py | backend/app/decision_memory.py + backend/app/routes/decision_memory.py + backend/app/decision_memory_worker.py | BLOCKED |
 | S-05.01.01 | E-05 | permission-aware retrieval | backend/tests/test_search.py + backend/tests/test_search_evaluation.py | backend/app/search.py + backend/app/routes/search.py + backend/app/search_worker.py | IN_REVIEW |
 | S-05.02.01 | E-05 | evidence-backed Ask Brain | pending | pending | BACKLOG |
 | S-06.01.01 | E-06 | governed AI gateway | pending | pending | BACKLOG |
@@ -101,3 +101,5 @@ code: backend/app/work_graph.py + backend/app/routes/work_graph.py + backend/app
 commit: a97d724416191ec8515f5ed90888321343013cda
 
 S-05.01.01 intentionally has no EVIDENCE block yet. GitHub Actions has repeatedly failed before runner startup (`runner_id=0`, no steps), so there is no truthful passing test result to record and the story remains IN_REVIEW.
+
+S-04.02.01 intentionally has no EVIDENCE block yet. Its implementation/tests are staged on the stacked Increment 9 branch, but its S-05.01.01 dependency is not engineering-DONE and the latest Increment 9 Backend CI also failed before runner startup (`runner_id=0`, no steps). The story therefore remains BLOCKED and no passing test result is claimed.
