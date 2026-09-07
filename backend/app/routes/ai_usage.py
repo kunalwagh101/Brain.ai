@@ -1,5 +1,6 @@
 import uuid
-from datetime import UTC, datetime
+from dataclasses import asdict
+from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Annotated
 
@@ -111,7 +112,7 @@ class BudgetSnapshotRead(BaseModel):
 class BudgetAlertRead(BaseModel):
     id: uuid.UUID
     budget_policy_id: uuid.UUID
-    period_start: object
+    period_start: date
     threshold_percent: int
     spend_nano_usd: int
     created_at: datetime
@@ -287,7 +288,7 @@ def read_budget_snapshot(
             detail="Budget policy not found",
         )
     snapshot = budget_snapshot(db, policy=policy, at=datetime.now(UTC))
-    return BudgetSnapshotRead(**snapshot.__dict__)
+    return BudgetSnapshotRead(**asdict(snapshot))
 
 
 @router.get("/budget-alerts", response_model=list[BudgetAlertRead])
@@ -336,5 +337,5 @@ def read_usage_summary(
         start=start,
         end=end,
         dimension=dimension,
-        rows=[UsageSummaryRead(**row.__dict__) for row in rows],
+        rows=[UsageSummaryRead(**asdict(row)) for row in rows],
     )
