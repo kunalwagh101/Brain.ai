@@ -18,7 +18,7 @@ Turn the governed AI request ledger into deterministic cost accounting and enfor
 6. Threshold alerts are unique per budget + month + threshold, so repeated evaluation cannot duplicate an alert.
 7. A hard budget blocks future provider execution once known spend has reached/exceeded its limit. If the period has unknown-cost requests, the budget status exposes that enforcement is incomplete rather than pretending spend is fully known.
 8. Budget/provider/model/user/node targets are validated inside the same organisation before persistence.
-9. Budget administration requires `ai.manage`; usage/cost reads require `ai.usage.read` and are not available to ordinary Members/Guests.
+9. Budget administration requires `ai.manage`; organisation-wide usage/cost reads reuse the existing `audit.read` permission and are not available to ordinary Members/Guests.
 10. No prompt, completion, API key, or provider response body is added to usage/cost/budget storage or logs.
 
 ## Tasks
