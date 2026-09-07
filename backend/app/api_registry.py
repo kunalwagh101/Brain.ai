@@ -1,3 +1,4 @@
+import logging
 import re
 import uuid
 from datetime import UTC, datetime
@@ -18,7 +19,9 @@ from app.api_registry_models import (
 from app.models import Membership, User
 from app.secrets import SecretStore, SecretStoreError
 
-_KEY_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,95}$")
+logger = logging.getLogger("brain.api_registry")
+_SERVICE_KEY_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
+_GRANT_KEY_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,95}$")
 _SCOPE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
 _ENVIRONMENT_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 _COMPONENT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
@@ -38,10 +41,17 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-def _normalize_key(value: str, *, label: str) -> str:
+def _normalize_service_key(value: str) -> str:
     normalized = value.strip().lower()
-    if not _KEY_RE.fullmatch(normalized):
-        raise APIRegistryError(f"{label} contains unsupported characters")
+    if not _SERVICE_KEY_RE.fullmatch(normalized):
+        raise APIRegistryError("API service key contains unsupported characters")
+    return normalized
+
+
+def _normalize_grant_key(value: str) -> str:
+    normalized = value.strip().lower()
+    if not _GRANT_KEY_RE.fullmatch(normalized):
+        raise APIRegistryError("API grant key contains unsupported characters")
     return normalized
 
 
@@ -114,6 +124,11 @@ def _active_org_member(
     return user
 
 
+def _assert_metadata_mutable(grant: APICredentialGrant) -> None:
+    if grant.status not in {APIGrantStatus.ACTIVE, APIGrantStatus.DISABLED}:
+        raise APIRegistryError("API grant metadata is immutable after revocation or expiry")
+
+
 def _history(
     db: Session,
     *,
@@ -160,7 +175,7 @@ def create_api_service(
     provider_name: str,
     base_url: str | None,
 ) -> APIService:
-    key = _normalize_key(service_key, label="API service key")
+    key = _normalize_service_key(service_key)
     name = " ".join(display_name.strip().split())[:160]
     provider = " ".join(provider_name.strip().split())[:160]
     if not name or not provider:
@@ -206,12 +221,8 @@ def create_api_grant(
     )
     if service is None:
         raise APIRegistryError("API service not found")
-    _active_org_member(
-        db,
-        organization_id=organization_id,
-        user_id=owner_user_id,
-    )
-    key = _normalize_key(grant_key, label="API grant key")
+    _active_org_member(db, organization_id=organization_id, user_id=owner_user_id)
+    key = _normalize_grant_key(grant_key)
     name = " ".join(display_name.strip().split())[:160]
     if not name:
         raise APIRegistryError("API grant display name is required")
@@ -263,7 +274,10 @@ def create_api_grant(
         try:
             secret_store.schedule_delete(secret_ref)
         except SecretStoreError:
-            pass
+            logger.exception(
+                "Failed to clean up orphaned API credential secret",
+                extra={"grant_id": str(grant_id)},
+            )
         raise APIRegistryError("API grant could not be persisted") from exc
     db.refresh(grant)
     return grant
@@ -296,6 +310,7 @@ def change_api_grant_owner(
     reason: str | None,
 ) -> APICredentialGrant:
     grant = get_api_grant(db, organization_id=organization_id, grant_id=grant_id)
+    _assert_metadata_mutable(grant)
     _active_org_member(db, organization_id=organization_id, user_id=owner_user_id)
     previous = grant.owner_user_id
     if previous == owner_user_id:
@@ -325,6 +340,7 @@ def change_api_grant_scopes(
     reason: str | None,
 ) -> APICredentialGrant:
     grant = get_api_grant(db, organization_id=organization_id, grant_id=grant_id)
+    _assert_metadata_mutable(grant)
     new_scopes = _normalize_scopes(scopes)
     previous = list(grant.scopes)
     if previous == new_scopes:
@@ -354,6 +370,7 @@ def change_api_grant_environment(
     reason: str | None,
 ) -> APICredentialGrant:
     grant = get_api_grant(db, organization_id=organization_id, grant_id=grant_id)
+    _assert_metadata_mutable(grant)
     new_environment = _normalize_environment(environment)
     previous = grant.environment
     if previous == new_environment:
@@ -428,10 +445,7 @@ def rotate_api_grant_credentials(
     if not grant.secret_ref:
         raise APIRegistryError("API grant has no credential secret reference")
     try:
-        secret_store.replace_secret(
-            grant.secret_ref,
-            _validate_credentials(credentials),
-        )
+        secret_store.replace_secret(grant.secret_ref, _validate_credentials(credentials))
     except SecretStoreError as exc:
         raise APIRegistryError("API credential rotation failed") from exc
     grant.credential_rotated_at = _now()
@@ -517,20 +531,19 @@ def expire_due_api_grants(
     limit: int = 100,
 ) -> int:
     moment = _utc(at) if at is not None else _now()
+    filters = [
+        APICredentialGrant.status.in_((APIGrantStatus.ACTIVE, APIGrantStatus.DISABLED)),
+        APICredentialGrant.expires_at.is_not(None),
+        APICredentialGrant.expires_at <= moment,
+    ]
+    if organization_id is not None:
+        filters.append(APICredentialGrant.organization_id == organization_id)
     query = (
         select(APICredentialGrant)
-        .where(
-            APICredentialGrant.status.in_(
-                (APIGrantStatus.ACTIVE, APIGrantStatus.DISABLED)
-            ),
-            APICredentialGrant.expires_at.is_not(None),
-            APICredentialGrant.expires_at <= moment,
-        )
+        .where(*filters)
         .order_by(APICredentialGrant.expires_at, APICredentialGrant.id)
         .limit(limit)
     )
-    if organization_id is not None:
-        query = query.where(APICredentialGrant.organization_id == organization_id)
     if db.bind is not None and db.bind.dialect.name == "postgresql":
         query = query.with_for_update(skip_locked=True)
     grants = list(db.scalars(query))
@@ -563,7 +576,15 @@ def record_api_usage(
     latency_ms: int | None,
     observed_at: datetime | None = None,
 ) -> APIUsageObservation:
-    grant = get_api_grant(db, organization_id=organization_id, grant_id=grant_id)
+    grant_query = select(APICredentialGrant).where(
+        APICredentialGrant.id == grant_id,
+        APICredentialGrant.organization_id == organization_id,
+    )
+    if db.bind is not None and db.bind.dialect.name == "postgresql":
+        grant_query = grant_query.with_for_update()
+    grant = db.scalar(grant_query)
+    if grant is None:
+        raise APIRegistryError("API grant not found")
     key = observation_key.strip()
     if not key or len(key) > 160:
         raise APIRegistryError("API usage observation key is invalid")
