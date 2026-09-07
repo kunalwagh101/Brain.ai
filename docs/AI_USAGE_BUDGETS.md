@@ -126,6 +126,8 @@ Under `/api/v1/organizations/{organization_id}/ai`:
 - `GET /budget-alerts`
 - `GET /usage/summary?dimension=provider|model|user|work_graph_node|organization`
 
+Cost reconciliation is intentionally a bounded operator worker rather than an unauthenticated background loop.
+
 ## Migration and rollback
 
 Revision `20260907_0012` creates only derived governance/accounting tables. Downgrade removes budget alerts, budgets, cost-resolution rows, and rate cards in that order. The underlying `ai_request_records` remain intact, so cost state can be rebuilt after a rollback/redeploy.
