@@ -98,12 +98,12 @@ AI_COST_NANO_USD = Counter(
 CONNECTOR_EVENTS = Counter(
     "brain_connector_events_total",
     "Raw connector event persistence attempts",
-    ("provider", "result"),
+    ("result",),
 )
 CONNECTOR_SYNCS = Counter(
     "brain_connector_sync_total",
     "Connector sync lifecycle outcomes",
-    ("provider", "status"),
+    ("status",),
 )
 
 _tracing_initialized = False
@@ -214,9 +214,8 @@ def record_ai_request(
     latency_ms: int,
     cost_nano_usd: int | None = None,
 ) -> None:
-    # Provider/model remain in logs/traces and the durable usage ledger. They are
-    # intentionally not Prometheus labels because tenant-configured values would
-    # create unbounded multi-tenant metric cardinality.
+    # Tenant-configurable provider/model values stay in logs/traces and the durable
+    # usage ledger, never Prometheus labels.
     del provider, model
     AI_REQUESTS.labels(status=status_value).inc()
     AI_LATENCY.observe(max(0, latency_ms) / 1000)
@@ -225,13 +224,17 @@ def record_ai_request(
 
 
 def record_connector_event(*, provider: str, created: bool) -> None:
+    # Provider identity remains in structured logs/traces; only finite result state
+    # is exported as a metric label.
+    del provider
     result = "created" if created else "duplicate"
-    CONNECTOR_EVENTS.labels(provider=provider, result=result).inc()
+    CONNECTOR_EVENTS.labels(result=result).inc()
 
 
 def record_connector_sync(*, provider: str, succeeded: bool) -> None:
+    del provider
     result = "succeeded" if succeeded else "failed"
-    CONNECTOR_SYNCS.labels(provider=provider, status=result).inc()
+    CONNECTOR_SYNCS.labels(status=result).inc()
 
 
 def _route_template(request: Request) -> str:
