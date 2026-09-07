@@ -6,13 +6,14 @@ from dataclasses import dataclass
 from typing import Protocol
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from app.ai_gateway_models import AIProviderAdapterKind
 from app.config import Settings, get_settings
 
 _PROVIDER_KEY_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 _MODEL_KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,254}$")
+_MAX_PROVIDER_RESPONSE_BYTES = 4_000_000
 
 
 class AIGatewayError(ValueError):
@@ -45,6 +46,25 @@ class AIProviderAdapter(Protocol):
         max_output_tokens: int | None,
         timeout_seconds: float,
     ) -> AIProviderResult: ...
+
+
+class _NoRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(
+        self,
+        req,
+        fp,
+        code,
+        msg,
+        headers,
+        newurl,
+    ):
+        del req, fp, code, msg, headers, newurl
+        return None
+
+
+def _open_provider_request(request: Request, timeout_seconds: float):
+    opener = build_opener(_NoRedirectHandler())
+    return opener.open(request, timeout=timeout_seconds)
 
 
 def _int_or_none(value: object) -> int | None:
@@ -83,8 +103,8 @@ class OpenAIChatCompletionsAdapter:
             method="POST",
         )
         try:
-            with urlopen(request, timeout=timeout_seconds) as response:
-                raw = response.read()
+            with _open_provider_request(request, timeout_seconds) as response:
+                raw = response.read(_MAX_PROVIDER_RESPONSE_BYTES + 1)
         except HTTPError as exc:
             if exc.code == 429:
                 raise AIProviderCallError("rate_limited") from exc
@@ -98,6 +118,8 @@ class OpenAIChatCompletionsAdapter:
         except URLError as exc:
             raise AIProviderCallError("provider_unavailable") from exc
 
+        if len(raw) > _MAX_PROVIDER_RESPONSE_BYTES:
+            raise AIProviderCallError("provider_response_too_large")
         try:
             data = json.loads(raw)
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
