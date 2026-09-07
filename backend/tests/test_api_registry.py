@@ -17,8 +17,11 @@ from app.api_registry import (
     rotate_api_grant_credentials,
     set_api_grant_enabled,
 )
+from app.api_registry_credentials import (
+    APIRegistryCredentialError,
+    load_active_api_credentials,
+)
 from app.api_registry_models import (
-    APICredentialGrant,
     APIGrantHistory,
     APIGrantHistoryAction,
     APIGrantStatus,
@@ -149,7 +152,7 @@ def test_api_manage_is_owner_admin_only() -> None:
     assert not role_has_permission(MembershipRole.MEMBER, Permission.API_MANAGE)
 
 
-def test_grant_persists_only_secret_reference_and_created_history(db_session: Session) -> None:
+def test_grant_stores_only_secret_reference_and_history(db_session: Session) -> None:
     organization, owner, _, _, _ = _seed(db_session, "secret")
     store = FakeSecretStore()
     _, grant = _service_and_grant(
@@ -229,7 +232,7 @@ def test_cross_tenant_service_and_owner_are_rejected(db_session: Session) -> Non
         )
 
 
-def test_owner_scope_changes_are_immutable_history(db_session: Session) -> None:
+def test_owner_and_scope_changes_write_before_after_history(db_session: Session) -> None:
     organization, owner, admin, _, _ = _seed(db_session, "history")
     store = FakeSecretStore()
     _, grant = _service_and_grant(
@@ -274,7 +277,7 @@ def test_owner_scope_changes_are_immutable_history(db_session: Session) -> None:
     assert history[2].new_scopes == ["contacts.read"]
 
 
-def test_rotation_never_writes_credential_values_to_history(db_session: Session) -> None:
+def test_rotation_keeps_secret_values_out_of_history(db_session: Session) -> None:
     organization, owner, _, _, _ = _seed(db_session, "rotation")
     store = FakeSecretStore()
     _, grant = _service_and_grant(
@@ -334,6 +337,7 @@ def test_revocation_failure_is_fail_closed_and_retryable(db_session: Session) ->
         )
     db_session.refresh(grant)
     assert grant.status == APIGrantStatus.REVOKE_FAILED
+
     with pytest.raises(APIRegistryError, match="cannot be re-enabled"):
         set_api_grant_enabled(
             db_session,
@@ -367,6 +371,61 @@ def test_revocation_failure_is_fail_closed_and_retryable(db_session: Session) ->
     assert grant.status == APIGrantStatus.REVOKED
     assert grant.secret_ref is None
     assert grant.revoked_at is not None
+
+
+def test_safe_loader_rejects_disabled_and_time_expired_grants(db_session: Session) -> None:
+    organization, owner, _, _, _ = _seed(db_session, "loader")
+    store = FakeSecretStore()
+    _, grant = _service_and_grant(
+        db_session,
+        store=store,
+        organization=organization,
+        owner=owner,
+        suffix="loader",
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
+    )
+
+    loaded = load_active_api_credentials(
+        db_session,
+        secret_store=store,
+        organization_id=organization.id,
+        grant_id=grant.id,
+    )
+    assert loaded == {"api_key": "must-not-persist"}
+
+    set_api_grant_enabled(
+        db_session,
+        organization_id=organization.id,
+        grant_id=grant.id,
+        actor_user_id=owner.id,
+        enabled=False,
+        reason="maintenance",
+    )
+    with pytest.raises(APIRegistryCredentialError, match="not active"):
+        load_active_api_credentials(
+            db_session,
+            secret_store=store,
+            organization_id=organization.id,
+            grant_id=grant.id,
+        )
+
+    set_api_grant_enabled(
+        db_session,
+        organization_id=organization.id,
+        grant_id=grant.id,
+        actor_user_id=owner.id,
+        enabled=True,
+        reason="maintenance complete",
+    )
+    future = datetime.now(UTC) + timedelta(hours=2)
+    with pytest.raises(APIRegistryCredentialError, match="expired"):
+        load_active_api_credentials(
+            db_session,
+            secret_store=store,
+            organization_id=organization.id,
+            grant_id=grant.id,
+            at=future,
+        )
 
 
 def test_expiry_transition_is_idempotent_and_audited_once(db_session: Session) -> None:
@@ -407,7 +466,7 @@ def test_expiry_transition_is_idempotent_and_audited_once(db_session: Session) -
     assert len(events) == 1
 
 
-def test_usage_observation_is_idempotent_and_records_post_revoke_evidence(
+def test_usage_observation_is_idempotent_and_keeps_post_revoke_evidence(
     db_session: Session,
 ) -> None:
     organization, owner, _, _, _ = _seed(db_session, "usage")
@@ -464,12 +523,15 @@ def test_usage_observation_is_idempotent_and_records_post_revoke_evidence(
     db_session.refresh(grant)
     assert grant.usage_count == 2
     assert grant.last_usage_success is False
-    assert db_session.scalar(select(APIUsageObservation).where(
-        APIUsageObservation.observation_key == "request-after-revoke"
-    )) is not None
+    after_revoke = db_session.scalar(
+        select(APIUsageObservation).where(
+            APIUsageObservation.observation_key == "request-after-revoke"
+        )
+    )
+    assert after_revoke is not None
 
 
-def test_registry_routes_do_not_return_secret_ref_and_member_cannot_read(
+def test_registry_routes_hide_secret_and_member_cannot_read(
     db_session: Session,
     client,
 ) -> None:
@@ -486,11 +548,12 @@ def test_registry_routes_do_not_return_secret_ref_and_member_cannot_read(
     app.dependency_overrides[get_secret_store] = lambda: store
 
     app.dependency_overrides[get_current_user] = lambda: member
-    denied = client.get(f"/api/v1/organizations/{organization.id}/api-registry/grants")
+    path = f"/api/v1/organizations/{organization.id}/api-registry/grants"
+    denied = client.get(path)
     assert denied.status_code == 403
 
     app.dependency_overrides[get_current_user] = lambda: executive
-    allowed = client.get(f"/api/v1/organizations/{organization.id}/api-registry/grants")
+    allowed = client.get(path)
     assert allowed.status_code == 200
     payload = allowed.json()
     assert len(payload) == 1
