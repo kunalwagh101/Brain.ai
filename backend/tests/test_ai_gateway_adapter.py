@@ -8,8 +8,10 @@ from app.ai_gateway import AIProviderCallError, OpenAIChatCompletionsAdapter
 
 
 class FakeResponse:
-    def __init__(self, payload: dict[str, object]) -> None:
-        self._payload = json.dumps(payload).encode()
+    def __init__(self, payload: dict[str, object] | bytes) -> None:
+        self._payload = (
+            payload if isinstance(payload, bytes) else json.dumps(payload).encode()
+        )
 
     def __enter__(self):
         return self
@@ -17,14 +19,14 @@ class FakeResponse:
     def __exit__(self, exc_type, exc, tb) -> None:
         del exc_type, exc, tb
 
-    def read(self) -> bytes:
-        return self._payload
+    def read(self, size: int = -1) -> bytes:
+        return self._payload if size < 0 else self._payload[:size]
 
 
 def test_openai_compatible_adapter_parses_bounded_metadata(monkeypatch) -> None:
     captured = {}
 
-    def fake_urlopen(request, timeout):
+    def fake_open(request, timeout):
         captured["timeout"] = timeout
         captured["authorization"] = request.get_header("Authorization")
         captured["payload"] = json.loads(request.data)
@@ -36,7 +38,7 @@ def test_openai_compatible_adapter_parses_bounded_metadata(monkeypatch) -> None:
             }
         )
 
-    monkeypatch.setattr("app.ai_provider_adapter.urlopen", fake_urlopen)
+    monkeypatch.setattr("app.ai_provider_adapter._open_provider_request", fake_open)
     result = OpenAIChatCompletionsAdapter().invoke(
         api_url="https://ai.example.com/v1/chat/completions",
         api_key="secret-token",
@@ -72,11 +74,11 @@ def test_openai_compatible_adapter_maps_rate_limit_without_body(monkeypatch) -> 
         fp=io.BytesIO(b'{"secret_upstream_detail":"do not surface"}'),
     )
 
-    def fake_urlopen(request, timeout):
+    def fake_open(request, timeout):
         del request, timeout
         raise error
 
-    monkeypatch.setattr("app.ai_provider_adapter.urlopen", fake_urlopen)
+    monkeypatch.setattr("app.ai_provider_adapter._open_provider_request", fake_open)
     with pytest.raises(AIProviderCallError) as failed:
         OpenAIChatCompletionsAdapter().invoke(
             api_url="https://ai.example.com/v1/chat/completions",
@@ -91,9 +93,55 @@ def test_openai_compatible_adapter_maps_rate_limit_without_body(monkeypatch) -> 
     assert "secret_upstream_detail" not in str(failed.value)
 
 
+def test_openai_compatible_adapter_rejects_redirect(monkeypatch) -> None:
+    redirect = HTTPError(
+        url="https://ai.example.com/v1/chat/completions",
+        code=302,
+        msg="redirect",
+        hdrs={"Location": "http://127.0.0.1/internal"},
+        fp=None,
+    )
+
+    def fake_open(request, timeout):
+        del request, timeout
+        raise redirect
+
+    monkeypatch.setattr("app.ai_provider_adapter._open_provider_request", fake_open)
+    with pytest.raises(AIProviderCallError) as failed:
+        OpenAIChatCompletionsAdapter().invoke(
+            api_url="https://ai.example.com/v1/chat/completions",
+            api_key="secret-token",
+            model="model-v1",
+            input_text="hello",
+            system_text=None,
+            max_output_tokens=None,
+            timeout_seconds=2.5,
+        )
+    assert failed.value.code == "provider_unavailable"
+
+
+def test_openai_compatible_adapter_rejects_oversized_response(monkeypatch) -> None:
+    oversized = b"x" * 4_000_001
+    monkeypatch.setattr(
+        "app.ai_provider_adapter._open_provider_request",
+        lambda request, timeout: FakeResponse(oversized),
+    )
+    with pytest.raises(AIProviderCallError) as failed:
+        OpenAIChatCompletionsAdapter().invoke(
+            api_url="https://ai.example.com/v1/chat/completions",
+            api_key="secret-token",
+            model="model-v1",
+            input_text="hello",
+            system_text=None,
+            max_output_tokens=None,
+            timeout_seconds=2.5,
+        )
+    assert failed.value.code == "provider_response_too_large"
+
+
 def test_openai_compatible_adapter_rejects_malformed_success(monkeypatch) -> None:
     monkeypatch.setattr(
-        "app.ai_provider_adapter.urlopen",
+        "app.ai_provider_adapter._open_provider_request",
         lambda request, timeout: FakeResponse({"choices": []}),
     )
     with pytest.raises(AIProviderCallError) as failed:
