@@ -23,7 +23,11 @@ from app.decision_memory_models import (
     MemoryReviewAction,
     MemoryState,
 )
-from app.permissions import AuthorizationContext, Permission, require_organization_permission
+from app.permissions import (
+    AuthorizationContext,
+    Permission,
+    require_organization_permission,
+)
 
 router = APIRouter(
     prefix="/organizations/{organization_id}/memory",
@@ -95,7 +99,10 @@ def _evidence_excerpt(content: str, summary: str, limit: int = 800) -> str:
     return excerpt
 
 
-def _candidate_read(db: Session, candidate: DecisionMemoryCandidate) -> MemoryCandidateRead:
+def _candidate_read(
+    db: Session,
+    candidate: DecisionMemoryCandidate,
+) -> MemoryCandidateRead:
     event, document = memory_candidate_evidence(db, candidate)
     return MemoryCandidateRead(
         id=candidate.id,
