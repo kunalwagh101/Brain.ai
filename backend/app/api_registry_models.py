@@ -5,6 +5,7 @@ from enum import StrEnum
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -83,6 +84,11 @@ class APICredentialGrant(Base):
             "organization_id",
             "grant_key",
             name="uq_api_grant_org_key",
+        ),
+        CheckConstraint("usage_count >= 0", name="ck_api_grant_usage_count"),
+        CheckConstraint(
+            "last_usage_latency_ms IS NULL OR last_usage_latency_ms >= 0",
+            name="ck_api_grant_latency_nonnegative",
         ),
         Index("ix_api_grants_org_status", "organization_id", "status"),
         Index("ix_api_grants_org_owner", "organization_id", "owner_user_id"),
@@ -182,6 +188,10 @@ class APIUsageObservation(Base):
             "grant_id",
             "observation_key",
             name="uq_api_usage_grant_observation",
+        ),
+        CheckConstraint(
+            "latency_ms IS NULL OR latency_ms >= 0",
+            name="ck_api_usage_latency_nonnegative",
         ),
         Index("ix_api_usage_org_observed", "organization_id", "observed_at"),
         Index("ix_api_usage_grant_observed", "grant_id", "observed_at"),
