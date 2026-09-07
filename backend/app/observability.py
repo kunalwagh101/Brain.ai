@@ -1,3 +1,4 @@
+import hmac
 import json
 import logging
 import re
@@ -24,12 +25,17 @@ _organization_id: ContextVar[str | None] = ContextVar("brain_organization_id", d
 _REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _SENSITIVE_TEXT_PATTERNS = (
     re.compile(r"(?i)(authorization\s*[:=]\s*bearer\s+)[^\s,;]+"),
-    re.compile(r"(?i)((?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret)\s*[:=]\s*)[^\s,;]+"),
+    re.compile(
+        r"(?i)((?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret)"
+        r"\s*[:=]\s*)[^\s,;]+"
+    ),
     re.compile(r"\bsk-[A-Za-z0-9_-]{12,}\b"),
 )
 _SAFE_FIELDS = frozenset(
     {
         "request_id",
+        "ai_request_id",
+        "provider_request_id",
         "trace_id",
         "span_id",
         "organization_id",
@@ -96,6 +102,11 @@ CONNECTOR_EVENTS = Counter(
     "Raw connector event persistence attempts",
     ("provider", "result"),
 )
+CONNECTOR_SYNCS = Counter(
+    "brain_connector_sync_total",
+    "Connector sync lifecycle outcomes",
+    ("provider", "status"),
+)
 
 _tracing_initialized = False
 
@@ -103,7 +114,12 @@ _tracing_initialized = False
 def _redact_text(value: str) -> str:
     redacted = value
     for pattern in _SENSITIVE_TEXT_PATTERNS:
-        redacted = pattern.sub(lambda match: f"{match.group(1)}[REDACTED]" if match.lastindex else "[REDACTED]", redacted)
+        redacted = pattern.sub(
+            lambda match: (
+                f"{match.group(1)}[REDACTED]" if match.lastindex else "[REDACTED]"
+            ),
+            redacted,
+        )
     return redacted
 
 
@@ -119,9 +135,11 @@ def _trace_fields() -> dict[str, str | None]:
 
 
 class JSONLogFormatter(logging.Formatter):
+    converter = time.gmtime
+
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {
-            "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S%z"),
+            "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%SZ"),
             "level": record.levelname,
             "logger": record.name,
             "message": _redact_text(record.getMessage()),
@@ -134,7 +152,9 @@ class JSONLogFormatter(logging.Formatter):
                 continue
             value = getattr(record, field, None)
             if value is not None:
-                payload[field] = _redact_text(str(value)) if isinstance(value, str) else value
+                payload[field] = (
+                    _redact_text(str(value)) if isinstance(value, str) else value
+                )
         if record.exc_info:
             payload["exception_type"] = record.exc_info[0].__name__
         return json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
@@ -176,9 +196,16 @@ def log_event(logger: logging.Logger, level: int, event: str, **fields: Any) -> 
     logger.log(level, event, extra=safe)
 
 
-def record_dependency_check(dependency: str, *, ready: bool, duration_seconds: float) -> None:
+def record_dependency_check(
+    dependency: str,
+    *,
+    ready: bool,
+    duration_seconds: float,
+) -> None:
     DEPENDENCY_READY.labels(dependency=dependency).set(1 if ready else 0)
-    DEPENDENCY_LATENCY.labels(dependency=dependency).observe(max(0.0, duration_seconds))
+    DEPENDENCY_LATENCY.labels(dependency=dependency).observe(
+        max(0.0, duration_seconds)
+    )
 
 
 def record_ai_request(
@@ -198,6 +225,11 @@ def record_ai_request(
 def record_connector_event(*, provider: str, created: bool) -> None:
     result = "created" if created else "duplicate"
     CONNECTOR_EVENTS.labels(provider=provider, result=result).inc()
+
+
+def record_connector_sync(*, provider: str, succeeded: bool) -> None:
+    result = "succeeded" if succeeded else "failed"
+    CONNECTOR_SYNCS.labels(provider=provider, status=result).inc()
 
 
 def _route_template(request: Request) -> str:
@@ -252,14 +284,15 @@ async def observe_http_request(
                 span.set_attribute("http.route", route)
                 span.set_attribute("http.response.status_code", status_code)
                 span.set_attribute("brain.request_id", request_id)
-                if _organization_id.get():
-                    span.set_attribute("brain.organization_id", _organization_id.get() or "")
+                organization_id = _organization_id.get()
+                if organization_id:
+                    span.set_attribute("brain.organization_id", organization_id)
                 log_event(
                     logging.getLogger("brain.http"),
                     logging.ERROR if status_code >= 500 else logging.INFO,
                     "http.request.completed",
                     request_id=request_id,
-                    organization_id=_organization_id.get(),
+                    organization_id=organization_id,
                     route=route,
                     http_method=request.method,
                     status_code=status_code,
@@ -280,9 +313,13 @@ def metrics_response(request: Request, settings: Settings) -> Response:
     if not settings.metrics_enabled:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     if settings.metrics_bearer_token:
+        supplied = request.headers.get("Authorization", "")
         expected = f"Bearer {settings.metrics_bearer_token}"
-        if request.headers.get("Authorization") != expected:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+        if not hmac.compare_digest(supplied, expected):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized",
+            )
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
