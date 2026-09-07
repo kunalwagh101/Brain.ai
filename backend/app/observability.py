@@ -26,10 +26,13 @@ _REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _SENSITIVE_TEXT_PATTERNS = (
     re.compile(r"(?i)(authorization\s*[:=]\s*bearer\s+)[^\s,;]+"),
     re.compile(
-        r"(?i)((?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret)"
-        r"\s*[:=]\s*)[^\s,;]+"
+        r"(?i)([\"']?(?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret)"
+        r"[\"']?\s*[:=]\s*[\"']?)[^\"'\s,;}]+"
     ),
     re.compile(r"\bsk-[A-Za-z0-9_-]{12,}\b"),
+    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"),
+    re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
+    re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b"),
 )
 _SAFE_FIELDS = frozenset(
     {
@@ -146,13 +149,14 @@ class JSONLogFormatter(logging.Formatter):
             **_trace_fields(),
         }
         for field in _SAFE_FIELDS:
-            if field in payload:
-                continue
             value = getattr(record, field, None)
-            if value is not None:
-                payload[field] = (
-                    _redact_text(str(value)) if isinstance(value, str) else value
-                )
+            if value is None:
+                continue
+            if field in payload and payload[field] is not None:
+                continue
+            payload[field] = (
+                _redact_text(str(value)) if isinstance(value, str) else value
+            )
         if record.exc_info:
             payload["exception_type"] = record.exc_info[0].__name__
         return json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
