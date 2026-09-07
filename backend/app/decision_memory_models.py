@@ -130,6 +130,7 @@ class DecisionMemoryExtraction(Base):
         ForeignKey("search_documents.id", ondelete="CASCADE"), nullable=False
     )
     extraction_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     candidate_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     processed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
