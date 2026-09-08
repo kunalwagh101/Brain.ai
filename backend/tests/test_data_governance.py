@@ -234,7 +234,9 @@ def test_source_object_deletion_removes_evidence_and_suppresses_reingestion(
     assert completed.raw_events_deleted == 1
     assert completed.canonical_events_deleted == 1
     assert completed.completion_digest is not None
-    assert completed.target_reference.startswith("source:slack:message:")
+    assert completed.target_reference.startswith(
+        f"source:{connection.id}:slack:message:"
+    )
 
     db_session.expire_all()
     assert db_session.get(RawEvent, raw.id) is None
