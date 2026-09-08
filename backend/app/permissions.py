@@ -26,6 +26,7 @@ class Permission(StrEnum):
     AI_USE = "ai.use"
     AI_MANAGE = "ai.manage"
     API_MANAGE = "api.manage"
+    DATA_GOVERNANCE_MANAGE = "data_governance.manage"
     AUDIT_READ = "audit.read"
 
 
