@@ -245,6 +245,81 @@ def set_retention_policy(
     return policy
 
 
+def _source_locator_integrations(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    source_provider: str,
+    object_type: str,
+    object_external_id: str,
+) -> set[uuid.UUID]:
+    canonical_ids = set(
+        db.scalars(
+            select(CanonicalEvent.integration_connection_id).where(
+                CanonicalEvent.organization_id == organization_id,
+                CanonicalEvent.source_provider == source_provider,
+                CanonicalEvent.object_type == object_type,
+                CanonicalEvent.object_external_id == object_external_id,
+            )
+        )
+    )
+    tombstone_ids = set(
+        db.scalars(
+            select(DerivedRetentionTombstone.integration_connection_id).where(
+                DerivedRetentionTombstone.organization_id == organization_id,
+                DerivedRetentionTombstone.source_provider == source_provider,
+                DerivedRetentionTombstone.object_type == object_type,
+                DerivedRetentionTombstone.object_external_id == object_external_id,
+            )
+        )
+    )
+    return canonical_ids | tombstone_ids
+
+
+def _resolve_source_integration(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    source_provider: str,
+    object_type: str,
+    object_external_id: str,
+    integration_connection_id: uuid.UUID | None,
+) -> uuid.UUID:
+    if integration_connection_id is not None:
+        connection = db.scalar(
+            select(IntegrationConnection).where(
+                IntegrationConnection.id == integration_connection_id,
+                IntegrationConnection.organization_id == organization_id,
+            )
+        )
+        if connection is None:
+            raise DataGovernanceError("Integration connection not found")
+        if connection.provider != source_provider:
+            raise DataGovernanceError(
+                "Source provider does not match the integration connection"
+            )
+        return integration_connection_id
+
+    candidates = _source_locator_integrations(
+        db,
+        organization_id=organization_id,
+        source_provider=source_provider,
+        object_type=object_type,
+        object_external_id=object_external_id,
+    )
+    if len(candidates) == 1:
+        return next(iter(candidates))
+    if not candidates:
+        raise DataGovernanceError(
+            "Source-object deletion requires integration_connection_id when "
+            "the target has no discoverable evidence"
+        )
+    raise DataGovernanceError(
+        "Source-object deletion requires integration_connection_id when the "
+        "same source locator exists in multiple integrations"
+    )
+
+
 def create_deletion_request(
     db: Session,
     *,
@@ -301,9 +376,17 @@ def create_deletion_request(
                 "Source-object deletion requires provider, object_type and "
                 "object_external_id"
             )
-        integration_connection_id = None
+        integration_connection_id = _resolve_source_integration(
+            db,
+            organization_id=organization_id,
+            source_provider=source_provider,
+            object_type=object_type,
+            object_external_id=object_external_id,
+            integration_connection_id=integration_connection_id,
+        )
         target_reference = (
-            f"source:{source_provider}:{object_type}:{object_external_id}"
+            f"source:{integration_connection_id}:{source_provider}:"
+            f"{object_type}:{object_external_id}"
         )
     else:
         raise DataGovernanceError("Unsupported deletion scope")
@@ -427,10 +510,16 @@ def _source_object_target_ids(
     db: Session,
     deletion_request: DataDeletionRequest,
 ) -> tuple[list[uuid.UUID], list[uuid.UUID]]:
+    if deletion_request.integration_connection_id is None:
+        raise DataGovernanceError(
+            "Source-object deletion has no integration scope"
+        )
     canonical_rows = list(
         db.execute(
             select(CanonicalEvent.id, CanonicalEvent.raw_event_id).where(
                 CanonicalEvent.organization_id == deletion_request.organization_id,
+                CanonicalEvent.integration_connection_id
+                == deletion_request.integration_connection_id,
                 CanonicalEvent.source_provider == deletion_request.source_provider,
                 CanonicalEvent.object_type == deletion_request.object_type,
                 CanonicalEvent.object_external_id
@@ -445,6 +534,8 @@ def _source_object_target_ids(
             select(DerivedRetentionTombstone.raw_event_id).where(
                 DerivedRetentionTombstone.organization_id
                 == deletion_request.organization_id,
+                DerivedRetentionTombstone.integration_connection_id
+                == deletion_request.integration_connection_id,
                 DerivedRetentionTombstone.source_provider
                 == deletion_request.source_provider,
                 DerivedRetentionTombstone.object_type
@@ -623,6 +714,7 @@ def _derived_retention_rows(
         select(
             CanonicalEvent.id,
             CanonicalEvent.raw_event_id,
+            CanonicalEvent.integration_connection_id,
             CanonicalEvent.source_provider,
             CanonicalEvent.object_type,
             CanonicalEvent.object_external_id,
@@ -659,9 +751,10 @@ def _stage_derived_tombstones(
         if existing is not None:
             locator_matches = (
                 existing.organization_id == organization_id
-                and existing.source_provider == row[2]
-                and existing.object_type == row[3]
-                and existing.object_external_id == row[4]
+                and existing.integration_connection_id == row[2]
+                and existing.source_provider == row[3]
+                and existing.object_type == row[4]
+                and existing.object_external_id == row[5]
             )
             if not locator_matches:
                 raise DataGovernanceError(
@@ -672,9 +765,10 @@ def _stage_derived_tombstones(
             DerivedRetentionTombstone(
                 organization_id=organization_id,
                 raw_event_id=raw_event_id,
-                source_provider=row[2],
-                object_type=row[3],
-                object_external_id=row[4],
+                integration_connection_id=row[2],
+                source_provider=row[3],
+                object_type=row[4],
+                object_external_id=row[5],
                 purged_at=purged_at,
             )
         )
