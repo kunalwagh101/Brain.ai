@@ -25,10 +25,40 @@ BACKLOG | S-07.01.01 | F-07.01 | Depends on work graph + decision/blocker memory
 BACKLOG | S-07.02.01 | F-07.02 | Depends on project status + usage/cost
 BACKLOG | S-08.01.01 | F-08.01 | Depends on AI gateway + audit/retention
 IN_REVIEW | S-09.01.01 | F-09.01 | Structured logs, Prometheus metrics, OpenTelemetry tracing, readiness, SLO alerts, tests, docs and UAT are staged; executable passing verification is still unavailable
-BACKLOG | S-09.02.01 | F-09.02 | OQ-006 retention defaults unresolved
+IN_REVIEW | S-09.02.01 | F-09.02 | Audit ledger, retention/legal-hold engine, deletion/tombstones, migration, worker, tests, docs and UAT are staged; executable PostgreSQL/Ruff/Pytest/Delivery Verifier evidence is still unavailable
 BACKLOG | S-09.03.01 | F-09.03 | Phase 3 verifier is merged and green; full production deployment story remains
 BACKLOG | S-09.04.01 | F-09.04 | Benchmarks attach to implemented vertical slices
 DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external-tool wedge
+
+## Increment 14 planning — audit, retention and deletion on the existing branch
+
+Increment 14 goal: **make security-sensitive governance durable and make retention/deletion explicit, tenant-safe, recoverable and resistant to evidence silently reappearing after purge.**
+
+Branch rule: Increment 14 intentionally continues on `increment-10-ai-provider-gateway`; no additional branch is created.
+
+Dependency state: the story depends on engineering-DONE RBAC/audit-read foundations and existing evidence models. OQ-006 no longer blocks the engineering shape: unset retention durations mean no automatic purge, while actual customer/legal durations remain an onboarding/compliance decision. S-09.02.01 remains `IN_REVIEW` because executable verification and deployed UAT are unavailable.
+
+Vertical slice staged: durable security audit ledger -> PostgreSQL append-only trigger -> per-org raw/derived/audit retention policy -> legal hold -> bounded raw retention -> derived tombstone + canonical/search/graph/memory purge -> typed integration/source-object deletion -> retained-raw lookup through minimal tombstone locator -> reconstruction suppression -> orphan identity sanitation -> stale deletion recovery -> permissioned API/worker -> migration/tests/docs/UAT.
+
+Rules for this increment:
+
+- Retention/deletion administration requires `data_governance.manage`; organisation-wide audit/governance reads use `audit.read`.
+- Unset raw/derived/audit duration means no automatic age-based purge; Brain does not invent a legal retention period.
+- Legal hold overrides scheduled retention and explicit deletion execution.
+- Audit events retain bounded actor/resource/request metadata and SHA-256 digest, never raw customer content or credentials.
+- PostgreSQL rejects audit-row UPDATEs. Audit actor UUID is immutable evidence rather than an `ON DELETE SET NULL` user foreign key.
+- Raw retention removes raw evidence and its dependent derived chain.
+- Derived retention retains raw evidence but deletes canonical/search/work-graph/decision derivatives and records a minimal tombstone preventing rebuild.
+- The tombstone keeps only the raw-event ID and minimal provider/object locator required to support a later explicit deletion; it never stores message/document content.
+- Source-object deletion can still remove retained raw evidence after derived retention already removed the canonical row.
+- Integration deletion requires the integration to be fully revoked and tenant-valid.
+- Deletion requests are idempotency-keyed and retain stable target/count/digest completion evidence, not deleted content.
+- Canonicalisation suppresses active/completed deletion targets and derived-retention tombstones so replay cannot silently resurrect removed evidence.
+- Orphan source identities are sanitised and returned to `unresolved` when their supporting observations disappear.
+- ACL create/delete mutations fail closed if their required durable audit event cannot be persisted; authorization-denial auditing is best-effort and never widens access.
+- Pending, failed and stale-processing deletion work is recoverable through the bounded worker; PostgreSQL locking prevents legitimate double execution.
+- Active-database deletion does not prove deletion from backups/PITR/snapshots; that lifecycle remains separate UAT/deployment evidence.
+- No S-09.02.01 DONE evidence block may be added until Ruff, tests, migration checks and the delivery verifier have executable passing results.
 
 ## Increment 13 planning — production observability on the existing branch
 
@@ -218,8 +248,8 @@ Rules for this increment:
 ## Session-open self-audit
 
 - Ten stories are engineering-DONE; external/user acceptance remains independently tracked in UAT.md.
-- Current IN_PROGRESS WIP count: 0. S-05.01.01, S-06.01.01, S-06.03.01 and S-09.01.01 are IN_REVIEW; S-04.02.01 and S-06.02.01 are BLOCKED while their implementations are staged behind unverified dependencies.
+- Current IN_PROGRESS WIP count: 0. S-05.01.01, S-06.01.01, S-06.03.01, S-09.01.01 and S-09.02.01 are IN_REVIEW; S-04.02.01 and S-06.02.01 are BLOCKED while their implementations are staged behind unverified dependencies.
 - Increment 7 Work Graph is merged on `main` at `ddd12921ec7ac025dc21de41275b8532c811ab24`.
 - Existing Work Graph/retrieval authorization semantics are reused rather than replaced by Decision Memory or AI governance.
-- Existing frontend still contains preview/sample state. No fake search/memory/AI-cost/API-registry/observability UI wiring will be used to claim frontend acceptance.
+- Existing frontend still contains preview/sample state. No fake search/memory/AI-cost/API-registry/observability/data-governance UI wiring will be used to claim frontend acceptance.
 - Repeated Backend CI / Delivery Verifier attempts have failed before runner startup (`runner_id=0`, no steps). There is no passing test output for Increment 8 or later staged increments, so engineering-DONE is prohibited by the Definition of Done/Ready.
