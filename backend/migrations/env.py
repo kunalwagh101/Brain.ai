@@ -3,8 +3,29 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from app import (
+    ai_gateway_models,
+    ai_usage_models,
+    api_registry_models,
+    data_governance_models,
+    decision_memory_models,
+    search_models,
+    work_graph_models,
+)
 from app.config import get_settings
 from app.models import Base
+
+# These modules declare tables against the shared Base outside app.models. Keeping explicit
+# references here makes Alembic autogenerate/check compare the complete application schema.
+_MODEL_MODULES = (
+    ai_gateway_models,
+    ai_usage_models,
+    api_registry_models,
+    data_governance_models,
+    decision_memory_models,
+    search_models,
+    work_graph_models,
+)
 
 config = context.config
 if config.config_file_name is not None:
