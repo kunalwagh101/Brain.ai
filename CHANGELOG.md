@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Increment 15 — Deployment, rollback, backup and restore
+
+- Added one provider-neutral `Release Gate` workflow that runs Ruff, backend Pytest and the delivery verifier before later release checks can proceed.
+- Added disposable PostgreSQL 17 + pgvector migration verification with `upgrade head`, ORM drift check, full `downgrade base`, forward recovery to `head` and final drift check.
+- Added guarded PostgreSQL custom-format backup and restore scripts with archive parsing validation, portable SHA-256 sidecars, owner-only local permissions and explicit destructive-restore confirmation.
+- Added an actual restored-data exercise: CI seeds a pre-backup sentinel, mutates it after backup, restores the archive and asserts the original value is recovered.
+- Added OCI image build plus production-mode API startup/readiness smoke against the restored PostgreSQL database.
+- Added a non-secret release manifest containing commit SHA, local image ID, migration head(s) and verification timestamp; the disposable database archive is deleted before artifact upload.
+- Added release-contract regression tests covering shell syntax, destructive restore refusal, required Release Gate stages and non-root production container execution.
+- Added deployment/migration/rollback/restore runbook and production-like UAT with immutable image digest, rollback drill, restore drill, observed recovery times and frontend/manual validation.
+- Added OQ-007 rather than guessing the final production runtime/image registry/managed PostgreSQL topology.
+- Closed nearby F-09.02 test drift caused by integration-scoped source-object deletion hardening.
+
+Verification is not yet claimed. `S-09.03.01` remains `BLOCKED`: the Release Gate has not executed on a GitHub runner, required merge-check enforcement is unavailable/unverified for the current private-repository setup, and OQ-007 still blocks the environment-specific publish/deploy/rollback drill. No backup-restore or recovery-time success is claimed from repository code alone.
+
 ### Increment 14 — Audit, retention and deletion
 
 - Added tenant-scoped durable security audit events with actor/resource/request correlation, bounded metadata and normalized-payload SHA-256 digests.
