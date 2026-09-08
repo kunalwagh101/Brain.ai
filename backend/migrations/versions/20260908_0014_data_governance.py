@@ -203,6 +203,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("organization_id", sa.Uuid(), nullable=False),
         sa.Column("raw_event_id", sa.Uuid(), nullable=False),
+        sa.Column("integration_connection_id", sa.Uuid(), nullable=False),
         sa.Column("source_provider", sa.String(length=40), nullable=False),
         sa.Column("object_type", sa.String(length=64), nullable=False),
         sa.Column("object_external_id", sa.String(length=512), nullable=False),
@@ -231,6 +232,7 @@ def upgrade() -> None:
         "derived_retention_tombstones",
         [
             "organization_id",
+            "integration_connection_id",
             "source_provider",
             "object_type",
             "object_external_id",
