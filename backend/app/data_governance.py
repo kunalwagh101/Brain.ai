@@ -105,7 +105,12 @@ def _audit_payload(
         "metadata": normalized_metadata,
     }
     digest = hashlib.sha256(
-        json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()
+        json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode()
     ).hexdigest()
     return payload, digest
 
@@ -143,7 +148,9 @@ def append_audit_event(
     )
     if existing is not None:
         if existing.payload_sha256 != digest:
-            raise DataGovernanceError("Audit event key was reused with different content")
+            raise DataGovernanceError(
+                "Audit event key was reused with different content"
+            )
         db.commit()
         return existing
 
@@ -173,7 +180,9 @@ def append_audit_event(
         if existing is None:
             raise
         if existing.payload_sha256 != digest:
-            raise DataGovernanceError("Audit event key was reused with different content")
+            raise DataGovernanceError(
+                "Audit event key was reused with different content"
+            )
         db.commit()
         return existing
     db.commit()
@@ -193,7 +202,10 @@ def set_retention_policy(
     request_id: str | None = None,
 ) -> OrganizationRetentionPolicy:
     raw_days = _normalize_optional_days(raw_event_days, "raw_event_days")
-    derived_days = _normalize_optional_days(derived_content_days, "derived_content_days")
+    derived_days = _normalize_optional_days(
+        derived_content_days,
+        "derived_content_days",
+    )
     audit_days = _normalize_optional_days(audit_event_days, "audit_event_days")
     policy = db.scalar(
         select(OrganizationRetentionPolicy).where(
@@ -261,7 +273,9 @@ def create_deletion_request(
 
     if scope == DeletionScope.INTEGRATION:
         if integration_connection_id is None:
-            raise DataGovernanceError("Integration deletion requires integration_connection_id")
+            raise DataGovernanceError(
+                "Integration deletion requires integration_connection_id"
+            )
         connection = db.scalar(
             select(IntegrationConnection).where(
                 IntegrationConnection.id == integration_connection_id,
@@ -271,7 +285,9 @@ def create_deletion_request(
         if connection is None:
             raise DataGovernanceError("Integration connection not found")
         if connection.status != IntegrationStatus.REVOKED:
-            raise DataGovernanceError("Integration must be fully revoked before data deletion")
+            raise DataGovernanceError(
+                "Integration must be fully revoked before data deletion"
+            )
         target_reference = f"integration:{integration_connection_id}"
         source_provider = None
         object_type = None
@@ -282,10 +298,13 @@ def create_deletion_request(
         object_external_id = (object_external_id or "").strip()[:512]
         if not source_provider or not object_type or not object_external_id:
             raise DataGovernanceError(
-                "Source-object deletion requires provider, object_type and object_external_id"
+                "Source-object deletion requires provider, object_type and "
+                "object_external_id"
             )
         integration_connection_id = None
-        target_reference = f"source:{source_provider}:{object_type}:{object_external_id}"
+        target_reference = (
+            f"source:{source_provider}:{object_type}:{object_external_id}"
+        )
     else:
         raise DataGovernanceError("Unsupported deletion scope")
 
@@ -305,7 +324,9 @@ def create_deletion_request(
             and existing.object_external_id == object_external_id
         )
         if not same:
-            raise DataGovernanceError("Deletion request key was reused for a different target")
+            raise DataGovernanceError(
+                "Deletion request key was reused for a different target"
+            )
         return existing
 
     deletion_request = DataDeletionRequest(
@@ -342,10 +363,15 @@ def create_deletion_request(
     return deletion_request
 
 
-def _sanitize_orphan_source_identities(db: Session, organization_id: uuid.UUID) -> int:
+def _sanitize_orphan_source_identities(
+    db: Session,
+    organization_id: uuid.UUID,
+) -> int:
     identities = list(
         db.scalars(
-            select(SourceIdentity).where(SourceIdentity.organization_id == organization_id)
+            select(SourceIdentity).where(
+                SourceIdentity.organization_id == organization_id
+            )
         )
     )
     changed = 0
@@ -389,8 +415,47 @@ def _completion_digest(
         "canonical_event_ids": sorted(str(item) for item in canonical_ids),
     }
     return hashlib.sha256(
-        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
     ).hexdigest()
+
+
+def _source_object_target_ids(
+    db: Session,
+    deletion_request: DataDeletionRequest,
+) -> tuple[list[uuid.UUID], list[uuid.UUID]]:
+    canonical_rows = list(
+        db.execute(
+            select(CanonicalEvent.id, CanonicalEvent.raw_event_id).where(
+                CanonicalEvent.organization_id == deletion_request.organization_id,
+                CanonicalEvent.source_provider == deletion_request.source_provider,
+                CanonicalEvent.object_type == deletion_request.object_type,
+                CanonicalEvent.object_external_id
+                == deletion_request.object_external_id,
+            )
+        )
+    )
+    canonical_ids = [row[0] for row in canonical_rows]
+    raw_ids = [row[1] for row in canonical_rows]
+    retained_raw_ids = list(
+        db.scalars(
+            select(DerivedRetentionTombstone.raw_event_id).where(
+                DerivedRetentionTombstone.organization_id
+                == deletion_request.organization_id,
+                DerivedRetentionTombstone.source_provider
+                == deletion_request.source_provider,
+                DerivedRetentionTombstone.object_type
+                == deletion_request.object_type,
+                DerivedRetentionTombstone.object_external_id
+                == deletion_request.object_external_id,
+            )
+        )
+    )
+    raw_ids.extend(retained_raw_ids)
+    return canonical_ids, list(dict.fromkeys(raw_ids))
 
 
 def execute_deletion_request(
@@ -428,15 +493,23 @@ def execute_deletion_request(
     try:
         if deletion_request.scope == DeletionScope.INTEGRATION:
             if deletion_request.integration_connection_id is None:
-                raise DataGovernanceError("Deletion request has no integration target")
+                raise DataGovernanceError(
+                    "Deletion request has no integration target"
+                )
             connection = db.scalar(
                 select(IntegrationConnection).where(
-                    IntegrationConnection.id == deletion_request.integration_connection_id,
+                    IntegrationConnection.id
+                    == deletion_request.integration_connection_id,
                     IntegrationConnection.organization_id == organization_id,
                 )
             )
-            if connection is not None and connection.status != IntegrationStatus.REVOKED:
-                raise DataGovernanceError("Integration must remain revoked during deletion")
+            if (
+                connection is not None
+                and connection.status != IntegrationStatus.REVOKED
+            ):
+                raise DataGovernanceError(
+                    "Integration must remain revoked during deletion"
+                )
             raw_ids = list(
                 db.scalars(
                     select(RawEvent.id).where(
@@ -456,19 +529,10 @@ def execute_deletion_request(
                 )
             )
         else:
-            canonical_rows = list(
-                db.execute(
-                    select(CanonicalEvent.id, CanonicalEvent.raw_event_id).where(
-                        CanonicalEvent.organization_id == organization_id,
-                        CanonicalEvent.source_provider == deletion_request.source_provider,
-                        CanonicalEvent.object_type == deletion_request.object_type,
-                        CanonicalEvent.object_external_id
-                        == deletion_request.object_external_id,
-                    )
-                )
+            canonical_ids, raw_ids = _source_object_target_ids(
+                db,
+                deletion_request,
             )
-            canonical_ids = [row[0] for row in canonical_rows]
-            raw_ids = list(dict.fromkeys(row[1] for row in canonical_rows))
 
         digest = _completion_digest(
             deletion_request,
@@ -509,7 +573,9 @@ def execute_deletion_request(
                 "scope": deletion_request.scope.value,
                 "target_reference": deletion_request.target_reference,
                 "raw_events_deleted": deletion_request.raw_events_deleted,
-                "canonical_events_deleted": deletion_request.canonical_events_deleted,
+                "canonical_events_deleted": (
+                    deletion_request.canonical_events_deleted
+                ),
                 "completion_digest": deletion_request.completion_digest,
             },
         )
@@ -546,6 +612,74 @@ def _deleted_count(rowcount: int | None, fallback: int) -> int:
     return rowcount if rowcount is not None and rowcount >= 0 else fallback
 
 
+def _derived_retention_rows(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    cutoff: datetime,
+    limit: int,
+):
+    query = (
+        select(
+            CanonicalEvent.id,
+            CanonicalEvent.raw_event_id,
+            CanonicalEvent.source_provider,
+            CanonicalEvent.object_type,
+            CanonicalEvent.object_external_id,
+        )
+        .join(RawEvent, RawEvent.id == CanonicalEvent.raw_event_id)
+        .where(
+            CanonicalEvent.organization_id == organization_id,
+            func.coalesce(
+                CanonicalEvent.occurred_at,
+                CanonicalEvent.created_at,
+            )
+            < cutoff,
+        )
+        .order_by(CanonicalEvent.created_at, CanonicalEvent.id)
+        .limit(limit)
+    )
+    return list(db.execute(_skip_locked(query, db)))
+
+
+def _stage_derived_tombstones(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    rows,
+    purged_at: datetime,
+) -> None:
+    for row in rows:
+        raw_event_id = row[1]
+        existing = db.scalar(
+            select(DerivedRetentionTombstone).where(
+                DerivedRetentionTombstone.raw_event_id == raw_event_id
+            )
+        )
+        if existing is not None:
+            locator_matches = (
+                existing.organization_id == organization_id
+                and existing.source_provider == row[2]
+                and existing.object_type == row[3]
+                and existing.object_external_id == row[4]
+            )
+            if not locator_matches:
+                raise DataGovernanceError(
+                    "Derived-retention tombstone locator mismatch"
+                )
+            continue
+        db.add(
+            DerivedRetentionTombstone(
+                organization_id=organization_id,
+                raw_event_id=raw_event_id,
+                source_provider=row[2],
+                object_type=row[3],
+                object_external_id=row[4],
+                purged_at=purged_at,
+            )
+        )
+
+
 def run_retention_once(
     db: Session,
     *,
@@ -556,7 +690,9 @@ def run_retention_once(
     request_id: str | None = None,
 ) -> RetentionRun | None:
     if limit < 1 or limit > MAX_RETENTION_BATCH:
-        raise DataGovernanceError(f"Retention limit must be 1-{MAX_RETENTION_BATCH}")
+        raise DataGovernanceError(
+            f"Retention limit must be 1-{MAX_RETENTION_BATCH}"
+        )
     policy = db.scalar(
         select(OrganizationRetentionPolicy).where(
             OrganizationRetentionPolicy.organization_id == organization_id
@@ -600,7 +736,10 @@ def run_retention_once(
                 select(RawEvent.id)
                 .where(
                     RawEvent.organization_id == organization_id,
-                    func.coalesce(RawEvent.source_timestamp, RawEvent.received_at)
+                    func.coalesce(
+                        RawEvent.source_timestamp,
+                        RawEvent.received_at,
+                    )
                     < raw_cutoff,
                 )
                 .order_by(RawEvent.received_at, RawEvent.id)
@@ -618,7 +757,9 @@ def run_retention_once(
                 )
                 if canonical_ids:
                     db.execute(
-                        delete(CanonicalEvent).where(CanonicalEvent.id.in_(canonical_ids))
+                        delete(CanonicalEvent).where(
+                            CanonicalEvent.id.in_(canonical_ids)
+                        )
                     )
                 result = db.execute(
                     delete(RawEvent).where(
@@ -626,36 +767,28 @@ def run_retention_once(
                         RawEvent.id.in_(raw_ids),
                     )
                 )
-                run.raw_events_deleted = _deleted_count(result.rowcount, len(raw_ids))
+                run.raw_events_deleted = _deleted_count(
+                    result.rowcount,
+                    len(raw_ids),
+                )
 
         if policy.derived_content_days is not None:
-            derived_cutoff = _retention_cutoff(policy.derived_content_days, now)
-            derived_query = (
-                select(CanonicalEvent.id, CanonicalEvent.raw_event_id)
-                .join(RawEvent, RawEvent.id == CanonicalEvent.raw_event_id)
-                .where(
-                    CanonicalEvent.organization_id == organization_id,
-                    func.coalesce(CanonicalEvent.occurred_at, CanonicalEvent.created_at)
-                    < derived_cutoff,
-                )
-                .order_by(CanonicalEvent.created_at, CanonicalEvent.id)
-                .limit(limit)
+            derived_cutoff = _retention_cutoff(
+                policy.derived_content_days,
+                now,
             )
-            rows = list(db.execute(_skip_locked(derived_query, db)))
-            for _, raw_event_id in rows:
-                existing = db.scalar(
-                    select(DerivedRetentionTombstone.id).where(
-                        DerivedRetentionTombstone.raw_event_id == raw_event_id
-                    )
-                )
-                if existing is None:
-                    db.add(
-                        DerivedRetentionTombstone(
-                            organization_id=organization_id,
-                            raw_event_id=raw_event_id,
-                            purged_at=now,
-                        )
-                    )
+            rows = _derived_retention_rows(
+                db,
+                organization_id=organization_id,
+                cutoff=derived_cutoff,
+                limit=limit,
+            )
+            _stage_derived_tombstones(
+                db,
+                organization_id=organization_id,
+                rows=rows,
+                purged_at=now,
+            )
             derived_ids = [row[0] for row in rows]
             if derived_ids:
                 result = db.execute(
@@ -677,7 +810,10 @@ def run_retention_once(
                     SecurityAuditEvent.organization_id == organization_id,
                     SecurityAuditEvent.created_at < audit_cutoff,
                 )
-                .order_by(SecurityAuditEvent.created_at, SecurityAuditEvent.id)
+                .order_by(
+                    SecurityAuditEvent.created_at,
+                    SecurityAuditEvent.id,
+                )
                 .limit(limit)
             )
             audit_ids = list(db.scalars(_skip_locked(audit_query, db)))
@@ -688,7 +824,10 @@ def run_retention_once(
                         SecurityAuditEvent.id.in_(audit_ids),
                     )
                 )
-                run.audit_events_deleted = _deleted_count(result.rowcount, len(audit_ids))
+                run.audit_events_deleted = _deleted_count(
+                    result.rowcount,
+                    len(audit_ids),
+                )
 
         _sanitize_orphan_source_identities(db, organization_id)
         run.status = RetentionRunStatus.COMPLETED
@@ -711,7 +850,7 @@ def run_retention_once(
         )
         db.refresh(run)
         return run
-    except SQLAlchemyError as exc:
+    except (DataGovernanceError, SQLAlchemyError) as exc:
         db.rollback()
         failed = db.scalar(select(RetentionRun).where(RetentionRun.id == run.id))
         if failed is not None:
@@ -719,6 +858,8 @@ def run_retention_once(
             failed.error_code = type(exc).__name__[:128]
             failed.completed_at = now
             db.commit()
+        if isinstance(exc, DataGovernanceError):
+            raise
         raise DataGovernanceError("Retention execution failed") from exc
 
 
