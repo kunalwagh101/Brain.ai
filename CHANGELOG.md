@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Increment 14 — Audit, retention and deletion
+
+- Added tenant-scoped durable security audit events with actor/resource/request correlation, bounded metadata and normalized-payload SHA-256 digests.
+- Added PostgreSQL append-only enforcement that rejects audit-row updates while allowing explicit audit-retention deletion; actor UUID evidence is deliberately not a mutable user foreign key.
+- Added `data_governance.manage` for Owner/Admin retention/deletion administration while organisation-wide governance/audit reads reuse `audit.read`.
+- Added explicit per-organisation raw-event, derived-content and audit-event retention durations plus legal hold. Unset durations mean no automatic age-based purge; Brain does not invent a legal retention period.
+- Added bounded raw retention and derived retention with reconstruction-suppressing tombstones. Derived tombstones preserve only raw-event ID plus minimal provider/object locator, not source content.
+- Added integration-wide deletion gated on full revocation and typed source-object deletion with idempotency keys, stable target references, counts and completion digests.
+- Closed the retained-raw deletion gap: a source-object deletion can still find and delete raw evidence after its canonical row was previously removed by derived retention.
+- Added canonicalisation suppression so deleted/purged evidence cannot silently reappear through connector replay or reconciliation.
+- Added orphan source-identity sanitation that clears unsupported identity evidence and returns the identity to `unresolved` state.
+- Added pending/failed/stale-processing deletion recovery, bounded worker execution and PostgreSQL row-lock/`SKIP LOCKED` concurrency semantics.
+- Added fail-closed durable audit coupling for ACL create/delete mutations; authorization-denial audit persistence remains best-effort so an audit-store problem cannot widen access.
+- Added Alembic revision `20260908_0014`, service/route/worker/audit/retained-raw regression tests, operator documentation and realistic PostgreSQL/frontend UAT instructions.
+
+Verification is not yet claimed. `S-09.02.01` remains `IN_REVIEW` until Ruff, Pytest, migration verification and the Delivery Verifier actually execute. PostgreSQL append-only-trigger/cascade/concurrency behavior, realistic deletion/replay behavior, frontend/manual acceptance and backup/PITR lifecycle remain separate `UAT_PENDING` evidence.
+
 ### Increment 13 — Production observability and SLOs
 
 - Added correlated structured JSON logging with bounded request IDs, W3C trace/span context, tenant/integration/provider/model operational context and strict structured-field allowlisting.
