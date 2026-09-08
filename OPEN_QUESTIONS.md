@@ -28,6 +28,7 @@ Recommended default: provider-neutral gateway; choose the first model from measu
 Blast radius: eval baselines, compliance, cost and latency.
 
 ## OQ-006 Retention defaults
-Ambiguity: default raw-event, derived-content and audit-log retention periods.  
-Recommended default: configurable per organisation; do not hard-code a legal/compliance duration without customer/regulatory evidence.  
+Ambiguity: the customer/legal default raw-event, derived-content and audit-log retention periods remain unresolved.  
+Engineering-safe behavior: all three durations are configurable per organisation and `NULL` means no automatic age-based purge for that class. Brain does not invent a legal/compliance period when an organisation has not configured one.  
+Recommended product default: obtain the customer's contractual/regulatory policy during onboarding, configure it explicitly, and separately align managed-database backup/PITR retention.  
 Blast radius: storage cost, deletion design, compliance commitments and backup lifecycle.
