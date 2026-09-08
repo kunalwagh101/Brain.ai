@@ -1,0 +1,184 @@
+name: Release Gate
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "scripts/**"
+      - ".github/workflows/release-gate.yml"
+      - "BOARD.md"
+      - "PRODUCT_BACKLOG.md"
+      - "TRACEABILITY.md"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg17
+        env:
+          POSTGRES_DB: brain_release
+          POSTGRES_USER: brain
+          POSTGRES_PASSWORD: brain
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U brain -d brain_release"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      BRAIN_DATABASE_URL: postgresql+psycopg://brain:brain@127.0.0.1:5432/brain_release
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGDATABASE: brain_release
+      PGUSER: brain
+      PGPASSWORD: brain
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install backend verification runtime
+        run: python -m pip install -e "./backend[dev]"
+
+      - name: Lint
+        working-directory: backend
+        run: ruff check app tests migrations
+
+      - name: Test
+        working-directory: backend
+        run: pytest
+
+      - name: Verify delivery state
+        run: python scripts/verify_board.py
+
+      - name: Exercise migration upgrade, rollback and forward recovery
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          alembic upgrade head
+          alembic check
+          alembic downgrade base
+          alembic upgrade head
+          alembic check
+
+      - name: Seed restore probe
+        run: |
+          docker run --rm --network host \
+            -e PGPASSWORD="${PGPASSWORD}" \
+            pgvector/pgvector:0.8.6-pg17 \
+            psql -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" -d "${PGDATABASE}" \
+            -v ON_ERROR_STOP=1 \
+            -c "CREATE TABLE release_restore_probe (id integer PRIMARY KEY, value text NOT NULL);" \
+            -c "INSERT INTO release_restore_probe (id, value) VALUES (1, 'verified-before-backup');"
+
+      - name: Create and validate backup archive
+        run: |
+          mkdir -p .release
+          docker run --rm --network host \
+            -e PGHOST="${PGHOST}" \
+            -e PGPORT="${PGPORT}" \
+            -e PGDATABASE="${PGDATABASE}" \
+            -e PGUSER="${PGUSER}" \
+            -e PGPASSWORD="${PGPASSWORD}" \
+            -e BACKUP_FILE=/workspace/.release/brain.dump \
+            -v "${PWD}:/workspace" \
+            -w /workspace \
+            pgvector/pgvector:0.8.6-pg17 \
+            bash scripts/postgres-backup.sh
+
+      - name: Exercise destructive restore into disposable database
+        run: |
+          docker run --rm --network host \
+            -e PGPASSWORD="${PGPASSWORD}" \
+            pgvector/pgvector:0.8.6-pg17 \
+            psql -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" -d "${PGDATABASE}" \
+            -v ON_ERROR_STOP=1 \
+            -c "UPDATE release_restore_probe SET value = 'corrupted-after-backup' WHERE id = 1;"
+
+          docker run --rm --network host \
+            -e PGHOST="${PGHOST}" \
+            -e PGPORT="${PGPORT}" \
+            -e PGDATABASE="${PGDATABASE}" \
+            -e PGUSER="${PGUSER}" \
+            -e PGPASSWORD="${PGPASSWORD}" \
+            -e RESTORE_FILE=/workspace/.release/brain.dump \
+            -e BRAIN_RESTORE_CONFIRM=I_UNDERSTAND_THIS_REPLACES_DATABASE \
+            -v "${PWD}:/workspace" \
+            -w /workspace \
+            pgvector/pgvector:0.8.6-pg17 \
+            bash scripts/postgres-restore.sh
+
+          restored_value="$(docker run --rm --network host \
+            -e PGPASSWORD="${PGPASSWORD}" \
+            pgvector/pgvector:0.8.6-pg17 \
+            psql -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" -d "${PGDATABASE}" \
+            -Atqc "SELECT value FROM release_restore_probe WHERE id = 1;")"
+          test "${restored_value}" = "verified-before-backup"
+
+      - name: Build production image
+        run: docker build --pull -t "brain-api:${GITHUB_SHA}" backend
+
+      - name: Smoke production-mode container readiness
+        run: |
+          set -euo pipefail
+          docker rm -f brain-release-smoke >/dev/null 2>&1 || true
+          trap 'docker rm -f brain-release-smoke >/dev/null 2>&1 || true' EXIT
+          docker run -d --name brain-release-smoke --network host \
+            -e BRAIN_ENVIRONMENT=production \
+            -e BRAIN_DATABASE_URL="${BRAIN_DATABASE_URL}" \
+            -e BRAIN_APP_SECRET=release-gate-not-production-secret \
+            -e BRAIN_WORKOS_CLIENT_ID=client_release_gate \
+            -e BRAIN_CORS_ORIGINS=https://brain.example.invalid \
+            -e BRAIN_METRICS_BEARER_TOKEN=release-gate-token \
+            "brain-api:${GITHUB_SHA}"
+
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/health/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs brain-release-smoke
+          exit 1
+
+      - name: Record release inputs
+        run: |
+          mkdir -p .release
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from datetime import UTC, datetime
+
+          heads = subprocess.check_output(
+              ["alembic", "-c", "backend/alembic.ini", "heads"],
+              text=True,
+          ).strip()
+          payload = {
+              "commit_sha": os.environ["GITHUB_SHA"],
+              "migration_heads": heads.splitlines(),
+              "verified_at": datetime.now(UTC).isoformat(),
+          }
+          with open(".release/release-manifest.json", "w", encoding="utf-8") as handle:
+              json.dump(payload, handle, indent=2, sort_keys=True)
+              handle.write("\n")
+          PY
