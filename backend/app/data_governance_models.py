@@ -201,6 +201,7 @@ class DerivedRetentionTombstone(Base):
         Index(
             "ix_derived_retention_org_object",
             "organization_id",
+            "integration_connection_id",
             "source_provider",
             "object_type",
             "object_external_id",
@@ -214,6 +215,7 @@ class DerivedRetentionTombstone(Base):
     raw_event_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("raw_events.id", ondelete="CASCADE"), nullable=False
     )
+    integration_connection_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
     source_provider: Mapped[str] = mapped_column(String(40), nullable=False)
     object_type: Mapped[str] = mapped_column(String(64), nullable=False)
     object_external_id: Mapped[str] = mapped_column(String(512), nullable=False)
