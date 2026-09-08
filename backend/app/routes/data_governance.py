@@ -180,16 +180,18 @@ def update_retention_policy(
 @router.post("/retention/run", response_model=RetentionRunRead | None)
 def execute_retention(
     organization_id: uuid.UUID,
+    request: Request,
     authorization: Annotated[AuthorizationContext, Depends(_manage)],
     db: Annotated[Session, Depends(get_db)],
     limit: Annotated[int, Query(ge=1, le=500)] = 500,
 ) -> RetentionRun | None:
-    del authorization
     try:
         return run_retention_once(
             db,
             organization_id=organization_id,
             limit=limit,
+            actor_user_id=authorization.user_id,
+            request_id=_request_id(request),
         )
     except DataGovernanceError as exc:
         _raise_governance_error(exc)
