@@ -160,25 +160,32 @@ jobs:
           docker logs brain-release-smoke
           exit 1
 
-      - name: Record release inputs
+      - name: Record verified release manifest
         run: |
-          mkdir -p .release
-          python - <<'PY'
+          set -euo pipefail
+          migration_heads="$(cd backend && alembic heads)"
+          image_id="$(docker image inspect "brain-api:${GITHUB_SHA}" --format '{{.Id}}')"
+          RELEASE_MIGRATION_HEADS="${migration_heads}" RELEASE_IMAGE_ID="${image_id}" python - <<'PY'
           import json
           import os
-          import subprocess
           from datetime import UTC, datetime
 
-          heads = subprocess.check_output(
-              ["alembic", "-c", "backend/alembic.ini", "heads"],
-              text=True,
-          ).strip()
           payload = {
               "commit_sha": os.environ["GITHUB_SHA"],
-              "migration_heads": heads.splitlines(),
+              "image_id": os.environ["RELEASE_IMAGE_ID"],
+              "migration_heads": os.environ["RELEASE_MIGRATION_HEADS"].splitlines(),
               "verified_at": datetime.now(UTC).isoformat(),
           }
           with open(".release/release-manifest.json", "w", encoding="utf-8") as handle:
               json.dump(payload, handle, indent=2, sort_keys=True)
               handle.write("\n")
           PY
+          rm -f .release/brain.dump .release/brain.dump.sha256
+
+      - name: Upload verified release manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest-${{ github.sha }}
+          path: .release/release-manifest.json
+          if-no-files-found: error
+          retention-days: 14
