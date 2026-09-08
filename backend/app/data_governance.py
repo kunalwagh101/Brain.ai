@@ -29,6 +29,16 @@ from app.models import (
 
 MAX_RETENTION_BATCH = 500
 _DELETION_STALE_AFTER = timedelta(minutes=15)
+_SENSITIVE_METADATA_TERMS = (
+    "api_key",
+    "apikey",
+    "authorization",
+    "access_token",
+    "refresh_token",
+    "password",
+    "secret",
+    "credential",
+)
 
 
 class DataGovernanceError(RuntimeError):
@@ -55,11 +65,49 @@ def _normalized_metadata(metadata: dict[str, object] | None) -> dict[str, object
         safe_key = str(key).strip()[:64]
         if not safe_key:
             continue
+        normalized_key = safe_key.lower().replace("-", "_")
+        if any(term in normalized_key for term in _SENSITIVE_METADATA_TERMS):
+            raise DataGovernanceError("Audit metadata contains a sensitive field name")
         if value is None or isinstance(value, (bool, int, float)):
             clean[safe_key] = value
         elif isinstance(value, (str, uuid.UUID)):
             clean[safe_key] = str(value)[:512]
     return clean
+
+
+def _audit_payload(
+    *,
+    organization_id: uuid.UUID,
+    event_key: str,
+    event_type: str,
+    outcome: str,
+    actor_user_id: uuid.UUID | None,
+    resource_type: str | None,
+    resource_id: str | uuid.UUID | None,
+    request_id: str | None,
+    metadata: dict[str, object] | None,
+) -> tuple[dict[str, object], str]:
+    normalized_key = event_key.strip()[:255]
+    normalized_type = event_type.strip()[:128]
+    normalized_outcome = outcome.strip()[:32]
+    if not normalized_key or not normalized_type or not normalized_outcome:
+        raise DataGovernanceError("Audit event key/type/outcome are required")
+    normalized_metadata = _normalized_metadata(metadata)
+    payload: dict[str, object] = {
+        "organization_id": str(organization_id),
+        "event_key": normalized_key,
+        "event_type": normalized_type,
+        "outcome": normalized_outcome,
+        "actor_user_id": str(actor_user_id) if actor_user_id else None,
+        "resource_type": resource_type[:128] if resource_type else None,
+        "resource_id": str(resource_id)[:512] if resource_id is not None else None,
+        "request_id": request_id[:128] if request_id else None,
+        "metadata": normalized_metadata,
+    }
+    digest = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()
+    ).hexdigest()
+    return payload, digest
 
 
 def append_audit_event(
@@ -75,43 +123,47 @@ def append_audit_event(
     request_id: str | None = None,
     metadata: dict[str, object] | None = None,
 ) -> SecurityAuditEvent:
-    normalized_key = event_key.strip()[:255]
-    normalized_type = event_type.strip()[:128]
-    normalized_outcome = outcome.strip()[:32]
-    if not normalized_key or not normalized_type or not normalized_outcome:
-        raise DataGovernanceError("Audit event key/type/outcome are required")
-    normalized_metadata = _normalized_metadata(metadata)
-    payload = {
-        "organization_id": str(organization_id),
-        "event_key": normalized_key,
-        "event_type": normalized_type,
-        "outcome": normalized_outcome,
-        "actor_user_id": str(actor_user_id) if actor_user_id else None,
-        "resource_type": resource_type[:128] if resource_type else None,
-        "resource_id": str(resource_id)[:512] if resource_id is not None else None,
-        "request_id": request_id[:128] if request_id else None,
-        "metadata": normalized_metadata,
-    }
-    digest = hashlib.sha256(
-        json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()
-    ).hexdigest()
+    payload, digest = _audit_payload(
+        organization_id=organization_id,
+        event_key=event_key,
+        event_type=event_type,
+        outcome=outcome,
+        actor_user_id=actor_user_id,
+        resource_type=resource_type,
+        resource_id=resource_id,
+        request_id=request_id,
+        metadata=metadata,
+    )
+    normalized_key = str(payload["event_key"])
+    existing = db.scalar(
+        select(SecurityAuditEvent).where(
+            SecurityAuditEvent.organization_id == organization_id,
+            SecurityAuditEvent.event_key == normalized_key,
+        )
+    )
+    if existing is not None:
+        if existing.payload_sha256 != digest:
+            raise DataGovernanceError("Audit event key was reused with different content")
+        db.commit()
+        return existing
+
     event = SecurityAuditEvent(
         organization_id=organization_id,
         event_key=normalized_key,
-        event_type=normalized_type,
-        outcome=normalized_outcome,
+        event_type=str(payload["event_type"]),
+        outcome=str(payload["outcome"]),
         actor_user_id=actor_user_id,
         resource_type=payload["resource_type"],
         resource_id=payload["resource_id"],
         request_id=payload["request_id"],
-        metadata_json=normalized_metadata,
+        metadata_json=payload["metadata"],
         payload_sha256=digest,
     )
-    db.add(event)
     try:
-        db.commit()
+        with db.begin_nested():
+            db.add(event)
+            db.flush()
     except IntegrityError:
-        db.rollback()
         existing = db.scalar(
             select(SecurityAuditEvent).where(
                 SecurityAuditEvent.organization_id == organization_id,
@@ -122,7 +174,9 @@ def append_audit_event(
             raise
         if existing.payload_sha256 != digest:
             raise DataGovernanceError("Audit event key was reused with different content")
+        db.commit()
         return existing
+    db.commit()
     db.refresh(event)
     return event
 
@@ -152,13 +206,12 @@ def set_retention_policy(
             updated_by_user_id=actor_user_id,
         )
         db.add(policy)
+        db.flush()
     policy.raw_event_days = raw_days
     policy.derived_content_days = derived_days
     policy.audit_event_days = audit_days
     policy.legal_hold = legal_hold
     policy.updated_by_user_id = actor_user_id
-    db.commit()
-    db.refresh(policy)
     append_audit_event(
         db,
         organization_id=organization_id,
@@ -176,6 +229,7 @@ def set_retention_policy(
             "legal_hold": legal_hold,
         },
     )
+    db.refresh(policy)
     return policy
 
 
@@ -267,8 +321,7 @@ def create_deletion_request(
         reason=normalized_reason,
     )
     db.add(deletion_request)
-    db.commit()
-    db.refresh(deletion_request)
+    db.flush()
     append_audit_event(
         db,
         organization_id=organization_id,
@@ -285,6 +338,7 @@ def create_deletion_request(
             "target_reference": target_reference,
         },
     )
+    db.refresh(deletion_request)
     return deletion_request
 
 
@@ -441,7 +495,24 @@ def execute_deletion_request(
         deletion_request.completion_digest = digest
         deletion_request.status = DeletionStatus.COMPLETED
         deletion_request.completed_at = _now()
-        db.commit()
+        append_audit_event(
+            db,
+            organization_id=organization_id,
+            event_key=f"deletion.completed:{deletion_request.id}",
+            event_type="data.deletion.completed",
+            outcome="succeeded",
+            actor_user_id=deletion_request.requested_by_user_id,
+            resource_type="data_deletion_request",
+            resource_id=deletion_request.id,
+            request_id=request_id,
+            metadata={
+                "scope": deletion_request.scope.value,
+                "target_reference": deletion_request.target_reference,
+                "raw_events_deleted": deletion_request.raw_events_deleted,
+                "canonical_events_deleted": deletion_request.canonical_events_deleted,
+                "completion_digest": deletion_request.completion_digest,
+            },
+        )
         db.refresh(deletion_request)
     except (DataGovernanceError, SQLAlchemyError) as exc:
         db.rollback()
@@ -458,25 +529,6 @@ def execute_deletion_request(
         if isinstance(exc, DataGovernanceError):
             raise
         raise DataGovernanceError("Data deletion execution failed") from exc
-
-    append_audit_event(
-        db,
-        organization_id=organization_id,
-        event_key=f"deletion.completed:{deletion_request.id}",
-        event_type="data.deletion.completed",
-        outcome="succeeded",
-        actor_user_id=deletion_request.requested_by_user_id,
-        resource_type="data_deletion_request",
-        resource_id=deletion_request.id,
-        request_id=request_id,
-        metadata={
-            "scope": deletion_request.scope.value,
-            "target_reference": deletion_request.target_reference,
-            "raw_events_deleted": deletion_request.raw_events_deleted,
-            "canonical_events_deleted": deletion_request.canonical_events_deleted,
-            "completion_digest": deletion_request.completion_digest,
-        },
-    )
     return deletion_request
 
 
@@ -490,12 +542,18 @@ def _skip_locked(query, db: Session):
     return query
 
 
+def _deleted_count(rowcount: int | None, fallback: int) -> int:
+    return rowcount if rowcount is not None and rowcount >= 0 else fallback
+
+
 def run_retention_once(
     db: Session,
     *,
     organization_id: uuid.UUID,
     at: datetime | None = None,
     limit: int = MAX_RETENTION_BATCH,
+    actor_user_id: uuid.UUID | None = None,
+    request_id: str | None = None,
 ) -> RetentionRun | None:
     if limit < 1 or limit > MAX_RETENTION_BATCH:
         raise DataGovernanceError(f"Retention limit must be 1-{MAX_RETENTION_BATCH}")
@@ -520,19 +578,19 @@ def run_retention_once(
     if policy.legal_hold:
         run.status = RetentionRunStatus.COMPLETED
         run.completed_at = now
-        db.commit()
-        db.refresh(run)
         append_audit_event(
             db,
             organization_id=organization_id,
             event_key=f"retention.run:{run.id}",
             event_type="retention.run.skipped",
             outcome="legal_hold",
-            actor_user_id=None,
+            actor_user_id=actor_user_id,
             resource_type="retention_run",
             resource_id=run.id,
+            request_id=request_id,
             metadata={"legal_hold": True},
         )
+        db.refresh(run)
         return run
 
     try:
@@ -568,7 +626,7 @@ def run_retention_once(
                         RawEvent.id.in_(raw_ids),
                     )
                 )
-                run.raw_events_deleted = result.rowcount or len(raw_ids)
+                run.raw_events_deleted = _deleted_count(result.rowcount, len(raw_ids))
 
         if policy.derived_content_days is not None:
             derived_cutoff = _retention_cutoff(policy.derived_content_days, now)
@@ -606,7 +664,10 @@ def run_retention_once(
                         CanonicalEvent.id.in_(derived_ids),
                     )
                 )
-                run.derived_events_deleted = result.rowcount or len(derived_ids)
+                run.derived_events_deleted = _deleted_count(
+                    result.rowcount,
+                    len(derived_ids),
+                )
 
         if policy.audit_event_days is not None:
             audit_cutoff = _retention_cutoff(policy.audit_event_days, now)
@@ -627,14 +688,30 @@ def run_retention_once(
                         SecurityAuditEvent.id.in_(audit_ids),
                     )
                 )
-                run.audit_events_deleted = result.rowcount or len(audit_ids)
+                run.audit_events_deleted = _deleted_count(result.rowcount, len(audit_ids))
 
         _sanitize_orphan_source_identities(db, organization_id)
         run.status = RetentionRunStatus.COMPLETED
         run.completed_at = now
-        db.commit()
+        append_audit_event(
+            db,
+            organization_id=organization_id,
+            event_key=f"retention.run:{run.id}",
+            event_type="retention.run.completed",
+            outcome="succeeded",
+            actor_user_id=actor_user_id,
+            resource_type="retention_run",
+            resource_id=run.id,
+            request_id=request_id,
+            metadata={
+                "raw_events_deleted": run.raw_events_deleted,
+                "derived_events_deleted": run.derived_events_deleted,
+                "audit_events_deleted": run.audit_events_deleted,
+            },
+        )
         db.refresh(run)
-    except (IntegrityError, SQLAlchemyError) as exc:
+        return run
+    except SQLAlchemyError as exc:
         db.rollback()
         failed = db.scalar(select(RetentionRun).where(RetentionRun.id == run.id))
         if failed is not None:
@@ -643,23 +720,6 @@ def run_retention_once(
             failed.completed_at = now
             db.commit()
         raise DataGovernanceError("Retention execution failed") from exc
-
-    append_audit_event(
-        db,
-        organization_id=organization_id,
-        event_key=f"retention.run:{run.id}",
-        event_type="retention.run.completed",
-        outcome="succeeded",
-        actor_user_id=None,
-        resource_type="retention_run",
-        resource_id=run.id,
-        metadata={
-            "raw_events_deleted": run.raw_events_deleted,
-            "derived_events_deleted": run.derived_events_deleted,
-            "audit_events_deleted": run.audit_events_deleted,
-        },
-    )
-    return run
 
 
 def pending_deletion_requests(
