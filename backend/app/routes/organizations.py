@@ -186,6 +186,7 @@ def create_resource_grant(
         resource_type=payload.resource_type,
         resource_id=payload.resource_id,
         access=payload.access.value,
+        db=db,
     )
     return grant
 
@@ -250,4 +251,5 @@ def delete_resource_grant(
         resource_type=resource_type,
         resource_id=resource_id,
         access=grant_access,
+        db=db,
     )
