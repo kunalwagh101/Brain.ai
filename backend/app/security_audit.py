@@ -2,6 +2,11 @@ import json
 import logging
 import uuid
 
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from app.data_governance import DataGovernanceError, append_audit_event
+
 security_logger = logging.getLogger("brain.security")
 
 
@@ -18,6 +23,7 @@ def audit_authorization_decision(
     reason: str,
     resource_type: str | None = None,
     resource_id: str | None = None,
+    db: Session | None = None,
 ) -> None:
     payload = {
         "event": "authorization.decision",
@@ -32,8 +38,24 @@ def audit_authorization_decision(
     message = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     if allowed:
         security_logger.debug(message)
-    else:
-        security_logger.warning(message)
+        return
+    security_logger.warning(message)
+    if db is None:
+        return
+    try:
+        append_audit_event(
+            db,
+            organization_id=organization_id,
+            event_key=f"authorization.denied:{uuid.uuid4()}",
+            event_type="authorization.denied",
+            outcome="denied",
+            actor_user_id=actor_user_id,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            metadata={"permission": permission, "reason": reason},
+        )
+    except (DataGovernanceError, SQLAlchemyError):
+        security_logger.exception("Failed to persist authorization denial audit event")
 
 
 def audit_acl_change(
@@ -45,6 +67,7 @@ def audit_acl_change(
     resource_type: str,
     resource_id: str,
     access: str,
+    db: Session | None = None,
 ) -> None:
     payload = {
         "event": f"resource_acl.{action}",
@@ -56,3 +79,19 @@ def audit_acl_change(
         "access": access,
     }
     security_logger.info(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+    if db is None:
+        return
+    try:
+        append_audit_event(
+            db,
+            organization_id=organization_id,
+            event_key=f"resource_acl.{action}:{uuid.uuid4()}",
+            event_type=f"resource_acl.{action}",
+            outcome="succeeded",
+            actor_user_id=actor_user_id,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            metadata={"target_user_id": target_user_id, "access": access},
+        )
+    except (DataGovernanceError, SQLAlchemyError):
+        security_logger.exception("Failed to persist resource ACL audit event")
