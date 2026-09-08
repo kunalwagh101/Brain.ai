@@ -32,3 +32,9 @@ Ambiguity: the customer/legal default raw-event, derived-content and audit-log r
 Engineering-safe behavior: all three durations are configurable per organisation and `NULL` means no automatic age-based purge for that class. Brain does not invent a legal/compliance period when an organisation has not configured one.  
 Recommended product default: obtain the customer's contractual/regulatory policy during onboarding, configure it explicitly, and separately align managed-database backup/PITR retention.  
 Blast radius: storage cost, deletion design, compliance commitments and backup lifecycle.
+
+## OQ-007 Production runtime and image registry
+Ambiguity: the production container runtime, image registry, managed PostgreSQL service and network topology have not been explicitly selected for Brain. AWS Secrets Manager is already the credential backend, but that does not by itself decide whether the API runs on ECS/Fargate, App Runner, another AWS runtime or a non-AWS platform.  
+Engineering-safe behavior: the repository builds one OCI image and validates migrations, rollback/forward recovery, production-mode readiness and PostgreSQL backup/restore in a provider-neutral Release Gate. No cloud-specific deployment credential or command is guessed.  
+Recommended default: if the AWS direction remains, evaluate ECR + ECS/Fargate + managed PostgreSQL/RDS in the production environment and choose it only after networking, IAM, backup/PITR, deployment rollback and expected cost are reviewed.  
+Blast radius: IAM, VPC/networking, TLS/domain termination, registry permissions, deployment strategy, database backup/PITR, secret access, rollback mechanics and operating cost.
