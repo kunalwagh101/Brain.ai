@@ -96,9 +96,7 @@ class SecurityAuditEvent(Base):
     event_key: Mapped[str] = mapped_column(String(255), nullable=False)
     event_type: Mapped[str] = mapped_column(String(128), nullable=False)
     outcome: Mapped[str] = mapped_column(String(32), nullable=False)
-    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     resource_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
     resource_id: Mapped[str | None] = mapped_column(String(512), nullable=True)
     request_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
