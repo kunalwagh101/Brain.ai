@@ -97,6 +97,7 @@ def authorize_organization(
             actor_user_id=user.id,
             permission=permission.value,
             reason="inactive_user",
+            db=db,
         )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
 
@@ -113,6 +114,7 @@ def authorize_organization(
             actor_user_id=user.id,
             permission=permission.value,
             reason="not_a_member",
+            db=db,
         )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
 
@@ -123,6 +125,7 @@ def authorize_organization(
             actor_user_id=user.id,
             permission=permission.value,
             reason="role_denied",
+            db=db,
         )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
 
@@ -132,6 +135,7 @@ def authorize_organization(
         actor_user_id=user.id,
         permission=permission.value,
         reason="role_allowed",
+        db=db,
     )
     return AuthorizationContext(
         organization_id=organization_id,
@@ -203,6 +207,7 @@ def authorize_resource(
             reason="missing_resource_grant",
             resource_type=resource_type,
             resource_id=resource_id,
+            db=db,
         )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
 
@@ -214,6 +219,7 @@ def authorize_resource(
         reason="resource_grant_allowed",
         resource_type=resource_type,
         resource_id=resource_id,
+        db=db,
     )
     return context
 
