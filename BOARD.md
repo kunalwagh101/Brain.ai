@@ -26,9 +26,37 @@ BACKLOG | S-07.02.01 | F-07.02 | Depends on project status + usage/cost
 BACKLOG | S-08.01.01 | F-08.01 | Depends on AI gateway + audit/retention
 IN_REVIEW | S-09.01.01 | F-09.01 | Structured logs, Prometheus metrics, OpenTelemetry tracing, readiness, SLO alerts, tests, docs and UAT are staged; executable passing verification is still unavailable
 IN_REVIEW | S-09.02.01 | F-09.02 | Audit ledger, retention/legal-hold engine, deletion/tombstones, migration, worker, tests, docs and UAT are staged; executable PostgreSQL/Ruff/Pytest/Delivery Verifier evidence is still unavailable
-BACKLOG | S-09.03.01 | F-09.03 | Phase 3 verifier is merged and green; full production deployment story remains
+BLOCKED | S-09.03.01 | F-09.03 | Provider-neutral Release Gate, migration/restore exercise, image smoke, tests/docs/UAT are staged; required merge-check enforcement, an executable runner and OQ-007 production runtime/registry selection remain unresolved
 BACKLOG | S-09.04.01 | F-09.04 | Benchmarks attach to implemented vertical slices
 DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external-tool wedge
+
+## Increment 15 planning — deployment, rollback, backup and restore on the existing branch
+
+Increment 15 goal: **make a release candidate prove code quality, delivery truth, database migration mechanics, production-mode readiness and restored-data recovery before any environment-specific production rollout can be approved.**
+
+Branch rule: Increment 15 intentionally continues on `increment-10-ai-provider-gateway`; no additional branch is created.
+
+Dependency state: the Phase 3 verifier is engineering-DONE, so the repository-owned release work is buildable. S-09.03.01 is nevertheless `BLOCKED` from DONE because the new Release Gate has not executed on a runner, GitHub required-check enforcement is unavailable/unverified for the current private-repository setup, and OQ-007 has not selected the production runtime/image registry/managed PostgreSQL topology needed for the real deploy/rollback drill.
+
+Vertical slice staged: single Release Gate -> Ruff/Pytest/delivery verifier -> disposable PostgreSQL 17 + pgvector -> full Alembic upgrade/downgrade/forward recovery + drift check -> validated custom-format backup + SHA-256 -> destructive sentinel mutation -> guarded restore -> restored sentinel assertion -> OCI image build -> production-mode container readiness -> non-secret release manifest -> deployment/rollback/restore runbook -> contract tests -> production-like UAT.
+
+Rules for this increment:
+
+- Release-bound code and delivery-state verification must run in one gate; later release steps cannot run after a failed test/verifier step.
+- Migration mechanics are exercised on disposable data with `upgrade head -> check -> downgrade base -> upgrade head -> check`.
+- A technically working Alembic downgrade is not automatically considered safe against production data. Destructive downgrades require explicit review; forward-compatible application rollback or restore is preferred when data would be lost.
+- Production schema evolution should follow expand/contract compatibility so the previous immutable application image can normally run against the expanded schema.
+- Migrations execute once as a release task, not concurrently from every API replica.
+- PostgreSQL backups use custom format, archive parsing validation, SHA-256 sidecar and owner-only local permissions.
+- The restore script refuses without an explicit destructive confirmation token and refuses missing/invalid checksum or unreadable archives.
+- The CI restore exercise verifies recovered data using a pre-backup sentinel; a successful `pg_restore` exit code alone is insufficient.
+- The disposable CI backup is deleted before artifact upload; only a non-secret release manifest is retained.
+- The OCI image is started with `BRAIN_ENVIRONMENT=production` and must reach `/health/ready` against PostgreSQL.
+- Production promotion must eventually use an immutable registry digest, never `latest`.
+- Cloud/runtime deployment commands and credentials are not guessed while OQ-007 is unresolved.
+- The GitHub API reported repository rulesets unavailable for this private repository on the current plan. A written convention is not accepted as equivalent to a technically required merge check.
+- Production/staging UAT must prove both previous-image rollback and backup restore, record observed recovery times, and validate the actual frontend workflow after deploy and rollback.
+- No S-09.03.01 DONE evidence block may be added until Release Gate executes successfully and the environment-specific merge/deploy/rollback/restore controls are verified.
 
 ## Increment 14 planning — audit, retention and deletion on the existing branch
 
@@ -248,8 +276,8 @@ Rules for this increment:
 ## Session-open self-audit
 
 - Ten stories are engineering-DONE; external/user acceptance remains independently tracked in UAT.md.
-- Current IN_PROGRESS WIP count: 0. S-05.01.01, S-06.01.01, S-06.03.01, S-09.01.01 and S-09.02.01 are IN_REVIEW; S-04.02.01 and S-06.02.01 are BLOCKED while their implementations are staged behind unverified dependencies.
+- Current IN_PROGRESS WIP count: 0. S-05.01.01, S-06.01.01, S-06.03.01, S-09.01.01 and S-09.02.01 are IN_REVIEW; S-04.02.01, S-06.02.01 and S-09.03.01 are BLOCKED while their implementations are staged behind unverified dependencies/environment controls.
 - Increment 7 Work Graph is merged on `main` at `ddd12921ec7ac025dc21de41275b8532c811ab24`.
 - Existing Work Graph/retrieval authorization semantics are reused rather than replaced by Decision Memory or AI governance.
-- Existing frontend still contains preview/sample state. No fake search/memory/AI-cost/API-registry/observability/data-governance UI wiring will be used to claim frontend acceptance.
+- Existing frontend still contains preview/sample state. No fake search/memory/AI-cost/API-registry/observability/data-governance/deployment UI wiring will be used to claim frontend acceptance.
 - Repeated Backend CI / Delivery Verifier attempts have failed before runner startup (`runner_id=0`, no steps). There is no passing test output for Increment 8 or later staged increments, so engineering-DONE is prohibited by the Definition of Done/Ready.
