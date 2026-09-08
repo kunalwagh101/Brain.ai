@@ -200,6 +200,13 @@ class DerivedRetentionTombstone(Base):
     __table_args__ = (
         UniqueConstraint("raw_event_id", name="uq_derived_retention_raw_event"),
         Index("ix_derived_retention_org_purged", "organization_id", "purged_at"),
+        Index(
+            "ix_derived_retention_org_object",
+            "organization_id",
+            "source_provider",
+            "object_type",
+            "object_external_id",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -209,6 +216,9 @@ class DerivedRetentionTombstone(Base):
     raw_event_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("raw_events.id", ondelete="CASCADE"), nullable=False
     )
+    source_provider: Mapped[str] = mapped_column(String(40), nullable=False)
+    object_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    object_external_id: Mapped[str] = mapped_column(String(512), nullable=False)
     purged_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
