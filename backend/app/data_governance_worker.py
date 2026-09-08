@@ -22,7 +22,7 @@ def run_once(*, batch_size: int = 100) -> tuple[int, int, int]:
     factory = get_session_factory()
     retention_runs = 0
     deletions_completed = 0
-    deletions_failed = 0
+    failures = 0
     with factory() as db:
         organization_ids = list(db.scalars(select(Organization.id).order_by(Organization.id)))
 
@@ -36,7 +36,7 @@ def run_once(*, batch_size: int = 100) -> tuple[int, int, int]:
                 )
                 retention_runs += int(run is not None)
             except DataGovernanceError:
-                deletions_failed += 1
+                failures += 1
                 log_event(
                     logger,
                     logging.ERROR,
@@ -65,7 +65,7 @@ def run_once(*, batch_size: int = 100) -> tuple[int, int, int]:
                     )
                     deletions_completed += 1
                 except DataGovernanceError:
-                    deletions_failed += 1
+                    failures += 1
                     log_event(
                         logger,
                         logging.ERROR,
@@ -81,9 +81,9 @@ def run_once(*, batch_size: int = 100) -> tuple[int, int, int]:
         "data_governance.worker.completed",
         worker="data_governance",
         processed=retention_runs + deletions_completed,
-        remaining=deletions_failed,
+        remaining=failures,
     )
-    return retention_runs, deletions_completed, deletions_failed
+    return retention_runs, deletions_completed, failures
 
 
 def main() -> None:
