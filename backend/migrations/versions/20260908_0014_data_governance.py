@@ -206,6 +206,9 @@ def upgrade() -> None:
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("organization_id", sa.Uuid(), nullable=False),
         sa.Column("raw_event_id", sa.Uuid(), nullable=False),
+        sa.Column("source_provider", sa.String(length=40), nullable=False),
+        sa.Column("object_type", sa.String(length=64), nullable=False),
+        sa.Column("object_external_id", sa.String(length=512), nullable=False),
         sa.Column(
             "purged_at",
             sa.DateTime(timezone=True),
@@ -225,6 +228,16 @@ def upgrade() -> None:
         "ix_derived_retention_org_purged",
         "derived_retention_tombstones",
         ["organization_id", "purged_at"],
+    )
+    op.create_index(
+        "ix_derived_retention_org_object",
+        "derived_retention_tombstones",
+        [
+            "organization_id",
+            "source_provider",
+            "object_type",
+            "object_external_id",
+        ],
     )
 
     bind = op.get_bind()
@@ -260,6 +273,10 @@ def downgrade() -> None:
         )
         op.execute("DROP FUNCTION IF EXISTS brain_reject_security_audit_update()")
 
+    op.drop_index(
+        "ix_derived_retention_org_object",
+        table_name="derived_retention_tombstones",
+    )
     op.drop_index(
         "ix_derived_retention_org_purged",
         table_name="derived_retention_tombstones",
