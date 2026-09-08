@@ -87,6 +87,7 @@ class DataDeletionRead(BaseModel):
     organization_id: uuid.UUID
     request_key: str
     scope: DeletionScope
+    target_reference: str
     integration_connection_id: uuid.UUID | None
     source_provider: str | None
     object_type: str | None
