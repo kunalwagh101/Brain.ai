@@ -114,6 +114,11 @@ class SecurityAuditEvent(Base):
 class RetentionRun(Base):
     __tablename__ = "retention_runs"
     __table_args__ = (
+        CheckConstraint(
+            "raw_events_deleted >= 0 AND derived_events_deleted >= 0 "
+            "AND audit_events_deleted >= 0",
+            name="ck_retention_run_nonnegative_counts",
+        ),
         Index("ix_retention_runs_org_started", "organization_id", "started_at"),
     )
 
@@ -147,6 +152,10 @@ class DataDeletionRequest(Base):
             "request_key",
             name="uq_data_deletion_org_request_key",
         ),
+        CheckConstraint(
+            "raw_events_deleted >= 0 AND canonical_events_deleted >= 0",
+            name="ck_data_deletion_nonnegative_counts",
+        ),
         Index("ix_data_deletion_org_status", "organization_id", "status"),
         Index("ix_data_deletion_org_created", "organization_id", "created_at"),
     )
@@ -159,6 +168,7 @@ class DataDeletionRequest(Base):
     scope: Mapped[DeletionScope] = mapped_column(
         Enum(DeletionScope, native_enum=False, length=32), nullable=False
     )
+    target_reference: Mapped[str] = mapped_column(String(768), nullable=False)
     integration_connection_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("integration_connections.id", ondelete="SET NULL"), nullable=True
     )
