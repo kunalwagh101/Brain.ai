@@ -68,6 +68,7 @@ def audit_acl_change(
     resource_id: str,
     access: str,
     db: Session | None = None,
+    required: bool = False,
 ) -> None:
     payload = {
         "event": f"resource_acl.{action}",
@@ -80,6 +81,8 @@ def audit_acl_change(
     }
     security_logger.info(json.dumps(payload, sort_keys=True, separators=(",", ":")))
     if db is None:
+        if required:
+            raise DataGovernanceError("Durable ACL audit requires a database session")
         return
     try:
         append_audit_event(
@@ -95,3 +98,5 @@ def audit_acl_change(
         )
     except (DataGovernanceError, SQLAlchemyError):
         security_logger.exception("Failed to persist resource ACL audit event")
+        if required:
+            raise
