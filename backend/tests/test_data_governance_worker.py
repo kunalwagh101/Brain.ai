@@ -3,7 +3,15 @@ from sqlalchemy.orm import Session
 from app.data_governance import create_deletion_request, set_retention_policy
 from app.data_governance_models import DeletionScope, DeletionStatus
 from app.data_governance_worker import run_once
-from app.models import Membership, MembershipRole, Organization, User
+from app.models import (
+    IntegrationConnection,
+    IntegrationHealth,
+    IntegrationStatus,
+    Membership,
+    MembershipRole,
+    Organization,
+    User,
+)
 
 
 class _SessionContext:
@@ -35,6 +43,19 @@ def test_worker_runs_retention_and_completes_pending_deletion(
             role=MembershipRole.OWNER,
         )
     )
+    connection = IntegrationConnection(
+        organization_id=organization.id,
+        provider="slack",
+        external_account_id="governance-worker-workspace",
+        display_name="Governance Worker Slack",
+        status=IntegrationStatus.ACTIVE,
+        health=IntegrationHealth.HEALTHY,
+        scopes=["channels:history"],
+        provider_metadata={},
+        secret_ref="arn:test:governance-worker",
+        created_by_user_id=owner.id,
+    )
+    db_session.add(connection)
     db_session.commit()
 
     set_retention_policy(
@@ -53,6 +74,7 @@ def test_worker_runs_retention_and_completes_pending_deletion(
         request_key="worker-delete-empty-object",
         scope=DeletionScope.SOURCE_OBJECT,
         reason="verify worker execution",
+        integration_connection_id=connection.id,
         source_provider="slack",
         object_type="message",
         object_external_id="C1:1710000000.000100",
