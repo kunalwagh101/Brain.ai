@@ -170,7 +170,18 @@ def create_resource_grant(
     )
     db.add(grant)
     try:
-        db.commit()
+        db.flush()
+        audit_acl_change(
+            action="created",
+            organization_id=organization_id,
+            actor_user_id=access.user_id,
+            target_user_id=payload.user_id,
+            resource_type=payload.resource_type,
+            resource_id=payload.resource_id,
+            access=payload.access.value,
+            db=db,
+            required=True,
+        )
     except IntegrityError:
         db.rollback()
         raise HTTPException(
@@ -178,16 +189,6 @@ def create_resource_grant(
             detail="Resource grant already exists",
         ) from None
     db.refresh(grant)
-    audit_acl_change(
-        action="created",
-        organization_id=organization_id,
-        actor_user_id=access.user_id,
-        target_user_id=payload.user_id,
-        resource_type=payload.resource_type,
-        resource_id=payload.resource_id,
-        access=payload.access.value,
-        db=db,
-    )
     return grant
 
 
@@ -242,7 +243,6 @@ def delete_resource_grant(
     resource_id = grant.resource_id
     grant_access = grant.access.value
     db.delete(grant)
-    db.commit()
     audit_acl_change(
         action="deleted",
         organization_id=organization_id,
@@ -252,4 +252,5 @@ def delete_resource_grant(
         resource_id=resource_id,
         access=grant_access,
         db=db,
+        required=True,
     )
