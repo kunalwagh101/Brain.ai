@@ -20,7 +20,9 @@ command -v sha256sum >/dev/null 2>&1 || {
 }
 
 umask 077
-mkdir -p "$(dirname "${BACKUP_FILE}")"
+backup_dir="$(dirname "${BACKUP_FILE}")"
+backup_name="$(basename "${BACKUP_FILE}")"
+mkdir -p "${backup_dir}"
 
 echo "Creating PostgreSQL custom-format backup for database '${PGDATABASE}'..."
 pg_dump \
@@ -32,7 +34,10 @@ pg_dump \
 
 # Validate that the archive can at least be parsed before calling it a backup.
 pg_restore --list "${BACKUP_FILE}" >/dev/null
-sha256sum "${BACKUP_FILE}" > "${BACKUP_FILE}.sha256"
+(
+  cd "${backup_dir}"
+  sha256sum "${backup_name}" > "${backup_name}.sha256"
+)
 chmod 600 "${BACKUP_FILE}" "${BACKUP_FILE}.sha256"
 
 echo "Backup created and archive-validated: ${BACKUP_FILE}"
