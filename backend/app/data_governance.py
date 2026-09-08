@@ -1,0 +1,621 @@
+import hashlib
+import json
+import uuid
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from app.data_governance_models import (
+    DataDeletionRequest,
+    DeletionScope,
+    DeletionStatus,
+    DerivedRetentionTombstone,
+    OrganizationRetentionPolicy,
+    RetentionRun,
+    RetentionRunStatus,
+    SecurityAuditEvent,
+)
+from app.models import (
+    CanonicalEvent,
+    IntegrationConnection,
+    IntegrationStatus,
+    RawEvent,
+    SourceIdentity,
+    SourceIdentityObservation,
+)
+
+MAX_RETENTION_BATCH = 500
+
+
+class DataGovernanceError(RuntimeError):
+    pass
+
+
+def _now() -> datetime:
+    return datetime.now(UTC)
+
+
+def _normalize_optional_days(value: int | None, field: str) -> int | None:
+    if value is None:
+        return None
+    if value < 1 or value > 36_500:
+        raise DataGovernanceError(f"{field} must be between 1 and 36500 days")
+    return value
+
+
+def _normalized_metadata(metadata: dict[str, object] | None) -> dict[str, object]:
+    if not metadata:
+        return {}
+    clean: dict[str, object] = {}
+    for key, value in metadata.items():
+        safe_key = str(key).strip()[:64]
+        if not safe_key:
+            continue
+        if value is None or isinstance(value, (bool, int, float)):
+            clean[safe_key] = value
+        elif isinstance(value, (str, uuid.UUID)):
+            clean[safe_key] = str(value)[:512]
+    return clean
+
+
+def append_audit_event(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    event_key: str,
+    event_type: str,
+    outcome: str,
+    actor_user_id: uuid.UUID | None,
+    resource_type: str | None = None,
+    resource_id: str | uuid.UUID | None = None,
+    request_id: str | None = None,
+    metadata: dict[str, object] | None = None,
+) -> SecurityAuditEvent:
+    normalized_key = event_key.strip()[:255]
+    normalized_type = event_type.strip()[:128]
+    normalized_outcome = outcome.strip()[:32]
+    if not normalized_key or not normalized_type or not normalized_outcome:
+        raise DataGovernanceError("Audit event key/type/outcome are required")
+    normalized_metadata = _normalized_metadata(metadata)
+    payload = {
+        "organization_id": str(organization_id),
+        "event_key": normalized_key,
+        "event_type": normalized_type,
+        "outcome": normalized_outcome,
+        "actor_user_id": str(actor_user_id) if actor_user_id else None,
+        "resource_type": resource_type[:128] if resource_type else None,
+        "resource_id": str(resource_id)[:512] if resource_id is not None else None,
+        "request_id": request_id[:128] if request_id else None,
+        "metadata": normalized_metadata,
+    }
+    digest = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()
+    ).hexdigest()
+    event = SecurityAuditEvent(
+        organization_id=organization_id,
+        event_key=normalized_key,
+        event_type=normalized_type,
+        outcome=normalized_outcome,
+        actor_user_id=actor_user_id,
+        resource_type=payload["resource_type"],
+        resource_id=payload["resource_id"],
+        request_id=payload["request_id"],
+        metadata_json=normalized_metadata,
+        payload_sha256=digest,
+    )
+    db.add(event)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing = db.scalar(
+            select(SecurityAuditEvent).where(
+                SecurityAuditEvent.organization_id == organization_id,
+                SecurityAuditEvent.event_key == normalized_key,
+            )
+        )
+        if existing is None:
+            raise
+        if existing.payload_sha256 != digest:
+            raise DataGovernanceError("Audit event key was reused with different content")
+        return existing
+    db.refresh(event)
+    return event
+
+
+def set_retention_policy(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    actor_user_id: uuid.UUID,
+    raw_event_days: int | None,
+    derived_content_days: int | None,
+    audit_event_days: int | None,
+    legal_hold: bool,
+    request_id: str | None = None,
+) -> OrganizationRetentionPolicy:
+    raw_days = _normalize_optional_days(raw_event_days, "raw_event_days")
+    derived_days = _normalize_optional_days(derived_content_days, "derived_content_days")
+    audit_days = _normalize_optional_days(audit_event_days, "audit_event_days")
+    policy = db.scalar(
+        select(OrganizationRetentionPolicy).where(
+            OrganizationRetentionPolicy.organization_id == organization_id
+        )
+    )
+    if policy is None:
+        policy = OrganizationRetentionPolicy(
+            organization_id=organization_id,
+            updated_by_user_id=actor_user_id,
+        )
+        db.add(policy)
+    policy.raw_event_days = raw_days
+    policy.derived_content_days = derived_days
+    policy.audit_event_days = audit_days
+    policy.legal_hold = legal_hold
+    policy.updated_by_user_id = actor_user_id
+    db.commit()
+    db.refresh(policy)
+    append_audit_event(
+        db,
+        organization_id=organization_id,
+        event_key=f"retention.policy:{request_id or uuid.uuid4()}",
+        event_type="retention.policy.updated",
+        outcome="succeeded",
+        actor_user_id=actor_user_id,
+        resource_type="retention_policy",
+        resource_id=policy.id,
+        request_id=request_id,
+        metadata={
+            "raw_event_days": raw_days,
+            "derived_content_days": derived_days,
+            "audit_event_days": audit_days,
+            "legal_hold": legal_hold,
+        },
+    )
+    return policy
+
+
+def create_deletion_request(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    actor_user_id: uuid.UUID,
+    request_key: str,
+    scope: DeletionScope,
+    reason: str,
+    integration_connection_id: uuid.UUID | None = None,
+    source_provider: str | None = None,
+    object_type: str | None = None,
+    object_external_id: str | None = None,
+    request_id: str | None = None,
+) -> DataDeletionRequest:
+    normalized_key = request_key.strip()[:128]
+    normalized_reason = " ".join(reason.strip().split())[:512]
+    if not normalized_key or not normalized_reason:
+        raise DataGovernanceError("Deletion request key and reason are required")
+    policy = db.scalar(
+        select(OrganizationRetentionPolicy).where(
+            OrganizationRetentionPolicy.organization_id == organization_id
+        )
+    )
+    if policy is not None and policy.legal_hold:
+        raise DataGovernanceError("Deletion is blocked by the organization legal hold")
+
+    if scope == DeletionScope.INTEGRATION:
+        if integration_connection_id is None:
+            raise DataGovernanceError("Integration deletion requires integration_connection_id")
+        connection = db.scalar(
+            select(IntegrationConnection).where(
+                IntegrationConnection.id == integration_connection_id,
+                IntegrationConnection.organization_id == organization_id,
+            )
+        )
+        if connection is None:
+            raise DataGovernanceError("Integration connection not found")
+        if connection.status != IntegrationStatus.REVOKED:
+            raise DataGovernanceError("Integration must be fully revoked before data deletion")
+        source_provider = None
+        object_type = None
+        object_external_id = None
+    elif scope == DeletionScope.SOURCE_OBJECT:
+        source_provider = (source_provider or "").strip()[:40]
+        object_type = (object_type or "").strip()[:64]
+        object_external_id = (object_external_id or "").strip()[:512]
+        if not source_provider or not object_type or not object_external_id:
+            raise DataGovernanceError(
+                "Source-object deletion requires provider, object_type and object_external_id"
+            )
+        integration_connection_id = None
+    else:
+        raise DataGovernanceError("Unsupported deletion scope")
+
+    existing = db.scalar(
+        select(DataDeletionRequest).where(
+            DataDeletionRequest.organization_id == organization_id,
+            DataDeletionRequest.request_key == normalized_key,
+        )
+    )
+    if existing is not None:
+        same = (
+            existing.scope == scope
+            and existing.integration_connection_id == integration_connection_id
+            and existing.source_provider == source_provider
+            and existing.object_type == object_type
+            and existing.object_external_id == object_external_id
+        )
+        if not same:
+            raise DataGovernanceError("Deletion request key was reused for a different target")
+        return existing
+
+    deletion_request = DataDeletionRequest(
+        organization_id=organization_id,
+        request_key=normalized_key,
+        scope=scope,
+        integration_connection_id=integration_connection_id,
+        source_provider=source_provider,
+        object_type=object_type,
+        object_external_id=object_external_id,
+        requested_by_user_id=actor_user_id,
+        reason=normalized_reason,
+    )
+    db.add(deletion_request)
+    db.commit()
+    db.refresh(deletion_request)
+    append_audit_event(
+        db,
+        organization_id=organization_id,
+        event_key=f"deletion.requested:{deletion_request.id}",
+        event_type="data.deletion.requested",
+        outcome="accepted",
+        actor_user_id=actor_user_id,
+        resource_type="data_deletion_request",
+        resource_id=deletion_request.id,
+        request_id=request_id,
+        metadata={"scope": scope.value, "request_key": normalized_key},
+    )
+    return deletion_request
+
+
+def _sanitize_orphan_source_identities(db: Session, organization_id: uuid.UUID) -> int:
+    identities = list(
+        db.scalars(
+            select(SourceIdentity).where(SourceIdentity.organization_id == organization_id)
+        )
+    )
+    changed = 0
+    for identity in identities:
+        observation = db.scalar(
+            select(SourceIdentityObservation.id)
+            .where(SourceIdentityObservation.source_identity_id == identity.id)
+            .limit(1)
+        )
+        if observation is not None:
+            continue
+        if (
+            identity.display_name is None
+            and identity.email is None
+            and identity.resolved_user_id is None
+        ):
+            continue
+        identity.display_name = None
+        identity.email = None
+        identity.email_verified = False
+        identity.resolved_user_id = None
+        identity.resolution_method = None
+        changed += 1
+    return changed
+
+
+def _completion_digest(
+    deletion_request: DataDeletionRequest,
+    *,
+    raw_ids: list[uuid.UUID],
+    canonical_ids: list[uuid.UUID],
+) -> str:
+    payload = {
+        "request_id": str(deletion_request.id),
+        "request_key": deletion_request.request_key,
+        "scope": deletion_request.scope.value,
+        "raw_event_ids": sorted(str(item) for item in raw_ids),
+        "canonical_event_ids": sorted(str(item) for item in canonical_ids),
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def execute_deletion_request(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    deletion_request_id: uuid.UUID,
+    request_id: str | None = None,
+) -> DataDeletionRequest:
+    query = select(DataDeletionRequest).where(
+        DataDeletionRequest.id == deletion_request_id,
+        DataDeletionRequest.organization_id == organization_id,
+    )
+    if db.bind is not None and db.bind.dialect.name == "postgresql":
+        query = query.with_for_update()
+    deletion_request = db.scalar(query)
+    if deletion_request is None:
+        raise DataGovernanceError("Deletion request not found")
+    if deletion_request.status == DeletionStatus.COMPLETED:
+        return deletion_request
+
+    policy = db.scalar(
+        select(OrganizationRetentionPolicy).where(
+            OrganizationRetentionPolicy.organization_id == organization_id
+        )
+    )
+    if policy is not None and policy.legal_hold:
+        raise DataGovernanceError("Deletion is blocked by the organization legal hold")
+
+    deletion_request.status = DeletionStatus.PROCESSING
+    deletion_request.started_at = deletion_request.started_at or _now()
+    deletion_request.error_code = None
+    db.commit()
+
+    try:
+        if deletion_request.scope == DeletionScope.INTEGRATION:
+            if deletion_request.integration_connection_id is None:
+                raise DataGovernanceError("Deletion request has no integration target")
+            connection = db.scalar(
+                select(IntegrationConnection).where(
+                    IntegrationConnection.id == deletion_request.integration_connection_id,
+                    IntegrationConnection.organization_id == organization_id,
+                )
+            )
+            if connection is not None and connection.status != IntegrationStatus.REVOKED:
+                raise DataGovernanceError("Integration must remain revoked during deletion")
+            raw_ids = list(
+                db.scalars(
+                    select(RawEvent.id).where(
+                        RawEvent.organization_id == organization_id,
+                        RawEvent.integration_connection_id
+                        == deletion_request.integration_connection_id,
+                    )
+                )
+            )
+            canonical_ids = list(
+                db.scalars(
+                    select(CanonicalEvent.id).where(
+                        CanonicalEvent.organization_id == organization_id,
+                        CanonicalEvent.integration_connection_id
+                        == deletion_request.integration_connection_id,
+                    )
+                )
+            )
+        else:
+            canonical_rows = list(
+                db.execute(
+                    select(CanonicalEvent.id, CanonicalEvent.raw_event_id).where(
+                        CanonicalEvent.organization_id == organization_id,
+                        CanonicalEvent.source_provider == deletion_request.source_provider,
+                        CanonicalEvent.object_type == deletion_request.object_type,
+                        CanonicalEvent.object_external_id
+                        == deletion_request.object_external_id,
+                    )
+                )
+            )
+            canonical_ids = [row[0] for row in canonical_rows]
+            raw_ids = list(dict.fromkeys(row[1] for row in canonical_rows))
+
+        digest = _completion_digest(
+            deletion_request,
+            raw_ids=raw_ids,
+            canonical_ids=canonical_ids,
+        )
+        if raw_ids:
+            db.execute(
+                delete(RawEvent).where(
+                    RawEvent.organization_id == organization_id,
+                    RawEvent.id.in_(raw_ids),
+                )
+            )
+        _sanitize_orphan_source_identities(db, organization_id)
+        deletion_request.raw_events_deleted = len(raw_ids)
+        deletion_request.canonical_events_deleted = len(canonical_ids)
+        deletion_request.completion_digest = digest
+        deletion_request.status = DeletionStatus.COMPLETED
+        deletion_request.completed_at = _now()
+        db.commit()
+        db.refresh(deletion_request)
+    except (DataGovernanceError, SQLAlchemyError) as exc:
+        db.rollback()
+        failed = db.scalar(
+            select(DataDeletionRequest).where(
+                DataDeletionRequest.id == deletion_request_id,
+                DataDeletionRequest.organization_id == organization_id,
+            )
+        )
+        if failed is not None:
+            failed.status = DeletionStatus.FAILED
+            failed.error_code = type(exc).__name__[:128]
+            db.commit()
+        if isinstance(exc, DataGovernanceError):
+            raise
+        raise DataGovernanceError("Data deletion execution failed") from exc
+
+    append_audit_event(
+        db,
+        organization_id=organization_id,
+        event_key=f"deletion.completed:{deletion_request.id}",
+        event_type="data.deletion.completed",
+        outcome="succeeded",
+        actor_user_id=deletion_request.requested_by_user_id,
+        resource_type="data_deletion_request",
+        resource_id=deletion_request.id,
+        request_id=request_id,
+        metadata={
+            "scope": deletion_request.scope.value,
+            "raw_events_deleted": deletion_request.raw_events_deleted,
+            "canonical_events_deleted": deletion_request.canonical_events_deleted,
+            "completion_digest": deletion_request.completion_digest,
+        },
+    )
+    return deletion_request
+
+
+def _retention_cutoff(days: int, at: datetime) -> datetime:
+    return at - timedelta(days=days)
+
+
+def run_retention_once(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    at: datetime | None = None,
+    limit: int = MAX_RETENTION_BATCH,
+) -> RetentionRun | None:
+    if limit < 1 or limit > MAX_RETENTION_BATCH:
+        raise DataGovernanceError(f"Retention limit must be 1-{MAX_RETENTION_BATCH}")
+    policy = db.scalar(
+        select(OrganizationRetentionPolicy).where(
+            OrganizationRetentionPolicy.organization_id == organization_id
+        )
+    )
+    if policy is None:
+        return None
+    now = at or _now()
+    run = RetentionRun(
+        organization_id=organization_id,
+        raw_event_days=policy.raw_event_days,
+        derived_content_days=policy.derived_content_days,
+        audit_event_days=policy.audit_event_days,
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+
+    if policy.legal_hold:
+        run.status = RetentionRunStatus.COMPLETED
+        run.completed_at = now
+        db.commit()
+        return run
+
+    try:
+        if policy.raw_event_days is not None:
+            raw_cutoff = _retention_cutoff(policy.raw_event_days, now)
+            raw_ids = list(
+                db.scalars(
+                    select(RawEvent.id)
+                    .where(
+                        RawEvent.organization_id == organization_id,
+                        func.coalesce(RawEvent.source_timestamp, RawEvent.received_at)
+                        < raw_cutoff,
+                    )
+                    .order_by(RawEvent.received_at, RawEvent.id)
+                    .limit(limit)
+                )
+            )
+            if raw_ids:
+                result = db.execute(
+                    delete(RawEvent).where(
+                        RawEvent.organization_id == organization_id,
+                        RawEvent.id.in_(raw_ids),
+                    )
+                )
+                run.raw_events_deleted = result.rowcount or len(raw_ids)
+
+        if policy.derived_content_days is not None:
+            derived_cutoff = _retention_cutoff(policy.derived_content_days, now)
+            rows = list(
+                db.execute(
+                    select(CanonicalEvent.id, CanonicalEvent.raw_event_id)
+                    .join(RawEvent, RawEvent.id == CanonicalEvent.raw_event_id)
+                    .where(
+                        CanonicalEvent.organization_id == organization_id,
+                        func.coalesce(CanonicalEvent.occurred_at, CanonicalEvent.created_at)
+                        < derived_cutoff,
+                    )
+                    .order_by(CanonicalEvent.created_at, CanonicalEvent.id)
+                    .limit(limit)
+                )
+            )
+            for _, raw_event_id in rows:
+                existing = db.scalar(
+                    select(DerivedRetentionTombstone.id).where(
+                        DerivedRetentionTombstone.raw_event_id == raw_event_id
+                    )
+                )
+                if existing is None:
+                    db.add(
+                        DerivedRetentionTombstone(
+                            organization_id=organization_id,
+                            raw_event_id=raw_event_id,
+                            purged_at=now,
+                        )
+                    )
+            derived_ids = [row[0] for row in rows]
+            if derived_ids:
+                result = db.execute(
+                    delete(CanonicalEvent).where(
+                        CanonicalEvent.organization_id == organization_id,
+                        CanonicalEvent.id.in_(derived_ids),
+                    )
+                )
+                run.derived_events_deleted = result.rowcount or len(derived_ids)
+
+        if policy.audit_event_days is not None:
+            audit_cutoff = _retention_cutoff(policy.audit_event_days, now)
+            audit_ids = list(
+                db.scalars(
+                    select(SecurityAuditEvent.id)
+                    .where(
+                        SecurityAuditEvent.organization_id == organization_id,
+                        SecurityAuditEvent.created_at < audit_cutoff,
+                    )
+                    .order_by(SecurityAuditEvent.created_at, SecurityAuditEvent.id)
+                    .limit(limit)
+                )
+            )
+            if audit_ids:
+                result = db.execute(
+                    delete(SecurityAuditEvent).where(
+                        SecurityAuditEvent.organization_id == organization_id,
+                        SecurityAuditEvent.id.in_(audit_ids),
+                    )
+                )
+                run.audit_events_deleted = result.rowcount or len(audit_ids)
+
+        _sanitize_orphan_source_identities(db, organization_id)
+        run.status = RetentionRunStatus.COMPLETED
+        run.completed_at = now
+        db.commit()
+        db.refresh(run)
+        return run
+    except SQLAlchemyError as exc:
+        db.rollback()
+        failed = db.scalar(select(RetentionRun).where(RetentionRun.id == run.id))
+        if failed is not None:
+            failed.status = RetentionRunStatus.FAILED
+            failed.error_code = type(exc).__name__[:128]
+            failed.completed_at = now
+            db.commit()
+        raise DataGovernanceError("Retention execution failed") from exc
+
+
+def pending_deletion_requests(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    limit: int = 50,
+) -> list[DataDeletionRequest]:
+    if limit < 1 or limit > 500:
+        raise DataGovernanceError("Deletion batch limit must be 1-500")
+    query = (
+        select(DataDeletionRequest)
+        .where(
+            DataDeletionRequest.organization_id == organization_id,
+            DataDeletionRequest.status.in_([DeletionStatus.PENDING, DeletionStatus.FAILED]),
+        )
+        .order_by(DataDeletionRequest.created_at, DataDeletionRequest.id)
+        .limit(limit)
+    )
+    if db.bind is not None and db.bind.dialect.name == "postgresql":
+        query = query.with_for_update(skip_locked=True)
+    return list(db.scalars(query))
