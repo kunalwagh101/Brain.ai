@@ -67,3 +67,10 @@ def test_production_image_runs_as_non_root_user() -> None:
     dockerfile = (REPO_ROOT / "backend/Dockerfile").read_text(encoding="utf-8")
     assert "USER brain" in dockerfile
     assert "CMD [\"uvicorn\"" in dockerfile
+
+
+def test_docker_build_context_excludes_local_secret_and_backup_material() -> None:
+    dockerignore = (REPO_ROOT / "backend/.dockerignore").read_text(encoding="utf-8")
+    required_patterns = (".env", ".venv/", "*.dump", "*.dump.sha256", "*.sql")
+    for pattern in required_patterns:
+        assert pattern in dockerignore
