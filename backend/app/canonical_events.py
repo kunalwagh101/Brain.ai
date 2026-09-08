@@ -331,6 +331,7 @@ def _source_deletion_suppresses(
     db: Session,
     *,
     organization_id,
+    integration_connection_id,
     provider: str,
     object_type: str,
     object_external_id: str,
@@ -341,6 +342,8 @@ def _source_deletion_suppresses(
             .where(
                 DataDeletionRequest.organization_id == organization_id,
                 DataDeletionRequest.scope == DeletionScope.SOURCE_OBJECT,
+                DataDeletionRequest.integration_connection_id
+                == integration_connection_id,
                 DataDeletionRequest.source_provider == provider,
                 DataDeletionRequest.object_type == object_type,
                 DataDeletionRequest.object_external_id == object_external_id,
@@ -371,6 +374,7 @@ def canonicalize_raw_event(db: Session, raw_event: RawEvent) -> CanonicalizeResu
         if _source_deletion_suppresses(
             db,
             organization_id=existing.organization_id,
+            integration_connection_id=existing.integration_connection_id,
             provider=existing.source_provider,
             object_type=existing.object_type,
             object_external_id=existing.object_external_id,
@@ -402,6 +406,7 @@ def canonicalize_raw_event(db: Session, raw_event: RawEvent) -> CanonicalizeResu
     if _source_deletion_suppresses(
         db,
         organization_id=raw_event.organization_id,
+        integration_connection_id=raw_event.integration_connection_id,
         provider=raw_event.provider,
         object_type=str(data["object_type"]),
         object_external_id=str(data["object_external_id"]),
