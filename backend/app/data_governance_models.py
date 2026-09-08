@@ -183,3 +183,22 @@ class DataDeletionRequest(Base):
     )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class DerivedRetentionTombstone(Base):
+    __tablename__ = "derived_retention_tombstones"
+    __table_args__ = (
+        UniqueConstraint("raw_event_id", name="uq_derived_retention_raw_event"),
+        Index("ix_derived_retention_org_purged", "organization_id", "purged_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    raw_event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("raw_events.id", ondelete="CASCADE"), nullable=False
+    )
+    purged_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
