@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
 import time
 import uuid
 from dataclasses import asdict
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -40,8 +42,8 @@ def _load_dataset(path: str) -> dict[str, Any]:
         payload = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise EvaluationConfigurationError("evaluation dataset could not be read") from exc
-    if not isinstance(payload, dict) or payload.get("schema_version") != 1:
-        raise EvaluationConfigurationError("evaluation dataset schema_version must be 1")
+    if not isinstance(payload, dict) or payload.get("schema_version") != 2:
+        raise EvaluationConfigurationError("evaluation dataset schema_version must be 2")
     cases = payload.get("cases")
     if not isinstance(cases, list) or not cases:
         raise EvaluationConfigurationError("evaluation dataset requires non-empty cases")
@@ -83,39 +85,70 @@ def _search_event_ids(payload: dict[str, Any] | None) -> list[str]:
     return values
 
 
-def _answer_citation_event_ids(
+def _answer_review_data(
     payload: dict[str, Any] | None,
-) -> tuple[list[str], int]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], int]:
     if payload is None:
-        return [], 0
+        return [], [], 0
     citations = payload.get("citations")
     claims = payload.get("claims")
     if not isinstance(citations, list) or not isinstance(claims, list):
-        return [], 0
+        return [], [], 0
 
-    citation_map: dict[str, str] = {}
+    citation_map: dict[str, dict[str, Any]] = {}
     for item in citations:
         if not isinstance(item, dict):
             continue
         evidence_id = item.get("evidence_id")
-        event_id = item.get("canonical_event_id")
-        if isinstance(evidence_id, str) and isinstance(event_id, str):
-            citation_map[evidence_id] = event_id
+        if isinstance(evidence_id, str):
+            citation_map[evidence_id] = item
 
-    resolved: list[str] = []
+    observed_pairs: list[dict[str, Any]] = []
+    packet_claims: list[dict[str, Any]] = []
     unresolved = 0
-    for claim in claims:
+    for claim_index, claim in enumerate(claims):
         if not isinstance(claim, dict):
             continue
+        text = claim.get("text") if isinstance(claim.get("text"), str) else ""
         citation_ids = claim.get("citation_ids")
         if not isinstance(citation_ids, list):
-            continue
-        for evidence_id in citation_ids:
-            if not isinstance(evidence_id, str) or evidence_id not in citation_map:
+            citation_ids = []
+        packet_citations: list[dict[str, Any]] = []
+        for citation_index, evidence_id in enumerate(citation_ids):
+            citation = citation_map.get(evidence_id) if isinstance(evidence_id, str) else None
+            if citation is None:
                 unresolved += 1
                 continue
-            resolved.append(citation_map[evidence_id])
-    return resolved, unresolved
+            event_id = citation.get("canonical_event_id")
+            if not isinstance(event_id, str):
+                unresolved += 1
+                continue
+            observed_pairs.append(
+                {
+                    "claim_index": claim_index,
+                    "citation_index": citation_index,
+                    "evidence_id": evidence_id,
+                    "canonical_event_id": event_id,
+                }
+            )
+            packet_citations.append(
+                {
+                    "citation_index": citation_index,
+                    "evidence_id": evidence_id,
+                    "canonical_event_id": event_id,
+                    "source_provider": citation.get("source_provider"),
+                    "title": citation.get("title"),
+                    "excerpt": citation.get("excerpt"),
+                }
+            )
+        packet_claims.append(
+            {
+                "claim_index": claim_index,
+                "text": text,
+                "citations": packet_citations,
+            }
+        )
+    return observed_pairs, packet_claims, unresolved
 
 
 def _case_config(raw: object) -> dict[str, Any]:
@@ -159,6 +192,15 @@ def _case_config(raw: object) -> dict[str, Any]:
     }
 
 
+def _write_private_json(path: str, payload: dict[str, Any]) -> bytes:
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    output_path.write_bytes(encoded)
+    output_path.chmod(0o600)
+    return encoded
+
+
 def _run(args: argparse.Namespace) -> int:
     dataset = _load_dataset(args.dataset)
     cases = [_case_config(item) for item in dataset["cases"]]
@@ -169,11 +211,15 @@ def _run(args: argparse.Namespace) -> int:
     if not 1 <= args.search_limit <= 8:
         raise EvaluationConfigurationError("search_limit must be between 1 and 8")
 
-    eligible = bool(dataset.get("production_labelled")) and bool(
-        dataset.get("human_reviewed")
+    dataset_eligible = bool(dataset.get("production_labelled")) and bool(
+        dataset.get("retrieval_labels_human_reviewed")
     )
+    evaluation_run_id = str(uuid.uuid4())
+    generated_at = datetime.now(UTC).isoformat()
     evaluations = []
     case_reports: list[dict[str, Any]] = []
+    review_packet_cases: list[dict[str, Any]] = []
+    review_pairs: list[dict[str, Any]] = []
 
     with httpx.Client(
         base_url=args.base_url.rstrip("/"),
@@ -191,7 +237,11 @@ def _run(args: argparse.Namespace) -> int:
                 },
             )
             search_payload = _json_object(search_response)
-            retrieved = _search_event_ids(search_payload) if search_response.status_code == 200 else []
+            retrieved = (
+                _search_event_ids(search_payload)
+                if search_response.status_code == 200
+                else []
+            )
 
             started = time.perf_counter()
             ask_response = client.post(
@@ -211,7 +261,8 @@ def _run(args: argparse.Namespace) -> int:
                 if ask_response.status_code == 200 and ask_payload is not None
                 else f"http_{ask_response.status_code}"
             )
-            cited, unresolved = _answer_citation_event_ids(ask_payload)
+            pairs, packet_claims, unresolved = _answer_review_data(ask_payload)
+            cited = [pair["canonical_event_id"] for pair in pairs]
             evaluation = evaluate_case(
                 case_id=case["id"],
                 expected_status=case["expected_status"],
@@ -223,24 +274,44 @@ def _run(args: argparse.Namespace) -> int:
                 unresolved_citations=unresolved,
             )
             evaluations.append(evaluation)
+            case_pairs = [{"case_id": case["id"], **pair} for pair in pairs]
+            review_pairs.extend(case_pairs)
             case_reports.append(
                 {
                     **asdict(evaluation),
                     "search_http_status": search_response.status_code,
                     "ask_http_status": ask_response.status_code,
                     "ask_latency_ms": latency_ms,
+                    "ai_request_id": (
+                        ask_payload.get("ai_request_id")
+                        if isinstance(ask_payload, dict)
+                        else None
+                    ),
+                    "claim_citation_pairs": case_pairs,
+                }
+            )
+            review_packet_cases.append(
+                {
+                    "case_id": case["id"],
+                    "question": case["question"],
+                    "actual_status": actual_status,
+                    "claims": packet_claims,
                 }
             )
 
     summary = summarize_evaluation(
         evaluations,
-        eligible_for_production_claim=eligible,
+        dataset_eligible=dataset_eligible,
     )
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
+        "evaluation_run_id": evaluation_run_id,
+        "generated_at": generated_at,
         "dataset_id": dataset.get("dataset_id", "unknown"),
         "dataset_production_labelled": bool(dataset.get("production_labelled")),
-        "dataset_human_reviewed": bool(dataset.get("human_reviewed")),
+        "retrieval_labels_human_reviewed": bool(
+            dataset.get("retrieval_labels_human_reviewed")
+        ),
         "provider_id": provider_id,
         "model_id": model_id,
         "search_limit": args.search_limit,
@@ -248,34 +319,65 @@ def _run(args: argparse.Namespace) -> int:
         "cases": case_reports,
         "content_retained": False,
     }
-    output_path = Path(args.output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(report, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    report_bytes = _write_private_json(args.output, report)
+    report_sha256 = hashlib.sha256(report_bytes).hexdigest()
+
+    review_packet = {
+        "schema_version": 1,
+        "evaluation_run_id": evaluation_run_id,
+        "automatic_report_sha256": report_sha256,
+        "sensitive_customer_content": True,
+        "generated_at": generated_at,
+        "cases": review_packet_cases,
+    }
+    _write_private_json(args.review_packet, review_packet)
+
+    review_template = {
+        "schema_version": 1,
+        "evaluation_run_id": evaluation_run_id,
+        "automatic_report_sha256": report_sha256,
+        "dataset_id": report["dataset_id"],
+        "reviewer": "",
+        "reviewed_at": "",
+        "reviews": [
+            {
+                "case_id": pair["case_id"],
+                "claim_index": pair["claim_index"],
+                "citation_index": pair["citation_index"],
+                "canonical_event_id": pair["canonical_event_id"],
+                "supported": None,
+            }
+            for pair in review_pairs
+        ],
+    }
+    _write_private_json(args.review_template, review_template)
 
     print(
-        "Ask Brain evaluation: "
+        "Ask Brain automatic evaluation: "
         f"retrieval_recall={summary.retrieval_recall:.2%} "
-        f"citation_correctness={summary.citation_correctness:.2%} "
+        f"citation_target_precision={summary.citation_target_precision:.2%} "
         f"status_accuracy={summary.status_accuracy:.2%} "
         f"forbidden_exposures={summary.forbidden_exposures} "
         f"contract_failures={summary.contract_failures}"
     )
-    if not eligible:
+    print(
+        "Semantic citation correctness is not inferred automatically. "
+        f"Review the sensitive packet at {args.review_packet} and complete "
+        f"{args.review_template}."
+    )
+    if not dataset_eligible:
         print(
-            "Dataset is not eligible for production evidence: "
-            "production_labelled and human_reviewed must both be true.",
+            "Dataset is not eligible for production evidence: production_labelled "
+            "and retrieval_labels_human_reviewed must both be true.",
             file=sys.stderr,
         )
         return 3
-    return 0 if summary.passed else 2
+    return 0 if summary.automatic_gate_passed else 2
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Run the labelled deployed Ask Brain evaluation"
+        description="Run the automatic phase of the deployed Ask Brain evaluation"
     )
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--organization-id", required=True)
@@ -283,6 +385,14 @@ def main() -> int:
     parser.add_argument("--model-id", required=True)
     parser.add_argument("--dataset", required=True)
     parser.add_argument("--output", default=".evaluation/ask-brain-report.json")
+    parser.add_argument(
+        "--review-packet",
+        default=".evaluation/ask-brain-review-packet.json",
+    )
+    parser.add_argument(
+        "--review-template",
+        default=".evaluation/ask-brain-review.json",
+    )
     parser.add_argument("--search-limit", type=int, default=8)
     parser.add_argument("--timeout-seconds", type=float, default=30.0)
     args = parser.parse_args()
