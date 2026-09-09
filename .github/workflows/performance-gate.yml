@@ -1,0 +1,97 @@
+name: Performance Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: HTTPS base URL of the isolated staging candidate
+        required: true
+        type: string
+      organization_id:
+        description: Benchmark-only Brain organization UUID
+        required: true
+        type: string
+      search_query:
+        description: Non-sensitive representative search query
+        required: true
+        default: decision
+        type: string
+      enable_ai:
+        description: Run the governed AI latency/cost scenario
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: performance-gate-${{ inputs.base_url }}
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BRAIN_PERF_BEARER_TOKEN: ${{ secrets.BRAIN_PERF_BEARER_TOKEN }}
+      BRAIN_PERF_ORGANIZATION_ID: ${{ inputs.organization_id }}
+      BRAIN_PERF_SEARCH_QUERY: ${{ inputs.search_query }}
+      BRAIN_PERF_ENABLE_AI: ${{ inputs.enable_ai }}
+      BRAIN_PERF_PROVIDER_ID: ${{ secrets.BRAIN_PERF_PROVIDER_ID }}
+      BRAIN_PERF_MODEL_ID: ${{ secrets.BRAIN_PERF_MODEL_ID }}
+      BRAIN_PERF_AI_PROMPT: "Return exactly this word: acknowledged"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Validate benchmark target and credentials
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          set -euo pipefail
+          case "${BASE_URL}" in
+            https://*) ;;
+            *) echo "Performance Gate requires an HTTPS staging URL." >&2; exit 64 ;;
+          esac
+          test -n "${BRAIN_PERF_BEARER_TOKEN}" || {
+            echo "BRAIN_PERF_BEARER_TOKEN secret is required." >&2
+            exit 64
+          }
+          if [[ "${BRAIN_PERF_ENABLE_AI}" == "true" ]]; then
+            test -n "${BRAIN_PERF_PROVIDER_ID}" || {
+              echo "BRAIN_PERF_PROVIDER_ID secret is required for AI benchmark." >&2
+              exit 64
+            }
+            test -n "${BRAIN_PERF_MODEL_ID}" || {
+              echo "BRAIN_PERF_MODEL_ID secret is required for AI benchmark." >&2
+              exit 64
+            }
+          fi
+
+      - name: Install benchmark runtime
+        run: python -m pip install -e "./backend[dev]"
+
+      - name: Run deployed performance budgets
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          python scripts/run-performance-benchmark.py \
+            --base-url "${BASE_URL}" \
+            --config ops/performance/budgets.json \
+            --output .performance/report.json
+
+      - name: Upload benchmark report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-report-${{ github.sha }}
+          path: .performance/report.json
+          if-no-files-found: warn
+          retention-days: 30
