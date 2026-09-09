@@ -18,6 +18,7 @@ logger = logging.getLogger("brain.ai")
 MAX_CONTEXT_DOCUMENTS = 8
 MAX_EVIDENCE_CONTENT_CHARS = 6_000
 MAX_TOTAL_EVIDENCE_CHARS = 48_000
+MAX_CITATION_EXCERPT_CHARS = 800
 MAX_CLAIMS = 12
 MAX_CLAIM_CHARS = 2_000
 MAX_CITATIONS_PER_CLAIM = 4
@@ -51,6 +52,7 @@ class AskBrainCitation:
     object_type: str
     object_external_id: str
     title: str
+    excerpt: str
     occurred_at: datetime | None
     provenance: dict[str, object]
 
@@ -111,6 +113,7 @@ def _bounded_evidence(
             object_type=document.object_type,
             object_external_id=document.object_external_id,
             title=title,
+            excerpt=content[:MAX_CITATION_EXCERPT_CHARS],
             occurred_at=document.occurred_at,
             provenance=dict(document.provenance),
         )

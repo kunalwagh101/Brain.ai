@@ -49,6 +49,7 @@ class AskBrainCitationRead(BaseModel):
     object_type: str
     object_external_id: str
     title: str
+    excerpt: str
     occurred_at: datetime | None
     provenance: dict[str, object]
 
@@ -92,6 +93,7 @@ def _response(result: AskBrainResult) -> AskBrainResponse:
                 object_type=citation.object_type,
                 object_external_id=citation.object_external_id,
                 title=citation.title,
+                excerpt=citation.excerpt,
                 occurred_at=citation.occurred_at,
                 provenance=citation.provenance,
             )
