@@ -1,4 +1,5 @@
 import hashlib
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
@@ -11,7 +12,7 @@ from app.agent_models import (
     AgentStepStatus,
     AgentToolPolicyMode,
 )
-from app.models import MembershipRole, Organization, User
+from app.models import Organization, User
 
 
 def _run(db: Session, suffix: str) -> tuple[Organization, User, AgentRun]:
@@ -21,7 +22,7 @@ def _run(db: Session, suffix: str) -> tuple[Organization, User, AgentRun]:
     db.flush()
     run = AgentRun(
         organization_id=organization.id,
-        agent_definition_id=None,
+        agent_definition_id=uuid.uuid4(),
         requested_by_user_id=user.id,
         status=AgentRunStatus.READY,
         objective_sha256=hashlib.sha256(b"objective").hexdigest(),
@@ -33,10 +34,7 @@ def _run(db: Session, suffix: str) -> tuple[Organization, User, AgentRun]:
 
 def test_expired_approval_is_cleared_and_run_fails(db_session: Session) -> None:
     now = datetime.now(UTC)
-    organization, user, run = _run(db_session, "expiry")
-    # Use an existing definition id placeholder only after the run is attached by SQLAlchemy.
-    # The foreign key is not enforced by the SQLite unit-test fixture.
-    run.agent_definition_id = run.id
+    organization, _, run = _run(db_session, "expiry")
     db_session.add(run)
     db_session.flush()
     step = AgentStep(
@@ -70,7 +68,6 @@ def test_expired_approval_is_cleared_and_run_fails(db_session: Session) -> None:
 def test_stale_planning_run_returns_to_ready(db_session: Session) -> None:
     now = datetime.now(UTC)
     _, _, run = _run(db_session, "planning")
-    run.agent_definition_id = run.id
     run.status = AgentRunStatus.PLANNING
     run.planning_started_at = now - timedelta(minutes=10)
     db_session.add(run)
