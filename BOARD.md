@@ -27,8 +27,36 @@ BACKLOG | S-08.01.01 | F-08.01 | Depends on AI gateway + audit/retention
 IN_REVIEW | S-09.01.01 | F-09.01 | Structured logs, Prometheus metrics, OpenTelemetry tracing, readiness, SLO alerts, tests, docs and UAT are staged; executable passing verification is still unavailable
 IN_REVIEW | S-09.02.01 | F-09.02 | Audit ledger, retention/legal-hold engine, deletion/tombstones, migration, worker, tests, docs and UAT are staged; executable PostgreSQL/Ruff/Pytest/Delivery Verifier evidence is still unavailable
 BLOCKED | S-09.03.01 | F-09.03 | Provider-neutral Release Gate, migration/restore exercise, image smoke, tests/docs/UAT are staged; required merge-check enforcement, an executable runner and OQ-007 production runtime/registry selection remain unresolved
-BACKLOG | S-09.04.01 | F-09.04 | Benchmarks attach to implemented vertical slices
+BLOCKED | S-09.04.01 | F-09.04 | Versioned latency/cost benchmark engine, deployed HTTP runner, Performance Gate, tests/docs/UAT are staged; search/AI verification, executable runners and production-like staging measurements remain unavailable
 DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external-tool wedge
+
+## Increment 16 planning — performance and cost budgets on the existing branch
+
+Increment 16 goal: **turn latency, throughput and governed-AI cost claims into reproducible measurements from a versioned workload, with explicit technical failure when an agreed budget regresses.**
+
+Branch rule: Increment 16 intentionally continues on `increment-10-ai-provider-gateway`; no additional branch is created.
+
+Dependency state: the benchmark machinery is buildable, but the full story is `BLOCKED` because S-05.01.01 search and S-06.01.01 governed AI remain unverified, F-09.03 has not produced a production-like staging runtime, GitHub-hosted jobs still cannot obtain a runner, and no deployed benchmark report exists yet.
+
+Vertical slice staged: deterministic nearest-rank percentile engine -> p50/p95/p99/throughput/success summary -> versioned core/search/AI workload -> async real-HTTP runner -> exact F-06.02 AI cost delta -> fail-closed unknown-cost handling -> configurable latency/throughput/cost budgets -> manual staging Performance Gate -> machine-readable report artifact -> methodology/tests/docs/UAT.
+
+Rules for this increment:
+
+- Initial p95 budgets reuse the existing SLOs: core structured API <500 ms, permission-aware search <1.5 s, governed AI/provider <10 s.
+- Benchmark request count, concurrency, warmup and timeouts are versioned in `ops/performance/budgets.json`; ad-hoc load parameters are not acceptable evidence.
+- Every measured scenario reports request count, concurrency, success/error counts, p50/p95/p99/max latency and throughput.
+- A success-rate or p95 breach fails the scenario even when some individual requests are fast.
+- Throughput is always measured, but no minimum throughput floor is invented before representative baseline data exists.
+- AI cost per successful evaluated task is derived from the isolated benchmark organisation's F-06.02 usage-cost delta.
+- `require_exact_cost=true` means a new unknown-cost AI request fails the benchmark; unknown spend is never treated as zero.
+- The budget engine supports a maximum AI cost-per-success threshold, but no numeric ceiling is configured until product economics establish an agreed target.
+- AI load is disabled by default and intentionally low-concurrency to avoid uncontrolled provider spend/rate-limit effects.
+- Benchmark reports must not contain bearer tokens, provider credentials, prompts, completions, request bodies, response bodies or customer content.
+- Local SQLite/TestClient timing validates benchmark mechanics only; it cannot be used as production performance evidence.
+- Performance comparisons must be materially like-for-like in workload, data volume, runtime/database sizing, region/network and provider/model configuration.
+- A budget may not be loosened solely to make a regression green; threshold changes require documented reason and comparable before/after measurements.
+- At least three comparable production-like runs should establish a baseline before new throughput/cost ceilings or scale claims are accepted.
+- No S-09.04.01 DONE evidence block may be added until the underlying verticals are verified, the benchmark code itself has executable passing verification, and deployed performance/backend plus frontend/manual UAT are recorded.
 
 ## Increment 15 planning — deployment, rollback, backup and restore on the existing branch
 
@@ -276,8 +304,8 @@ Rules for this increment:
 ## Session-open self-audit
 
 - Ten stories are engineering-DONE; external/user acceptance remains independently tracked in UAT.md.
-- Current IN_PROGRESS WIP count: 0. S-05.01.01, S-06.01.01, S-06.03.01, S-09.01.01 and S-09.02.01 are IN_REVIEW; S-04.02.01, S-06.02.01 and S-09.03.01 are BLOCKED while their implementations are staged behind unverified dependencies/environment controls.
+- Current IN_PROGRESS WIP count: 0. S-05.01.01, S-06.01.01, S-06.03.01, S-09.01.01 and S-09.02.01 are IN_REVIEW; S-04.02.01, S-06.02.01, S-09.03.01 and S-09.04.01 are BLOCKED while their implementations are staged behind unverified dependencies/environment controls.
 - Increment 7 Work Graph is merged on `main` at `ddd12921ec7ac025dc21de41275b8532c811ab24`.
 - Existing Work Graph/retrieval authorization semantics are reused rather than replaced by Decision Memory or AI governance.
-- Existing frontend still contains preview/sample state. No fake search/memory/AI-cost/API-registry/observability/data-governance/deployment UI wiring will be used to claim frontend acceptance.
+- Existing frontend still contains preview/sample state. No fake search/memory/AI-cost/API-registry/observability/data-governance/deployment/performance UI wiring will be used to claim frontend acceptance.
 - Repeated Backend CI / Delivery Verifier attempts have failed before runner startup (`runner_id=0`, no steps). There is no passing test output for Increment 8 or later staged increments, so engineering-DONE is prohibited by the Definition of Done/Ready.
