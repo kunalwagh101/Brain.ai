@@ -21,19 +21,21 @@ Dependencies: S-05.01.01 Permission-Aware Retrieval has a usable implementation 
 
 Data/contracts known: authorised `SearchDocument` retrieval, live integration/resource authorization, source provenance, governed tenant-scoped provider/model configuration, secret references, AI request budgets and optional Work Graph attribution provide the required engineering contracts.
 
-Open questions: OQ-005 still controls the first production provider/model and data-policy/evaluation baseline. The implementation does not guess a default. The Ask Brain API requires explicit configured provider/model IDs, so OQ-005 does not change the retrieval/grounding code shape, but it still blocks production acceptance and the real citation-correctness benchmark.
+Open questions: OQ-005 still controls the first production provider/model and data-policy/evaluation baseline. The implementation does not guess a default. The Ask Brain API requires explicit configured provider/model IDs, so OQ-005 does not change the retrieval/grounding code shape, but it still blocks production acceptance and the real provider/model evaluation baseline.
 
-Security boundary: source authorization executes inside permission-aware retrieval before content is selected; no evidence means no provider call; evidence is bounded and treated as untrusted prompt data; every accepted claim must cite one or more server-issued evidence IDs; missing/unknown citations fail closed; provider credentials remain inside the existing secret store/gateway.
+Security boundary: source authorization executes inside permission-aware retrieval before content is selected; no evidence means no provider call; evidence is bounded and treated as untrusted prompt data; every accepted claim must cite one or more server-issued evidence IDs; missing/unknown citations fail closed; returned citation excerpts are bounded and come only from already-authorised context; provider credentials remain inside the existing secret store/gateway; generation is capped at 8,192 output tokens even if a generic provider configuration permits more.
+
+Evaluation boundary: automatic retrieval relevance cannot be called semantic citation correctness. Phase 1 measures retrieval recall, forbidden evidence and grounding-contract safety. Phase 2 requires a human to judge every exact generated claim-citation pair from the same run. The report, sensitive review packet and review template are bound by evaluation run ID plus SHA-256. Only the final scorer's `production_passed=true` can satisfy the >=98% citation-correctness gate. Real labelled datasets and evaluation artifacts remain under gitignored `.local/` and `.evaluation/` paths.
 
 State/idempotency: Ask Brain adds no mutable answer store or migration. Answers are transient. Existing AI request metadata/cost records remain authoritative for provider execution. Repeated questions may invoke the provider again and are independently governed by current permissions/budgets.
 
-Rollback: code-only removal of the Ask Brain route/service. Search documents, raw/canonical evidence and AI request ledgers are not deleted or rewritten.
+Rollback: code-only removal of the Ask Brain route/service/evaluation tooling. Search documents, raw/canonical evidence and AI request ledgers are not deleted or rewritten.
 
-Leading indicators: unauthorised evidence exposure = 0; retrieval recall >=90%; real labelled citation correctness >=98%; AI answer p95 target <10 seconds with observed provider/model cost recorded before production acceptance.
+Leading indicators: unauthorised evidence exposure = 0; retrieval recall >=90%; human-reviewed semantic citation correctness >=98%; AI answer p95 target <10 seconds with observed provider/model cost recorded before production acceptance.
 
-Current verification: Backend CI run 34353448936 for commit d1b3321c588ee137173a3ac9aec88451c5228ad1 failed before any step (`runner_id=0`, `steps=[]`). No Ruff/Pytest/Delivery Verifier pass is claimed.
+Current verification: implementation is staged through commit `f4ff8217ac02b6392cede6e709ccdbcab124b33f`. Backend CI run 34405201146 completed as failure before any workflow step; its test job has no executed steps. No Ruff/Pytest/Delivery Verifier pass is claimed. The current frontend also remains an honestly labelled preview without the production WorkOS browser-session-to-FastAPI access-token path, so frontend/manual UAT is still pending and must not be faked with a hardcoded token.
 
-Unblock condition: S-05.01.01 receives executable passing verification; OQ-005 is resolved for the production provider/model/data policy; Ask Brain tests and verifier execute successfully; the representative real-provider evaluation passes >=98% citation correctness and >=90% retrieval recall; staging latency/cost and manual real-data UAT are recorded.
+Unblock condition: S-05.01.01 receives executable passing verification; OQ-005 is resolved for the production provider/model/data policy; Ask Brain tests and verifier execute successfully; the real two-phase evaluation passes >=90% retrieval recall and >=98% human-reviewed semantic citation correctness with zero forbidden evidence/grounding-contract failures; staging latency/cost is recorded; and authenticated frontend/manual UAT passes.
 
 ## Increment 9 readiness record — S-04.02.01
 
