@@ -17,13 +17,13 @@ This file is the engineering evidence index. A row is completed only after its s
 | S-04.01.01 | E-04 | typed tenant-safe work graph | backend/tests/test_work_graph.py | backend/app/work_graph.py + backend/app/routes/work_graph.py | DONE |
 | S-04.02.01 | E-04 | decision/blocker memory | backend/tests/test_decision_memory.py + backend/tests/test_decision_memory_evaluation.py | backend/app/decision_memory.py + backend/app/routes/decision_memory.py + backend/app/decision_memory_worker.py | BLOCKED |
 | S-05.01.01 | E-05 | permission-aware retrieval | backend/tests/test_search.py + backend/tests/test_search_evaluation.py | backend/app/search.py + backend/app/routes/search.py + backend/app/search_worker.py | IN_REVIEW |
-| S-05.02.01 | E-05 | evidence-backed Ask Brain | pending | pending | BACKLOG |
+| S-05.02.01 | E-05 | evidence-backed Ask Brain | backend/tests/test_ask_brain.py + backend/tests/test_search_evaluation.py + UAT/F-05.02.md | backend/app/ask_brain.py + backend/app/routes/ask_brain.py | BLOCKED |
 | S-06.01.01 | E-06 | governed AI gateway | backend/tests/test_ai_gateway.py + backend/tests/test_ai_gateway_adapter.py + backend/tests/test_ai_gateway_routes.py | backend/app/ai_provider_registry.py + backend/app/ai_provider_adapter.py + backend/app/routes/ai_gateway.py | IN_REVIEW |
 | S-06.02.01 | E-06 | AI/API usage and budgets | backend/tests/test_ai_usage.py + backend/tests/test_ai_usage_reconciliation.py | backend/app/ai_usage.py + backend/app/ai_usage_reconciliation.py + backend/app/routes/ai_usage.py | BLOCKED |
 | S-06.03.01 | E-06 | external API credential registry | backend/tests/test_api_registry.py + backend/tests/test_api_registry_worker.py + backend/tests/test_secrets.py | backend/app/api_registry.py + backend/app/routes/api_registry.py + backend/app/api_registry_worker.py | IN_REVIEW |
 | S-07.01.01 | E-07 | project command centre | pending | pending | BACKLOG |
 | S-07.02.01 | E-07 | executive overview | pending | pending | BACKLOG |
-| S-08.01.01 | E-08 | governed agent runtime | pending | pending | BACKLOG |
+| S-08.01.01 | E-08 | governed agent runtime | pending | pending | BLOCKED |
 | S-09.01.01 | E-09 | production observability and SLOs | backend/tests/test_observability.py | backend/app/observability.py + backend/app/health.py + backend/app/integrations.py + backend/app/raw_events.py + backend/app/ai_provider_registry.py | IN_REVIEW |
 | S-09.02.01 | E-09 | audit/retention/deletion | backend/tests/test_data_governance.py + backend/tests/test_data_governance_routes.py + backend/tests/test_data_governance_worker.py + backend/tests/test_data_governance_retained_raw.py + backend/tests/test_data_governance_audit.py | backend/app/data_governance.py + backend/app/data_governance_models.py + backend/app/data_governance_worker.py + backend/app/routes/data_governance.py + backend/app/security_audit.py + backend/app/canonical_events.py | IN_REVIEW |
 | S-09.03.01 | E-09 | CI/deploy/rollback/restore | backend/tests/test_release_contract.py + UAT/F-09.03.md | .github/workflows/release-gate.yml + scripts/postgres-backup.sh + scripts/postgres-restore.sh + docs/DEPLOYMENT.md | BLOCKED |
@@ -101,6 +101,8 @@ code: backend/app/work_graph.py + backend/app/routes/work_graph.py + backend/app
 commit: a97d724416191ec8515f5ed90888321343013cda
 
 S-05.01.01 intentionally has no EVIDENCE block yet. GitHub Actions has repeatedly failed before runner startup (`runner_id=0`, no steps), so there is no truthful passing test result to record and the story remains IN_REVIEW.
+
+S-05.02.01 intentionally has no EVIDENCE block yet. The Ask Brain service/API, grounding/security tests, documentation, UAT and Increment 18 readiness record are staged on `increment-10-ai-provider-gateway` beginning at commit `d1b3321c588ee137173a3ac9aec88451c5228ad1`. Backend CI run 34353448936 failed before any step (`runner_id=0`, `steps=[]`), S-05.01.01 remains unverified, OQ-005 is unresolved for the production provider/model/data policy, and the representative real-provider >=98% citation-correctness evaluation has not run. The story therefore remains BLOCKED and no passing/correctness/latency/cost claim is made.
 
 S-04.02.01 intentionally has no EVIDENCE block yet. Its implementation/tests are staged on the stacked Increment 9 branch, but its S-05.01.01 dependency is not engineering-DONE and Increment 9 CI has not executed. The story therefore remains BLOCKED and no passing result is claimed.
 
