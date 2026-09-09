@@ -25,11 +25,14 @@ class BenchmarkConfigurationError(RuntimeError):
 
 def _expand(value: Any) -> Any:
     if isinstance(value, str):
+
         def replace(match: re.Match[str]) -> str:
             name = match.group(1)
             resolved = os.getenv(name)
             if resolved is None:
-                raise BenchmarkConfigurationError(f"Required environment variable is missing: {name}")
+                raise BenchmarkConfigurationError(
+                    f"Required environment variable is missing: {name}"
+                )
             return resolved
 
         return _ENV_PATTERN.sub(replace, value)
@@ -70,6 +73,7 @@ async def _single_request(
     query: dict[str, Any] | None,
     body: dict[str, Any] | None,
     expected_statuses: set[int],
+    timeout_seconds: float,
 ) -> tuple[float, bool, int | None, str | None]:
     async with semaphore:
         started = time.perf_counter()
@@ -80,6 +84,7 @@ async def _single_request(
                 headers=headers,
                 params=query,
                 json=body,
+                timeout=timeout_seconds,
             )
             elapsed_ms = (time.perf_counter() - started) * 1000
             return (
@@ -100,13 +105,19 @@ async def _usage_snapshot(
     client: httpx.AsyncClient,
     scenario: dict[str, Any],
     headers: dict[str, str],
+    timeout_seconds: float,
 ) -> dict[str, int] | None:
     tracking = scenario.get("cost_tracking")
     if not isinstance(tracking, dict):
         return None
     path = _expand(tracking["summary_path"])
     query = _expand(tracking.get("query", {}))
-    response = await client.get(path, params=query, headers=headers)
+    response = await client.get(
+        path,
+        params=query,
+        headers=headers,
+        timeout=timeout_seconds,
+    )
     response.raise_for_status()
     payload = response.json()
     rows = payload.get("rows") or []
@@ -117,7 +128,10 @@ async def _usage_snapshot(
     }
 
 
-def _cost_delta(before: dict[str, int] | None, after: dict[str, int] | None) -> dict[str, Any] | None:
+def _cost_delta(
+    before: dict[str, int] | None,
+    after: dict[str, int] | None,
+) -> dict[str, Any] | None:
     if before is None or after is None:
         return None
     total_cost = after["total_cost_nano_usd"] - before["total_cost_nano_usd"]
@@ -155,7 +169,6 @@ async def _run_scenario(
     headers = _headers(scenario)
     expected_statuses = {int(code) for code in scenario.get("expected_statuses", [200])}
     semaphore = asyncio.Semaphore(concurrency)
-    client.timeout = httpx.Timeout(timeout_seconds)
 
     for _ in range(warmup_requests):
         await _single_request(
@@ -167,9 +180,10 @@ async def _run_scenario(
             query=query,
             body=body,
             expected_statuses=expected_statuses,
+            timeout_seconds=timeout_seconds,
         )
 
-    cost_before = await _usage_snapshot(client, scenario, headers)
+    cost_before = await _usage_snapshot(client, scenario, headers, timeout_seconds)
     started = time.perf_counter()
     outcomes = await asyncio.gather(
         *[
@@ -182,12 +196,13 @@ async def _run_scenario(
                 query=query,
                 body=body,
                 expected_statuses=expected_statuses,
+                timeout_seconds=timeout_seconds,
             )
             for _ in range(requests)
         ]
     )
     elapsed_seconds = time.perf_counter() - started
-    cost_after = await _usage_snapshot(client, scenario, headers)
+    cost_after = await _usage_snapshot(client, scenario, headers, timeout_seconds)
 
     latencies = [item[0] for item in outcomes]
     succeeded = sum(1 for item in outcomes if item[1])
@@ -219,11 +234,16 @@ async def _run_scenario(
             else None
         ),
     )
+    tracking = scenario.get("cost_tracking")
+    require_exact_cost = bool(
+        isinstance(tracking, dict) and tracking.get("require_exact_cost", False)
+    )
     evaluation = evaluate_budget(
         summary,
         budget,
         cost_nano_usd_per_success=cost_per_success,
         exact_cost_complete=(cost["exact_cost_complete"] if cost is not None else None),
+        require_exact_cost=require_exact_cost,
     )
 
     status_counts: dict[str, int] = {}
@@ -287,7 +307,11 @@ async def _run(args: argparse.Namespace) -> int:
     passed = all(item["evaluation"]["passed"] for item in reports)
     payload = {
         "schema_version": 1,
-        "commit_sha": os.getenv("GITHUB_SHA") or os.getenv("BRAIN_PERF_COMMIT_SHA") or "unknown",
+        "commit_sha": (
+            os.getenv("GITHUB_SHA")
+            or os.getenv("BRAIN_PERF_COMMIT_SHA")
+            or "unknown"
+        ),
         "base_url": args.base_url,
         "scenarios": reports,
         "skipped_scenarios": skipped,
@@ -295,7 +319,10 @@ async def _run(args: argparse.Namespace) -> int:
     }
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
     for report in reports:
         summary = report["summary"]
