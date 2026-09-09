@@ -7,6 +7,7 @@ from app.performance_budget import (
     PerformanceBudget,
     evaluate_budget,
     percentile_nearest_rank,
+    response_contract_satisfied,
     summarize_performance,
 )
 
@@ -83,6 +84,27 @@ def test_configured_ai_cost_ceiling_is_enforced_when_exact() -> None:
     assert any("cost_nano_usd_per_success" in reason for reason in evaluation.reasons)
 
 
+def test_response_contract_requires_real_model_backed_answer() -> None:
+    expected = {"status": "answer"}
+    required = ["ai_request_id"]
+
+    assert response_contract_satisfied(
+        {"status": "answer", "ai_request_id": "request-1"},
+        expected_fields=expected,
+        required_non_null_fields=required,
+    )
+    assert not response_contract_satisfied(
+        {"status": "insufficient_evidence", "ai_request_id": None},
+        expected_fields=expected,
+        required_non_null_fields=required,
+    )
+    assert not response_contract_satisfied(
+        {"status": "answer", "ai_request_id": None},
+        expected_fields=expected,
+        required_non_null_fields=required,
+    )
+
+
 def test_checked_in_latency_budgets_match_product_slos() -> None:
     config = json.loads(
         (REPO_ROOT / "ops/performance/budgets.json").read_text(encoding="utf-8")
@@ -93,3 +115,10 @@ def test_checked_in_latency_budgets_match_product_slos() -> None:
     assert scenarios["governed_ai_invoke"]["p95_budget_ms"] == 10_000
     assert scenarios["governed_ai_invoke"]["cost_tracking"]["require_exact_cost"] is True
     assert "maximum_cost_nano_usd_per_success" not in scenarios["governed_ai_invoke"]
+
+    ask_brain = scenarios["ask_brain_end_to_end"]
+    assert ask_brain["p95_budget_ms"] == 10_000
+    assert ask_brain["expected_json_fields"] == {"status": "answer"}
+    assert ask_brain["required_non_null_json_fields"] == ["ai_request_id"]
+    assert ask_brain["cost_tracking"]["require_exact_cost"] is True
+    assert "maximum_cost_nano_usd_per_success" not in ask_brain

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "defaults": {
     "requests": 100,
     "concurrency": 10,
@@ -48,6 +48,38 @@
         "model_configuration_id": "${BRAIN_PERF_MODEL_ID}",
         "input_text": "${BRAIN_PERF_AI_PROMPT}",
         "max_output_tokens": 64
+      },
+      "cost_tracking": {
+        "summary_path": "/api/v1/organizations/${BRAIN_PERF_ORGANIZATION_ID}/ai/usage/summary",
+        "query": {
+          "dimension": "organization"
+        },
+        "require_exact_cost": true
+      }
+    },
+    {
+      "name": "ask_brain_end_to_end",
+      "method": "POST",
+      "path": "/api/v1/organizations/${BRAIN_PERF_ORGANIZATION_ID}/ask-brain",
+      "auth_env": "BRAIN_PERF_BEARER_TOKEN",
+      "enabled_env": "BRAIN_PERF_ENABLE_ASK_BRAIN",
+      "requests": 10,
+      "concurrency": 1,
+      "warmup_requests": 1,
+      "timeout_seconds": 30,
+      "expected_statuses": [200],
+      "expected_json_fields": {
+        "status": "answer"
+      },
+      "required_non_null_json_fields": ["ai_request_id"],
+      "p95_budget_ms": 10000,
+      "body": {
+        "provider_configuration_id": "${BRAIN_PERF_PROVIDER_ID}",
+        "model_configuration_id": "${BRAIN_PERF_MODEL_ID}",
+        "question": "${BRAIN_PERF_ASK_BRAIN_QUESTION}",
+        "search_mode": "hybrid",
+        "search_limit": 8,
+        "max_output_tokens": 256
       },
       "cost_tracking": {
         "summary_path": "/api/v1/organizations/${BRAIN_PERF_ORGANIZATION_ID}/ai/usage/summary",

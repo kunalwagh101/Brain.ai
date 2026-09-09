@@ -71,6 +71,23 @@ def summarize_performance(
     )
 
 
+def response_contract_satisfied(
+    payload: object,
+    *,
+    expected_fields: dict[str, object] | None = None,
+    required_non_null_fields: Iterable[str] = (),
+) -> bool:
+    expected = expected_fields or {}
+    required = tuple(required_non_null_fields)
+    if not expected and not required:
+        return True
+    if not isinstance(payload, dict):
+        return False
+    if any(payload.get(key) != value for key, value in expected.items()):
+        return False
+    return all(key in payload and payload[key] is not None for key in required)
+
+
 def evaluate_budget(
     summary: PerformanceSummary,
     budget: PerformanceBudget,

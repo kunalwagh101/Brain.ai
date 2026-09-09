@@ -1,6 +1,6 @@
 # Brain performance and cost budgets
 
-Story: `S-09.04.01` / `F-09.04`.
+Story: `S-09.04.01` / `F-09.04`, with an end-to-end Ask Brain scenario used by `S-05.02.01` acceptance.
 
 ## Purpose
 
@@ -13,6 +13,7 @@ The initial latency budgets come from the existing production SLOs:
 | Core structured API | <500 ms |
 | Permission-aware search | <1.5 s |
 | Governed AI/provider call | <10 s |
+| Ask Brain end-to-end RAG answer | <10 s |
 
 These budgets are checked in at `ops/performance/budgets.json`.
 
@@ -29,6 +30,7 @@ No throughput floor or maximum AI cost-per-task is invented yet. Both fields are
 - success-rate and p95 regression failure;
 - exact-cost fail-closed behavior;
 - optional AI cost ceiling enforcement;
+- response-contract enforcement so a 200 response cannot count as a successful Ask Brain model-backed answer unless the required JSON contract is present;
 - checked-in latency budgets remain aligned with the product SLOs.
 
 These tests verify the **budget machinery**, not production performance.
@@ -50,6 +52,7 @@ Each scenario report includes:
 - p50, p95, p99 and maximum latency;
 - total throughput in requests/second;
 - configured budget;
+- response-contract requirements, without response content;
 - pass/fail reasons;
 - AI known/unknown cost delta and cost per successful task when cost tracking is enabled.
 
@@ -63,11 +66,14 @@ Current default load:
 
 - core organisation read: 100 measured requests, concurrency 10;
 - permission-aware keyword search: 100 measured requests, concurrency 10;
-- governed AI: 10 measured requests, concurrency 1, disabled unless explicitly enabled.
+- governed AI: 10 measured requests, concurrency 1, disabled unless explicitly enabled;
+- Ask Brain end-to-end RAG: 10 measured requests, concurrency 1, disabled unless explicitly enabled.
 
 Warmup traffic is excluded from measured latency and AI cost snapshots.
 
-The AI scenario uses low concurrency deliberately. External provider rate limits and per-call spend make a large uncontrolled AI load inappropriate as a default benchmark.
+AI-backed scenarios use low concurrency deliberately. External provider rate limits and per-call spend make a large uncontrolled AI load inappropriate as a default benchmark.
+
+The Ask Brain scenario uses hybrid retrieval and a fixed 256-token response ceiling for comparable latency/cost measurements. It counts a measured request as successful only when HTTP is successful, response `status` is `answer`, and `ai_request_id` is non-null. Therefore a fast `insufficient_evidence` path cannot falsely satisfy the RAG performance gate. The isolated benchmark organisation must contain known authorised evidence for the configured non-sensitive question.
 
 ## Required environment
 
@@ -86,6 +92,15 @@ BRAIN_PERF_ENABLE_AI=true
 BRAIN_PERF_PROVIDER_ID=<configured provider UUID>
 BRAIN_PERF_MODEL_ID=<configured model UUID>
 BRAIN_PERF_AI_PROMPT="Return exactly this word: acknowledged"
+```
+
+Optional end-to-end Ask Brain benchmark:
+
+```text
+BRAIN_PERF_ENABLE_ASK_BRAIN=true
+BRAIN_PERF_PROVIDER_ID=<configured provider UUID>
+BRAIN_PERF_MODEL_ID=<configured model UUID>
+BRAIN_PERF_ASK_BRAIN_QUESTION=<non-sensitive question with known authorised evidence>
 ```
 
 Use a dedicated test organisation with representative but non-sensitive data. Do not benchmark against a customer's live production tenant merely for convenience.
@@ -107,7 +122,7 @@ Exit codes:
 - `2`: at least one measured budget failed;
 - `64`: invalid/missing benchmark configuration.
 
-Transport/HTTP-control errors also fail the run; do not convert them into latency success.
+Transport/HTTP-control errors and configured response-contract failures fail the run; do not convert them into latency success.
 
 ## Performance Gate workflow
 
@@ -120,24 +135,24 @@ Why it is not a normal PR workflow:
 - a real AI scenario has external monetary cost;
 - performance evidence must identify the actual deployed candidate being measured.
 
-The workflow uses repository secrets for the benchmark bearer token and optional AI provider/model IDs. It uploads only `.performance/report.json`.
+The workflow uses repository secrets for the benchmark bearer token and optional AI provider/model IDs. The Ask Brain question is an explicit non-sensitive workflow input and must have known authorised evidence in the isolated benchmark organisation. The workflow uploads only `.performance/report.json`.
 
 This workflow being present does not prove a benchmark has run. A real run URL/report is required evidence.
 
 ## AI cost per evaluated task
 
-The AI scenario snapshots the existing F-06.02 organisation usage summary immediately before and after the measured requests.
+Each AI-backed scenario snapshots the existing F-06.02 organisation usage summary immediately before and after its measured requests.
 
 For an isolated benchmark organisation:
 
 ```text
 cost per successful evaluated task
-  = delta exact known nano-USD cost / successful measured AI requests
+  = delta exact known nano-USD cost / successful measured requests
 ```
 
 The delta includes known cost incurred by failed measured calls if the provider reports/accounting resolves that cost, so retries/failures cannot make the benchmark appear artificially cheaper.
 
-`require_exact_cost=true` means any new unknown-cost request makes the AI scenario fail. Unknown pricing or token accounting is never interpreted as zero.
+`require_exact_cost=true` means any new unknown-cost request makes the scenario fail. Unknown pricing or token accounting is never interpreted as zero.
 
 The benchmark report marks that the cost delta assumes an isolated test organisation. Concurrent unrelated AI usage in the same organisation invalidates attribution and the run must be repeated in isolation.
 
@@ -147,6 +162,7 @@ A measured scenario fails when any configured enforced condition is breached, in
 
 - success rate below the minimum;
 - p95 latency above the checked-in budget;
+- configured response contract not met;
 - configured throughput floor not met;
 - exact AI cost required but incomplete;
 - configured maximum cost per successful task exceeded.
@@ -177,5 +193,6 @@ Do not compare two reports produced against different instance sizes, data sizes
 - The current default throughput floor is unset because no representative baseline exists yet.
 - The current maximum AI cost-per-task budget is unset because no product-economic target has been agreed yet.
 - Search performance depends strongly on indexed data volume and PostgreSQL query plan; small fixtures cannot prove customer-scale latency.
-- Governed AI p95 includes the external provider, so provider/model changes must be recorded when comparing runs.
+- Governed AI and Ask Brain p95 include the external provider, so provider/model changes must be recorded when comparing runs.
+- The Ask Brain scenario proves latency/cost only for the configured benchmark question/data/profile; it does not replace the separate two-phase citation-quality evaluation.
 - F-09.03 staging/runtime selection is still unresolved, so deployed performance UAT remains blocked until a suitable candidate environment exists.

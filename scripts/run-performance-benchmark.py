@@ -14,7 +14,12 @@ from typing import Any
 
 import httpx
 
-from app.performance_budget import PerformanceBudget, evaluate_budget, summarize_performance
+from app.performance_budget import (
+    PerformanceBudget,
+    evaluate_budget,
+    response_contract_satisfied,
+    summarize_performance,
+)
 
 _ENV_PATTERN = re.compile(r"\$\{([A-Z0-9_]+)\}")
 
@@ -63,6 +68,25 @@ def _headers(scenario: dict[str, Any]) -> dict[str, str]:
     return headers
 
 
+def _response_satisfied(
+    response: httpx.Response,
+    *,
+    expected_fields: dict[str, object] | None,
+    required_non_null_fields: list[str],
+) -> bool:
+    if not expected_fields and not required_non_null_fields:
+        return True
+    try:
+        payload = response.json()
+    except json.JSONDecodeError:
+        return False
+    return response_contract_satisfied(
+        payload,
+        expected_fields=expected_fields,
+        required_non_null_fields=required_non_null_fields,
+    )
+
+
 async def _single_request(
     client: httpx.AsyncClient,
     semaphore: asyncio.Semaphore,
@@ -73,6 +97,8 @@ async def _single_request(
     query: dict[str, Any] | None,
     body: dict[str, Any] | None,
     expected_statuses: set[int],
+    expected_json_fields: dict[str, object] | None,
+    required_non_null_json_fields: list[str],
     timeout_seconds: float,
 ) -> tuple[float, bool, int | None, str | None]:
     async with semaphore:
@@ -87,11 +113,17 @@ async def _single_request(
                 timeout=timeout_seconds,
             )
             elapsed_ms = (time.perf_counter() - started) * 1000
+            status_ok = response.status_code in expected_statuses
+            contract_ok = status_ok and _response_satisfied(
+                response,
+                expected_fields=expected_json_fields,
+                required_non_null_fields=required_non_null_json_fields,
+            )
             return (
                 elapsed_ms,
-                response.status_code in expected_statuses,
+                contract_ok,
                 response.status_code,
-                None,
+                "response_contract" if status_ok and not contract_ok else None,
             )
         except httpx.TimeoutException:
             elapsed_ms = (time.perf_counter() - started) * 1000
@@ -168,6 +200,20 @@ async def _run_scenario(
     body = _expand(scenario.get("body"))
     headers = _headers(scenario)
     expected_statuses = {int(code) for code in scenario.get("expected_statuses", [200])}
+    expected_json_fields = _expand(scenario.get("expected_json_fields"))
+    if expected_json_fields is not None and not isinstance(expected_json_fields, dict):
+        raise BenchmarkConfigurationError(
+            f"expected_json_fields must be an object for scenario: {name}"
+        )
+    required_non_null_json_fields = _expand(
+        scenario.get("required_non_null_json_fields", [])
+    )
+    if not isinstance(required_non_null_json_fields, list) or not all(
+        isinstance(item, str) for item in required_non_null_json_fields
+    ):
+        raise BenchmarkConfigurationError(
+            f"required_non_null_json_fields must be string list for scenario: {name}"
+        )
     semaphore = asyncio.Semaphore(concurrency)
 
     for _ in range(warmup_requests):
@@ -180,6 +226,8 @@ async def _run_scenario(
             query=query,
             body=body,
             expected_statuses=expected_statuses,
+            expected_json_fields=expected_json_fields,
+            required_non_null_json_fields=required_non_null_json_fields,
             timeout_seconds=timeout_seconds,
         )
 
@@ -196,6 +244,8 @@ async def _run_scenario(
                 query=query,
                 body=body,
                 expected_statuses=expected_statuses,
+                expected_json_fields=expected_json_fields,
+                required_non_null_json_fields=required_non_null_json_fields,
                 timeout_seconds=timeout_seconds,
             )
             for _ in range(requests)
@@ -270,6 +320,10 @@ async def _run_scenario(
         "evaluation": asdict(evaluation),
         "status_counts": status_counts,
         "error_counts": error_counts,
+        "response_contract": {
+            "expected_json_fields": expected_json_fields,
+            "required_non_null_json_fields": required_non_null_json_fields,
+        },
         "cost": (
             {
                 **cost,

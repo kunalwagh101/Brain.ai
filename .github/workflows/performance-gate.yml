@@ -21,6 +21,16 @@ on:
         required: true
         default: false
         type: boolean
+      enable_ask_brain:
+        description: Run end-to-end Ask Brain RAG latency/cost scenario
+        required: true
+        default: false
+        type: boolean
+      ask_brain_question:
+        description: Non-sensitive question with known answer evidence in benchmark org
+        required: true
+        default: What changed in the benchmark project?
+        type: string
 
 permissions:
   contents: read
@@ -38,6 +48,8 @@ jobs:
       BRAIN_PERF_ORGANIZATION_ID: ${{ inputs.organization_id }}
       BRAIN_PERF_SEARCH_QUERY: ${{ inputs.search_query }}
       BRAIN_PERF_ENABLE_AI: ${{ inputs.enable_ai }}
+      BRAIN_PERF_ENABLE_ASK_BRAIN: ${{ inputs.enable_ask_brain }}
+      BRAIN_PERF_ASK_BRAIN_QUESTION: ${{ inputs.ask_brain_question }}
       BRAIN_PERF_PROVIDER_ID: ${{ secrets.BRAIN_PERF_PROVIDER_ID }}
       BRAIN_PERF_MODEL_ID: ${{ secrets.BRAIN_PERF_MODEL_ID }}
       BRAIN_PERF_AI_PROMPT: "Return exactly this word: acknowledged"
@@ -64,13 +76,19 @@ jobs:
             echo "BRAIN_PERF_BEARER_TOKEN secret is required." >&2
             exit 64
           }
-          if [[ "${BRAIN_PERF_ENABLE_AI}" == "true" ]]; then
+          if [[ "${BRAIN_PERF_ENABLE_AI}" == "true" || "${BRAIN_PERF_ENABLE_ASK_BRAIN}" == "true" ]]; then
             test -n "${BRAIN_PERF_PROVIDER_ID}" || {
-              echo "BRAIN_PERF_PROVIDER_ID secret is required for AI benchmark." >&2
+              echo "BRAIN_PERF_PROVIDER_ID secret is required for AI benchmarks." >&2
               exit 64
             }
             test -n "${BRAIN_PERF_MODEL_ID}" || {
-              echo "BRAIN_PERF_MODEL_ID secret is required for AI benchmark." >&2
+              echo "BRAIN_PERF_MODEL_ID secret is required for AI benchmarks." >&2
+              exit 64
+            }
+          fi
+          if [[ "${BRAIN_PERF_ENABLE_ASK_BRAIN}" == "true" ]]; then
+            test -n "${BRAIN_PERF_ASK_BRAIN_QUESTION}" || {
+              echo "A non-sensitive Ask Brain benchmark question is required." >&2
               exit 64
             }
           fi
