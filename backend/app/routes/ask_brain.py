@@ -146,8 +146,13 @@ def ask_brain(
             detail={"code": exc.code, "request_id": str(exc.request_id)},
         ) from exc
     except AskBrainError as exc:
+        client_error = exc.code in {"question_required", "question_too_long"}
         raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
+            status_code=(
+                status.HTTP_400_BAD_REQUEST
+                if client_error
+                else status.HTTP_502_BAD_GATEWAY
+            ),
             detail={
                 "code": exc.code,
                 "request_id": str(exc.request_id) if exc.request_id else None,
