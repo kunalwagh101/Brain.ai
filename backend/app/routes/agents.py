@@ -132,6 +132,7 @@ def _raise_runtime_error(exc: AgentRuntimeError) -> None:
         or "currently planning" in message
         or "already in progress" in message
         or "expired" in message
+        or "disabled" in message
     ):
         code = status.HTTP_409_CONFLICT
     else:
@@ -181,6 +182,17 @@ def _run_for_requester(
     if run is None:
         raise AgentRuntimeError("Agent run not found")
     return run
+
+
+def _ensure_run_definition_enabled(db: Session, run: AgentRun) -> None:
+    enabled = db.scalar(
+        select(AgentDefinition.enabled).where(
+            AgentDefinition.id == run.agent_definition_id,
+            AgentDefinition.organization_id == run.organization_id,
+        )
+    )
+    if enabled is not True:
+        raise AgentRuntimeError("Agent definition is disabled")
 
 
 def _run_read(db: Session, run: AgentRun) -> AgentRunRead:
@@ -354,6 +366,13 @@ def advance_run(
 ) -> AgentAdvanceResponse:
     try:
         with agent_run_lock(db, run_id):
+            run = _run_for_requester(
+                db,
+                organization_id=organization_id,
+                run_id=run_id,
+                user_id=authorization.user_id,
+            )
+            _ensure_run_definition_enabled(db, run)
             result = advance_agent_run(
                 db,
                 secret_store=secret_store,
@@ -381,6 +400,14 @@ def decide_step(
 ) -> AgentRunRead:
     try:
         with agent_run_lock(db, run_id):
+            run = _run_for_requester(
+                db,
+                organization_id=organization_id,
+                run_id=run_id,
+                user_id=authorization.user_id,
+            )
+            if payload.approve:
+                _ensure_run_definition_enabled(db, run)
             decide_agent_step(
                 db,
                 organization_id=organization_id,
