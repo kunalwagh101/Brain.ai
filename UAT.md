@@ -29,6 +29,7 @@ Until both are recorded, external status is `UAT_PENDING` even if CI is green.
 | F-09.01 Observability & SLOs | IN_REVIEW | PENDING | PENDING | UAT_PENDING |
 | F-09.02 Audit, Retention & Deletion | IN_REVIEW | PENDING | PENDING | UAT_PENDING |
 | F-09.03 Deployment, Rollback, Backup & Restore | BLOCKED | PENDING | PENDING | UAT_PENDING |
+| F-09.04 Performance & Cost Budgets | BLOCKED | PENDING | PENDING | UAT_PENDING |
 
 Detailed scripts live under `UAT/`.
 
