@@ -19,10 +19,10 @@ DONE | S-03.03.01 | F-03.03 | Engineering evidence in TRACEABILITY.md; real prov
 DONE | S-04.01.01 | F-04.01 | Engineering evidence in TRACEABILITY.md; real Slack/GitHub graph + frontend/manual UAT remains pending
 BLOCKED | S-04.02.01 | F-04.02 | Implementation is staged; formal review remains blocked until S-05.01.01 has executable passing verification
 IN_REVIEW | S-05.01.01 | F-05.01 | Implementation/docs/tests exist; GitHub Actions still cannot start a runner, so no passing verification evidence exists
-BLOCKED | S-05.02.01 | F-05.02 | Ask Brain code/tests/docs/UAT staged at d1b3321c588ee137173a3ac9aec88451c5228ad1; blocked by unverified S-05.01.01, OQ-005 real provider/model policy, real citation eval, and CI runner_id=0
+BLOCKED | S-05.02.01 | F-05.02 | Ask Brain production slice is staged through f4ff8217ac02b6392cede6e709ccdbcab124b33f; blocked by unverified S-05.01.01, OQ-005 provider/model policy, CI runner failure, real two-phase citation eval, latency/cost and authenticated frontend UAT
 IN_REVIEW | S-06.01.01 | F-06.01 | Provider registry/gateway implementation, migration, tests, docs and UAT exist; no executable passing verification exists because GitHub Actions cannot start a runner
 BLOCKED | S-06.02.01 | F-06.02 | Usage/cost/budget implementation is staged; S-06.01.01 is still unverified and F-06.02 has no executable passing verification
-IN_REVIEW | S-06.03.01 | F-06.03 | External API registry/lifecycle/expiry implementation is staged; latest Backend CI had runner_id=0 and steps=[]
+IN_REVIEW | S-06.03.01 | F-06.03 | External API registry/lifecycle/expiry implementation is staged; latest Backend CI had no executable steps
 BACKLOG | S-07.01.01 | F-07.01 | Depends on work graph + decision/blocker memory
 BACKLOG | S-07.02.01 | F-07.02 | Depends on project status + usage/cost
 BLOCKED | S-08.01.01 | F-08.01 | Governed agent runtime is staged; dependencies and this story still lack executable passing verification
@@ -40,8 +40,16 @@ Vertical slice: Ask Brain API -> permission-aware retrieval -> bounded evidence 
 
 Branch rule: continue on `increment-10-ai-provider-gateway`; no additional branch is created.
 
-Formal Ready/Done state: implementation is staged because the user explicitly requested work to begin, but the story stays `BLOCKED`. `S-05.01.01` is not engineering-DONE, `OQ-005` still owns the production model/provider decision, the >=98% real citation-correctness gate has not run, and Backend CI run 34353448936 failed before any step with `runner_id=0` and `steps=[]`.
+Staged production controls now include: explicit tenant provider/model selection; no-evidence/no-provider-call behavior; live permission and revocation reuse from F-05.01; prompt-injection boundary; strict server-issued citation validation; bounded 800-character citation excerpts; an 8,192-token Ask-Brain-specific generation ceiling; whitespace/client validation before provider access; and a two-phase deployed evaluation that separates automatic retrieval/security checks from human-reviewed semantic claim-citation correctness. `.local/` and `.evaluation/` are gitignored to reduce accidental customer-evidence commits.
+
+Formal Ready/Done state: the story stays `BLOCKED`. `S-05.01.01` is not engineering-DONE, `OQ-005` still owns the production model/provider decision, and the required real-provider evaluation/manual UAT have not run. Backend CI run 34405201146 for implementation commit f4ff8217ac02b6392cede6e709ccdbcab124b33f completed as failure before any workflow step; its test job exposes no executed steps, so no Ruff/Pytest pass is claimed.
+
+Production evaluation remains two-phase: retrieval recall must be >=90% with zero forbidden evidence/grounding-contract failures, then every exact generated claim-citation pair must be human reviewed and semantic citation correctness must be >=98%. Only the final scorer's `production_passed=true` satisfies that citation gate.
+
+The current frontend is still an honestly labelled preview and does not yet have the production WorkOS browser-session-to-FastAPI access-token path. Do not fake frontend UAT with a hardcoded browser token.
 
 Detailed readiness, tasks, AI/data assessment and Done gates: `docs/planning/increment-18.md`.
+
+Backend/evaluation/security design: `docs/ASK_BRAIN.md` and `docs/ASK_BRAIN_EVALUATION.md`.
 
 Manual/real-provider acceptance procedure: `UAT/F-05.02.md`.
