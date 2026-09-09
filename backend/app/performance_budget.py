@@ -99,10 +99,13 @@ def evaluate_budget(
             f"{summary.throughput_rps:.2f} < {budget.minimum_throughput_rps:.2f}"
         )
 
-    if require_exact_cost and (exact_cost_complete is not True or cost_nano_usd_per_success is None):
+    exact_cost_missing = (
+        exact_cost_complete is not True or cost_nano_usd_per_success is None
+    )
+    if require_exact_cost and exact_cost_missing:
         reasons.append("exact AI cost is incomplete for this scenario")
     if budget.maximum_cost_nano_usd_per_success is not None:
-        if exact_cost_complete is not True or cost_nano_usd_per_success is None:
+        if exact_cost_missing:
             reasons.append("exact AI cost is incomplete; configured cost budget cannot be evaluated")
         elif cost_nano_usd_per_success > budget.maximum_cost_nano_usd_per_success:
             reasons.append(
