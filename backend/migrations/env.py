@@ -4,6 +4,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app import (
+    agent_models,
     ai_gateway_models,
     ai_usage_models,
     api_registry_models,
@@ -18,6 +19,7 @@ from app.models import Base
 # These modules declare tables against the shared Base outside app.models. Keeping explicit
 # references here makes Alembic autogenerate/check compare the complete application schema.
 _MODEL_MODULES = (
+    agent_models,
     ai_gateway_models,
     ai_usage_models,
     api_registry_models,
