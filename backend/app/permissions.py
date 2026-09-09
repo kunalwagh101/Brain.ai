@@ -25,6 +25,8 @@ class Permission(StrEnum):
     IDENTITY_MANAGE = "identity.manage"
     AI_USE = "ai.use"
     AI_MANAGE = "ai.manage"
+    AGENT_USE = "agent.use"
+    AGENT_MANAGE = "agent.manage"
     API_MANAGE = "api.manage"
     DATA_GOVERNANCE_MANAGE = "data_governance.manage"
     AUDIT_READ = "audit.read"
@@ -41,6 +43,7 @@ ROLE_PERMISSIONS: dict[MembershipRole, frozenset[Permission]] = {
             Permission.MEMBERSHIP_READ,
             Permission.RESOURCE_READ,
             Permission.AI_USE,
+            Permission.AGENT_USE,
             Permission.AUDIT_READ,
         }
     ),
@@ -51,6 +54,7 @@ ROLE_PERMISSIONS: dict[MembershipRole, frozenset[Permission]] = {
             Permission.RESOURCE_READ,
             Permission.RESOURCE_WRITE,
             Permission.AI_USE,
+            Permission.AGENT_USE,
         }
     ),
     MembershipRole.MEMBER: frozenset(
@@ -60,6 +64,7 @@ ROLE_PERMISSIONS: dict[MembershipRole, frozenset[Permission]] = {
             Permission.RESOURCE_READ,
             Permission.RESOURCE_WRITE,
             Permission.AI_USE,
+            Permission.AGENT_USE,
         }
     ),
     MembershipRole.GUEST: frozenset(
