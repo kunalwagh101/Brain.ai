@@ -10,7 +10,7 @@ from app.agent_models import AgentToolPolicyMode
 from app.models import MembershipRole
 from app.permissions import Permission, role_has_permission
 from app.search import SearchMode, search_documents
-from app.work_graph import create_manual_node
+from app.work_graph import _get_or_create_node
 from app.work_graph_models import WorkGraphNodeType
 
 
@@ -159,14 +159,17 @@ def execute_tool(
         )
 
     if tool_name == "work_graph.create_work_item":
-        node = create_manual_node(
+        normalized_key = str(normalized["key"]).strip().lower()
+        node = _get_or_create_node(
             db,
             organization_id=organization_id,
             node_type=WorkGraphNodeType.WORK_ITEM,
-            key=str(normalized["key"]),
+            stable_key=f"manual:{WorkGraphNodeType.WORK_ITEM.value}:{normalized_key}",
             display_name=str(normalized["display_name"]),
-            actor_user_id=user_id,
-            commit=False,
+            attributes={
+                "source": "agent",
+                "created_by_user_id": str(user_id),
+            },
         )
         output_data = {
             "node_id": str(node.id),
