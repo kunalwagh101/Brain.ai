@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Increment 18 — Evidence-backed Ask Brain
+
+- Added a production Ask Brain API that reuses the existing permission-aware retrieval boundary before any company evidence reaches an AI provider.
+- Added bounded RAG context with server-issued evidence IDs and explicit no-evidence behaviour that returns `insufficient_evidence` without loading provider credentials or invoking a model.
+- Reused the governed tenant-scoped AI gateway rather than creating a second provider path; callers must supply explicit configured provider/model IDs while OQ-005 remains unresolved.
+- Added prompt-injection resistance by treating retrieved evidence as untrusted data and forbidding evidence-contained instructions from becoming model instructions.
+- Added fail-closed structured grounding validation: every accepted factual claim must cite one or more server-issued evidence IDs; malformed, empty or unknown citations are rejected and raw provider output is not returned.
+- Added cross-tenant, revocation, no-answer, citation-grounding and guest-authorization tests plus architecture/security documentation, Increment 18 planning and real-provider UAT.
+- Added no new database state or migration; answers remain transient while the existing governed AI request ledger continues to capture provider/model/user/tenant/cost metadata.
+- Updated the machine-readable board, Definition of Ready and traceability state without creating another delivery branch.
+
+Verification is not yet claimed. `S-05.02.01` remains `BLOCKED`: S-05.01.01 is still unverified, OQ-005 still owns the production provider/model/data-policy decision, the representative real-provider citation-correctness gate (>=98%) has not run, and Backend CI run 34353448936 failed before any step with `runner_id=0` and `steps=[]`. Retrieval recall >=90%, real citation correctness, latency/cost and manual customer-data UAT must be observed before DONE.
+
 ### Increment 16 — Performance and cost budgets
 
 - Added deterministic nearest-rank percentile and budget evaluation for p50/p95/p99, success rate, throughput and optional cost ceilings.
