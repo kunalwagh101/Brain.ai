@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Increment 16 — Performance and cost budgets
+
+- Added deterministic nearest-rank percentile and budget evaluation for p50/p95/p99, success rate, throughput and optional cost ceilings.
+- Added a versioned benchmark workload for core organisation read, permission-aware search and governed AI under `ops/performance/budgets.json`.
+- Reused the existing production SLO budgets rather than inventing new latency thresholds: core p95 <500 ms, search p95 <1.5 s and governed AI p95 <10 s.
+- Added an async real-HTTP benchmark runner that records request count, concurrency, warmup, status/error counts, p50/p95/p99/max latency, throughput and explicit budget verdicts without storing request/response bodies or credentials.
+- Added F-06.02 usage-ledger cost snapshots so the AI scenario reports exact nano-USD cost per successful evaluated task in an isolated benchmark organisation.
+- Added fail-closed exact-cost behavior: when exact cost is required, any new unknown-cost AI request fails the scenario instead of being treated as zero spend.
+- Added configurable throughput and maximum AI cost-per-success gates, while intentionally leaving their numeric thresholds unset until representative baselines/product economics establish agreed targets.
+- Added a manually dispatched HTTPS staging Performance Gate with secret-backed benchmark authentication and optional low-concurrency governed-AI load.
+- Added performance-budget regression tests, methodology/limitations documentation, Increment 16 planning and production-like backend/frontend UAT instructions.
+
+Verification/performance is not yet claimed. `S-09.04.01` remains `BLOCKED`: search and governed AI remain unverified, GitHub-hosted jobs still cannot obtain a runner, F-09.03 has not produced the target staging environment, and no real Performance Gate report has executed. No p95, throughput, scale or AI-cost benchmark claim is made from repository code alone.
+
 ### Increment 15 — Deployment, rollback, backup and restore
 
 - Added one provider-neutral `Release Gate` workflow that runs Ruff, backend Pytest and the delivery verifier before later release checks can proceed.
