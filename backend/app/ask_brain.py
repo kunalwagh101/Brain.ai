@@ -6,12 +6,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from app.ai_gateway import (
-    AIGatewayError,
-    AIInvocationError,
-    AIProviderAdapter,
-    invoke_ai,
-)
+from app.ai_gateway import AIProviderAdapter, invoke_ai
 from app.embeddings import EmbeddingClient
 from app.models import MembershipRole
 from app.observability import log_event
