@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.agent_locking import AgentRunBusyError, agent_run_lock
 from app.agent_models import (
     AgentDefinition,
     AgentRun,
@@ -352,15 +353,18 @@ def advance_run(
     secret_store: Annotated[SecretStore, Depends(get_secret_store)],
 ) -> AgentAdvanceResponse:
     try:
-        result = advance_agent_run(
-            db,
-            secret_store=secret_store,
-            organization_id=organization_id,
-            run_id=run_id,
-            user_id=authorization.user_id,
-            role=authorization.role,
-            objective=payload.objective,
-        )
+        with agent_run_lock(db, run_id):
+            result = advance_agent_run(
+                db,
+                secret_store=secret_store,
+                organization_id=organization_id,
+                run_id=run_id,
+                user_id=authorization.user_id,
+                role=authorization.role,
+                objective=payload.objective,
+            )
+    except AgentRunBusyError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except AgentRuntimeError as exc:
         _raise_runtime_error(exc)
     return AgentAdvanceResponse(run=_run_read(db, result.run), final_output=result.final_output)
@@ -376,21 +380,24 @@ def decide_step(
     db: Annotated[Session, Depends(get_db)],
 ) -> AgentRunRead:
     try:
-        decide_agent_step(
-            db,
-            organization_id=organization_id,
-            run_id=run_id,
-            step_id=step_id,
-            user_id=authorization.user_id,
-            approve=payload.approve,
-            reason=payload.reason,
-        )
-        run = _run_for_requester(
-            db,
-            organization_id=organization_id,
-            run_id=run_id,
-            user_id=authorization.user_id,
-        )
+        with agent_run_lock(db, run_id):
+            decide_agent_step(
+                db,
+                organization_id=organization_id,
+                run_id=run_id,
+                step_id=step_id,
+                user_id=authorization.user_id,
+                approve=payload.approve,
+                reason=payload.reason,
+            )
+            run = _run_for_requester(
+                db,
+                organization_id=organization_id,
+                run_id=run_id,
+                user_id=authorization.user_id,
+            )
+    except AgentRunBusyError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except AgentRuntimeError as exc:
         _raise_runtime_error(exc)
     return _run_read(db, run)
@@ -404,12 +411,15 @@ def cancel_run(
     db: Annotated[Session, Depends(get_db)],
 ) -> AgentRunRead:
     try:
-        run = cancel_agent_run(
-            db,
-            organization_id=organization_id,
-            run_id=run_id,
-            user_id=authorization.user_id,
-        )
+        with agent_run_lock(db, run_id):
+            run = cancel_agent_run(
+                db,
+                organization_id=organization_id,
+                run_id=run_id,
+                user_id=authorization.user_id,
+            )
+    except AgentRunBusyError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except AgentRuntimeError as exc:
         _raise_runtime_error(exc)
     return _run_read(db, run)
