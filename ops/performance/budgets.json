@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "defaults": {
+    "requests": 100,
+    "concurrency": 10,
+    "warmup_requests": 10,
+    "timeout_seconds": 15,
+    "minimum_success_rate": 0.99
+  },
+  "scenarios": [
+    {
+      "name": "core_organization_read",
+      "method": "GET",
+      "path": "/api/v1/organizations/${BRAIN_PERF_ORGANIZATION_ID}",
+      "auth_env": "BRAIN_PERF_BEARER_TOKEN",
+      "expected_statuses": [200],
+      "p95_budget_ms": 500,
+      "required": true
+    },
+    {
+      "name": "permission_aware_search",
+      "method": "GET",
+      "path": "/api/v1/organizations/${BRAIN_PERF_ORGANIZATION_ID}/search",
+      "auth_env": "BRAIN_PERF_BEARER_TOKEN",
+      "query": {
+        "q": "${BRAIN_PERF_SEARCH_QUERY}",
+        "mode": "keyword",
+        "limit": "10"
+      },
+      "expected_statuses": [200],
+      "p95_budget_ms": 1500,
+      "required": true
+    },
+    {
+      "name": "governed_ai_invoke",
+      "method": "POST",
+      "path": "/api/v1/organizations/${BRAIN_PERF_ORGANIZATION_ID}/ai/invoke",
+      "auth_env": "BRAIN_PERF_BEARER_TOKEN",
+      "enabled_env": "BRAIN_PERF_ENABLE_AI",
+      "requests": 10,
+      "concurrency": 1,
+      "warmup_requests": 1,
+      "timeout_seconds": 30,
+      "expected_statuses": [200],
+      "p95_budget_ms": 10000,
+      "body": {
+        "provider_configuration_id": "${BRAIN_PERF_PROVIDER_ID}",
+        "model_configuration_id": "${BRAIN_PERF_MODEL_ID}",
+        "input_text": "${BRAIN_PERF_AI_PROMPT}",
+        "max_output_tokens": 64
+      },
+      "cost_tracking": {
+        "summary_path": "/api/v1/organizations/${BRAIN_PERF_ORGANIZATION_ID}/ai/usage/summary",
+        "query": {
+          "dimension": "organization"
+        },
+        "require_exact_cost": true
+      }
+    }
+  ]
+}
