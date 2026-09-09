@@ -7,7 +7,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.ai_gateway import AIGatewayError, AIInvocationError
-from app.ask_brain import AskBrainError, AskBrainResult, ask_company_question
+from app.ask_brain import (
+    MAX_ASK_BRAIN_OUTPUT_TOKENS,
+    AskBrainError,
+    AskBrainResult,
+    ask_company_question,
+)
 from app.database import get_db
 from app.embeddings import EmbeddingError, build_embedding_client
 from app.permissions import (
@@ -31,7 +36,11 @@ class AskBrainRequest(BaseModel):
     model_configuration_id: uuid.UUID
     search_mode: SearchMode = SearchMode.HYBRID
     search_limit: int = Field(default=8, ge=1, le=8)
-    max_output_tokens: int | None = Field(default=None, ge=1, le=1_000_000)
+    max_output_tokens: int = Field(
+        default=MAX_ASK_BRAIN_OUTPUT_TOKENS,
+        ge=1,
+        le=MAX_ASK_BRAIN_OUTPUT_TOKENS,
+    )
     attribution_node_id: uuid.UUID | None = None
 
 
@@ -148,7 +157,11 @@ def ask_brain(
             detail={"code": exc.code, "request_id": str(exc.request_id)},
         ) from exc
     except AskBrainError as exc:
-        client_error = exc.code in {"question_required", "question_too_long"}
+        client_error = exc.code in {
+            "question_required",
+            "question_too_long",
+            "max_output_tokens_invalid",
+        }
         raise HTTPException(
             status_code=(
                 status.HTTP_400_BAD_REQUEST

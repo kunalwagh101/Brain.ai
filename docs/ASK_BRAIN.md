@@ -19,9 +19,11 @@ The caller needs `ai.use`. The request supplies:
 
 No global/default provider is guessed.
 
+Ask Brain has its own output ceiling of 8,192 tokens. This is deliberately much smaller than the generic AI gateway ceiling because this endpoint accepts at most 12 bounded cited claims. The limit prevents a caller or provider configuration from turning one read-only question into an unexpectedly large generation/cost event. This is an endpoint safety bound, not a provider/model selection policy.
+
 ## Data flow
 
-1. Normalize and validate the question.
+1. Normalize and validate the question and Ask-Brain-specific output bound.
 2. Run the existing permission-aware search for the authenticated Brain user.
 3. Filter revoked/inactive sources inside the search query before document content is selected.
 4. Bound the context to at most 8 authorised evidence records and 48,000 evidence characters.
@@ -76,6 +78,7 @@ This guarantees citation *presence and provenance*. It does not by itself prove 
 - Budget hard-stops, provider revocation and Work Graph attribution checks are inherited from the AI gateway.
 - Prompt and completion bodies are not persisted in `AIRequestRecord`; only governed request metadata is retained.
 - Retrieved evidence is bounded to reduce prompt-amplification and cost risk.
+- Generated output is capped at 8,192 tokens even if the generic model configuration allows more.
 - Citation excerpts are bounded and derived only from already-authorised retrieved evidence.
 - Provider output is parsed as data and fails closed on invalid grounding.
 
@@ -84,6 +87,7 @@ This guarantees citation *presence and provenance*. It does not by itself prove 
 | Failure | Behaviour |
 |---|---|
 | Empty/whitespace question | 400 before provider access |
+| Excessive output-token request | request validation rejects it; service also fails closed for internal callers |
 | No authorised matching evidence | 200 + `insufficient_evidence`; no provider call |
 | Embedding provider unavailable | search degrades to keyword; `semantic_status` reports degradation |
 | AI provider/model disabled or invalid | existing gateway error; no bypass |
@@ -105,6 +109,7 @@ Engineering tests cover:
 - no-evidence no-call behaviour
 - authorised evidence and citation resolution
 - bounded citation excerpts
+- bounded output generation
 - unknown/missing citation rejection
 - cross-tenant evidence exclusion
 - revoked-source exclusion
