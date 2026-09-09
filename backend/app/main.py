@@ -9,6 +9,7 @@ from app.observability import (
     metrics_response,
     observe_http_request,
 )
+from app.routes.agents import router as agents_router
 from app.routes.ai_gateway import router as ai_gateway_router
 from app.routes.ai_usage import router as ai_usage_router
 from app.routes.api_registry import router as api_registry_router
@@ -80,3 +81,4 @@ app.include_router(ai_gateway_router, prefix=settings.api_prefix)
 app.include_router(ai_usage_router, prefix=settings.api_prefix)
 app.include_router(api_registry_router, prefix=settings.api_prefix)
 app.include_router(data_governance_router, prefix=settings.api_prefix)
+app.include_router(agents_router, prefix=settings.api_prefix)
