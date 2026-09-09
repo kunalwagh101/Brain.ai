@@ -23,12 +23,42 @@ BLOCKED | S-06.02.01 | F-06.02 | Usage/cost/budget implementation is staged on t
 IN_REVIEW | S-06.03.01 | F-06.03 | External API registry, lifecycle, expiry worker, migration, tests, docs and UAT exist on the same branch; latest Backend CI again had runner_id=0 and steps=[]
 BACKLOG | S-07.01.01 | F-07.01 | Depends on work graph + decision/blocker memory
 BACKLOG | S-07.02.01 | F-07.02 | Depends on project status + usage/cost
-BACKLOG | S-08.01.01 | F-08.01 | Depends on AI gateway + audit/retention
+BLOCKED | S-08.01.01 | F-08.01 | Governed agent runtime, approval lifecycle, run locking, recovery worker, migration, tests/docs/UAT are staged; S-06.01.01 and S-09.02.01 plus this story still lack executable passing verification
 IN_REVIEW | S-09.01.01 | F-09.01 | Structured logs, Prometheus metrics, OpenTelemetry tracing, readiness, SLO alerts, tests, docs and UAT are staged; executable passing verification is still unavailable
 IN_REVIEW | S-09.02.01 | F-09.02 | Audit ledger, retention/legal-hold engine, deletion/tombstones, migration, worker, tests, docs and UAT are staged; executable PostgreSQL/Ruff/Pytest/Delivery Verifier evidence is still unavailable
 BLOCKED | S-09.03.01 | F-09.03 | Provider-neutral Release Gate, migration/restore exercise, image smoke, tests/docs/UAT are staged; required merge-check enforcement, an executable runner and OQ-007 production runtime/registry selection remain unresolved
 BLOCKED | S-09.04.01 | F-09.04 | Versioned latency/cost benchmark engine, deployed HTTP runner, Performance Gate, tests/docs/UAT are staged; search/AI verification, executable runners and production-like staging measurements remain unavailable
 DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external-tool wedge
+
+## Increment 17 planning — governed agent runtime on the existing branch
+
+Increment 17 goal: **let Brain agents reason and take tightly bounded action without allowing model output to become an authority boundary or allowing high-risk mutations to bypass explicit human approval.**
+
+Branch rule: Increment 17 intentionally continues on `increment-10-ai-provider-gateway`; no additional branch is created.
+
+Dependency state: the runtime is implemented against the staged F-06.01 governed AI gateway and F-09.02 durable audit contracts. Both dependencies still lack executable passing evidence, and Increment 17 itself has not run Ruff/Pytest/migration/Delivery Verifier. S-08.01.01 is therefore `BLOCKED` from DONE.
+
+Vertical slice staged: tenant-scoped agent definition -> pinned provider/model -> explicit per-tool policy -> code-controlled tool catalog -> governed planner call -> default-deny proposal validation -> permission-aware read tool -> approval-required Work Graph mutation -> requester-only run state -> objective/final-output digests -> durable approval/tool audit -> PostgreSQL advisory run lock -> bounded approval/stale-state maintenance worker -> migration/tests/docs/UAT.
+
+Rules for this increment:
+
+- The model is untrusted planner input. Server-side code, current RBAC/ACL and the configured tool policy remain authoritative.
+- Missing tool policy means `deny`.
+- Read-only tools may use `read`/`deny`; normal actions may use `act`/`act_with_approval`/`deny`; high-risk actions may only use `act_with_approval`/`deny`.
+- The first production tools are `search.query` and `work_graph.create_work_item`; no generic shell, arbitrary HTTP, Slack-send, GitHub-write, code executor or credential-read tool is exposed.
+- `search.query` reuses permission-aware retrieval and persists only bounded result metadata/digests in the agent ledger, not retrieved customer content.
+- High-risk Work Graph mutation does not happen at proposal or approval time. Approval is a durable state transition; controlled continuation executes the approved bounded arguments.
+- The requesting user's current underlying permission is checked again when the tool actually executes; agent policy is not a permission grant.
+- The run objective is not stored plaintext. Continuation requires the caller to resubmit the same objective and match its SHA-256.
+- Final answer text is returned but not stored in the run ledger; only its digest is retained.
+- Pending mutation arguments/proposal text are cleared after success, failure, rejection, cancellation or expiry.
+- Approval expires after 24 hours and the bounded maintenance worker clears abandoned approval payloads even if the user never returns.
+- Public advance/approve/cancel routes use a PostgreSQL advisory lock held on a dedicated connection across provider calls so two replicas cannot progress one run concurrently.
+- A stale action is retried only if the code-controlled tool is explicitly replay-safe; otherwise recovery fails closed.
+- Agent definition disable is a server-side kill switch checked before approval and before any further advance/provider/tool execution.
+- Planner calls still go through F-06.01/F-06.02, so provider lifecycle, credential isolation, request attribution and hard AI budgets remain effective.
+- Durable F-09.02 audit records proposals/approvals/tool outcomes using IDs/digests/bounded metadata, not objective/search/final content or credentials.
+- No S-08.01.01 DONE evidence block may be added until both dependencies and this increment have executable passing verification plus real PostgreSQL/provider/backend and frontend/manual UAT.
 
 ## Increment 16 planning — performance and cost budgets on the existing branch
 
@@ -304,8 +334,8 @@ Rules for this increment:
 ## Session-open self-audit
 
 - Ten stories are engineering-DONE; external/user acceptance remains independently tracked in UAT.md.
-- Current IN_PROGRESS WIP count: 0. S-05.01.01, S-06.01.01, S-06.03.01, S-09.01.01 and S-09.02.01 are IN_REVIEW; S-04.02.01, S-06.02.01, S-09.03.01 and S-09.04.01 are BLOCKED while their implementations are staged behind unverified dependencies/environment controls.
+- Current IN_PROGRESS WIP count: 0. S-05.01.01, S-06.01.01, S-06.03.01, S-09.01.01 and S-09.02.01 are IN_REVIEW; S-04.02.01, S-06.02.01, S-08.01.01, S-09.03.01 and S-09.04.01 are BLOCKED while their implementations are staged behind unverified dependencies/environment controls.
 - Increment 7 Work Graph is merged on `main` at `ddd12921ec7ac025dc21de41275b8532c811ab24`.
-- Existing Work Graph/retrieval authorization semantics are reused rather than replaced by Decision Memory or AI governance.
-- Existing frontend still contains preview/sample state. No fake search/memory/AI-cost/API-registry/observability/data-governance/deployment/performance UI wiring will be used to claim frontend acceptance.
+- Existing Work Graph/retrieval authorization semantics are reused rather than replaced by Decision Memory, AI governance or agent execution.
+- Existing frontend still contains preview/sample state. No fake search/memory/AI-cost/API-registry/agent/observability/data-governance/deployment/performance UI wiring will be used to claim frontend acceptance.
 - Repeated Backend CI / Delivery Verifier attempts have failed before runner startup (`runner_id=0`, no steps). There is no passing test output for Increment 8 or later staged increments, so engineering-DONE is prohibited by the Definition of Done/Ready.
