@@ -1,6 +1,6 @@
 # Ask Brain staging acceptance runbook
 
-Story: `S-05.02.01`. This runbook exists to turn the remaining external acceptance work into one reproducible sequence. Its presence is not evidence that staging, evaluation, performance or UAT has passed.
+Story: `S-05.02.01`. This runbook turns the remaining external acceptance work into one reproducible sequence. Its presence is not evidence that staging, evaluation, performance or UAT has passed.
 
 ## Approved first runtime
 
@@ -11,11 +11,16 @@ OQ-005 was resolved on 2026-09-10:
 - Brain provider adapter: `openai_chat_completions`;
 - API URL: `https://api.openai.com/v1/chat/completions`;
 - Ask Brain application output ceiling: 8,192 tokens;
-- reviewed Terra price: USD 2 per million input tokens and USD 12 per million output tokens, represented by Brain as 2,000 and 12,000 nano-USD/token respectively.
+- reviewed Terra price: USD 2 per million ordinary input tokens, USD 0.20 per million cached input tokens and USD 12 per million output tokens;
+- Brain rate-card representation: 2,000 nano-USD ordinary input, 200 nano-USD cached input and 12,000 nano-USD output per token.
 
 Terra becomes the default only after the same deployment/model passes the real quality, security, latency and cost gates. No silent fallback is allowed.
 
-The current OpenAI Chat Completions API documents `max_completion_tokens` as the preferred completion ceiling and `max_tokens` as deprecated. Brain's provider-neutral OpenAI-compatible adapter currently uses its existing completion-limit field. Therefore the bootstrap below performs a real provider smoke and must pass before the runtime is accepted. Do not edit the generic adapter merely to make the configuration look compatible without observing a failure.
+Brain now records total input tokens and cached input tokens separately. If a rate card has a distinct cached-input price but the provider does not report the cached-input usage dimension, Brain records the request cost as `unknown` rather than assuming zero cached tokens. If cached tokens exceed total input tokens, cost also fails closed as `unknown`.
+
+The current OpenAI Chat Completions API documents `max_completion_tokens` as the preferred completion ceiling and `max_tokens` as deprecated. Brain's existing adapter still uses its established completion-limit field. The bootstrap below therefore performs a real provider smoke and must pass before the runtime is accepted. Do not change provider protocol fields merely to make configuration look compatible without observing and testing the actual provider contract.
+
+Ask Brain's checked-in evidence/context bounds keep this story far below Terra's very-long-context pricing threshold. If a future generic AI use case can cross a provider pricing tier, add that billing dimension to the rate-card model before calling its cost exact.
 
 ## Data-policy precondition
 
@@ -30,16 +35,23 @@ Before sending customer evidence:
 
 ## Staging prerequisites
 
-Required before bootstrap:
+A reproducible Render staging Blueprint is checked in at `render.yaml`. It provisions a Singapore staging web service plus Render Postgres, wires the database by managed internal connection string, runs Alembic before the API starts, and uses `/health/ready` as the health check. The backend normalises provider-standard Postgres URLs to the installed Psycopg 3 SQLAlchemy driver.
+
+The Blueprint intentionally leaves actual secrets/settings as operator inputs. Required before bootstrap:
 
 - deployed Brain API candidate at an HTTPS URL;
 - PostgreSQL/migrations operational;
 - AWS Secrets Manager backend operational for provider credentials;
-- `api.openai.com` present in `BRAIN_AI_PROVIDER_ALLOWED_HOSTS` for the deployed backend;
+- Render runtime supplied with least-privilege AWS credentials for the required Brain secret prefix;
+- `api.openai.com` present in `BRAIN_AI_PROVIDER_ALLOWED_HOSTS`;
+- `BRAIN_CORS_ORIGINS` set to the real frontend origin, not `*`;
+- WorkOS client/audience configured;
 - a WorkOS access token for a Brain Owner/Admin in the isolated staging organisation;
 - a paid OpenAI API project key with the approved data settings;
 - representative non-sensitive evidence in the staging organisation for initial smoke/performance;
 - a separately prepared human-labelled evaluation dataset for the production quality gate.
+
+Render Free is suitable only for staging/preview. Its web service can cold-start after idling and its free Postgres database is temporary. Do not use this Blueprint unchanged as production architecture.
 
 ## 1. Configure provider, model, rate card and run compatibility smoke
 
@@ -61,13 +73,15 @@ The script is deliberately fail-closed. It:
 - reuses an existing OpenAI provider only when provider key, adapter and approved URL agree;
 - refuses revoked/non-reenableable provider state;
 - creates/enables `gpt-5.6-terra` without silently changing an existing model ceiling;
-- creates the reviewed Terra rate card only if doing so cannot overlap current/future pricing;
+- creates the reviewed ordinary/cached/output Terra rate card only if doing so cannot overlap current/future pricing;
 - refuses mismatched existing pricing rather than rewriting historical cost policy;
 - executes a real governed `/ai/invoke` call;
-- verifies the call appears in Brain's usage ledger with exact, not unknown, cost;
+- reads `GET /api/v1/organizations/{org}/ai/requests/{request_id}/cost` for that exact request;
+- requires ordinary input, cached input and output token usage to be present;
+- independently recomputes the expected nano-USD amount from those token counts and compares every input/output/total cost field;
 - prints IDs, token counts, latency and nano-USD cost only; it never prints either bearer/API secret.
 
-A failed compatibility smoke is a blocker. If OpenAI rejects the current generic Chat Completions adapter, capture the provider-safe error/request ID and implement a dedicated modern adapter before retrying. Do not weaken the gateway or disable the smoke.
+A failed compatibility/cost smoke is a blocker. If OpenAI rejects the current Chat Completions adapter, capture the provider-safe error/request ID and implement a dedicated modern adapter before retrying. Do not weaken the gateway or disable the smoke.
 
 ## 2. Prepare the real retrieval/RAG evaluation set
 
@@ -148,9 +162,7 @@ python scripts/run-performance-benchmark.py \
   --output '.performance/report.json'
 ```
 
-Ask Brain acceptance requires the checked-in p95 target (<10 seconds), configured minimum success rate, and exact cost completeness to pass. Record the provider/model, p50/p95/p99, error rate, token counts and exact cost per successful question. Do not claim a cost ceiling unless product economics later defines one.
-
-The GitHub `Performance Gate` can run the same workload once GitHub Actions can obtain a runner. At present, ordinary branch workflows have repeatedly failed before step 1, so workflow presence is not evidence.
+Ask Brain acceptance requires the checked-in p95 target (<10 seconds), configured minimum success rate, and exact cost completeness to pass. Record provider/model, p50/p95/p99, error rate, total/cached/output tokens and exact cost per successful question. Do not claim a cost ceiling unless product economics defines one.
 
 ## 6. Frontend production path
 
@@ -159,7 +171,7 @@ The current UI is a sample preview and cannot be used for feature acceptance.
 The production frontend path must use the existing WorkOS authority rather than ChatGPT-host authentication or hardcoded tokens:
 
 1. Install the official WorkOS AuthKit Next.js package and regenerate `package-lock.json` using the repository's normal package manager.
-2. Use the Next.js 16 server-side AuthKit flow (`proxy.ts`/callback/sign-in contract as supported by the installed SDK).
+2. Use the Next.js 16 server-side AuthKit flow supported by the installed SDK.
 3. Keep the WorkOS session/access token server-side.
 4. Add a server-side BFF/route handler that obtains the WorkOS access token and forwards it as Bearer to FastAPI.
 5. Use `GET /api/v1/organizations` to discover the signed-in user's Brain organisations.
@@ -167,7 +179,7 @@ The production frontend path must use the existing WorkOS authority rather than 
 7. Render Ask Brain success, loading, empty/no-answer, provider error, auth error and citation/excerpt states.
 8. Never serialize provider credentials, the WorkOS access token or unrestricted source evidence into client configuration.
 
-The current isolated execution environment cannot reach npm to install AuthKit or generate a trustworthy lockfile. Do **not** manually fabricate npm integrity/transitive lock entries. Frontend implementation is therefore externally blocked until the dependency can be installed and the actual vinext/Next build can run.
+The current controlled execution environment cannot install the AuthKit package or regenerate a trustworthy npm lockfile. Do **not** fabricate npm integrity/transitive lock entries and do not hand-roll OAuth/session security. That production frontend integration stays externally blocked until package installation/build is executable.
 
 ## 7. Manual frontend/UAT acceptance
 
@@ -183,15 +195,17 @@ After the real authenticated frontend is deployed, execute `UAT/F-05.02.md` with
 
 Record tester, date, deployed commit and defects/fixes. Only after those checks pass may the feature be called PASSED.
 
-## 8. DONE/PASSED/merge gate
+## 8. Deferred executable verification and DONE/PASSED/merge gate
 
-Do not mark S-05.01.01 or S-05.02.01 engineering-DONE until the repository's named Ruff/Pytest/verifier/CI requirements have actually executed and passed. Do not call F-05.02 PASSED until the real-data backend and manual frontend UAT is recorded.
+On 2026-09-10 the project owner explicitly deferred local pytest and Render execution verification for `S-05.01.01`; those checks will be run later by the project owner. This is a deliberate deferred acceptance gate, not a PASS.
+
+Do not mark S-05.01.01 or S-05.02.01 engineering-DONE until the repository's named Ruff/Pytest/verifier requirements have actually executed and passed. Do not call F-05.02 PASSED until the real-data backend and manual frontend UAT is recorded.
 
 Merge only after:
 
-1. S-05.01.01 has executable passing evidence;
-2. Ask Brain engineering tests/verifier/CI pass;
-3. Terra compatibility smoke + exact cost pass;
+1. S-05.01.01 has executable passing evidence from the later local/Render verification;
+2. Ask Brain engineering tests/verifier pass;
+3. Terra compatibility smoke + exact cache-aware cost pass;
 4. real retrieval/RAG quality gates pass;
 5. deployed Ask Brain performance passes;
 6. authenticated frontend is built/tested;
