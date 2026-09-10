@@ -158,7 +158,6 @@ class ExecutiveOverviewRead(BaseModel):
     budget_warnings: list[ExecutiveBudgetWarningRead]
     risks: list[ExecutiveRiskRead]
     metric_provenance: list[MetricProvenanceRead]
-    employee_productivity_score: None
 
 
 @router.get("", response_model=ExecutiveOverviewRead)
