@@ -25,12 +25,6 @@ def upgrade() -> None:
         "ai_request_records",
         "cached_input_tokens IS NULL OR cached_input_tokens >= 0",
     )
-    op.create_check_constraint(
-        "ck_ai_request_cached_within_input_tokens",
-        "ai_request_records",
-        "cached_input_tokens IS NULL OR input_tokens IS NULL "
-        "OR cached_input_tokens <= input_tokens",
-    )
 
     op.add_column(
         "ai_model_rate_cards",
@@ -52,11 +46,6 @@ def downgrade() -> None:
     )
     op.drop_column("ai_model_rate_cards", "cached_input_nano_usd_per_token")
 
-    op.drop_constraint(
-        "ck_ai_request_cached_within_input_tokens",
-        "ai_request_records",
-        type_="check",
-    )
     op.drop_constraint(
         "ck_ai_request_cached_input_tokens",
         "ai_request_records",
