@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.data_governance import append_audit_event
@@ -147,6 +148,19 @@ def _project_links_work_item(
     return edge is not None
 
 
+def _progress_item_query(
+    *,
+    organization_id: uuid.UUID,
+    project_node_id: uuid.UUID,
+    work_item_node_id: uuid.UUID,
+):
+    return select(ProjectProgressItem).where(
+        ProjectProgressItem.organization_id == organization_id,
+        ProjectProgressItem.project_node_id == project_node_id,
+        ProjectProgressItem.work_item_node_id == work_item_node_id,
+    )
+
+
 def upsert_project_progress_item(
     db: Session,
     *,
@@ -187,25 +201,31 @@ def upsert_project_progress_item(
         raise ProjectStatusError("Weight must be between 1 and 10000")
     normalized_note = " ".join(note.strip().split())[:1000] if note else None
 
-    item = db.scalar(
-        select(ProjectProgressItem)
-        .where(
-            ProjectProgressItem.organization_id == organization_id,
-            ProjectProgressItem.project_node_id == project.id,
-            ProjectProgressItem.work_item_node_id == work_item.id,
-        )
-        .with_for_update()
+    query = _progress_item_query(
+        organization_id=organization_id,
+        project_node_id=project.id,
+        work_item_node_id=work_item.id,
     )
+    item = db.scalar(query.with_for_update())
     action = "updated"
     if item is None:
-        action = "created"
-        item = ProjectProgressItem(
+        candidate = ProjectProgressItem(
             organization_id=organization_id,
             project_node_id=project.id,
             work_item_node_id=work_item.id,
             updated_by_user_id=user_id,
         )
-        db.add(item)
+        try:
+            with db.begin_nested():
+                db.add(candidate)
+                db.flush()
+            item = candidate
+            action = "created"
+        except IntegrityError:
+            item = db.scalar(query.with_for_update())
+            if item is None:
+                raise
+
     item.state = state
     item.weight = weight
     item.note = normalized_note
@@ -251,13 +271,11 @@ def delete_project_progress_item(
     ) is None:
         raise ProjectStatusError("Project or work item not found")
     item = db.scalar(
-        select(ProjectProgressItem)
-        .where(
-            ProjectProgressItem.organization_id == organization_id,
-            ProjectProgressItem.project_node_id == project_node_id,
-            ProjectProgressItem.work_item_node_id == work_item_node_id,
-        )
-        .with_for_update()
+        _progress_item_query(
+            organization_id=organization_id,
+            project_node_id=project_node_id,
+            work_item_node_id=work_item_node_id,
+        ).with_for_update()
     )
     if item is None:
         raise ProjectStatusError("Project progress item not found")
@@ -306,8 +324,16 @@ def _visible_progress_items(
             role=role,
             work_item_node_id=row.work_item_node_id,
         )
-        if node is not None:
-            visible.append((row, node))
+        if node is None:
+            continue
+        if not _project_links_work_item(
+            db,
+            organization_id=organization_id,
+            project_node_id=project_node_id,
+            work_item_node_id=node.id,
+        ):
+            continue
+        visible.append((row, node))
     return visible
 
 
@@ -529,11 +555,12 @@ def list_project_statuses(
                 WorkGraphNode.node_type == WorkGraphNodeType.PROJECT,
             )
             .order_by(WorkGraphNode.display_name, WorkGraphNode.id)
-            .limit(limit)
         )
     )
     snapshots: list[ProjectStatusSnapshot] = []
     for project in projects:
+        if len(snapshots) >= limit:
+            break
         if not node_visible_to_user(db, project, user_id=user_id, role=role):
             continue
         snapshot = build_project_status(
