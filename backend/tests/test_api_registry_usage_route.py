@@ -1,10 +1,15 @@
-from datetime import UTC, datetime
 import uuid
+from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.api_registry_models import APICredentialGrant, APIGrantStatus, APIService, APIUsageObservation
+from app.api_registry_models import (
+    APICredentialGrant,
+    APIGrantStatus,
+    APIService,
+    APIUsageObservation,
+)
 from app.auth import get_current_user
 from app.main import app
 from app.models import Membership, MembershipRole, Organization, User
