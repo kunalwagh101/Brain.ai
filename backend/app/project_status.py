@@ -12,7 +12,7 @@ from app.models import MembershipRole
 from app.project_status_models import ProjectProgressItem, ProjectWorkState
 from app.search import _base_query as _authorized_search_documents_query
 from app.search_models import SearchDocument
-from app.work_graph import node_visible_to_user
+from app.work_graph import node_visible_to_user, traverse_work_graph
 from app.work_graph_models import WorkGraphEdge, WorkGraphEdgeType, WorkGraphNode, WorkGraphNodeType
 
 
@@ -311,24 +311,31 @@ def _visible_progress_items(
     return visible
 
 
-def _project_evidence_node_ids(
+def _visible_project_evidence_node_ids(
     db: Session,
     *,
     organization_id: uuid.UUID,
+    user_id: uuid.UUID,
+    role: MembershipRole,
     project_node_id: uuid.UUID,
-    work_item_node_ids: list[uuid.UUID],
 ) -> set[uuid.UUID]:
-    anchors = [project_node_id, *work_item_node_ids]
-    edges = list(
-        db.scalars(
-            select(WorkGraphEdge).where(
-                WorkGraphEdge.organization_id == organization_id,
-                WorkGraphEdge.edge_type == WorkGraphEdgeType.SUPPORTED_BY,
-                WorkGraphEdge.source_node_id.in_(anchors),
-            )
-        )
+    traversal = traverse_work_graph(
+        db,
+        organization_id=organization_id,
+        start_node_id=project_node_id,
+        user_id=user_id,
+        role=role,
+        depth=2,
+        max_nodes=500,
     )
-    return {edge.target_node_id for edge in edges}
+    if traversal is None:
+        return set()
+    nodes, _ = traversal
+    return {
+        node.id
+        for node in nodes
+        if node.node_type == WorkGraphNodeType.EVIDENCE
+    }
 
 
 def _visible_project_evidence(
@@ -391,12 +398,12 @@ def build_project_status(
         role=role,
         project_node_id=project.id,
     )
-    work_item_ids = [row.work_item_node_id for row, _ in visible_progress]
-    evidence_node_ids = _project_evidence_node_ids(
+    evidence_node_ids = _visible_project_evidence_node_ids(
         db,
         organization_id=organization_id,
+        user_id=user_id,
+        role=role,
         project_node_id=project.id,
-        work_item_node_ids=work_item_ids,
     )
     evidence_documents = _visible_project_evidence(
         db,
