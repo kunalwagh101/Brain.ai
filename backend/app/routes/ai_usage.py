@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.ai_gateway_models import AIRequestRecord
 from app.ai_usage import (
     AIUsageError,
     budget_snapshot,
@@ -23,7 +24,9 @@ from app.ai_usage_models import (
     AIBudgetPeriod,
     AIBudgetPolicy,
     AIBudgetScopeType,
+    AICostResolutionStatus,
     AIModelRateCard,
+    AIUsageCostRecord,
 )
 from app.database import get_db
 from app.permissions import AuthorizationContext, Permission, require_organization_permission
@@ -68,6 +71,19 @@ class RateCardRead(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class RequestCostRead(BaseModel):
+    request_id: uuid.UUID
+    rate_card_id: uuid.UUID | None
+    cost_status: AICostResolutionStatus | None
+    unknown_reason: str | None
+    input_tokens: int | None
+    cached_input_tokens: int | None
+    output_tokens: int | None
+    input_cost_nano_usd: int | None
+    output_cost_nano_usd: int | None
+    total_cost_nano_usd: int | None
 
 
 class BudgetCreate(BaseModel):
@@ -208,6 +224,45 @@ def list_rate_cards(
                 AIModelRateCard.effective_from.desc(),
             )
         )
+    )
+
+
+@router.get("/requests/{request_id}/cost", response_model=RequestCostRead)
+def read_request_cost(
+    organization_id: uuid.UUID,
+    request_id: uuid.UUID,
+    authorization: Annotated[AuthorizationContext, Depends(_read_usage)],
+    db: Annotated[Session, Depends(get_db)],
+) -> RequestCostRead:
+    del authorization
+    request = db.scalar(
+        select(AIRequestRecord).where(
+            AIRequestRecord.id == request_id,
+            AIRequestRecord.organization_id == organization_id,
+        )
+    )
+    if request is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="AI request not found",
+        )
+    cost = db.scalar(
+        select(AIUsageCostRecord).where(
+            AIUsageCostRecord.organization_id == organization_id,
+            AIUsageCostRecord.request_id == request_id,
+        )
+    )
+    return RequestCostRead(
+        request_id=request.id,
+        rate_card_id=cost.rate_card_id if cost is not None else None,
+        cost_status=cost.status if cost is not None else None,
+        unknown_reason=cost.unknown_reason if cost is not None else "cost_record_unavailable",
+        input_tokens=request.input_tokens,
+        cached_input_tokens=request.cached_input_tokens,
+        output_tokens=request.output_tokens,
+        input_cost_nano_usd=cost.input_cost_nano_usd if cost is not None else None,
+        output_cost_nano_usd=cost.output_cost_nano_usd if cost is not None else None,
+        total_cost_nano_usd=cost.total_cost_nano_usd if cost is not None else None,
     )
 
 
