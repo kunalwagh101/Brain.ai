@@ -6,14 +6,19 @@
 
 - Added a production Ask Brain API that reuses the existing permission-aware retrieval boundary before any company evidence reaches an AI provider.
 - Added bounded RAG context with server-issued evidence IDs and explicit no-evidence behaviour that returns `insufficient_evidence` without loading provider credentials or invoking a model.
-- Reused the governed tenant-scoped AI gateway rather than creating a second provider path; callers must supply explicit configured provider/model IDs while OQ-005 remains unresolved.
+- Reused the governed tenant-scoped AI gateway rather than creating a second provider path and added safe organisation/runtime discovery for ordinary `ai.use` members.
+- Resolved OQ-005 on 2026-09-10: OpenAI API with `gpt-5.6-terra` is the first production candidate, conditional on the checked-in security, retrieval, citation, latency, compatibility and exact-cost gates; no silent fallback is allowed.
 - Added prompt-injection resistance by treating retrieved evidence as untrusted data and forbidding evidence-contained instructions from becoming model instructions.
 - Added fail-closed structured grounding validation: every accepted factual claim must cite one or more server-issued evidence IDs; malformed, empty or unknown citations are rejected and raw provider output is not returned.
-- Added cross-tenant, revocation, no-answer, citation-grounding and guest-authorization tests plus architecture/security documentation, Increment 18 planning and real-provider UAT.
-- Added no new database state or migration; answers remain transient while the existing governed AI request ledger continues to capture provider/model/user/tenant/cost metadata.
-- Updated the machine-readable board, Definition of Ready and traceability state without creating another delivery branch.
+- Added cross-tenant, revocation, no-answer, citation-grounding, provenance-contract and guest-authorization tests plus architecture/security documentation, Increment 18 planning and real-provider UAT.
+- Added two-phase deployed evaluation: automatic retrieval/security metrics are separated from human review of every exact generated claim-citation pair.
+- Extended governed AI accounting for OpenAI cached input: provider cached-token usage is captured, request records persist it, model rate cards can price normal input/cached input/output separately, and missing/invalid required cache usage fails cost resolution closed to `unknown`.
+- Added request-scoped AI cost audit plus staging bootstrap validation that independently recomputes the exact request's input/output/total nano-USD cost from the reviewed Terra rate card.
+- Added Alembic revision `20260910_0016`, cache-aware accounting tests, request-cost route tests and managed-Postgres URL normalization tests. These tests are checked in but are not claimed as executed in this pass.
+- Added `render.yaml` and `docs/RENDER_STAGING.md` for a reproducible Render staging candidate with API + Postgres, migration-before-start and database readiness checks. This is staging tooling, not the final production topology under OQ-007.
+- Updated `docs/ASK_BRAIN_STAGING.md`, `UAT/F-05.02.md`, the board, Definition of Ready, traceability and draft PR without creating another delivery branch.
 
-Verification is not yet claimed. `S-05.02.01` remains `BLOCKED`: S-05.01.01 is still unverified, OQ-005 still owns the production provider/model/data-policy decision, the representative real-provider citation-correctness gate (>=98%) has not run, and Backend CI run 34353448936 failed before any step with `runner_id=0` and `steps=[]`. Retrieval recall >=90%, real citation correctness, latency/cost and manual customer-data UAT must be observed before DONE.
+Verification is not yet claimed. `S-05.01.01` remains `IN_REVIEW`; on 2026-09-10 the project owner explicitly deferred its local pytest and Render verification until later, which is not a PASS. `S-05.02.01` remains `BLOCKED`: the real Render/WorkOS/AWS/OpenAI staging environment is not configured here, the Terra compatibility/exact-cost smoke has not run, representative Phase 1 retrieval/RAG evaluation and Phase 2 human citation review have not run, no staging p95 result exists, and the official WorkOS frontend package/build plus authenticated browser UAT remain outstanding. No DONE/PASSED or runtime performance/cost-quality claim is made from repository code alone.
 
 ### Increment 16 — Performance and cost budgets
 
@@ -63,16 +68,8 @@ Verification is not yet claimed. `S-09.02.01` remains `IN_REVIEW` until Ruff, Py
 
 ### Increment 13 — Production observability and SLOs
 
-- Added correlated structured JSON logging with bounded request IDs, W3C trace/span context, tenant/integration/provider/model operational context and strict structured-field allowlisting.
-- Added defense-in-depth redaction for bearer credentials, API/access/refresh/secret fields and common OpenAI/GitHub/Slack token shapes; prompts, completions, webhook bodies and customer content remain forbidden telemetry inputs.
-- Added OpenTelemetry HTTP server spans plus governed AI child spans, with optional OTLP/HTTP export and production HTTPS enforcement for configured exporters.
-- Added protected Prometheus `/metrics` exposure with production bearer-token enforcement and finite code-controlled metric labels only; tenant-configurable organisation/user/integration/provider/model values are deliberately excluded from metric labels.
-- Added route-template HTTP request/error/latency metrics, PostgreSQL readiness/latency metrics, aggregate connector lifecycle metrics and aggregate governed-AI success/failure/latency/exact-cost metrics.
-- Preserved provider/model/integration drill-down in structured logs, traces and durable domain ledgers instead of high-cardinality Prometheus series.
-- Separated process liveness from PostgreSQL readiness; readiness now reports dependency status/latency and returns 503 while liveness remains process-only.
-- Added raw connector persistence spans/logs and shared connector sync success/failure telemetry without raw event payloads.
-- Added SLO/error-budget documentation, Prometheus-compatible alert rules and an incident runbook for database, API, search, AI and connector failures.
-- Added observability security/health/correlation tests plus deployed backend/monitoring/frontend UAT instructions.
+- Added correlated structured JSON logging with bounded request IDs, W3C/OpenTelemetry request + AI tracing, structured JSON logging with strict allowlisting and credential/token redaction, protected Prometheus metrics, route-template HTTP metrics, PostgreSQL readiness metrics, connector lifecycle telemetry, aggregate governed-AI status/latency/exact-cost telemetry, SLO/error-budget definitions, alert rules, incident runbook, tests and deployed UAT instructions.
+- Tenant-configurable organisation/user/integration/provider/model values are deliberately excluded from Prometheus labels and remain available through correlated logs/traces/durable ledgers.
 
 Verification is not yet claimed. `S-09.01.01` remains `IN_REVIEW` until Ruff, Pytest and the Delivery Verifier obtain an executable passing run. Deployed metrics/trace collection, alert firing and representative monthly SLO compliance remain separate `UAT_PENDING` evidence.
 
@@ -101,7 +98,7 @@ Verification is not yet claimed. The latest checked Backend CI job for this bran
 - Added bounded cost reconciliation with PostgreSQL `FOR UPDATE SKIP LOCKED` for successful requests whose cost is missing or later becomes resolvable.
 - Added Alembic revision `20260907_0012`, API routes, accounting/security tests, operator documentation and real-provider/frontend UAT instructions.
 
-Verification is not yet claimed. `S-06.02.01` is staged on the same branch but remains `BLOCKED` because its S-06.01.01 dependency has not received executable passing verification and F-06.02 itself has no passing CI evidence.
+Increment 18 extends this accounting contract with cached-input usage/rates and migration `20260910_0016`. Verification is not yet claimed. `S-06.02.01` remains `BLOCKED` because S-06.01.01 lacks executable passing verification and the new cache-aware accounting tests/real-provider exact-cost smoke have not run.
 
 ### Increment 10 — Governed AI provider gateway
 
@@ -139,4 +136,4 @@ Verification is not yet claimed. This story is formally `BLOCKED` on S-05.01.01 
 - Added Alembic revision `20260907_0009`, rollback notes, security-focused tests, architecture docs and UAT instructions.
 - Added `DEFINITION_OF_READY.md` because the delivery contract required an inspectable DoR artifact and the repository did not previously contain one.
 
-Verification is not yet claimed: GitHub Actions for the current Increment 8 PR failed before runner startup, so `S-05.01.01` must remain non-DONE until tests and the delivery verifier actually run successfully.
+Verification is not yet claimed: the project owner explicitly deferred the next local pytest and Render execution verification on 2026-09-10. `S-05.01.01` remains non-DONE until that verification actually runs successfully and is recorded.
