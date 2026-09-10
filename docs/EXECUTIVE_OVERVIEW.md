@@ -35,6 +35,8 @@ Each visible project contains:
 - authorised evidence count;
 - provenance pointing to the full project-status view.
 
+The organisation summary exposes separate counts for `blocked`, `in_progress`, `done`, `not_started` and `unconfigured` so every valid S-07.01 state reconciles to the visible portfolio.
+
 Restricted projects are omitted unless the current user has the underlying Work Graph/resource access. The endpoint never substitutes an organisation role for a resource grant.
 
 ## Decisions and blockers
@@ -82,6 +84,8 @@ Therefore the Executive Overview returns real month-to-date API activity by serv
 
 This is intentional. Call counts, latency and credential presence are not a defensible monetary-cost model. A future API-cost feature must introduce explicit reviewed pricing/allocation semantics before money is displayed.
 
+The provenance drill-down `/api/v1/organizations/{organization_id}/api-registry/usage` is protected by `audit.read` and exposes usage/service identifiers only; it does not expose credential values or secret references.
+
 ## Deterministic risk rules
 
 The service may return these evidence-backed risks:
@@ -97,7 +101,7 @@ There is no generic AI-written risk score.
 
 The endpoint does not calculate or return employee productivity, worth, performance ranking, message-count score, coding-output score or inferred employee value.
 
-`employee_productivity_score` is explicitly `null` in the contract to make this non-feature visible and regression-testable.
+There is deliberately **no employee productivity-score field in the API schema**. This is regression-tested by asserting that productivity-score keys are absent rather than present with a null value.
 
 Usage/cost governance may still contain user attribution where required for budget/cost accountability; that data must not be repurposed as a productivity score.
 
