@@ -13,6 +13,26 @@ A story may enter `READY` only when all conditions below are true. `IN_PROGRESS`
 - Out-of-scope items are explicit; nothing is silently removed from scope.
 - Tasks are small engineering steps and the story remains an independently shippable vertical slice.
 
+## Increment 21 readiness record — S-07.02.01
+
+Decision: `BLOCKED`. The project owner explicitly directed implementation to continue against the staged upstream contracts, so the Executive Overview backend is present on `increment-10-ai-provider-gateway`; formal Ready is not satisfied while S-07.01.01 and S-06.02.01 are not engineering-DONE.
+
+Dependencies: S-07.01.01 Project Command Centre = staged but BLOCKED by S-04.02.01 and the deferred S-05.01.01 acceptance gate. S-06.02.01 Usage/Cost/Budgets = staged but BLOCKED while S-06.01.01 lacks executable verification. S-06.03.01 provides the trusted external API usage contract but also remains IN_REVIEW.
+
+Data/contracts known: permission-filtered S-07.01 project snapshots, human-confirmed S-04.02 decision/blocker memory, exact/incomplete S-06.02 AI request cost accounting, enabled budget policy snapshots, S-06.03 API usage observations and `audit.read` provide the required backend contracts.
+
+Security boundary: the endpoint requires `audit.read`; organisation membership is checked before execution; project visibility still uses current Work Graph/resource authorization; Executive role alone does not reveal restricted projects; Work-Graph-scoped budget warnings are returned only when their target node is visible; API usage drill-down never returns secret references or credential values.
+
+Metric integrity: every executive metric family carries source/calculation provenance. Project progress/status reuses the deterministic S-07.01 calculation; only human-confirmed memory contributes to confirmed decision/blocker counts; AI spend uses the S-06.02 nano-USD cost ledger and keeps unknown successful-request cost explicit; external API usage comes from trusted observations. Because no reviewed external-API tariff/cost ledger exists, API monetary spend is `null` with `cost_status=not_modelled` rather than guessed from call count or latency.
+
+Employee-scoring boundary: no employee productivity, worth, activity ranking or inferred performance score is calculated. `employee_productivity_score` is explicitly null. User-level cost attribution, where available for governance, must not be relabelled as employee performance.
+
+Persistence/rollback: S-07.02 is a read model and introduces no new persistence table or migration. Rollback removes the executive service/routes/docs without modifying project-status, decision-memory, AI cost/budget or API registry source records. The separate organisation-wide API-usage drill-down is also read-only.
+
+Current verification: service/routes, source-provenance contracts, permission-aware budget filtering, tests, docs and UAT are staged. No pytest, Render, real cost reconciliation, restricted-project UAT, browser UAT or accessibility run is claimed in this pass.
+
+Unblock condition: S-07.01.01 and S-06.02.01 become engineering-DONE in dependency order; Executive Overview backend contracts execute successfully; restricted-project/budget non-disclosure UAT passes; AI spend and budget math reconcile to source ledgers; API usage reconciles while monetary API cost remains explicitly unavailable unless a reviewed tariff model is later added; and the production WorkOS frontend/manual/accessibility path passes.
+
 ## Increment 20 readiness record — S-07.01.01
 
 Decision: `BLOCKED`. The project owner explicitly directed implementation to continue against the existing upstream contracts, so the backend slice is staged on `increment-10-ai-provider-gateway`; formal Ready is not satisfied while S-04.02.01 is not engineering-DONE.
