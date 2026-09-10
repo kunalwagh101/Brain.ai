@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Increment 21 — Permission-aware Executive Overview
+
+- Added an `audit.read`-gated organisation Executive Overview that composes existing project, decision/blocker, AI usage/cost/budget and external API usage sources of truth rather than persisting a second dashboard state.
+- Added the complete caller-visible S-07.01 project portfolio with deterministic `blocked`, `in_progress`, `done`, `not_started` and `unconfigured` status counts, structured progress and per-project provenance/drill-down.
+- Added deduplicated organisation-level human-confirmed blockers and decisions with canonical/search/work-graph evidence IDs and all currently visible project links; machine-only candidates are never promoted to executive facts.
+- Added month-to-date AI request/success/failure totals, ordinary/cached/output token totals, provider breakdown and exact known nano-USD spend from S-06.02. Successful requests with unknown cost remain explicit and make `cost_complete=false` rather than being treated as zero.
+- Added enabled AI budget warning/exhaustion/incomplete-enforcement reporting using the existing deterministic calendar-month budget snapshot. Work-Graph-scoped budget warnings are hidden when the target node is not currently visible to the caller.
+- Added month-to-date external API usage/service/success/failure and active-grant reporting from trusted S-06.03 observations, plus an `audit.read` organisation-wide `/api-registry/usage` drill-down that exposes no credential values or secret references.
+- External API monetary spend is deliberately returned as `null` with `cost_status=not_modelled` because Brain does not yet have a reviewed external-API tariff/cost ledger; call counts and latency are never converted into invented money.
+- Added deterministic risk entries only for blocked projects, AI budget warning/exhaustion/incomplete enforcement, incomplete AI cost, and the explicit absence of an API monetary-cost model when API activity exists.
+- Added source/calculation provenance for every executive metric family and an explicit `employee_productivity_score=null` contract; Brain does not calculate employee worth, productivity, activity rankings or inferred performance scores.
+- Added Executive Overview accounting/security/memory-dedup/budget-privacy/API-usage contract tests, `docs/EXECUTIVE_OVERVIEW.md`, Increment 21 planning and `UAT/F-07.02.md`.
+
+Verification is not yet claimed. `S-07.02.01` remains `BLOCKED` because S-07.01.01 and S-06.02.01 are not engineering-DONE and the new tests, cost/budget/API reconciliation, restricted-project UAT, production WorkOS frontend and browser/accessibility UAT have not executed. No DONE/PASSED or production-readiness claim is made from repository implementation alone.
+
 ### Increment 20 — Evidence-backed Project Command Centre
 
 - Added explicit structured project progress rows over existing Work Graph project/work-item nodes with `not_started`, `in_progress`, `blocked` and `done` states plus bounded integer weights.
@@ -81,7 +96,7 @@ Verification is not yet claimed. `S-09.03.01` remains `BLOCKED`: the Release Gat
 - Added tenant-scoped durable security audit events with actor/resource/request correlation, bounded metadata and normalized-payload SHA-256 digests.
 - Added PostgreSQL append-only enforcement that rejects audit-row updates while allowing explicit audit-retention deletion; actor UUID evidence is deliberately not a mutable user foreign key.
 - Added `data_governance.manage` for Owner/Admin retention/deletion administration while organisation-wide governance/audit reads reuse `audit.read`.
-- Added explicit per-organisation raw-event, derived-content and audit-event retention durations plus legal hold. Unset durations mean no automatic age-based purge; Brain does not invent a legal retention period.
+- Added explicit per-organisation raw-event, derived-content and audit-event retention durations plus legal hold. Unset durations mean no automatic age-based purge; Brain does not invent a legal/compliance period when an organisation has not configured one.
 - Added bounded raw retention and derived retention with reconstruction-suppressing tombstones. Derived tombstones preserve only raw-event ID plus minimal provider/object locator, not source content.
 - Added integration-wide deletion gated on full revocation and typed source-object deletion with idempotency keys, stable target references, counts and completion digests.
 - Closed the retained-raw deletion gap: a source-object deletion can still find and delete raw evidence after its canonical row was previously removed by derived retention.
