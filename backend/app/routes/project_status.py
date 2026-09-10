@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import asdict
 from datetime import datetime
 from typing import Annotated
 
@@ -90,15 +91,15 @@ def _read_snapshot(snapshot: ProjectStatusSnapshot) -> ProjectStatusRead:
         progress_percent=snapshot.progress_percent,
         progress_basis=snapshot.progress_basis,
         status=snapshot.status,
-        progress_items=[ProjectProgressRead(**item.__dict__) for item in snapshot.progress_items],
-        active_blockers=[ProjectMemoryRead(**item.__dict__) for item in snapshot.active_blockers],
+        progress_items=[ProjectProgressRead(**asdict(item)) for item in snapshot.progress_items],
+        active_blockers=[ProjectMemoryRead(**asdict(item)) for item in snapshot.active_blockers],
         confirmed_decisions=[
-            ProjectMemoryRead(**item.__dict__) for item in snapshot.confirmed_decisions
+            ProjectMemoryRead(**asdict(item)) for item in snapshot.confirmed_decisions
         ],
         candidate_memories=[
-            ProjectMemoryRead(**item.__dict__) for item in snapshot.candidate_memories
+            ProjectMemoryRead(**asdict(item)) for item in snapshot.candidate_memories
         ],
-        evidence=[ProjectEvidenceRead(**item.__dict__) for item in snapshot.evidence],
+        evidence=[ProjectEvidenceRead(**asdict(item)) for item in snapshot.evidence],
     )
 
 
