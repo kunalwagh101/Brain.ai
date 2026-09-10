@@ -54,6 +54,7 @@ class UsageSummaryRow:
     known_cost_requests: int
     unknown_cost_requests: int
     input_tokens: int
+    cached_input_tokens: int
     output_tokens: int
     total_cost_nano_usd: int
 
@@ -86,6 +87,7 @@ def create_model_rate_card(
     source_label: str,
     effective_from: datetime,
     effective_to: datetime | None,
+    cached_input_nano_usd_per_token: int | None = None,
 ) -> AIModelRateCard:
     provider = db.scalar(
         select(AIProviderConfiguration).where(
@@ -102,7 +104,12 @@ def create_model_rate_card(
     )
     if provider is None or model is None:
         raise AIUsageError("AI provider or model not found")
-    if input_nano_usd_per_token < 0 or output_nano_usd_per_token < 0:
+    rates = (
+        input_nano_usd_per_token,
+        output_nano_usd_per_token,
+        cached_input_nano_usd_per_token,
+    )
+    if any(rate is not None and rate < 0 for rate in rates):
         raise AIUsageError("AI model rates must be non-negative")
     label = " ".join(source_label.strip().split())[:255]
     if not label:
@@ -132,6 +139,7 @@ def create_model_rate_card(
         provider_configuration_id=provider_configuration_id,
         model_configuration_id=model_configuration_id,
         input_nano_usd_per_token=input_nano_usd_per_token,
+        cached_input_nano_usd_per_token=cached_input_nano_usd_per_token,
         output_nano_usd_per_token=output_nano_usd_per_token,
         source_label=label,
         effective_from=start,
@@ -168,6 +176,21 @@ def _effective_rate_card(db: Session, request: AIRequestRecord) -> AIModelRateCa
     )
 
 
+def _unknown_cost(
+    request: AIRequestRecord,
+    *,
+    rate: AIModelRateCard | None,
+    reason: str,
+) -> AIUsageCostRecord:
+    return AIUsageCostRecord(
+        organization_id=request.organization_id,
+        request_id=request.id,
+        rate_card_id=rate.id if rate is not None else None,
+        status=AICostResolutionStatus.UNKNOWN,
+        unknown_reason=reason,
+    )
+
+
 def materialize_request_cost(
     db: Session,
     *,
@@ -183,23 +206,35 @@ def materialize_request_cost(
 
     rate = _effective_rate_card(db, request)
     if request.input_tokens is None or request.output_tokens is None:
-        cost = AIUsageCostRecord(
-            organization_id=request.organization_id,
-            request_id=request.id,
-            rate_card_id=rate.id if rate is not None else None,
-            status=AICostResolutionStatus.UNKNOWN,
-            unknown_reason="token_usage_unavailable",
-        )
+        cost = _unknown_cost(request, rate=rate, reason="token_usage_unavailable")
     elif rate is None:
-        cost = AIUsageCostRecord(
-            organization_id=request.organization_id,
-            request_id=request.id,
-            rate_card_id=None,
-            status=AICostResolutionStatus.UNKNOWN,
-            unknown_reason="rate_card_unavailable",
+        cost = _unknown_cost(request, rate=None, reason="rate_card_unavailable")
+    elif (
+        request.cached_input_tokens is not None
+        and request.cached_input_tokens > request.input_tokens
+    ):
+        cost = _unknown_cost(request, rate=rate, reason="invalid_token_usage")
+    elif (
+        rate.cached_input_nano_usd_per_token is not None
+        and request.cached_input_tokens is None
+    ):
+        cost = _unknown_cost(
+            request,
+            rate=rate,
+            reason="cached_token_usage_unavailable",
         )
     else:
-        input_cost = request.input_tokens * rate.input_nano_usd_per_token
+        cached_tokens = request.cached_input_tokens or 0
+        uncached_tokens = request.input_tokens - cached_tokens
+        cached_rate = (
+            rate.cached_input_nano_usd_per_token
+            if rate.cached_input_nano_usd_per_token is not None
+            else rate.input_nano_usd_per_token
+        )
+        input_cost = (
+            uncached_tokens * rate.input_nano_usd_per_token
+            + cached_tokens * cached_rate
+        )
         output_cost = request.output_tokens * rate.output_nano_usd_per_token
         cost = AIUsageCostRecord(
             organization_id=request.organization_id,
@@ -637,6 +672,9 @@ def usage_summary(
             )
         ).label("unknown_cost_requests"),
         func.coalesce(func.sum(AIRequestRecord.input_tokens), 0).label("input_tokens"),
+        func.coalesce(func.sum(AIRequestRecord.cached_input_tokens), 0).label(
+            "cached_input_tokens"
+        ),
         func.coalesce(func.sum(AIRequestRecord.output_tokens), 0).label("output_tokens"),
         func.coalesce(func.sum(AIUsageCostRecord.total_cost_nano_usd), 0).label(
             "total_cost_nano_usd"
@@ -680,6 +718,7 @@ def usage_summary(
                 known_cost_requests=int(mapping["known_cost_requests"] or 0),
                 unknown_cost_requests=int(mapping["unknown_cost_requests"] or 0),
                 input_tokens=int(mapping["input_tokens"] or 0),
+                cached_input_tokens=int(mapping["cached_input_tokens"] or 0),
                 output_tokens=int(mapping["output_tokens"] or 0),
                 total_cost_nano_usd=int(mapping["total_cost_nano_usd"] or 0),
             )
