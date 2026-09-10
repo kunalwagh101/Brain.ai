@@ -10,6 +10,7 @@ from app import (
     api_registry_models,
     data_governance_models,
     decision_memory_models,
+    evidence_models,
     search_models,
     work_graph_models,
 )
@@ -25,6 +26,7 @@ _MODEL_MODULES = (
     api_registry_models,
     data_governance_models,
     decision_memory_models,
+    evidence_models,
     search_models,
     work_graph_models,
 )
