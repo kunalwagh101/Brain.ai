@@ -1,7 +1,7 @@
+import uuid
 from dataclasses import asdict
 from datetime import datetime
 from typing import Annotated
-import uuid
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
