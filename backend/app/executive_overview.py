@@ -168,7 +168,6 @@ class ExecutiveOverview:
     budget_warnings: tuple[ExecutiveBudgetWarning, ...]
     risks: tuple[ExecutiveRisk, ...]
     metric_provenance: tuple[MetricProvenance, ...]
-    employee_productivity_score: None
 
 
 def _portfolio(
@@ -803,5 +802,4 @@ def build_executive_overview(
             api_usage.provenance,
             api_usage.cost_provenance,
         ),
-        employee_productivity_score=None,
     )
