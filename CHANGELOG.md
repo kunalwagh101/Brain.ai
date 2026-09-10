@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### Increment 20 — Evidence-backed Project Command Centre
+
+- Added explicit structured project progress rows over existing Work Graph project/work-item nodes with `not_started`, `in_progress`, `blocked` and `done` states plus bounded integer weights.
+- Added deterministic visible progress calculation. When no structured work is configured, the API returns `progress_percent=null`; Brain does not infer a percentage from messages, commits, evidence volume, employee activity or AI output.
+- Added deterministic project status rules and kept machine blocker candidates separate from human-confirmed active blockers so unreviewed extraction cannot turn into a project fact.
+- Added permission-aware project evidence discovery through Work Graph traversal, followed by a second intersection with the live Search authorization query before evidence IDs/provenance are returned.
+- Added separate response collections for configured progress items, confirmed blockers, confirmed decisions, candidate memories and underlying authorised evidence.
+- Added auditable project-progress create/update/delete APIs and reject progress configuration for work items that are not linked to the project.
+- Added migration `20260910_0018_project_status.py`, project-status regression contracts, architecture documentation, Increment 20 planning and `UAT/F-07.01.md`.
+- Added a restricted-evidence contract showing that a visible project does not disclose related private evidence or its candidate/decision/blocker memory to an unauthorised member.
+
+Verification is not yet claimed. `S-07.01.01` remains `BLOCKED` because `S-04.02.01` is not engineering-DONE, the new backend/migration tests have not executed, realistic permission/revocation UAT has not run, and the production WorkOS-authenticated frontend/manual path remains outstanding.
+
+### Increment 19 — Generic Meeting/Document Evidence
+
+- Resolved OQ-004 to ship a provider-neutral Brain-managed generic upload adapter before committing to Google Drive, Loom, Zoom/Meet or another vendor connector.
+- Added bounded authorised ingestion for UTF-8 text/Markdown/CSV/JSON/VTT/SRT, text-extractable PDF and DOCX with source SHA-256 identity, parser safety limits and deterministic overlapping chunks.
+- Added RawEvent -> CanonicalEvent -> Work Graph -> Search projection with source/chunk provenance so meeting/document evidence uses the same downstream retrieval and memory contracts as Slack/GitHub.
+- Added organisation/restricted evidence visibility using the existing Work Graph resource-grant boundary instead of introducing a second document ACL system.
+- Added organisation-scoped idempotency handling, source lifecycle/audit events and integration with the existing physical source-object deletion/retention machinery.
+- Added migration `20260910_0017_generic_evidence_sources.py`, evidence ingestion/security tests, `docs/GENERIC_EVIDENCE.md`, Increment 19 planning and `UAT/F-02.04.md`.
+- Added cross-feature contracts proving authorised generic evidence can feed Ask Brain citations and Decision/Blocker Memory while restricted evidence prevents provider calls/derived disclosure for users without access.
+
+Verification is not yet claimed. `S-02.04.01` remains `IN_REVIEW`; its pytest/migration/real-data/browser checks have not executed in this pass.
+
 ### Increment 18 — Evidence-backed Ask Brain
 
 - Added a production Ask Brain API that reuses the existing permission-aware retrieval boundary before any company evidence reaches an AI provider.
@@ -10,7 +35,9 @@
 - Resolved OQ-005 on 2026-09-10: OpenAI API with `gpt-5.6-terra` is the first production candidate, conditional on the checked-in security, retrieval, citation, latency, compatibility and exact-cost gates; no silent fallback is allowed.
 - Added prompt-injection resistance by treating retrieved evidence as untrusted data and forbidding evidence-contained instructions from becoming model instructions.
 - Added fail-closed structured grounding validation: every accepted factual claim must cite one or more server-issued evidence IDs; malformed, empty or unknown citations are rejected and raw provider output is not returned.
-- Added cross-tenant, revocation, no-answer, citation-grounding, provenance-contract and guest-authorization tests plus architecture/security documentation, Increment 18 planning and real-provider UAT.
+- Tightened the model contract so unexpected top-level or claim-level JSON fields also fail closed rather than being silently ignored.
+- Added generic meeting/document evidence integration through the same Search-to-RAG path; no document-specific provider/retrieval branch was introduced.
+- Added cross-tenant, revocation, no-answer, citation-grounding, provenance-contract, generic-evidence, strict-output and guest-authorization tests plus architecture/security documentation, Increment 18 planning and real-provider UAT.
 - Added two-phase deployed evaluation: automatic retrieval/security metrics are separated from human review of every exact generated claim-citation pair.
 - Extended governed AI accounting for OpenAI cached input: provider cached-token usage is captured, request records persist it, model rate cards can price normal input/cached input/output separately, and missing/invalid required cache usage fails cost resolution closed to `unknown`.
 - Added request-scoped AI cost audit plus staging bootstrap validation that independently recomputes the exact request's input/output/total nano-USD cost from the reviewed Terra rate card.
@@ -120,9 +147,11 @@ Verification is not yet claimed because GitHub-hosted Actions cannot currently o
 - Added same-document PostgreSQL row locking, content/version reprocessing and `superseded` state for stale unreviewed machine candidates.
 - Added current-permission-aware reads by reusing the Permission-Aware Retrieval candidate boundary, including live Slack/GitHub revocation behavior.
 - Added human `confirm`, `reject`, `edit`, blocker-only `resolve` and `reopen` transitions with immutable before/after review records.
+- Hardened human-authoritative state: candidates with review history are not silently superseded or rewritten by later extraction, and review mutations lock the candidate row before transition to avoid concurrent-review races.
+- Added generic meeting/document evidence regression coverage so explicit decisions/blockers in authorised transcripts/documents use the same candidate/review contract.
 - Added bounded historical reconciliation/API/worker, Alembic revision `20260907_0010`, security/state/idempotency tests, synthetic precision instrumentation and realistic-data UAT instructions.
 
-Verification is not yet claimed. This story is formally `BLOCKED` on S-05.01.01 because Permission-Aware Retrieval is still `IN_REVIEW`, and GitHub-hosted Actions runners are currently failing before job startup. The synthetic precision fixture is not a production precision claim; representative labelled data and frontend/manual UAT remain required.
+Verification is not yet claimed. This story is formally `BLOCKED` on S-05.01.01 because Permission-Aware Retrieval is still `IN_REVIEW`. The synthetic precision fixture is not a production precision claim; representative labelled data, executable tests and frontend/manual UAT remain required.
 
 ### Increment 8 — Permission-aware retrieval
 
