@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.ai_usage_models import AIBudgetScopeType
 from app.database import get_db
+from app.decision_memory_models import MemoryKind, MemoryState
 from app.executive_overview import ExecutiveOverview, build_executive_overview
 from app.permissions import AuthorizationContext, Permission, require_organization_permission
 
@@ -40,6 +41,21 @@ class ExecutiveProjectRead(BaseModel):
     confirmed_decision_count: int
     candidate_memory_count: int
     evidence_count: int
+    provenance: MetricProvenanceRead
+
+
+class ExecutiveMemoryRead(BaseModel):
+    id: uuid.UUID
+    kind: MemoryKind
+    state: MemoryState
+    summary: str
+    confidence: float
+    canonical_event_id: uuid.UUID
+    search_document_id: uuid.UUID | None
+    work_graph_node_id: uuid.UUID | None
+    project_node_ids: list[uuid.UUID]
+    project_names: list[str]
+    provenance: MetricProvenanceRead
 
 
 class AIProviderSpendRead(BaseModel):
@@ -94,6 +110,7 @@ class APIUsageSummaryRead(BaseModel):
     cost_status: str
     by_service: list[APIServiceUsageRead]
     provenance: MetricProvenanceRead
+    cost_provenance: MetricProvenanceRead
 
 
 class ExecutiveBudgetWarningRead(BaseModel):
@@ -133,6 +150,8 @@ class ExecutiveOverviewRead(BaseModel):
     active_blocker_count: int
     confirmed_decision_count: int
     portfolio: list[ExecutiveProjectRead]
+    active_blockers: list[ExecutiveMemoryRead]
+    confirmed_decisions: list[ExecutiveMemoryRead]
     ai_spend: AISpendSummaryRead
     api_usage: APIUsageSummaryRead
     budget_warnings: list[ExecutiveBudgetWarningRead]
