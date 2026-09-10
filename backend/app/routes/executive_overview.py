@@ -146,6 +146,7 @@ class ExecutiveOverviewRead(BaseModel):
     blocked_project_count: int
     in_progress_project_count: int
     done_project_count: int
+    not_started_project_count: int
     unconfigured_project_count: int
     active_blocker_count: int
     confirmed_decision_count: int
