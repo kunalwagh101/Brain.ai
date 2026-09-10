@@ -48,6 +48,7 @@ class RateCardCreate(BaseModel):
     provider_configuration_id: uuid.UUID
     model_configuration_id: uuid.UUID
     input_nano_usd_per_token: int = Field(ge=0)
+    cached_input_nano_usd_per_token: int | None = Field(default=None, ge=0)
     output_nano_usd_per_token: int = Field(ge=0)
     source_label: str = Field(min_length=1, max_length=255)
     effective_from: datetime
@@ -59,6 +60,7 @@ class RateCardRead(BaseModel):
     provider_configuration_id: uuid.UUID
     model_configuration_id: uuid.UUID
     input_nano_usd_per_token: int
+    cached_input_nano_usd_per_token: int | None
     output_nano_usd_per_token: int
     source_label: str
     effective_from: datetime
@@ -130,6 +132,7 @@ class UsageSummaryRead(BaseModel):
     known_cost_requests: int
     unknown_cost_requests: int
     input_tokens: int
+    cached_input_tokens: int
     output_tokens: int
     total_cost_nano_usd: int
 
@@ -175,6 +178,9 @@ def create_rate_card(
             source_label=payload.source_label,
             effective_from=payload.effective_from,
             effective_to=payload.effective_to,
+            cached_input_nano_usd_per_token=(
+                payload.cached_input_nano_usd_per_token
+            ),
         )
     except AIUsageError as exc:
         _raise_usage_error(exc)
