@@ -12,18 +12,18 @@ DONE | S-01.03.01 | F-01.03 | Engineering evidence in TRACEABILITY.md; UAT remai
 DONE | S-02.01.01 | F-02.01 | Engineering evidence in TRACEABILITY.md; real-data/frontend UAT remains pending
 DONE | S-02.02.01 | F-02.02 | Engineering evidence in TRACEABILITY.md; real Slack + frontend UAT remains pending
 DONE | S-02.03.01 | F-02.03 | Engineering evidence in TRACEABILITY.md; real GitHub + frontend UAT remains pending
-BACKLOG | S-02.04.01 | F-02.04 | OQ-004 selects first provider
+IN_REVIEW | S-02.04.01 | F-02.04 | Generic governed file/transcript ingestion, migration, tests, docs and UAT are staged; executable verification is intentionally not claimed in this pass
 DONE | S-03.01.01 | F-03.01 | Engineering evidence in TRACEABILITY.md; realistic raw-data inspection UAT remains pending
 DONE | S-03.02.01 | F-03.02 | Engineering evidence in TRACEABILITY.md; Slack/GitHub real-data + frontend UAT remains pending
 DONE | S-03.03.01 | F-03.03 | Engineering evidence in TRACEABILITY.md; real provider identity + frontend/manual UAT remains pending
 DONE | S-04.01.01 | F-04.01 | Engineering evidence in TRACEABILITY.md; real Slack/GitHub graph + frontend/manual UAT remains pending
-BLOCKED | S-04.02.01 | F-04.02 | Implementation is staged; formal review remains blocked until S-05.01.01 has executable passing verification
+BLOCKED | S-04.02.01 | F-04.02 | Backend implementation is staged and hardened for generic evidence + human-authoritative review; formal review remains blocked until S-05.01.01 has executable passing verification
 IN_REVIEW | S-05.01.01 | F-05.01 | Implementation/docs/tests including provenance contract exist; project owner explicitly deferred local pytest + Render verification on 2026-09-10, so no passing evidence is claimed
-BLOCKED | S-05.02.01 | F-05.02 | OQ-005 resolved to OpenAI/Terra candidate; RAG/runtime discovery/cache-aware exact-cost/staging tooling are staged, but dependency verification, real staging/eval/performance, WorkOS frontend build and manual UAT remain open
+BLOCKED | S-05.02.01 | F-05.02 | Backend RAG implementation is staged including generic evidence integration, strict output contract and cache-aware exact cost; dependency verification, real staging/eval/performance, WorkOS frontend build and manual UAT remain open
 IN_REVIEW | S-06.01.01 | F-06.01 | Provider registry/gateway implementation, migration, tests, docs and cache-token usage propagation are staged; executable passing verification remains outstanding
 BLOCKED | S-06.02.01 | F-06.02 | Cache-aware usage/cost/budget implementation and request-scoped cost audit are staged; tests are written but unexecuted and S-06.01.01 remains unverified
 IN_REVIEW | S-06.03.01 | F-06.03 | External API registry/lifecycle/expiry implementation is staged; executable passing verification remains outstanding
-BACKLOG | S-07.01.01 | F-07.01 | Depends on work graph + decision/blocker memory
+BLOCKED | S-07.01.01 | F-07.01 | Evidence-backed project-status backend, deterministic structured progress, migration, tests/docs/UAT are staged; depends on S-04.02.01 completion plus executable verification and production frontend UAT
 BACKLOG | S-07.02.01 | F-07.02 | Depends on project status + usage/cost
 BLOCKED | S-08.01.01 | F-08.01 | Governed agent runtime is staged; dependencies and this story still lack executable passing verification
 IN_REVIEW | S-09.01.01 | F-09.01 | Observability implementation/tests/docs/UAT are staged; executable passing verification remains outstanding
@@ -32,47 +32,75 @@ BLOCKED | S-09.03.01 | F-09.03 | Release/rollback/restore work plus a concrete R
 BLOCKED | S-09.04.01 | F-09.04 | Performance/cost benchmark work is staged; no real Ask Brain staging performance run exists yet
 DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external-tool wedge
 
-## Current increment — Increment 18 / S-05.02.01
+## Current implementation train — S-02.04 / S-05.02 / S-04.02 / S-07.01
 
-Sprint goal: a user can ask a company question and receive either a strictly evidence-cited answer from currently authorised evidence or an explicit no-answer; ungrounded provider text must fail closed.
+Project-owner direction on 2026-09-10: continue implementation on the existing `increment-10-ai-provider-gateway` branch without running the deferred S-05.01.01 local pytest/Render acceptance gate yet. Dependency rules remain binding for formal story status; implementation presence is not a PASS.
 
-Vertical slice: Ask Brain API -> permission-aware retrieval -> bounded evidence context -> governed AI gateway -> structured claim/citation validation -> cited response/no-answer.
+### S-02.04.01 Meeting/document evidence
 
-Branch rule: continue on `increment-10-ai-provider-gateway`; no additional branch is created.
+Staged now:
 
-### What is staged now
+- generic governed upload for UTF-8 text/Markdown/CSV/JSON/VTT/SRT plus text-extractable PDF and DOCX;
+- immutable SHA-256 source identity, bounded parsing and deterministic overlapping chunks;
+- RawEvent -> CanonicalEvent -> Work Graph -> Search projection with source/chunk provenance;
+- organisation or restricted visibility using the existing Work Graph resource-grant boundary;
+- idempotency, source lifecycle, retention/deletion integration and audit events;
+- migration `20260910_0017`, tests, docs and UAT contract.
+
+Formal state: `IN_REVIEW`. No executable test/UAT evidence is claimed.
+
+### S-05.02.01 Ask Brain
+
+Staged now:
 
 - permission-aware Ask Brain retrieval with no-evidence/no-provider-call behaviour;
+- source-agnostic RAG, including generic meeting/document evidence through the same Search contract;
 - explicit tenant provider/model selection and safe organisation/runtime discovery for normal `ai.use` users;
-- prompt-injection boundary and strict server-issued citation validation;
-- bounded citation excerpts and an Ask-Brain-specific 8,192-token output ceiling;
+- prompt-injection boundary, bounded evidence/citation excerpts and an 8,192-token output ceiling;
+- exact JSON output contract: unexpected top-level or claim fields fail closed;
+- every factual claim must cite one or more server-issued evidence IDs; unknown/malformed citations fail closed;
 - two-phase deployed evaluation separating automatic retrieval/security checks from human semantic claim-citation review;
-- OQ-005 resolution: OpenAI API + `gpt-5.6-terra` is the first candidate, conditional on all acceptance gates;
-- provider-reported cached-input token capture;
-- separate normal-input/cached-input/output Terra rate-card support;
-- fail-closed unknown cost when required cached usage is absent or invalid;
-- request-scoped cost audit and staging bootstrap that independently recomputes exact cost for one real provider request;
-- Alembic revision `20260910_0016` for cached-input accounting;
-- regression tests for cache parsing/costing, exact request-cost API and managed Postgres URL handling; these tests are written but not claimed as executed;
-- `render.yaml` plus `docs/RENDER_STAGING.md` for a reproducible API + PostgreSQL staging candidate;
-- `docs/ASK_BRAIN_STAGING.md` and `UAT/F-05.02.md` for compatibility, quality, performance and browser acceptance.
+- OQ-005 resolution: OpenAI API + `gpt-5.6-terra` first candidate, conditional on all acceptance gates;
+- cache-aware token/cost accounting, request-scoped exact-cost audit and Render staging bootstrap/runbooks;
+- generic-evidence and strict-output regression tests written but not executed.
 
-### Formal state
+Formal state: `BLOCKED`, because S-05.01.01 is still `IN_REVIEW` and the real provider/eval/performance/frontend acceptance evidence does not exist.
 
-`S-05.01.01` stays `IN_REVIEW`. On 2026-09-10 the project owner explicitly deferred running its pytest verification locally and on Render. That is a deliberate deferred gate, not a PASS.
+### S-04.02.01 Decision and Blocker Memory
 
-`S-05.02.01` stays `BLOCKED`. OQ-005 is resolved, but the following acceptance evidence does not exist yet: executable dependency/Ask Brain verification, deployed Render staging with real WorkOS/AWS/OpenAI configuration, real Terra compatibility + cache-aware exact-cost smoke, representative Phase 1 retrieval/RAG evaluation, Phase 2 human claim-citation review, p95/error/cost performance run, official WorkOS frontend package/build, and manual authenticated browser UAT.
+Staged now:
 
-The production frontend must not be faked with ChatGPT-host authentication or a hardcoded bearer token. The current controlled environment cannot install the WorkOS AuthKit dependency and regenerate a trustworthy lockfile, so that integration remains externally blocked until package installation/build is available.
+- deterministic explicit-marker candidate extraction from permission-aware Search evidence, including generic meeting/document evidence;
+- machine output remains candidate-only with confidence/state/evidence identifiers;
+- idempotent extraction and supersession for unreviewed machine candidates;
+- human review history is authoritative: reviewed/reopened candidates are not silently superseded or rewritten by later machine extraction;
+- review mutation locks the candidate row before state transition to prevent concurrent review races;
+- confirm/reject/edit/resolve/reopen history remains immutable and permission-aware;
+- regression contracts for generic transcript extraction and human-authority re-extraction are written but not executed.
 
-Production quality gates remain: retrieval recall >=90%, zero forbidden evidence exposure/grounding-contract failures, every exact generated claim-citation pair human reviewed, semantic citation correctness >=98%, and Ask Brain p95 <10 seconds on the accepted staging runtime.
+Formal state: `BLOCKED` until S-05.01.01 receives executable passing verification and this story's own precision/UAT gates run.
 
-No `EVIDENCE S-05.01.01` or `EVIDENCE S-05.02.01` block may be added and no merge may occur until those checks actually pass.
+### S-07.01.01 Project Command Centre
 
-Detailed readiness/tasks: `docs/planning/increment-18.md`.
+Staged now:
 
-Backend/evaluation/security design: `docs/ASK_BRAIN.md`, `docs/ASK_BRAIN_EVALUATION.md`, and `docs/ASK_BRAIN_STAGING.md`.
+- explicit `ProjectProgressItem` structured work state/weight model;
+- percentage is calculated only from currently visible configured structured work; no configuration returns `null`, never an AI estimate;
+- project status is deterministic; unconfirmed blocker candidates cannot mark a project blocked;
+- project/work-item visibility uses Work Graph permissions;
+- project evidence is discovered via permission-aware Work Graph traversal and intersected again with live permission-aware Search before provenance is returned;
+- human-confirmed decisions/blockers and machine candidates are separate response collections;
+- progress mutations are audited and arbitrary unlinked work items cannot affect a project;
+- project list/detail/progress APIs, migration `20260910_0018`, tests, docs and `UAT/F-07.01.md` are staged.
 
-Staging deployment procedure: `docs/RENDER_STAGING.md`.
+Formal state: `BLOCKED` because its S-04.02.01 dependency is not DONE and no executable/backend/frontend UAT evidence exists.
 
-Manual/real-provider acceptance procedure: `UAT/F-05.02.md`.
+## Deferred acceptance gate
+
+`S-05.01.01` stays `IN_REVIEW`. The project owner explicitly deferred its local pytest + Render verification. That gate must later prove tenant isolation, current permission filtering, revocation, provenance and retrieval quality before dependent features can advance to accepted states.
+
+After that verification, run the dependent executable suites/migrations, real OpenAI/Terra compatibility and cache-aware exact-cost smoke, representative Ask Brain retrieval/RAG evaluation, human citation review, staging performance, decision-memory precision/UAT, project-status permission/revocation UAT, and the official WorkOS authenticated frontend/manual paths.
+
+Production quality gates remain: retrieval recall >=90%, zero forbidden evidence exposure/grounding-contract failures, every exact generated claim-citation pair human reviewed, semantic citation correctness >=98%, Decision/Blocker precision >=90% on the agreed representative set, and Ask Brain p95 <10 seconds on the accepted staging runtime.
+
+No new `EVIDENCE` block may be added for these stories and no story may be marked `DONE/PASSED` until its required checks actually execute successfully.
