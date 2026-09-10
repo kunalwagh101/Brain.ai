@@ -239,7 +239,10 @@ def test_generic_evidence_and_human_confirmed_blocker_drive_project_status(
     assert before_review.status == "in_progress"
     assert before_review.active_blockers == ()
     assert len(before_review.candidate_memories) == 1
-    assert any(item.source_provider == "generic_upload" for item in before_review.evidence)
+    assert any(
+        item.source_provider == "generic_upload"
+        for item in before_review.evidence
+    )
 
     review_memory_candidate(
         db_session,
@@ -263,3 +266,65 @@ def test_generic_evidence_and_human_confirmed_blocker_drive_project_status(
     assert len(after_review.active_blockers) == 1
     assert after_review.active_blockers[0].id == candidate.id
     assert after_review.progress_percent == 0.0
+
+
+def test_restricted_project_evidence_is_not_disclosed_to_other_member(
+    db_session: Session,
+) -> None:
+    organization, owner, member = _seed(db_session)
+    project, _, _ = _project_and_items(db_session, organization, owner)
+    source = ingest_evidence(
+        db_session,
+        organization_id=organization.id,
+        actor_user_id=owner.id,
+        kind=EvidenceKind.DOCUMENT,
+        title="Restricted Atlas note",
+        filename="atlas-private.txt",
+        media_type="text/plain",
+        content=b"Decision: rotate the Atlas signing key on Friday.",
+        visibility=EvidenceVisibility.RESTRICTED,
+        occurred_at=None,
+        idempotency_key=f"project-restricted-{uuid.uuid4()}",
+    )
+    document = db_session.scalar(
+        select(SearchDocument).where(
+            SearchDocument.organization_id == organization.id,
+            SearchDocument.object_external_id == str(source.id),
+        )
+    )
+    assert document is not None
+    assert document.work_graph_node_id is not None
+    create_manual_edge(
+        db_session,
+        organization_id=organization.id,
+        source_node_id=project.id,
+        target_node_id=document.work_graph_node_id,
+        edge_type=WorkGraphEdgeType.RELATED_TO,
+        actor_user_id=owner.id,
+        reason="Private Atlas evidence",
+    )
+    project_memory_candidates(db_session, document)
+
+    owner_snapshot = build_project_status(
+        db_session,
+        organization_id=organization.id,
+        user_id=owner.id,
+        role=MembershipRole.OWNER,
+        project_node_id=project.id,
+    )
+    member_snapshot = build_project_status(
+        db_session,
+        organization_id=organization.id,
+        user_id=member.id,
+        role=MembershipRole.MEMBER,
+        project_node_id=project.id,
+    )
+
+    assert owner_snapshot is not None
+    assert member_snapshot is not None
+    assert len(owner_snapshot.evidence) == 1
+    assert len(owner_snapshot.candidate_memories) == 1
+    assert member_snapshot.evidence == ()
+    assert member_snapshot.candidate_memories == ()
+    assert member_snapshot.confirmed_decisions == ()
+    assert member_snapshot.active_blockers == ()
