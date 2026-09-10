@@ -153,11 +153,6 @@ class AIRequestRecord(Base):
             name="ck_ai_request_cached_input_tokens",
         ),
         CheckConstraint(
-            "cached_input_tokens IS NULL OR input_tokens IS NULL "
-            "OR cached_input_tokens <= input_tokens",
-            name="ck_ai_request_cached_within_input_tokens",
-        ),
-        CheckConstraint(
             "output_tokens IS NULL OR output_tokens >= 0",
             name="ck_ai_request_output_tokens",
         ),
