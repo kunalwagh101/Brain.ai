@@ -52,6 +52,7 @@ class AIInvocationResult:
     input_tokens: int | None
     output_tokens: int | None
     latency_ms: int
+    cached_input_tokens: int | None = None
 
 
 def create_provider_configuration(
@@ -490,6 +491,7 @@ def invoke_ai(
         record.status = AIRequestStatus.SUCCEEDED
         record.output_char_count = len(result.output_text)
         record.input_tokens = result.input_tokens
+        record.cached_input_tokens = result.cached_input_tokens
         record.output_tokens = result.output_tokens
         record.latency_ms = latency_ms
         record.provider_request_id = result.provider_request_id
@@ -534,4 +536,5 @@ def invoke_ai(
             input_tokens=result.input_tokens,
             output_tokens=result.output_tokens,
             latency_ms=latency_ms,
+            cached_input_tokens=result.cached_input_tokens,
         )
