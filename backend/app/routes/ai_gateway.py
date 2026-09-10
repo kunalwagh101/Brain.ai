@@ -100,6 +100,7 @@ class AIInvokeResponse(BaseModel):
     output_text: str
     provider_request_id: str | None
     input_tokens: int | None
+    cached_input_tokens: int | None
     output_tokens: int | None
     latency_ms: int
 
@@ -320,6 +321,7 @@ def invoke(
         output_text=result.output_text,
         provider_request_id=result.provider_request_id,
         input_tokens=result.input_tokens,
+        cached_input_tokens=result.cached_input_tokens,
         output_tokens=result.output_tokens,
         latency_ms=result.latency_ms,
     )
