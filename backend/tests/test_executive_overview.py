@@ -60,7 +60,12 @@ def _seed(db: Session, suffix: str):
     return organization, owner, executive, member
 
 
-def _provider_model(db: Session, organization: Organization, owner: User, suffix: str):
+def _provider_model(
+    db: Session,
+    organization: Organization,
+    owner: User,
+    suffix: str,
+):
     provider = AIProviderConfiguration(
         organization_id=organization.id,
         provider_key=f"openai-{suffix}",
@@ -86,7 +91,7 @@ def _provider_model(db: Session, organization: Organization, owner: User, suffix
     return provider, model
 
 
-def test_overview_filters_restricted_projects_and_never_emits_productivity_score(
+def test_overview_filters_restricted_projects_and_has_no_productivity_score(
     db_session: Session,
 ) -> None:
     organization, owner, executive, _ = _seed(db_session, "permissions")
@@ -119,8 +124,10 @@ def test_overview_filters_restricted_projects_and_never_emits_productivity_score
 
     assert overview.visible_project_count == 1
     assert [item.project_node_id for item in overview.portfolio] == [public_project.id]
-    assert overview.employee_productivity_score is None
-    assert all(item.project_node_id != restricted_project.id for item in overview.portfolio)
+    assert not hasattr(overview, "employee_productivity_score")
+    assert all(
+        item.project_node_id != restricted_project.id for item in overview.portfolio
+    )
 
 
 def test_overview_uses_exact_ai_cost_budget_math_and_real_api_usage(
@@ -303,26 +310,24 @@ def test_executive_overview_route_requires_audit_read(
     db_session: Session,
 ) -> None:
     organization, _, executive, member = _seed(db_session, "route")
+    path = f"/api/v1/organizations/{organization.id}/executive-overview"
 
     app.dependency_overrides[get_current_user] = lambda: member
     try:
-        denied = client.get(
-            f"/api/v1/organizations/{organization.id}/executive-overview"
-        )
+        denied = client.get(path)
     finally:
         app.dependency_overrides.pop(get_current_user, None)
     assert denied.status_code == 403
 
     app.dependency_overrides[get_current_user] = lambda: executive
     try:
-        allowed = client.get(
-            f"/api/v1/organizations/{organization.id}/executive-overview"
-        )
+        allowed = client.get(path)
     finally:
         app.dependency_overrides.pop(get_current_user, None)
 
     assert allowed.status_code == 200
     payload = allowed.json()
-    assert payload["employee_productivity_score"] is None
+    assert "employee_productivity_score" not in payload
+    assert "productivity_score" not in payload
     assert payload["ai_spend"]["known_spend_nano_usd"] == 0
     assert payload["api_usage"]["cost_status"] == "not_modeled"
