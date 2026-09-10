@@ -11,6 +11,7 @@ from app import (
     data_governance_models,
     decision_memory_models,
     evidence_models,
+    project_status_models,
     search_models,
     work_graph_models,
 )
@@ -27,6 +28,7 @@ _MODEL_MODULES = (
     data_governance_models,
     decision_memory_models,
     evidence_models,
+    project_status_models,
     search_models,
     work_graph_models,
 )
