@@ -18,6 +18,7 @@ MODEL_KEY = "gpt-5.6-terra"
 MODEL_DISPLAY_NAME = "GPT-5.6 Terra"
 MODEL_MAX_OUTPUT_TOKENS = 8_192
 INPUT_NANO_USD_PER_TOKEN = 2_000
+CACHED_INPUT_NANO_USD_PER_TOKEN = 200
 OUTPUT_NANO_USD_PER_TOKEN = 12_000
 RATE_SOURCE_LABEL = "OpenAI GPT-5.6 Terra pricing reviewed 2026-09-10"
 
@@ -253,11 +254,14 @@ def _ensure_rate_card(
         card = current[0]
         if (
             int(card.get("input_nano_usd_per_token", -1)) != INPUT_NANO_USD_PER_TOKEN
+            or int(card.get("cached_input_nano_usd_per_token", -1))
+            != CACHED_INPUT_NANO_USD_PER_TOKEN
             or int(card.get("output_nano_usd_per_token", -1)) != OUTPUT_NANO_USD_PER_TOKEN
         ):
             raise BootstrapError(
                 "The currently effective Terra rate card does not match the reviewed 2026-09-10 "
-                "price. Create a deliberate historical rate transition instead of overwriting it."
+                "price, including cached input. Create a deliberate historical rate transition "
+                "instead of overwriting it."
             )
         return card
 
@@ -277,6 +281,7 @@ def _ensure_rate_card(
             "provider_configuration_id": provider_id,
             "model_configuration_id": model_id,
             "input_nano_usd_per_token": INPUT_NANO_USD_PER_TOKEN,
+            "cached_input_nano_usd_per_token": CACHED_INPUT_NANO_USD_PER_TOKEN,
             "output_nano_usd_per_token": OUTPUT_NANO_USD_PER_TOKEN,
             "source_label": RATE_SOURCE_LABEL,
             "effective_from": effective_from.isoformat(),
@@ -311,6 +316,14 @@ def _compatibility_smoke(
     )
     if not isinstance(payload, dict) or not payload.get("request_id"):
         raise BootstrapError("Provider smoke returned an invalid AI invocation contract")
+    if payload.get("input_tokens") is None or payload.get("output_tokens") is None:
+        raise BootstrapError("Provider smoke did not return billable token usage")
+    if payload.get("cached_input_tokens") is None:
+        raise BootstrapError(
+            "Provider smoke did not return cached-input usage detail, so exact Terra cost cannot "
+            "be proven"
+        )
+
     after = _usage_snapshot(client, organization_id)
     request_delta = after["request_count"] - before["request_count"]
     known_delta = after["known_cost_requests"] - before["known_cost_requests"]
@@ -320,12 +333,13 @@ def _compatibility_smoke(
         raise BootstrapError("Smoke request was not visible in the governed usage ledger")
     if known_delta < 1 or unknown_delta != 0:
         raise BootstrapError(
-            "Smoke request did not produce exact cost accounting; check provider usage fields and "
-            "the effective Terra rate card"
+            "Smoke request did not produce exact cache-aware cost accounting; check provider "
+            "usage fields and the effective Terra rate card"
         )
     return {
         "request_id": str(payload["request_id"]),
         "input_tokens": payload.get("input_tokens"),
+        "cached_input_tokens": payload.get("cached_input_tokens"),
         "output_tokens": payload.get("output_tokens"),
         "latency_ms": payload.get("latency_ms"),
         "cost_delta_nano_usd": cost_delta,
@@ -387,6 +401,7 @@ def _run(args: argparse.Namespace) -> int:
     print(f"smoke_request_id={smoke['request_id']}")
     print(f"smoke_latency_ms={smoke['latency_ms']}")
     print(f"smoke_input_tokens={smoke['input_tokens']}")
+    print(f"smoke_cached_input_tokens={smoke['cached_input_tokens']}")
     print(f"smoke_output_tokens={smoke['output_tokens']}")
     print(f"smoke_cost_delta_nano_usd={smoke['cost_delta_nano_usd']}")
     return 0
@@ -396,7 +411,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Idempotently configure the approved OpenAI/Terra Ask Brain staging runtime, exact "
-            "rate card, and provider compatibility smoke"
+            "cache-aware rate card, and provider compatibility smoke"
         )
     )
     parser.add_argument("--base-url", required=True)
