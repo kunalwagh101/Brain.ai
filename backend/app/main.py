@@ -22,6 +22,7 @@ from app.routes.github import router as github_router
 from app.routes.identities import router as identities_router
 from app.routes.integrations import router as integrations_router
 from app.routes.organizations import router as organizations_router
+from app.routes.project_status import router as project_status_router
 from app.routes.runtime_discovery import router as runtime_discovery_router
 from app.routes.search import router as search_router
 from app.routes.slack import router as slack_router
@@ -83,6 +84,7 @@ app.include_router(identities_router, prefix=settings.api_prefix)
 app.include_router(work_graph_router, prefix=settings.api_prefix)
 app.include_router(search_router, prefix=settings.api_prefix)
 app.include_router(decision_memory_router, prefix=settings.api_prefix)
+app.include_router(project_status_router, prefix=settings.api_prefix)
 app.include_router(ai_gateway_router, prefix=settings.api_prefix)
 app.include_router(ask_brain_router, prefix=settings.api_prefix)
 app.include_router(ai_usage_router, prefix=settings.api_prefix)
