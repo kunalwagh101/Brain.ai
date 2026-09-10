@@ -2,7 +2,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.ai_usage import budget_snapshot, calendar_month_window, usage_summary
@@ -13,8 +13,9 @@ from app.api_registry_models import (
     APIService,
     APIUsageObservation,
 )
+from app.decision_memory_models import MemoryKind, MemoryState
 from app.models import MembershipRole
-from app.project_status import ProjectStatusSnapshot, list_project_statuses
+from app.project_status import ProjectMemory, ProjectStatusSnapshot, list_project_statuses
 from app.work_graph import node_visible_to_user
 from app.work_graph_models import WorkGraphNode
 
@@ -42,6 +43,22 @@ class ExecutiveProject:
     confirmed_decision_count: int
     candidate_memory_count: int
     evidence_count: int
+    provenance: MetricProvenance
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutiveMemory:
+    id: uuid.UUID
+    kind: MemoryKind
+    state: MemoryState
+    summary: str
+    confidence: float
+    canonical_event_id: uuid.UUID
+    search_document_id: uuid.UUID | None
+    work_graph_node_id: uuid.UUID | None
+    project_node_ids: tuple[uuid.UUID, ...]
+    project_names: tuple[str, ...]
+    provenance: MetricProvenance
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +117,7 @@ class APIUsageSummary:
     cost_status: str
     by_service: tuple[APIServiceUsage, ...]
     provenance: MetricProvenance
+    cost_provenance: MetricProvenance
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,6 +160,8 @@ class ExecutiveOverview:
     active_blocker_count: int
     confirmed_decision_count: int
     portfolio: tuple[ExecutiveProject, ...]
+    active_blockers: tuple[ExecutiveMemory, ...]
+    confirmed_decisions: tuple[ExecutiveMemory, ...]
     ai_spend: AISpendSummary
     api_usage: APIUsageSummary
     budget_warnings: tuple[ExecutiveBudgetWarning, ...]
@@ -157,9 +177,9 @@ def _portfolio(
     user_id: uuid.UUID,
     role: MembershipRole,
 ) -> tuple[ProjectStatusSnapshot, ...]:
-    # Correctness is more important than silently truncating aggregate metrics.
-    # The API response may later paginate the rendered portfolio independently,
-    # but all executive counts are calculated from every currently visible project.
+    # Aggregate metrics must not silently change because of an output page limit.
+    # S-07.01 currently materializes the visible portfolio in-process, so consume all
+    # visible projects here and let a future pagination layer be independent of counts.
     return tuple(
         list_project_statuses(
             db,
@@ -169,6 +189,88 @@ def _portfolio(
             limit=1_000_000_000,
         )
     )
+
+
+def _project_metric_provenance(
+    organization_id: uuid.UUID,
+    project: ProjectStatusSnapshot,
+) -> MetricProvenance:
+    return MetricProvenance(
+        metric_key=f"project_status:{project.project_node_id}",
+        source_records=(
+            "permission-filtered WorkGraph + ProjectProgressItem + "
+            "DecisionMemoryCandidate + SearchDocument"
+        ),
+        calculation=(
+            "reuse S-07.01 deterministic project status; percentage is weighted only "
+            "from configured visible work items; blocked state requires confirmed blocker "
+            "memory or an explicitly BLOCKED configured work item"
+        ),
+        source_count=(
+            len(project.progress_items)
+            + len(project.active_blockers)
+            + len(project.confirmed_decisions)
+            + len(project.evidence)
+        ),
+        drilldown_path=(
+            f"/api/v1/organizations/{organization_id}/project-status/"
+            f"{project.project_node_id}"
+        ),
+        complete=True,
+    )
+
+
+def _aggregate_memories(
+    organization_id: uuid.UUID,
+    projects: tuple[ProjectStatusSnapshot, ...],
+    *,
+    attribute: str,
+) -> tuple[ExecutiveMemory, ...]:
+    entries: dict[uuid.UUID, tuple[ProjectMemory, list[tuple[uuid.UUID, str]]]] = {}
+    for project in projects:
+        memories = getattr(project, attribute)
+        for memory in memories:
+            existing = entries.get(memory.id)
+            if existing is None:
+                entries[memory.id] = (
+                    memory,
+                    [(project.project_node_id, project.project_name)],
+                )
+            else:
+                existing[1].append((project.project_node_id, project.project_name))
+
+    result: list[ExecutiveMemory] = []
+    for memory, links in entries.values():
+        unique_links = sorted(set(links), key=lambda item: (item[1].casefold(), str(item[0])))
+        result.append(
+            ExecutiveMemory(
+                id=memory.id,
+                kind=memory.kind,
+                state=memory.state,
+                summary=memory.summary,
+                confidence=memory.confidence,
+                canonical_event_id=memory.canonical_event_id,
+                search_document_id=memory.search_document_id,
+                work_graph_node_id=memory.work_graph_node_id,
+                project_node_ids=tuple(item[0] for item in unique_links),
+                project_names=tuple(item[1] for item in unique_links),
+                provenance=MetricProvenance(
+                    metric_key=f"decision_memory:{memory.id}",
+                    source_records="DecisionMemoryCandidate + authorised SearchDocument",
+                    calculation=(
+                        "surface only currently visible human-confirmed memory from S-04.02; "
+                        "machine-only candidates never enter confirmed executive facts"
+                    ),
+                    source_count=1,
+                    drilldown_path=(
+                        f"/api/v1/organizations/{organization_id}/memory/{memory.id}"
+                    ),
+                    complete=True,
+                ),
+            )
+        )
+    result.sort(key=lambda item: (item.summary.casefold(), str(item.id)))
+    return tuple(result)
 
 
 def _ai_spend(
@@ -286,6 +388,8 @@ def _api_usage(
         .join(APIService, APIService.id == APICredentialGrant.service_id)
         .where(
             APIUsageObservation.organization_id == organization_id,
+            APICredentialGrant.organization_id == organization_id,
+            APIService.organization_id == organization_id,
             APIUsageObservation.observed_at >= start,
             APIUsageObservation.observed_at < end,
         )
@@ -317,22 +421,36 @@ def _api_usage(
             select(func.count(APICredentialGrant.id)).where(
                 APICredentialGrant.organization_id == organization_id,
                 APICredentialGrant.status == APIGrantStatus.ACTIVE,
+                or_(
+                    APICredentialGrant.expires_at.is_(None),
+                    APICredentialGrant.expires_at > end,
+                ),
             )
         )
         or 0
     )
-    provenance = MetricProvenance(
+    usage_provenance = MetricProvenance(
         metric_key="external_api_usage_month_to_date",
         source_records="APIUsageObservation + APICredentialGrant + APIService",
-        calculation=(
-            "count trusted API usage observations by service in [period_start, period_end); "
-            "monetary API cost is intentionally unavailable because no tariff model exists"
-        ),
+        calculation="count trusted API usage observations by service in [period_start, period_end)",
         source_count=observations,
         period_start=start,
         period_end=end,
         drilldown_path=f"/api/v1/organizations/{organization_id}/api-registry/usage",
         complete=True,
+    )
+    cost_provenance = MetricProvenance(
+        metric_key="external_api_spend_month_to_date",
+        source_records="no external-API tariff/cost ledger exists in S-06.03",
+        calculation=(
+            "not calculated; Brain refuses to convert call counts into monetary spend without "
+            "an explicit provider tariff and cost-allocation contract"
+        ),
+        source_count=0,
+        period_start=start,
+        period_end=end,
+        drilldown_path=None,
+        complete=False,
     )
     return APIUsageSummary(
         period_start=start,
@@ -344,7 +462,8 @@ def _api_usage(
         known_spend_nano_usd=None,
         cost_status="not_modeled",
         by_service=services,
-        provenance=provenance,
+        provenance=usage_provenance,
+        cost_provenance=cost_provenance,
     )
 
 
@@ -402,12 +521,12 @@ def _budget_warnings(
             continue
         provenance = MetricProvenance(
             metric_key=f"ai_budget:{policy.id}",
-            source_records="AIBudgetPolicy + AIRequestRecord + AIUsageCostRecord",
+            source_records="AIBudgetPolicy + computed calendar-month budget snapshot",
             calculation=(
-                "calendar-month known spend divided by configured budget limit; "
-                "unknown successful-request costs make enforcement incomplete"
+                "known calendar-month spend divided by configured budget limit; unknown "
+                "successful-request costs make enforcement incomplete"
             ),
-            source_count=snapshot.unknown_cost_requests,
+            source_count=1,
             period_start=snapshot.period_start,
             period_end=snapshot.period_end,
             drilldown_path=(
@@ -443,6 +562,14 @@ def _budget_warnings(
     return tuple(warnings)
 
 
+def _normalise_time(at: datetime | None) -> datetime:
+    if at is None:
+        return datetime.now(UTC)
+    if at.tzinfo is None:
+        return at.replace(tzinfo=UTC)
+    return at.astimezone(UTC)
+
+
 def build_executive_overview(
     db: Session,
     *,
@@ -451,7 +578,7 @@ def build_executive_overview(
     role: MembershipRole,
     at: datetime | None = None,
 ) -> ExecutiveOverview:
-    generated_at = at.astimezone(UTC) if at and at.tzinfo else (at.replace(tzinfo=UTC) if at else datetime.now(UTC))
+    generated_at = _normalise_time(at)
     month_start, month_end = calendar_month_window(generated_at)
     period_end = min(month_end, generated_at)
 
@@ -472,26 +599,49 @@ def build_executive_overview(
             confirmed_decision_count=len(project.confirmed_decisions),
             candidate_memory_count=len(project.candidate_memories),
             evidence_count=len(project.evidence),
+            provenance=_project_metric_provenance(organization_id, project),
         )
         for project in project_snapshots
     )
-    unique_blockers = {
-        blocker.id for project in project_snapshots for blocker in project.active_blockers
-    }
-    unique_decisions = {
-        decision.id for project in project_snapshots for decision in project.confirmed_decisions
-    }
-    project_provenance = MetricProvenance(
-        metric_key="visible_project_portfolio",
-        source_records="permission-filtered WorkGraph + ProjectProgressItem + DecisionMemoryCandidate + SearchDocument",
+    active_blockers = _aggregate_memories(
+        organization_id,
+        project_snapshots,
+        attribute="active_blockers",
+    )
+    confirmed_decisions = _aggregate_memories(
+        organization_id,
+        project_snapshots,
+        attribute="confirmed_decisions",
+    )
+
+    portfolio_provenance = MetricProvenance(
+        metric_key="visible_project_count_and_statuses",
+        source_records="permission-filtered S-07.01 ProjectStatusSnapshot",
         calculation=(
-            "build S-07.01 status for every project visible to the authenticated user; "
-            "counts use unique confirmed memory IDs across visible projects"
+            "count only projects visible through current Work Graph authorization and group "
+            "their deterministic S-07.01 status"
         ),
         source_count=len(project_snapshots),
         drilldown_path=f"/api/v1/organizations/{organization_id}/project-status",
         complete=True,
     )
+    blocker_provenance = MetricProvenance(
+        metric_key="active_blocker_count",
+        source_records="human-confirmed visible S-04.02 blocker memory",
+        calculation="count unique confirmed blocker IDs across currently visible project evidence",
+        source_count=len(active_blockers),
+        drilldown_path=f"/api/v1/organizations/{organization_id}/memory?kind=blocker&state=confirmed",
+        complete=True,
+    )
+    decision_provenance = MetricProvenance(
+        metric_key="confirmed_decision_count",
+        source_records="human-confirmed visible S-04.02 decision memory",
+        calculation="count unique confirmed decision IDs across currently visible project evidence",
+        source_count=len(confirmed_decisions),
+        drilldown_path=f"/api/v1/organizations/{organization_id}/memory?kind=decision&state=confirmed",
+        complete=True,
+    )
+
     ai_spend = _ai_spend(
         db,
         organization_id=organization_id,
@@ -519,19 +669,13 @@ def build_executive_overview(
                 ExecutiveRisk(
                     key=f"project_blocked:{project.project_node_id}",
                     severity="high",
-                    message=f"{project.project_name} is blocked by confirmed memory or configured work state",
+                    message=(
+                        f"{project.project_name} is blocked by confirmed memory or configured "
+                        "work state"
+                    ),
                     project_node_id=project.project_node_id,
                     budget_policy_id=None,
-                    provenance=MetricProvenance(
-                        metric_key=f"project_status:{project.project_node_id}",
-                        source_records="S-07.01 ProjectStatusSnapshot",
-                        calculation="blocked only from confirmed blockers or explicitly BLOCKED configured work items",
-                        source_count=len(project.active_blockers) + len(project.progress_items),
-                        drilldown_path=(
-                            f"/api/v1/organizations/{organization_id}/project-status/{project.project_node_id}"
-                        ),
-                        complete=True,
-                    ),
+                    provenance=_project_metric_provenance(organization_id, project),
                 )
             )
     for warning in warnings:
@@ -543,7 +687,9 @@ def build_executive_overview(
             message = "AI budget warning threshold is reached"
         else:
             severity = "medium"
-            message = "AI budget enforcement is incomplete because some request costs are unknown"
+            message = (
+                "AI budget enforcement is incomplete because some request costs are unknown"
+            )
         risks.append(
             ExecutiveRisk(
                 key=f"budget:{warning.budget_policy_id}",
@@ -563,10 +709,26 @@ def build_executive_overview(
             ExecutiveRisk(
                 key="ai_cost_incomplete",
                 severity="medium",
-                message="AI spend is incomplete because successful requests with unknown cost exist",
+                message=(
+                    "AI spend is incomplete because successful requests with unknown cost exist"
+                ),
                 project_node_id=None,
                 budget_policy_id=None,
                 provenance=ai_spend.provenance,
+            )
+        )
+    if api_usage.observation_count > 0 and api_usage.cost_status == "not_modeled":
+        risks.append(
+            ExecutiveRisk(
+                key="external_api_cost_not_modeled",
+                severity="low",
+                message=(
+                    "External API monetary spend is unavailable because Brain has usage records "
+                    "but no approved API tariff/cost model"
+                ),
+                project_node_id=None,
+                budget_policy_id=None,
+                provenance=api_usage.cost_provenance,
             )
         )
 
@@ -576,16 +738,29 @@ def build_executive_overview(
         period_end=period_end,
         visible_project_count=len(project_snapshots),
         blocked_project_count=sum(project.status == "blocked" for project in project_snapshots),
-        in_progress_project_count=sum(project.status == "in_progress" for project in project_snapshots),
+        in_progress_project_count=sum(
+            project.status == "in_progress" for project in project_snapshots
+        ),
         done_project_count=sum(project.status == "done" for project in project_snapshots),
-        unconfigured_project_count=sum(project.status == "unconfigured" for project in project_snapshots),
-        active_blocker_count=len(unique_blockers),
-        confirmed_decision_count=len(unique_decisions),
+        unconfigured_project_count=sum(
+            project.status == "unconfigured" for project in project_snapshots
+        ),
+        active_blocker_count=len(active_blockers),
+        confirmed_decision_count=len(confirmed_decisions),
         portfolio=portfolio,
+        active_blockers=active_blockers,
+        confirmed_decisions=confirmed_decisions,
         ai_spend=ai_spend,
         api_usage=api_usage,
         budget_warnings=warnings,
         risks=tuple(risks),
-        metric_provenance=(project_provenance, ai_spend.provenance, api_usage.provenance),
+        metric_provenance=(
+            portfolio_provenance,
+            blocker_provenance,
+            decision_provenance,
+            ai_spend.provenance,
+            api_usage.provenance,
+            api_usage.cost_provenance,
+        ),
         employee_productivity_score=None,
     )
