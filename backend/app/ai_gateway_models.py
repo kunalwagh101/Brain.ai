@@ -149,6 +149,15 @@ class AIRequestRecord(Base):
             name="ck_ai_request_input_tokens",
         ),
         CheckConstraint(
+            "cached_input_tokens IS NULL OR cached_input_tokens >= 0",
+            name="ck_ai_request_cached_input_tokens",
+        ),
+        CheckConstraint(
+            "cached_input_tokens IS NULL OR input_tokens IS NULL "
+            "OR cached_input_tokens <= input_tokens",
+            name="ck_ai_request_cached_within_input_tokens",
+        ),
+        CheckConstraint(
             "output_tokens IS NULL OR output_tokens >= 0",
             name="ck_ai_request_output_tokens",
         ),
@@ -200,6 +209,7 @@ class AIRequestRecord(Base):
     input_char_count: Mapped[int] = mapped_column(Integer, nullable=False)
     output_char_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cached_input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     provider_request_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
