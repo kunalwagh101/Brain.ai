@@ -8,7 +8,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.permissions import AuthorizationContext, Permission, require_organization_permission
+from app.decision_memory_models import MemoryKind, MemoryState
+from app.permissions import (
+    AuthorizationContext,
+    Permission,
+    require_organization_permission,
+)
 from app.project_status import (
     ProjectStatusError,
     ProjectStatusSnapshot,
@@ -45,8 +50,8 @@ class ProjectProgressRead(BaseModel):
 
 class ProjectMemoryRead(BaseModel):
     id: uuid.UUID
-    kind: str
-    state: str
+    kind: MemoryKind
+    state: MemoryState
     summary: str
     confidence: float
     work_graph_node_id: uuid.UUID | None
@@ -84,6 +89,16 @@ def _request_id(request: Request) -> str | None:
     return value if isinstance(value, str) else None
 
 
+def _raise_project_status_error(exc: ProjectStatusError) -> None:
+    message = str(exc)
+    code = (
+        status.HTTP_404_NOT_FOUND
+        if "not found" in message.casefold()
+        else status.HTTP_400_BAD_REQUEST
+    )
+    raise HTTPException(status_code=code, detail=message) from exc
+
+
 def _read_snapshot(snapshot: ProjectStatusSnapshot) -> ProjectStatusRead:
     return ProjectStatusRead(
         project_node_id=snapshot.project_node_id,
@@ -91,15 +106,21 @@ def _read_snapshot(snapshot: ProjectStatusSnapshot) -> ProjectStatusRead:
         progress_percent=snapshot.progress_percent,
         progress_basis=snapshot.progress_basis,
         status=snapshot.status,
-        progress_items=[ProjectProgressRead(**asdict(item)) for item in snapshot.progress_items],
-        active_blockers=[ProjectMemoryRead(**asdict(item)) for item in snapshot.active_blockers],
+        progress_items=[
+            ProjectProgressRead(**asdict(item)) for item in snapshot.progress_items
+        ],
+        active_blockers=[
+            ProjectMemoryRead(**asdict(item)) for item in snapshot.active_blockers
+        ],
         confirmed_decisions=[
             ProjectMemoryRead(**asdict(item)) for item in snapshot.confirmed_decisions
         ],
         candidate_memories=[
             ProjectMemoryRead(**asdict(item)) for item in snapshot.candidate_memories
         ],
-        evidence=[ProjectEvidenceRead(**asdict(item)) for item in snapshot.evidence],
+        evidence=[
+            ProjectEvidenceRead(**asdict(item)) for item in snapshot.evidence
+        ],
     )
 
 
@@ -135,7 +156,10 @@ def get_project(
         project_node_id=project_node_id,
     )
     if snapshot is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
     return _read_snapshot(snapshot)
 
 
@@ -166,7 +190,7 @@ def update_progress_item(
             request_id=_request_id(request),
         )
     except ProjectStatusError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        _raise_project_status_error(exc)
     snapshot = build_project_status(
         db,
         organization_id=organization_id,
@@ -175,7 +199,10 @@ def update_progress_item(
         project_node_id=project_node_id,
     )
     if snapshot is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
     return _read_snapshot(snapshot)
 
 
@@ -202,4 +229,4 @@ def delete_progress_item(
             request_id=_request_id(request),
         )
     except ProjectStatusError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        _raise_project_status_error(exc)
