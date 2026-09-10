@@ -94,25 +94,6 @@ def _list(client: httpx.Client, path: str) -> list[dict[str, Any]]:
     return payload
 
 
-def _usage_snapshot(client: httpx.Client, organization_id: str) -> dict[str, int]:
-    payload = _request(
-        client,
-        "GET",
-        f"/api/v1/organizations/{organization_id}/ai/usage/summary",
-        expected={200},
-        params={"dimension": "organization"},
-    )
-    if not isinstance(payload, dict) or not isinstance(payload.get("rows"), list):
-        raise BootstrapError("Usage summary returned an invalid contract")
-    rows = [row for row in payload["rows"] if isinstance(row, dict)]
-    return {
-        "request_count": sum(int(row.get("request_count", 0)) for row in rows),
-        "known_cost_requests": sum(int(row.get("known_cost_requests", 0)) for row in rows),
-        "unknown_cost_requests": sum(int(row.get("unknown_cost_requests", 0)) for row in rows),
-        "total_cost_nano_usd": sum(int(row.get("total_cost_nano_usd", 0)) for row in rows),
-    }
-
-
 def _ensure_provider(
     client: httpx.Client,
     *,
@@ -293,14 +274,21 @@ def _ensure_rate_card(
     return payload
 
 
+def _required_int(payload: dict[str, Any], name: str) -> int:
+    value = payload.get(name)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise BootstrapError(f"Provider smoke returned invalid {name}")
+    return value
+
+
 def _compatibility_smoke(
     client: httpx.Client,
     *,
     organization_id: str,
     provider_id: str,
     model_id: str,
+    rate_card_id: str,
 ) -> dict[str, Any]:
-    before = _usage_snapshot(client, organization_id)
     payload = _request(
         client,
         "POST",
@@ -316,33 +304,51 @@ def _compatibility_smoke(
     )
     if not isinstance(payload, dict) or not payload.get("request_id"):
         raise BootstrapError("Provider smoke returned an invalid AI invocation contract")
-    if payload.get("input_tokens") is None or payload.get("output_tokens") is None:
-        raise BootstrapError("Provider smoke did not return billable token usage")
-    if payload.get("cached_input_tokens") is None:
+
+    request_id = str(payload["request_id"])
+    cost = _request(
+        client,
+        "GET",
+        f"/api/v1/organizations/{organization_id}/ai/requests/{request_id}/cost",
+        expected={200},
+    )
+    if not isinstance(cost, dict):
+        raise BootstrapError("Request-scoped cost endpoint returned an invalid contract")
+    if str(cost.get("request_id")) != request_id:
+        raise BootstrapError("Request-scoped cost endpoint returned the wrong request")
+    if str(cost.get("rate_card_id")) != rate_card_id:
+        raise BootstrapError("Smoke request was not priced by the reviewed Terra rate card")
+    if cost.get("cost_status") != "calculated" or cost.get("unknown_reason") is not None:
         raise BootstrapError(
-            "Provider smoke did not return cached-input usage detail, so exact Terra cost cannot "
-            "be proven"
+            "Smoke request did not produce exact cache-aware cost accounting"
         )
 
-    after = _usage_snapshot(client, organization_id)
-    request_delta = after["request_count"] - before["request_count"]
-    known_delta = after["known_cost_requests"] - before["known_cost_requests"]
-    unknown_delta = after["unknown_cost_requests"] - before["unknown_cost_requests"]
-    cost_delta = after["total_cost_nano_usd"] - before["total_cost_nano_usd"]
-    if request_delta < 1:
-        raise BootstrapError("Smoke request was not visible in the governed usage ledger")
-    if known_delta < 1 or unknown_delta != 0:
-        raise BootstrapError(
-            "Smoke request did not produce exact cache-aware cost accounting; check provider "
-            "usage fields and the effective Terra rate card"
-        )
+    input_tokens = _required_int(cost, "input_tokens")
+    cached_input_tokens = _required_int(cost, "cached_input_tokens")
+    output_tokens = _required_int(cost, "output_tokens")
+    if cached_input_tokens > input_tokens:
+        raise BootstrapError("Provider reported more cached tokens than total input tokens")
+
+    expected_input_cost = (
+        (input_tokens - cached_input_tokens) * INPUT_NANO_USD_PER_TOKEN
+        + cached_input_tokens * CACHED_INPUT_NANO_USD_PER_TOKEN
+    )
+    expected_output_cost = output_tokens * OUTPUT_NANO_USD_PER_TOKEN
+    expected_total_cost = expected_input_cost + expected_output_cost
+    if cost.get("input_cost_nano_usd") != expected_input_cost:
+        raise BootstrapError("Recorded input cost does not match provider token usage")
+    if cost.get("output_cost_nano_usd") != expected_output_cost:
+        raise BootstrapError("Recorded output cost does not match provider token usage")
+    if cost.get("total_cost_nano_usd") != expected_total_cost:
+        raise BootstrapError("Recorded total cost does not match the reviewed Terra rates")
+
     return {
-        "request_id": str(payload["request_id"]),
-        "input_tokens": payload.get("input_tokens"),
-        "cached_input_tokens": payload.get("cached_input_tokens"),
-        "output_tokens": payload.get("output_tokens"),
+        "request_id": request_id,
+        "input_tokens": input_tokens,
+        "cached_input_tokens": cached_input_tokens,
+        "output_tokens": output_tokens,
         "latency_ms": payload.get("latency_ms"),
-        "cost_delta_nano_usd": cost_delta,
+        "cost_nano_usd": expected_total_cost,
     }
 
 
@@ -380,22 +386,25 @@ def _run(args: argparse.Namespace) -> int:
             provider_id=provider_id,
         )
         model_id = str(model["id"])
-        _ensure_rate_card(
+        rate_card = _ensure_rate_card(
             client,
             organization_id=args.organization_id,
             provider_id=provider_id,
             model_id=model_id,
         )
+        rate_card_id = str(rate_card["id"])
         smoke = _compatibility_smoke(
             client,
             organization_id=args.organization_id,
             provider_id=provider_id,
             model_id=model_id,
+            rate_card_id=rate_card_id,
         )
 
     print("Ask Brain OpenAI staging bootstrap: PASS")
     print(f"provider_configuration_id={provider_id}")
     print(f"model_configuration_id={model_id}")
+    print(f"rate_card_id={rate_card_id}")
     print(f"model={MODEL_KEY}")
     print(f"retention_mode_attested={retention_mode}")
     print(f"smoke_request_id={smoke['request_id']}")
@@ -403,7 +412,7 @@ def _run(args: argparse.Namespace) -> int:
     print(f"smoke_input_tokens={smoke['input_tokens']}")
     print(f"smoke_cached_input_tokens={smoke['cached_input_tokens']}")
     print(f"smoke_output_tokens={smoke['output_tokens']}")
-    print(f"smoke_cost_delta_nano_usd={smoke['cost_delta_nano_usd']}")
+    print(f"smoke_cost_nano_usd={smoke['cost_nano_usd']}")
     return 0
 
 
