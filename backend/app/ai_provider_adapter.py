@@ -32,6 +32,7 @@ class AIProviderResult:
     provider_request_id: str | None
     input_tokens: int | None
     output_tokens: int | None
+    cached_input_tokens: int | None = None
 
 
 class AIProviderAdapter(Protocol):
@@ -141,6 +142,8 @@ class OpenAIChatCompletionsAdapter:
 
         usage = data.get("usage")
         usage_dict = usage if isinstance(usage, dict) else {}
+        prompt_details = usage_dict.get("prompt_tokens_details")
+        prompt_details_dict = prompt_details if isinstance(prompt_details, dict) else {}
         provider_request_id = data.get("id")
         return AIProviderResult(
             output_text=content,
@@ -151,6 +154,7 @@ class OpenAIChatCompletionsAdapter:
             ),
             input_tokens=_int_or_none(usage_dict.get("prompt_tokens")),
             output_tokens=_int_or_none(usage_dict.get("completion_tokens")),
+            cached_input_tokens=_int_or_none(prompt_details_dict.get("cached_tokens")),
         )
 
 
