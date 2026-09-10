@@ -21,6 +21,7 @@ from app.routes.github import router as github_router
 from app.routes.identities import router as identities_router
 from app.routes.integrations import router as integrations_router
 from app.routes.organizations import router as organizations_router
+from app.routes.runtime_discovery import router as runtime_discovery_router
 from app.routes.search import router as search_router
 from app.routes.slack import router as slack_router
 from app.routes.work_graph import router as work_graph_router
@@ -70,6 +71,7 @@ def metrics(request: Request):
 
 app.include_router(health_router)
 app.include_router(auth_router, prefix=settings.api_prefix)
+app.include_router(runtime_discovery_router, prefix=settings.api_prefix)
 app.include_router(organizations_router, prefix=settings.api_prefix)
 app.include_router(integrations_router, prefix=settings.api_prefix)
 app.include_router(slack_router, prefix=settings.api_prefix)

@@ -22,10 +22,14 @@ Ambiguity: whether first evidence adapter targets Google Drive, Loom, Zoom/Meet 
 Recommended default: generic file/transcript ingestion first, then one customer-driven provider.  
 Blast radius: OAuth scopes, file formats, transcription responsibility and storage cost.
 
-## OQ-005 First AI provider policy
-Ambiguity: which provider/model becomes the first production RAG generation default and what data-retention terms are required.  
-Recommended default: provider-neutral gateway; choose the first model from measured eval quality/cost/latency and customer policy, not preference.  
-Blast radius: eval baselines, compliance, cost and latency.
+## OQ-005 First AI provider policy — RESOLVED 2026-09-10
+Decision: OpenAI API is the first production RAG generation provider. `gpt-5.6-terra` is the first model candidate and becomes the Brain default only after it passes the checked-in Ask Brain gates: retrieval recall >=90%, human-reviewed claim/citation correctness >=98%, zero unauthorised evidence exposure, acceptable deployed p95/error rate, and recorded exact cost. Brain keeps the provider-neutral gateway; no feature code may depend directly on OpenAI-specific business logic.  
+Data policy: API input/output sharing must remain disabled. OpenAI API business data is not used for model training by default. Normal API retention may be up to 30 days for eligible service/abuse purposes; when a customer contract or policy requires no post-request content retention, the OpenAI organisation/project must have eligible Zero Data Retention enabled before Brain enables that provider for the customer. Brain itself does not persist Ask Brain prompt/completion plaintext in `AIRequestRecord`.  
+Security/configuration: credentials remain only in AWS Secrets Manager; production egress is HTTPS and allowlisted to the configured OpenAI API host; use a paid business/API project rather than consumer/free-tier traffic for customer evidence; do not opt the project into API input/output or evaluation-data sharing.  
+Model escalation: if Terra fails the quality gate, evaluate `gpt-5.6-sol` on the identical labelled set before changing the default. `gpt-5.6-luna` may be considered for cost-sensitive traffic only after it independently passes the same quality/security gates. No silent model fallback is allowed because it would invalidate quality and cost evidence.  
+Compatibility: the current gateway retains its provider-neutral OpenAI-compatible adapter. The selected model must pass a real compatibility smoke before production activation; if OpenAI requires a newer API contract, add a dedicated adapter rather than weakening the gateway or silently changing semantics.  
+Sources reviewed 2026-09-10: OpenAI Enterprise Privacy; OpenAI Business Data Privacy/Security/Compliance; OpenAI Zero Data Retention announcement (2026-08-19); OpenAI API model catalogue.  
+Revisit trigger: model retirement, material pricing/privacy/retention-policy change, customer contractual requirement, quality regression below the gates, or a measured provider with materially better quality/cost/latency under the same data policy.
 
 ## OQ-006 Retention defaults
 Ambiguity: the customer/legal default raw-event, derived-content and audit-log retention periods remain unresolved.  
