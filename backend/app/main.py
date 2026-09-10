@@ -17,6 +17,7 @@ from app.routes.ask_brain import router as ask_brain_router
 from app.routes.auth import router as auth_router
 from app.routes.data_governance import router as data_governance_router
 from app.routes.decision_memory import router as decision_memory_router
+from app.routes.evidence import router as evidence_router
 from app.routes.github import router as github_router
 from app.routes.identities import router as identities_router
 from app.routes.integrations import router as integrations_router
@@ -46,6 +47,7 @@ app.add_middleware(
         "Authorization",
         "Content-Type",
         "X-Request-ID",
+        "Idempotency-Key",
         "baggage",
         "traceparent",
         "tracestate",
@@ -74,6 +76,7 @@ app.include_router(auth_router, prefix=settings.api_prefix)
 app.include_router(runtime_discovery_router, prefix=settings.api_prefix)
 app.include_router(organizations_router, prefix=settings.api_prefix)
 app.include_router(integrations_router, prefix=settings.api_prefix)
+app.include_router(evidence_router, prefix=settings.api_prefix)
 app.include_router(slack_router, prefix=settings.api_prefix)
 app.include_router(github_router, prefix=settings.api_prefix)
 app.include_router(identities_router, prefix=settings.api_prefix)
