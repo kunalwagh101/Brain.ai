@@ -17,10 +17,11 @@ Decision: AWS Secrets Manager is the first production credential backend. Postgr
 Reason: the planned production architecture is AWS-based, Secrets Manager provides managed encryption, IAM control, versioning and auditability, and this avoids inventing our own secret encryption/storage system.  
 Revisit trigger: deployment moves to another cloud, customer-managed Vault/KMS is required, or measured cost/compliance constraints justify another backend.
 
-## OQ-004 First meeting/document provider
-Ambiguity: whether first evidence adapter targets Google Drive, Loom, Zoom/Meet transcript export, or generic upload.  
-Recommended default: generic file/transcript ingestion first, then one customer-driven provider.  
-Blast radius: OAuth scopes, file formats, transcription responsibility and storage cost.
+## OQ-004 First meeting/document provider — RESOLVED 2026-09-10
+Decision: ship a Brain-managed generic file/transcript evidence adapter before choosing Google Drive, Loom, Zoom/Meet or another provider-specific connector. The first slice accepts bounded authorised uploads, stores the immutable-addressed source and provenance, extracts/chunks supported text-bearing formats, projects chunks into canonical evidence/Work Graph/search, and uses the existing ACL, audit, revocation and deletion machinery. Provider-specific OAuth adapters remain separate future work and must feed the same evidence contract rather than create a second retrieval path.  
+Reason: this gives Brain useful meeting/document evidence without prematurely locking source permissions, OAuth scopes or product behavior to one vendor. It also gives future connectors a tested internal target contract.  
+Initial format boundary: UTF-8 text/Markdown/CSV/JSON/VTT/SRT, text-extractable PDF and DOCX. OCR, audio/video transcription and provider sync are intentionally outside this first adapter and require their own data-policy/performance review.  
+Revisit trigger: a real customer workflow identifies the first provider-specific source, or format/transcription requirements materially exceed the generic adapter.
 
 ## OQ-005 First AI provider policy — RESOLVED 2026-09-10
 Decision: OpenAI API is the first production RAG generation provider. `gpt-5.6-terra` is the first model candidate and becomes the Brain default only after it passes the checked-in Ask Brain gates: retrieval recall >=90%, human-reviewed claim/citation correctness >=98%, zero unauthorised evidence exposure, acceptable deployed p95/error rate, and recorded exact cost. Brain keeps the provider-neutral gateway; no feature code may depend directly on OpenAI-specific business logic.  
