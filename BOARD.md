@@ -24,7 +24,7 @@ IN_REVIEW | S-06.01.01 | F-06.01 | Provider registry/gateway implementation, mig
 BLOCKED | S-06.02.01 | F-06.02 | Cache-aware usage/cost/budget implementation and request-scoped cost audit are staged; tests are written but unexecuted and S-06.01.01 remains unverified
 IN_REVIEW | S-06.03.01 | F-06.03 | External API registry/lifecycle/expiry implementation is staged; executable passing verification remains outstanding
 BLOCKED | S-07.01.01 | F-07.01 | Evidence-backed project-status backend, deterministic structured progress, migration, tests/docs/UAT are staged; depends on S-04.02.01 completion plus executable verification and production frontend UAT
-BACKLOG | S-07.02.01 | F-07.02 | Depends on project status + usage/cost
+BLOCKED | S-07.02.01 | F-07.02 | Permission-aware executive overview, AI spend/budget risk, API activity, provenance, tests/docs/UAT are staged; depends on S-07.01.01 + S-06.02.01 completion and executable/frontend UAT
 BLOCKED | S-08.01.01 | F-08.01 | Governed agent runtime is staged; dependencies and this story still lack executable passing verification
 IN_REVIEW | S-09.01.01 | F-09.01 | Observability implementation/tests/docs/UAT are staged; executable passing verification remains outstanding
 IN_REVIEW | S-09.02.01 | F-09.02 | Audit/retention/deletion implementation/tests/docs/UAT are staged; executable PostgreSQL/Ruff/Pytest/Delivery Verifier evidence remains outstanding
@@ -32,9 +32,9 @@ BLOCKED | S-09.03.01 | F-09.03 | Release/rollback/restore work plus a concrete R
 BLOCKED | S-09.04.01 | F-09.04 | Performance/cost benchmark work is staged; no real Ask Brain staging performance run exists yet
 DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external-tool wedge
 
-## Current implementation train — S-02.04 / S-05.02 / S-04.02 / S-07.01
+## Current implementation train — S-02.04 / S-05.02 / S-04.02 / S-07.01 / S-07.02
 
-Project-owner direction on 2026-09-10: continue implementation on the existing `increment-10-ai-provider-gateway` branch without running the deferred S-05.01.01 local pytest/Render acceptance gate yet. Dependency rules remain binding for formal story status; implementation presence is not a PASS.
+Project-owner direction on 2026-09-10/11: continue implementation on the existing `increment-10-ai-provider-gateway` branch without running the deferred S-05.01.01 local pytest/Render acceptance gate yet. Dependency rules remain binding for formal story status; implementation presence is not a PASS.
 
 ### S-02.04.01 Meeting/document evidence
 
@@ -95,11 +95,28 @@ Staged now:
 
 Formal state: `BLOCKED` because its S-04.02.01 dependency is not DONE and no executable/backend/frontend UAT evidence exists.
 
+### S-07.02.01 Executive Overview
+
+Staged now:
+
+- `audit.read`-gated month-to-date executive overview API;
+- full currently visible S-07.01 portfolio with deterministic project status/progress and per-project metric provenance;
+- organisation-level deduplicated human-confirmed blockers and decisions with canonical/search/work-graph source IDs and visible project links;
+- exact S-06.02 AI request/token/cached-token/known-cost totals plus provider breakdown and explicit incomplete-cost state;
+- live enabled budget warnings/exhaustion/incomplete-enforcement math, with Work-Graph-scoped warnings filtered by current node visibility;
+- trusted S-06.03 external API activity and active-grant counts plus an audited `/api-registry/usage` drill-down that exposes no secret material;
+- external API monetary cost deliberately remains `null` / `not_modeled` because no reviewed API tariff ledger exists; call counts are never converted into money;
+- deterministic risks only from project blocked state, budget state, incomplete AI cost and explicit API-cost-model absence;
+- explicit prohibition on employee productivity/worth/activity ranking; `employee_productivity_score` remains `null`;
+- backend contract/security tests, `docs/EXECUTIVE_OVERVIEW.md`, Increment 21 planning and `UAT/F-07.02.md` are staged.
+
+Formal state: `BLOCKED`. Its S-07.01.01 and S-06.02.01 dependencies are not DONE, and no executable backend, reconciliation, permission/revocation, frontend or accessibility UAT has run.
+
 ## Deferred acceptance gate
 
 `S-05.01.01` stays `IN_REVIEW`. The project owner explicitly deferred its local pytest + Render verification. That gate must later prove tenant isolation, current permission filtering, revocation, provenance and retrieval quality before dependent features can advance to accepted states.
 
-After that verification, run the dependent executable suites/migrations, real OpenAI/Terra compatibility and cache-aware exact-cost smoke, representative Ask Brain retrieval/RAG evaluation, human citation review, staging performance, decision-memory precision/UAT, project-status permission/revocation UAT, and the official WorkOS authenticated frontend/manual paths.
+After that verification, run the dependent executable suites/migrations, real OpenAI/Terra compatibility and cache-aware exact-cost smoke, representative Ask Brain retrieval/RAG evaluation, human citation review, staging performance, decision-memory precision/UAT, project-status permission/revocation UAT, Executive Overview permission/cost/budget/API reconciliation UAT, and the official WorkOS authenticated frontend/manual paths.
 
 Production quality gates remain: retrieval recall >=90%, zero forbidden evidence exposure/grounding-contract failures, every exact generated claim-citation pair human reviewed, semantic citation correctness >=98%, Decision/Blocker precision >=90% on the agreed representative set, and Ask Brain p95 <10 seconds on the accepted staging runtime.
 
