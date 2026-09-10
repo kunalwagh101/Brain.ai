@@ -20,6 +20,7 @@ Give authorised leaders one evidence-backed organisation pulse across projects, 
 - `audit.read` required before organisation-wide spend/governance metrics are returned.
 - Project portfolio reuses the current Work Graph/Search permission boundary from S-07.01; restricted projects are not included merely because the caller is an executive.
 - Per-project deterministic status/progress plus blocker/decision/candidate/evidence counts and a drill-down provenance contract.
+- Complete portfolio status buckets for `blocked`, `in_progress`, `done`, `not_started` and `unconfigured`.
 - Organisation-level active blockers and confirmed decisions expose the actual human-confirmed memory records with source IDs and visible project links; machine-only candidates are not promoted to executive facts.
 - AI usage reports request/token totals, cached input tokens, provider breakdown and known nano-USD spend from the existing exact-cost ledger.
 - Unknown successful-request costs remain counted and make `cost_complete=false`; zero is never substituted for unknown spend.
@@ -28,7 +29,7 @@ Give authorised leaders one evidence-backed organisation pulse across projects, 
 - External API monetary spend is deliberately `null` with `cost_status=not_modeled` because S-06.03 has no provider tariff/cost ledger. Brain does not infer money from call counts.
 - Deterministic risk entries are limited to blocked projects, budget warning/exhaustion/incomplete enforcement, incomplete AI cost, and the explicit absence of an API monetary-cost model when API activity exists.
 - Every executive metric family carries source-record/calculation/drill-down provenance.
-- The response contract contains no employee ranking, employee worth score or productivity score; `employee_productivity_score` is explicitly `null`.
+- The response contract contains no employee ranking, employee worth score, productivity score or productivity-score field.
 - Backend contract tests, documentation and UAT are staged but intentionally not claimed as executed in this implementation pass.
 
 ## Security invariants
@@ -57,7 +58,7 @@ Give authorised leaders one evidence-backed organisation pulse across projects, 
 
 - No AI-written executive status or risk score.
 - No inferred completion percentage.
-- No employee productivity, worth, activity-ranking or surveillance score.
+- No employee productivity, worth, activity-ranking or surveillance score or API field reserved for one.
 - No conversion of API call count/latency into monetary cost.
 - No weakening of project ACLs for Owner/Admin/Executive convenience.
 - No separate executive data store that can become stale from source truth.
@@ -73,6 +74,6 @@ Give authorised leaders one evidence-backed organisation pulse across projects, 
 6. Budget warning/exhaustion states are independently recomputed from policy limits and exact known spend.
 7. API usage counts are reconciled against trusted API observations; API monetary cost remains unavailable unless a later reviewed cost model is introduced.
 8. Production WorkOS frontend renders the organisation pulse and drill-down provenance without exposing tokens/secrets.
-9. Manual browser/accessibility UAT passes.
+9. Manual browser/accessibility UAT passes and confirms no employee productivity-score field or presentation exists.
 
 Until those gates pass, `S-07.02.01` must not be represented as `DONE` or `PASSED`.
