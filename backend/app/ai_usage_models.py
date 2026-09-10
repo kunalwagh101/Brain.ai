@@ -51,6 +51,11 @@ class AIModelRateCard(Base):
             name="ck_ai_rate_input_nonnegative",
         ),
         CheckConstraint(
+            "cached_input_nano_usd_per_token IS NULL "
+            "OR cached_input_nano_usd_per_token >= 0",
+            name="ck_ai_rate_cached_input_nonnegative",
+        ),
+        CheckConstraint(
             "output_nano_usd_per_token >= 0",
             name="ck_ai_rate_output_nonnegative",
         ),
@@ -77,6 +82,9 @@ class AIModelRateCard(Base):
         ForeignKey("ai_model_configurations.id", ondelete="CASCADE"), nullable=False
     )
     input_nano_usd_per_token: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    cached_input_nano_usd_per_token: Mapped[int | None] = mapped_column(
+        BigInteger, nullable=True
+    )
     output_nano_usd_per_token: Mapped[int] = mapped_column(BigInteger, nullable=False)
     source_label: Mapped[str] = mapped_column(String(255), nullable=False)
     effective_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
