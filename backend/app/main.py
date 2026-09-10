@@ -18,6 +18,7 @@ from app.routes.auth import router as auth_router
 from app.routes.data_governance import router as data_governance_router
 from app.routes.decision_memory import router as decision_memory_router
 from app.routes.evidence import router as evidence_router
+from app.routes.executive_overview import router as executive_overview_router
 from app.routes.github import router as github_router
 from app.routes.identities import router as identities_router
 from app.routes.integrations import router as integrations_router
@@ -85,6 +86,7 @@ app.include_router(work_graph_router, prefix=settings.api_prefix)
 app.include_router(search_router, prefix=settings.api_prefix)
 app.include_router(decision_memory_router, prefix=settings.api_prefix)
 app.include_router(project_status_router, prefix=settings.api_prefix)
+app.include_router(executive_overview_router, prefix=settings.api_prefix)
 app.include_router(ai_gateway_router, prefix=settings.api_prefix)
 app.include_router(ask_brain_router, prefix=settings.api_prefix)
 app.include_router(ai_usage_router, prefix=settings.api_prefix)
