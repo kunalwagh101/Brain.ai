@@ -1,13 +1,16 @@
 import uuid
 from dataclasses import asdict
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.ai_usage import calendar_month_window
 from app.ai_usage_models import AIBudgetScopeType
+from app.api_registry_models import APICredentialGrant, APIService, APIUsageObservation
 from app.database import get_db
 from app.decision_memory_models import MemoryKind, MemoryState
 from app.executive_overview import ExecutiveOverview, build_executive_overview
@@ -113,6 +116,20 @@ class APIUsageSummaryRead(BaseModel):
     cost_provenance: MetricProvenanceRead
 
 
+class APIUsageDrilldownRead(BaseModel):
+    id: uuid.UUID
+    grant_id: uuid.UUID
+    service_id: uuid.UUID
+    service_key: str
+    service_name: str
+    provider_name: str
+    caller_component: str
+    operation_label: str | None
+    success: bool
+    latency_ms: int | None
+    observed_at: datetime
+
+
 class ExecutiveBudgetWarningRead(BaseModel):
     budget_policy_id: uuid.UUID
     scope_type: AIBudgetScopeType
@@ -173,3 +190,45 @@ def read_executive_overview(
         role=authorization.role,
     )
     return ExecutiveOverviewRead(**asdict(overview))
+
+
+@router.get("/api-usage", response_model=list[APIUsageDrilldownRead])
+def read_api_usage_drilldown(
+    organization_id: uuid.UUID,
+    authorization: Annotated[AuthorizationContext, Depends(_read)],
+    db: Annotated[Session, Depends(get_db)],
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+) -> list[APIUsageDrilldownRead]:
+    del authorization
+    now = datetime.now(UTC)
+    period_start, period_end = calendar_month_window(now)
+    rows = db.execute(
+        select(APIUsageObservation, APICredentialGrant, APIService)
+        .join(APICredentialGrant, APICredentialGrant.id == APIUsageObservation.grant_id)
+        .join(APIService, APIService.id == APICredentialGrant.service_id)
+        .where(
+            APIUsageObservation.organization_id == organization_id,
+            APICredentialGrant.organization_id == organization_id,
+            APIService.organization_id == organization_id,
+            APIUsageObservation.observed_at >= period_start,
+            APIUsageObservation.observed_at < min(period_end, now),
+        )
+        .order_by(APIUsageObservation.observed_at.desc(), APIUsageObservation.id.desc())
+        .limit(limit)
+    ).all()
+    return [
+        APIUsageDrilldownRead(
+            id=observation.id,
+            grant_id=grant.id,
+            service_id=service.id,
+            service_key=service.service_key,
+            service_name=service.display_name,
+            provider_name=service.provider_name,
+            caller_component=observation.caller_component,
+            operation_label=observation.operation_label,
+            success=observation.success,
+            latency_ms=observation.latency_ms,
+            observed_at=observation.observed_at,
+        )
+        for observation, grant, service in rows
+    ]
