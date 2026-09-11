@@ -294,6 +294,11 @@
   color: #82d8b4;
 }
 
+.badges span[data-status="unavailable"] {
+  border-color: #725a37;
+  color: #e7bf7d;
+}
+
 .badges span[data-status="failed"] {
   border-color: #754646;
   color: #efa0a8;
