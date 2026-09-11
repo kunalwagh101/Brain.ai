@@ -39,6 +39,12 @@ def test_first_gate_includes_auth_permission_and_retrieval_contracts() -> None:
     assert "tests/test_search_contract.py" in first_gate_tests
 
 
+def test_evidence_stage_includes_workspace_visibility_contracts() -> None:
+    evidence_stage = next(stage for stage in acceptance.STAGES if stage.story == "S-02.04.01")
+    assert "tests/test_evidence_ingestion.py" in evidence_stage.tests
+    assert "tests/test_evidence_workspace.py" in evidence_stage.tests
+
+
 def test_postgres_mode_requires_explicit_test_database_url(monkeypatch) -> None:
     monkeypatch.delenv("BRAIN_TEST_DATABASE_URL", raising=False)
     assert acceptance._database_mode() == "portable"
