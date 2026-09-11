@@ -1,11 +1,13 @@
 import {
   askBrain,
-  listOrganizations,
   type AskBrainInput,
   type AskBrainResponse,
 } from "./brain-api";
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+import {
+  BrainMembershipError,
+  requireBrainOrganizationMembership,
+  requireUuid,
+} from "./brain-membership";
 
 export class BrainBffRequestError extends Error {
   status: number;
@@ -30,8 +32,12 @@ function requiredString(value: unknown, field: string, maxLength: number): strin
 
 function requiredUuid(value: unknown, field: string): string {
   const normalized = requiredString(value, field, 64);
-  if (!UUID_PATTERN.test(normalized)) invalid(`${field} must be a UUID`);
-  return normalized;
+  try {
+    return requireUuid(normalized, field);
+  } catch (error) {
+    if (error instanceof BrainMembershipError) invalid(error.message);
+    throw error;
+  }
 }
 
 export function parseAskBrainBffInput(value: unknown): AskBrainInput {
@@ -113,11 +119,13 @@ export async function handleAskBrainBff(
   organizationId: string,
   body: unknown,
 ): Promise<AskBrainResponse> {
-  if (!UUID_PATTERN.test(organizationId)) invalid("organizationId must be a UUID");
-
-  const organizations = await listOrganizations(accessToken);
-  if (!organizations.some((item) => item.id === organizationId)) {
-    throw new BrainBffRequestError(404, "Organisation unavailable");
+  try {
+    await requireBrainOrganizationMembership(accessToken, organizationId);
+  } catch (error) {
+    if (error instanceof BrainMembershipError) {
+      throw new BrainBffRequestError(error.status, error.message);
+    }
+    throw error;
   }
 
   return askBrain(accessToken, organizationId, parseAskBrainBffInput(body));
