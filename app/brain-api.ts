@@ -36,6 +36,8 @@ export type EvidenceSource = {
   created_by_user_id: string;
   occurred_at: string | null;
   status: "processing" | "active" | "failed" | "deleted";
+  integration_status: "active" | "revoking" | "revoke_failed" | "revoked";
+  retrieval_available: boolean;
   last_error_code: string | null;
   created_at: string;
   updated_at: string;
