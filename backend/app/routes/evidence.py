@@ -2,7 +2,18 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -15,8 +26,16 @@ from app.evidence_ingestion import (
     get_visible_evidence_source,
     ingest_evidence,
 )
-from app.evidence_models import EvidenceKind, EvidenceSource, EvidenceSourceStatus, EvidenceVisibility
-from app.evidence_workspace import can_delete_evidence_source, list_visible_evidence_sources_page
+from app.evidence_models import (
+    EvidenceKind,
+    EvidenceSource,
+    EvidenceSourceStatus,
+    EvidenceVisibility,
+)
+from app.evidence_workspace import (
+    can_delete_evidence_source,
+    list_visible_evidence_sources_page,
+)
 from app.permissions import AuthorizationContext, Permission, require_organization_permission
 
 router = APIRouter(
@@ -113,7 +132,10 @@ async def upload_evidence(
     title: Annotated[str | None, Form(max_length=512)] = None,
     visibility: Annotated[EvidenceVisibility, Form()] = EvidenceVisibility.ORGANIZATION,
     occurred_at: Annotated[datetime | None, Form()] = None,
-    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key", max_length=128)] = None,
+    idempotency_key: Annotated[
+        str | None,
+        Header(alias="Idempotency-Key", max_length=128),
+    ] = None,
 ) -> EvidenceSourceRead:
     content = await file.read(MAX_EVIDENCE_BYTES + 1)
     if len(content) > MAX_EVIDENCE_BYTES:
@@ -173,7 +195,10 @@ def read_evidence(
         source_id=source_id,
     )
     if source is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evidence source not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Evidence source not found",
+        )
     return _read_source(source, authorization)
 
 
