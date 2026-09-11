@@ -62,7 +62,7 @@ The activation script:
 2. validates required environment variables without printing their values;
 3. refuses uncommitted changes in the target auth/root/BFF paths;
 4. copies only the reviewed templates under `docs/workos-activation/`;
-5. activates root `proxy.ts`, callback, sign-in, AuthKit provider layout, protected root workspace and Ask Brain BFF;
+5. activates root `proxy.ts`, callback, sign-in, AuthKit provider layout, protected root workspace, Ask Brain BFF and governed evidence upload/delete BFF routes;
 6. runs frontend lint, build and all `tests/*.test.mjs` contracts.
 
 A successful activation build is **not** production UAT.
@@ -115,10 +115,10 @@ After activation, the reviewed root template:
 - derives the signed-in display name from the WorkOS user;
 - passes only the server token into `ProductionWorkspace`;
 - accepts an optional `organizationId` query selection, but `ProductionWorkspace` validates it against the server-returned Brain membership list before loading data;
-- enables the Ask Brain BFF only after that membership resolution;
+- enables Ask Brain and evidence mutation BFF routes only after that membership resolution;
 - injects a WorkOS `signOut()` server action into the workspace shell.
 
-`ProductionWorkspace` is role-aware: normal Members/Managers are allowed into Brain, while Executive/Company Pulse data is loaded only for Owner/Admin/Executive roles. Frontend role presentation never overrides FastAPI authorization.
+`ProductionWorkspace` is role-aware: normal Members/Managers are allowed into Brain, while Executive/Company Pulse data is loaded only for Owner/Admin/Executive roles. Evidence read data is loaded server-side for roles with the backend read permission; upload/delete presentation is limited to Owner/Admin/Manager/Member, but FastAPI remains authoritative for every mutation.
 
 ## Same-origin Ask Brain BFF
 
@@ -140,21 +140,47 @@ The reviewed route/template must:
 
 `app/ask-brain-panel.tsx` calls only this same-origin endpoint with `credentials: "same-origin"`; it has no access-token prop and creates no Authorization header.
 
+## Same-origin governed evidence BFF
+
+Activated routes:
+
+- `POST /api/brain/organizations/{organizationId}/evidence/uploads`
+- `DELETE /api/brain/organizations/{organizationId}/evidence/{sourceId}`
+
+The evidence BFF must:
+
+1. call official `withAuth()` server-side and reject missing sessions;
+2. validate current Brain organisation membership before FastAPI authority is relied on;
+3. reject roles that cannot mutate evidence before forwarding, while still treating FastAPI as the authoritative permission boundary;
+4. require multipart/form-data with a boundary for uploads;
+5. preserve a validated `Idempotency-Key` and never invent duplicate-protection semantics in the browser;
+6. enforce the backend 10 MB file contract and a bounded 10.5 MB multipart body;
+7. consume the request body through a bounded stream so a missing/false Content-Length cannot create an unbounded memory read;
+8. validate evidence source IDs before delete forwarding;
+9. return only bounded status/messages and `Cache-Control: no-store`;
+10. never expose the WorkOS/FastAPI bearer token or raw upstream error details to browser code.
+
+`app/evidence-workspace.tsx` uses only same-origin routes with `credentials: "same-origin"`. It shows server-authorised evidence metadata and a server-computed `can_delete` capability; the browser does not reproduce the backend ownership rule as authority.
+
 ## Current live frontend implementation
 
 Repo-side implementation now includes:
 
 - `backend/app/routes/workspace_navigation.py` — permission-filtered project/track navigation;
-- `app/brain-api.ts` — typed server-side Brain API boundary;
+- `backend/app/evidence_workspace.py` — permission-correct evidence workspace pagination + delete presentation capability;
+- `app/brain-api.ts` — typed server-side Brain API boundary including evidence list/upload/delete contracts;
+- `app/brain-membership.ts` — shared current-membership validation;
 - `app/brain-bff.ts` — exact Ask Brain validation + membership check;
-- `app/production-workspace.tsx` — authenticated organisation/role composition;
+- `app/evidence-bff.ts` — bounded evidence mutation contract;
+- `app/production-workspace.tsx` — authenticated organisation/role composition including server-side evidence loading;
 - `app/workspace-shell.tsx` — Slack/Discord-style workspace rail/sidebar/main/context layout with real organisation switching;
 - `app/workspace-shell.module.css` — desktop/tablet/mobile workspace behavior;
 - `app/ask-brain-panel.tsx` — same-origin citation/provenance Ask Brain surface;
+- `app/evidence-workspace.tsx` + `app/evidence-workspace.module.css` — governed evidence browse/upload/delete/provenance surface;
 - `tests/workspace-contract.test.mjs` — browser-boundary/source contracts;
-- `docs/workos-activation/*` — reviewed production activation templates;
+- `docs/workos-activation/*` — reviewed production activation templates including Ask Brain and evidence BFF routes;
 - `scripts/install-workos-authkit.sh` and `scripts/activate-workos-authkit.sh` — package/activation gates;
-- `UAT/F-10.02.md`, `UAT/F-10.03.md`, `UAT/F-10.04.md` — feature acceptance contracts.
+- `UAT/F-10.02.md`, `UAT/F-10.03.md`, `UAT/F-10.04.md`, `UAT/F-10.05.md` — feature acceptance contracts.
 
 No source-presence statement above is a PASS claim.
 
@@ -190,11 +216,12 @@ Once authentication passes, exercise:
 1. S-10.02 workspace organisation/project/track navigation and responsive/accessibility behavior;
 2. S-05.01 permission-aware retrieval/revocation;
 3. S-02.04 meeting/document upload, retrieval and delete/revoke behavior;
-4. S-10.03 Ask Brain answer + insufficient-evidence + citation + bounded provider-error states;
-5. Decision/Blocker candidate -> human confirm/edit/reject/resolve/reopen behavior;
-6. Project Command Centre deterministic progress and evidence drill-down;
-7. Executive Overview project counts, confirmed blockers/decisions, exact/incomplete AI cost, budget warnings and API `not_modeled` monetary-cost state;
-8. keyboard navigation, visible focus, screen-reader labels, loading/empty/error states and responsive layout.
+4. S-10.05 governed Files & evidence workspace: visible pagination, supported upload, restricted isolation, server `can_delete`, idempotency, delete/revoke stale-content disappearance and accessibility;
+5. S-10.03 Ask Brain answer + insufficient-evidence + citation + bounded provider-error states;
+6. Decision/Blocker candidate -> human confirm/edit/reject/resolve/reopen behavior;
+7. Project Command Centre deterministic progress and evidence drill-down;
+8. Executive Overview project counts, confirmed blockers/decisions, exact/incomplete AI cost, budget warnings and API `not_modeled` monetary-cost state;
+9. keyboard navigation, visible focus, screen-reader labels, loading/empty/error states and responsive layout.
 
 The frontend must not show an employee productivity/worth/performance score or turn message/commit/token/API activity into an employee ranking.
 
@@ -214,6 +241,7 @@ Record without secrets:
 - real access-token -> FastAPI UAT: PENDING
 - organisation switch/cross-tenant/resource-permission UAT: PENDING
 - Ask Brain BFF/browser UAT: PENDING
+- governed evidence upload/list/delete/revoke UAT: PENDING
 - Project Command Centre browser UAT: PENDING
 - Executive Overview browser UAT: PENDING
 - sign-out/session-expiry UAT: PENDING
