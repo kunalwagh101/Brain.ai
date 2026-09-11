@@ -27,7 +27,15 @@ STAGES = (
     Stage("S-02.04.01", "Meeting/Document Evidence", (
         "tests/test_evidence_ingestion.py",
     )),
-    Stage("S-05.02.01", "Ask Brain", (
+    Stage("S-05.02.01", "Ask Brain + Governed AI/Cost Dependencies", (
+        "tests/test_ai_gateway.py",
+        "tests/test_ai_gateway_adapter.py",
+        "tests/test_ai_gateway_routes.py",
+        "tests/test_ai_cached_cost.py",
+        "tests/test_ai_cost_routes.py",
+        "tests/test_ai_usage.py",
+        "tests/test_ai_usage_reconciliation.py",
+        "tests/test_runtime_discovery.py",
         "tests/test_ask_brain.py",
         "tests/test_ask_brain_citations.py",
         "tests/test_ask_brain_contract_hardening.py",
@@ -35,9 +43,6 @@ STAGES = (
         "tests/test_ask_brain_generic_evidence.py",
         "tests/test_ask_brain_limits.py",
         "tests/test_ask_brain_routes.py",
-        "tests/test_ai_cached_cost.py",
-        "tests/test_ai_cost_routes.py",
-        "tests/test_runtime_discovery.py",
     )),
     Stage("S-04.02.01", "Decision & Blocker Memory", (
         "tests/test_decision_memory.py",
@@ -52,9 +57,9 @@ STAGES = (
         "tests/test_executive_overview.py",
         "tests/test_executive_overview_budget_permissions.py",
         "tests/test_executive_overview_memory.py",
+        "tests/test_api_registry.py",
+        "tests/test_api_registry_worker.py",
         "tests/test_api_registry_usage_route.py",
-        "tests/test_ai_usage.py",
-        "tests/test_ai_usage_reconciliation.py",
     )),
 )
 
