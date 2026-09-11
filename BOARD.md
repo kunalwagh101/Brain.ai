@@ -30,7 +30,15 @@ IN_REVIEW | S-09.01.01 | F-09.01 | Observability implementation/tests/docs/UAT a
 IN_REVIEW | S-09.02.01 | F-09.02 | Audit/retention/deletion implementation/tests/docs/UAT are staged; executable PostgreSQL/Ruff/Pytest/Delivery Verifier evidence remains outstanding
 BLOCKED | S-09.03.01 | F-09.03 | Release/rollback/restore work plus a concrete Render staging Blueprint are staged; real deployment/recovery exercise and OQ-007 production topology remain unresolved
 BLOCKED | S-09.04.01 | F-09.04 | Performance/cost benchmark work is staged; no real Ask Brain staging performance run exists yet
-DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external-tool wedge
+BACKLOG | S-10.01.01 | F-10.01 | Brain-native channel/message persistence is now P1 and separate from the P0 workspace shell
+IN_PROGRESS | S-10.02.01 | F-10.02 | Slack/Discord-style permission-aware workspace shell is being built; navigation API/client/shell/UAT are staged, but frontend/backend tests and authenticated browser UAT have not run
+BACKLOG | S-10.03.01 | F-10.03 | Embed Ask Brain, Project Command Centre, Decision/Blocker Memory and Company Pulse into the live workspace
+BLOCKED | S-10.04.01 | F-10.04 | Official WorkOS AuthKit Next.js 16 + same-origin BFF; blocked on real official npm package install/lockfile and authenticated browser execution
+BACKLOG | S-10.05.01 | F-10.05 | Governed files/evidence upload, browse, provenance and lifecycle UI
+BACKLOG | S-10.06.01 | F-10.06 | Threads, mentions, reactions and unread state after native channels exist
+BLOCKED | S-10.06.02 | F-10.06 | Permission-safe DMs require S-10.01.01 plus explicit OQ-002 private-message policy
+BACKLOG | S-10.07.01 | F-10.07 | Developer/agent workspace over governed repo/agent contracts
+BACKLOG | S-10.08.01 | F-10.08 | Workspace admin UI for integrations, members, permissions and AI/API governance
 
 ## Current implementation train — S-02.04 / S-05.02 / S-04.02 / S-07.01 / S-07.02
 
@@ -111,6 +119,33 @@ Staged now:
 - backend contract/security tests, `docs/EXECUTIVE_OVERVIEW.md`, Increment 21 planning and `UAT/F-07.02.md` are staged.
 
 Formal state: `BLOCKED`. Its S-07.01.01 and S-06.02.01 dependencies are not DONE, and no executable backend, reconciliation, permission/revocation, frontend or accessibility UAT has run.
+
+## Frontend delivery train — E-10
+
+The product owner clarified on 2026-09-11 that Brain's requested frontend is a Slack/Discord-style company workspace. The earlier single deferred native-chat story did not adequately represent that requirement. `PRODUCT_BACKLOG.md` now separates the P0 workspace frontend from P1 native collaboration.
+
+### S-10.02.01 Workspace Shell and Navigation — IN_PROGRESS
+
+Staged now:
+
+- permission-aware `/workspace-navigation` read model over Work Graph projects/tracks;
+- restricted resource labels are filtered before serialization;
+- cross-tenant and restricted-resource regression contracts;
+- typed frontend workspace-navigation client;
+- role-aware `ProductionWorkspace` that allows normal members into Brain and only gates Company Pulse itself;
+- Slack/Discord-style workspace rail + navigation sidebar + main work surface + context rail;
+- real visible project/track labels, project status, confirmed decisions/blockers and role-gated executive metrics;
+- responsive CSS module and keyboard skip path;
+- explicit non-interactive placeholders for future files/Ask Brain rather than dead or insecure controls;
+- `docs/planning/increment-22.md` and `UAT/F-10.02.md`.
+
+Still required before IN_REVIEW/DONE:
+
+- execute backend permission-negative tests;
+- execute frontend lint/build/tests;
+- wire official WorkOS production root path in S-10.04.01;
+- authenticated browser UAT with real visible/restricted resources;
+- responsive/keyboard/accessibility verification.
 
 ## Acceptance phase
 
