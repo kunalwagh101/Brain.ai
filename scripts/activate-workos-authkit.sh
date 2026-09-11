@@ -48,12 +48,19 @@ if (process.env.WORKOS_COOKIE_PASSWORD.length < 32) {
 }
 for (const name of ["NEXT_PUBLIC_WORKOS_REDIRECT_URI", "BRAIN_API_BASE_URL"]) {
   const parsed = new URL(process.env[name]);
-  if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error(`${name} must be HTTP(S).`);
+  if (!["http:", "https:"].includes(parsed.protocol)) throw new Error(`${name} must be HTTP(S).`);
+}
+if (
+  process.env.NODE_ENV === "production"
+  && new URL(process.env.BRAIN_API_BASE_URL).protocol !== "https:"
+) {
+  throw new Error("Production BRAIN_API_BASE_URL must use HTTPS.");
 }
 NODE
 
 if command -v git >/dev/null 2>&1; then
-  if ! git diff --quiet -- app/page.tsx app/layout.tsx proxy.ts app/auth app/sign-in app/api/brain; then
+  dirty="$(git status --porcelain -- app/page.tsx app/layout.tsx proxy.ts app/auth app/sign-in app/api/brain)"
+  if [[ -n "${dirty}" ]]; then
     echo "Refusing activation because WorkOS target paths already contain uncommitted changes." >&2
     exit 65
   fi
