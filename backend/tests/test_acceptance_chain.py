@@ -15,8 +15,18 @@ EXPECTED_STORY_ORDER = [
 
 def test_acceptance_chain_preserves_dependency_order() -> None:
     assert [stage.story for stage in acceptance.STAGES] == EXPECTED_STORY_ORDER
-    assert acceptance.STAGES[0].name == "Permission-Aware Retrieval"
+    assert acceptance.STAGES[0].name == "Authentication + Permission-Aware Retrieval"
     assert acceptance.STAGES[-1].name == "Executive Overview"
+
+
+def test_first_gate_includes_auth_permission_and_retrieval_contracts() -> None:
+    first_gate_tests = set(acceptance.STAGES[0].tests)
+    assert "tests/test_auth.py" in first_gate_tests
+    assert "tests/test_permissions.py" in first_gate_tests
+    assert "tests/test_organizations.py" in first_gate_tests
+    assert "tests/test_search.py" in first_gate_tests
+    assert "tests/test_search_evaluation.py" in first_gate_tests
+    assert "tests/test_search_contract.py" in first_gate_tests
 
 
 def test_postgres_mode_requires_explicit_test_database_url(monkeypatch) -> None:
