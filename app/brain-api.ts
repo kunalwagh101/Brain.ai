@@ -20,6 +20,29 @@ export type WorkspaceNavigation = {
   tracks: WorkspaceNavigationNode[];
 };
 
+export type EvidenceSource = {
+  id: string;
+  organization_id: string;
+  integration_connection_id: string;
+  kind: "document" | "transcript";
+  title: string;
+  filename: string;
+  media_type: string;
+  content_sha256: string;
+  byte_size: number;
+  source_visibility: "organization" | "restricted";
+  chunk_count: number;
+  extracted_char_count: number;
+  created_by_user_id: string;
+  occurred_at: string | null;
+  status: "processing" | "active" | "failed" | "deleted";
+  last_error_code: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  can_delete: boolean;
+};
+
 export type AIRuntimeOption = {
   provider_configuration_id: string;
   provider_key: string;
@@ -318,6 +341,51 @@ export function listWorkspaceNavigation(
   return brainApiFetch(
     accessToken,
     `/api/v1/organizations/${encodeURIComponent(organizationId)}/workspace-navigation`,
+  );
+}
+
+export function listEvidenceSources(
+  accessToken: string,
+  organizationId: string,
+  limit = 200,
+): Promise<EvidenceSource[]> {
+  const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 500);
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/evidence?limit=${boundedLimit}`,
+  );
+}
+
+export function uploadEvidenceSource(
+  accessToken: string,
+  organizationId: string,
+  body: Uint8Array,
+  contentType: string,
+  idempotencyKey: string,
+): Promise<EvidenceSource> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/evidence/uploads`,
+    {
+      method: "POST",
+      body,
+      headers: {
+        "Content-Type": contentType,
+        "Idempotency-Key": idempotencyKey,
+      },
+    },
+  );
+}
+
+export function deleteEvidenceSource(
+  accessToken: string,
+  organizationId: string,
+  sourceId: string,
+): Promise<EvidenceSource> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/evidence/${encodeURIComponent(sourceId)}`,
+    { method: "DELETE" },
   );
 }
 
