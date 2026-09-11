@@ -16,23 +16,43 @@ def _postgres_test_session(database_url: str):
     normalized_url = sqlalchemy_database_url(database_url)
     schema = f"brain_test_{uuid.uuid4().hex}"
     admin_engine = create_engine(normalized_url, pool_pre_ping=True)
-    with admin_engine.begin() as connection:
-        connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+    if admin_engine.dialect.name != "postgresql":
+        admin_engine.dispose()
+        raise RuntimeError("BRAIN_TEST_DATABASE_URL must point to PostgreSQL")
 
-    engine = create_engine(
-        normalized_url,
-        connect_args={"options": f"-csearch_path={schema},public"},
-        pool_pre_ping=True,
-    )
+    schema_created = False
     try:
-        Base.metadata.create_all(engine)
-        factory = sessionmaker(bind=engine, expire_on_commit=False)
-        with factory() as session:
-            yield session
-    finally:
-        engine.dispose()
         with admin_engine.begin() as connection:
-            connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+            vector_installed = connection.scalar(
+                text("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')")
+            )
+            if not vector_installed:
+                raise RuntimeError(
+                    "PostgreSQL acceptance database must have the vector extension installed"
+                )
+            connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+            schema_created = True
+
+        engine = create_engine(
+            normalized_url,
+            connect_args={"options": f"-csearch_path={schema},public"},
+            pool_pre_ping=True,
+        )
+        try:
+            with engine.connect() as connection:
+                current_schema = connection.scalar(text("SELECT current_schema()"))
+                if current_schema != schema:
+                    raise RuntimeError("PostgreSQL test schema isolation was not activated")
+            Base.metadata.create_all(engine)
+            factory = sessionmaker(bind=engine, expire_on_commit=False)
+            with factory() as session:
+                yield session
+        finally:
+            engine.dispose()
+    finally:
+        if schema_created:
+            with admin_engine.begin() as connection:
+                connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
         admin_engine.dispose()
 
 
