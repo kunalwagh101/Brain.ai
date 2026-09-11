@@ -19,7 +19,10 @@ class Stage:
 
 
 STAGES = (
-    Stage("S-05.01.01", "Permission-Aware Retrieval", (
+    Stage("S-05.01.01", "Authentication + Permission-Aware Retrieval", (
+        "tests/test_auth.py",
+        "tests/test_permissions.py",
+        "tests/test_organizations.py",
         "tests/test_search.py",
         "tests/test_search_evaluation.py",
         "tests/test_search_contract.py",
