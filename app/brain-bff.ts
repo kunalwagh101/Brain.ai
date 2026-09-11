@@ -7,24 +7,36 @@ import {
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function requiredString(value: unknown, field: string, maxLength: number): string {
-  if (typeof value !== "string") throw new Error(`${field} must be a string`);
-  const normalized = value.trim();
-  if (!normalized || normalized.length > maxLength) {
-    throw new Error(`${field} is invalid`);
+export class BrainBffRequestError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "BrainBffRequestError";
+    this.status = status;
   }
+}
+
+function invalid(message: string): never {
+  throw new BrainBffRequestError(400, message);
+}
+
+function requiredString(value: unknown, field: string, maxLength: number): string {
+  if (typeof value !== "string") invalid(`${field} must be a string`);
+  const normalized = value.trim();
+  if (!normalized || normalized.length > maxLength) invalid(`${field} is invalid`);
   return normalized;
 }
 
 function requiredUuid(value: unknown, field: string): string {
   const normalized = requiredString(value, field, 64);
-  if (!UUID_PATTERN.test(normalized)) throw new Error(`${field} must be a UUID`);
+  if (!UUID_PATTERN.test(normalized)) invalid(`${field} must be a UUID`);
   return normalized;
 }
 
 export function parseAskBrainBffInput(value: unknown): AskBrainInput {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("Ask Brain request must be an object");
+    invalid("Ask Brain request must be an object");
   }
 
   const body = value as Record<string, unknown>;
@@ -38,12 +50,12 @@ export function parseAskBrainBffInput(value: unknown): AskBrainInput {
     "attribution_node_id",
   ]);
   for (const key of Object.keys(body)) {
-    if (!allowed.has(key)) throw new Error(`Unexpected Ask Brain field: ${key}`);
+    if (!allowed.has(key)) invalid(`Unexpected Ask Brain field: ${key}`);
   }
 
   const searchMode = body.search_mode ?? "hybrid";
   if (searchMode !== "keyword" && searchMode !== "hybrid") {
-    throw new Error("search_mode must be keyword or hybrid");
+    invalid("search_mode must be keyword or hybrid");
   }
 
   const searchLimit = body.search_limit ?? 8;
@@ -53,7 +65,7 @@ export function parseAskBrainBffInput(value: unknown): AskBrainInput {
     || searchLimit < 1
     || searchLimit > 8
   ) {
-    throw new Error("search_limit must be an integer from 1 to 8");
+    invalid("search_limit must be an integer from 1 to 8");
   }
 
   const maxOutputTokens = body.max_output_tokens;
@@ -66,12 +78,12 @@ export function parseAskBrainBffInput(value: unknown): AskBrainInput {
       || maxOutputTokens > 8192
     )
   ) {
-    throw new Error("max_output_tokens must be an integer from 1 to 8192");
+    invalid("max_output_tokens must be an integer from 1 to 8192");
   }
 
   const attribution = body.attribution_node_id;
   if (attribution !== undefined && attribution !== null && typeof attribution !== "string") {
-    throw new Error("attribution_node_id must be a UUID or null");
+    invalid("attribution_node_id must be a UUID or null");
   }
 
   return {
@@ -101,11 +113,11 @@ export async function handleAskBrainBff(
   organizationId: string,
   body: unknown,
 ): Promise<AskBrainResponse> {
-  if (!UUID_PATTERN.test(organizationId)) throw new Error("organizationId must be a UUID");
+  if (!UUID_PATTERN.test(organizationId)) invalid("organizationId must be a UUID");
 
   const organizations = await listOrganizations(accessToken);
   if (!organizations.some((item) => item.id === organizationId)) {
-    throw new Error("organizationId is not available to the authenticated user");
+    throw new BrainBffRequestError(404, "Organisation unavailable");
   }
 
   return askBrain(accessToken, organizationId, parseAskBrainBffInput(body));
