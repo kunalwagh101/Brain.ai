@@ -15,11 +15,13 @@ export async function ProductionWorkspace({
   signedInName,
   requestedOrganizationId,
   enableAskBrainBff = false,
+  signOutAction,
 }: {
   accessToken: string;
   signedInName: string;
   requestedOrganizationId?: string | null;
   enableAskBrainBff?: boolean;
+  signOutAction?: (formData: FormData) => Promise<void>;
 }) {
   const organizations = await listOrganizations(accessToken);
   if (!organizations.length) {
@@ -69,6 +71,7 @@ export async function ProductionWorkspace({
       runtimes={runtimes}
       signedInName={signedInName}
       askBrainEndpoint={askBrainEndpoint}
+      signOutAction={signOutAction}
     />
   );
 }
