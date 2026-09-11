@@ -66,10 +66,7 @@ else
   echo "package-lock.json updated by npm: ${after_lock_sha}"
 fi
 
-echo "Running frontend lint/build/test gates..."
-npm run lint
-npm run build
-node --test tests/rendered-html.test.mjs
-
-echo "WorkOS package install and frontend verification passed."
-echo "Next: implement/verify proxy.ts, callback, sign-in, provider and same-origin BFF against docs/WORKOS_FRONTEND_ACCEPTANCE.md."
+echo "Official WorkOS packages are installed and integrity-pinned."
+echo "Next, provide the required WorkOS/BRAIN environment values and run:"
+echo "  bash scripts/activate-workos-authkit.sh"
+echo "Activation copies only the reviewed templates in docs/workos-activation and then runs lint/build/tests."
