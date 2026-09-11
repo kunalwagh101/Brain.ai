@@ -1,5 +1,6 @@
 import {
   getExecutiveOverview,
+  listEvidenceSources,
   listOrganizations,
   listProjectStatuses,
   listRuntimeOptions,
@@ -9,18 +10,21 @@ import { WorkspaceShell } from "./workspace-shell";
 
 const EXECUTIVE_ROLES = new Set(["owner", "admin", "executive"]);
 const AI_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
+const EVIDENCE_WRITE_ROLES = new Set(["owner", "admin", "manager", "member"]);
 
 export async function ProductionWorkspace({
   accessToken,
   signedInName,
   requestedOrganizationId,
   enableAskBrainBff = false,
+  enableEvidenceBff = false,
   signOutAction,
 }: {
   accessToken: string;
   signedInName: string;
   requestedOrganizationId?: string | null;
   enableAskBrainBff?: boolean;
+  enableEvidenceBff?: boolean;
   signOutAction?: (formData: FormData) => Promise<void>;
 }) {
   const organizations = await listOrganizations(accessToken);
@@ -46,9 +50,10 @@ export async function ProductionWorkspace({
     );
   }
 
-  const [navigation, projects, overview, runtimes] = await Promise.all([
+  const [navigation, projects, evidenceSources, overview, runtimes] = await Promise.all([
     listWorkspaceNavigation(accessToken, organization.id),
     listProjectStatuses(accessToken, organization.id),
+    listEvidenceSources(accessToken, organization.id),
     EXECUTIVE_ROLES.has(organization.role)
       ? getExecutiveOverview(accessToken, organization.id)
       : Promise.resolve(null),
@@ -60,6 +65,10 @@ export async function ProductionWorkspace({
   const askBrainEndpoint = enableAskBrainBff && AI_ROLES.has(organization.role)
     ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/ask-brain`
     : null;
+  const canUploadEvidence = EVIDENCE_WRITE_ROLES.has(organization.role);
+  const evidenceMutationBase = enableEvidenceBff && canUploadEvidence
+    ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/evidence`
+    : null;
 
   return (
     <WorkspaceShell
@@ -67,10 +76,13 @@ export async function ProductionWorkspace({
       organizations={organizations}
       navigation={navigation}
       projects={projects}
+      evidenceSources={evidenceSources}
       overview={overview}
       runtimes={runtimes}
       signedInName={signedInName}
       askBrainEndpoint={askBrainEndpoint}
+      evidenceMutationBase={evidenceMutationBase}
+      canUploadEvidence={canUploadEvidence}
       signOutAction={signOutAction}
     />
   );
