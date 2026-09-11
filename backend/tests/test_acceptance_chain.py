@@ -1,3 +1,4 @@
+from pathlib import Path
 import sys
 
 import run_acceptance_chain as acceptance
@@ -17,6 +18,15 @@ def test_acceptance_chain_preserves_dependency_order() -> None:
     assert [stage.story for stage in acceptance.STAGES] == EXPECTED_STORY_ORDER
     assert acceptance.STAGES[0].name == "Authentication + Permission-Aware Retrieval"
     assert acceptance.STAGES[-1].name == "Executive Overview"
+
+
+def test_acceptance_chain_references_existing_test_files() -> None:
+    backend_root = Path(__file__).resolve().parents[1]
+    referenced = [test for stage in acceptance.STAGES for test in stage.tests]
+
+    assert len(referenced) == len(set(referenced)), "acceptance stages must not duplicate test files"
+    missing = [path for path in referenced if not (backend_root / path).is_file()]
+    assert missing == [], f"acceptance chain references missing tests: {missing}"
 
 
 def test_first_gate_includes_auth_permission_and_retrieval_contracts() -> None:
