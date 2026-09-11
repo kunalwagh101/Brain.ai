@@ -42,14 +42,24 @@ export function parseAskBrainBffInput(value: unknown): AskBrainInput {
   }
 
   const searchLimit = body.search_limit ?? 8;
-  if (!Number.isInteger(searchLimit) || Number(searchLimit) < 1 || Number(searchLimit) > 8) {
+  if (
+    typeof searchLimit !== "number"
+    || !Number.isInteger(searchLimit)
+    || searchLimit < 1
+    || searchLimit > 8
+  ) {
     throw new Error("search_limit must be an integer from 1 to 8");
   }
 
   const maxOutputTokens = body.max_output_tokens;
   if (
     maxOutputTokens !== undefined
-    && (!Number.isInteger(maxOutputTokens) || Number(maxOutputTokens) < 1 || Number(maxOutputTokens) > 8192)
+    && (
+      typeof maxOutputTokens !== "number"
+      || !Number.isInteger(maxOutputTokens)
+      || maxOutputTokens < 1
+      || maxOutputTokens > 8192
+    )
   ) {
     throw new Error("max_output_tokens must be an integer from 1 to 8192");
   }
@@ -70,11 +80,14 @@ export function parseAskBrainBffInput(value: unknown): AskBrainInput {
       "model_configuration_id",
     ),
     search_mode: searchMode,
-    search_limit: Number(searchLimit),
-    ...(maxOutputTokens === undefined ? {} : { max_output_tokens: Number(maxOutputTokens) }),
+    search_limit: searchLimit,
+    ...(maxOutputTokens === undefined ? {} : { max_output_tokens: maxOutputTokens }),
     ...(attribution === undefined
       ? {}
-      : { attribution_node_id: attribution === null ? null : requiredUuid(attribution, "attribution_node_id") }),
+      : {
+          attribution_node_id:
+            attribution === null ? null : requiredUuid(attribution, "attribution_node_id"),
+        }),
   };
 }
 
