@@ -30,10 +30,10 @@ IN_REVIEW | S-09.01.01 | F-09.01 | Observability implementation/tests/docs/UAT a
 IN_REVIEW | S-09.02.01 | F-09.02 | Audit/retention/deletion implementation/tests/docs/UAT are staged; executable PostgreSQL/Ruff/Pytest/Delivery Verifier evidence remains outstanding
 BLOCKED | S-09.03.01 | F-09.03 | Release/rollback/restore work plus a concrete Render staging Blueprint are staged; real deployment/recovery exercise and OQ-007 production topology remain unresolved
 BLOCKED | S-09.04.01 | F-09.04 | Performance/cost benchmark work is staged; no real Ask Brain staging performance run exists yet
-BACKLOG | S-10.01.01 | F-10.01 | Brain-native channel/message persistence is now P1 and separate from the P0 workspace shell
-IN_PROGRESS | S-10.02.01 | F-10.02 | Slack/Discord-style permission-aware workspace shell is being built; navigation API/client/shell/UAT are staged, but frontend/backend tests and authenticated browser UAT have not run
-BACKLOG | S-10.03.01 | F-10.03 | Embed Ask Brain, Project Command Centre, Decision/Blocker Memory and Company Pulse into the live workspace
-BLOCKED | S-10.04.01 | F-10.04 | Official WorkOS AuthKit Next.js 16 + same-origin BFF; blocked on real official npm package install/lockfile and authenticated browser execution
+BACKLOG | S-10.01.01 | F-10.01 | Brain-native channel/message persistence is P1 and separate from the P0 workspace shell
+IN_PROGRESS | S-10.02.01 | F-10.02 | Permission-aware Slack/Discord-style shell, real organisation switching, navigation API/client, responsive controls, tests/docs/UAT are staged; executable frontend/backend and authenticated browser evidence remain open
+IN_PROGRESS | S-10.03.01 | F-10.03 | Project/memory/company-pulse/evidence surfaces plus governed runtime discovery and citation-first Ask Brain UI are staged inside the workspace; secure browser Ask Brain activation still depends on S-10.04
+BLOCKED | S-10.04.01 | F-10.04 | Official WorkOS Next.js 16 templates, guarded install/activation scripts and BFF security contract are staged; blocked on real npm package/lockfile installation plus authenticated browser execution
 BACKLOG | S-10.05.01 | F-10.05 | Governed files/evidence upload, browse, provenance and lifecycle UI
 BACKLOG | S-10.06.01 | F-10.06 | Threads, mentions, reactions and unread state after native channels exist
 BLOCKED | S-10.06.02 | F-10.06 | Permission-safe DMs require S-10.01.01 plus explicit OQ-002 private-message policy
@@ -133,19 +133,49 @@ Staged now:
 - cross-tenant and restricted-resource regression contracts;
 - typed frontend workspace-navigation client;
 - role-aware `ProductionWorkspace` that allows normal members into Brain and only gates Company Pulse itself;
+- desktop organisation picker plus responsive server-driven organisation switch form;
 - Slack/Discord-style workspace rail + navigation sidebar + main work surface + context rail;
-- real visible project/track labels, project status, confirmed decisions/blockers and role-gated executive metrics;
-- responsive CSS module and keyboard skip path;
-- explicit non-interactive placeholders for future files/Ask Brain rather than dead or insecure controls;
+- real visible project/track labels and status;
+- responsive CSS module, keyboard skip path and focus treatment;
+- frontend source-contract tests included in `npm test`;
 - `docs/planning/increment-22.md` and `UAT/F-10.02.md`.
 
 Still required before IN_REVIEW/DONE:
 
 - execute backend permission-negative tests;
 - execute frontend lint/build/tests;
-- wire official WorkOS production root path in S-10.04.01;
+- activate official WorkOS production root path in S-10.04.01;
 - authenticated browser UAT with real visible/restricted resources;
 - responsive/keyboard/accessibility verification.
+
+### S-10.03.01 Live Intelligence Surfaces — IN_PROGRESS
+
+Staged now:
+
+- real Project Command Centre progress/status inside the workspace;
+- expandable structured work and permission-filtered project evidence;
+- human-confirmed decision/blocker views with source provenance identifiers;
+- role-gated Executive/Company Pulse without locking normal members out of Brain;
+- governed runtime discovery only for roles with `ai.use`;
+- citation-first Ask Brain component using only a same-origin endpoint;
+- bounded browser error states that do not reflect arbitrary backend/provider detail;
+- Ask Brain BFF helper validates request shape and authenticated Brain organisation membership before forwarding;
+- `UAT/F-10.03.md` defines live browser/data reconciliation.
+
+Formal state: `IN_PROGRESS`. Ask Brain browser mutation remains deliberately inactive in the current preview root until S-10.04 activates official WorkOS/BFF. No frontend execution/UAT PASS is claimed.
+
+### S-10.04.01 Production WorkOS Auth + BFF — BLOCKED
+
+Repo-side staging now:
+
+- official current Next.js 16 AuthKit contract reviewed;
+- official npm installer verifies real package-lock resolution/integrity and never invents package metadata;
+- reviewed templates for `authkitProxy()`, `handleAuth()`, `getSignInUrl()`, `AuthKitProvider`, protected `withAuth()` root, `signOut()` and Ask Brain BFF;
+- guarded activation script requires installed/pinned packages plus WorkOS/Brain environment values before copying templates and running lint/build/tests;
+- same-origin BFF route template uses server-side `withAuth()`, bounded JSON/body validation, membership validation and secret-safe errors;
+- `UAT/F-10.04.md` and `docs/WORKOS_FRONTEND_ACCEPTANCE.md` remain the authenticated security gates.
+
+Formal state: `BLOCKED`. The current environment cannot obtain the official npm packages/real lockfile, and no authenticated WorkOS browser/session execution has occurred. The active root remains the explicitly labelled preview until this external gate is satisfied.
 
 ## Acceptance phase
 
