@@ -31,7 +31,7 @@ Brain is the intelligence layer for an AI-native company: it connects authorised
 | E-07 | Executive and project command centre | Product | Leaders need evidence-backed visibility into progress, blockers and spend. |
 | E-08 | Agent execution with approval controls | AI Platform | Agents create value only when tool access is constrained and auditable. |
 | E-09 | Production reliability, security and operations | Platform/Security | Real active users require measurable reliability, rollback and observability. |
-| E-10 | Brain-native collaboration | Product | Native tracks become valuable after Brain already understands external work. |
+| E-10 | Brain workspace and native collaboration | Product | A Slack/Discord-style operating surface makes the intelligence layer usable by the whole company while preserving Brain's permission and evidence model. |
 
 ## Features and stories
 
@@ -207,43 +207,94 @@ As a product owner, I want load and cost thresholds measured, so that scale clai
 Acceptance: benchmark captures p50/p95 and test load; regressions over agreed budget fail/review; AI cost per evaluated task is reported.  
 Dependencies: relevant vertical slice. Size: M. Indicator: budget pass rate. Value: E-09.
 
-### E-10 Brain-native collaboration
+### E-10 Brain workspace and native collaboration
+
+The frontend is a first-class product surface. A Slack/Discord-style information architecture is required for the MVP even though Brain does **not** need to clone every Slack feature before launch. Native messaging and private collaboration remain separate capabilities with their own backend/security acceptance gates.
 
 #### F-10.01 Native tracks/chat
 **S-10.01.01 — Communicate in Brain tracks using the same work graph and permissions**  
-As a team member, I want Brain-native project channels with humans and agents, so that work can eventually happen where intelligence already lives.  
-Acceptance: messages inherit tenant/track ACL; agent participation is explicit; message/event enters canonical evidence path.  
-Dependencies: E-01 through E-05. Size: L. Indicator: active native tracks. Value: E-10. Priority: P2.
+As a team member, I want Brain-native project channels with humans and agents, so that work can happen where intelligence already lives.  
+Acceptance: channel/message persistence is tenant-scoped; messages inherit channel/track ACL; agent participation is explicit; message/event enters the canonical evidence path; revoked channel access removes future read access without deleting immutable audit evidence.  
+Dependencies: E-01 through E-05. Size: L. Indicator: active native tracks. Value: E-10. Priority: P1.
+
+#### F-10.02 Workspace shell and navigation
+**S-10.02.01 — Operate Brain through a Slack/Discord-style permission-aware workspace**  
+As a company user, I want one workspace with organisation switching, team/track/project navigation and intelligence surfaces, so that Brain feels like the place where company work is understood rather than a collection of disconnected dashboards.  
+Acceptance: authenticated root experience is the live workspace rather than the sample preview; organisation membership and role come from the server session; the left navigation exposes only currently authorised projects/tracks/resources; project/track labels come from real Brain data rather than hard-coded demo teams; restricted resource names/counts do not leak; desktop layout supports workspace rail + navigation sidebar + main work surface + contextual intelligence region; empty/loading/error states are usable; keyboard navigation, focus states and responsive behaviour pass frontend UAT.  
+Dependencies: S-01.02.01, S-01.03.01, S-04.01.01. Size: L. Indicator: successful authenticated workspace load and navigation coverage. Value: E-10. Priority: P0.  
+Tasks: T-10.02.01.a permission-aware workspace navigation read contract; T-10.02.01.b workspace rail/sidebar/main/context shell; T-10.02.01.c real project/track navigation; T-10.02.01.d responsive/accessibility states; T-10.02.01.e frontend tests/UAT.
+
+#### F-10.03 Live intelligence surfaces
+**S-10.03.01 — Use Ask Brain, projects, decisions/blockers and company pulse inside the workspace**  
+As a user, I want Brain intelligence embedded beside the work it describes, so that I do not have to jump between standalone dashboards.  
+Acceptance: Ask Brain, Project Command Centre, Decision/Blocker Memory and Executive Overview render live backend data with role/permission filtering; Ask Brain citations open provenance; non-executive users are not blocked from the whole workspace merely because Executive Overview is unavailable; no fixture/sample metric is rendered in authenticated production mode; provider/API failures have bounded retry/error states without widening access.  
+Dependencies: S-05.02.01, S-04.02.01, S-07.01.01, S-07.02.01. Size: L. Indicator: live intelligence surface completion rate. Value: E-10. Priority: P0.
+
+#### F-10.04 Production frontend authentication and BFF
+**S-10.04.01 — Connect the Next.js workspace to Brain through official WorkOS AuthKit server sessions**  
+As a company user, I want production sign-in and a secure same-origin frontend, so that browser code never handles reusable Brain/API credentials directly.  
+Acceptance: official WorkOS AuthKit Next.js 16 integration supplies the authenticated server session; server-side access token is used for FastAPI calls; the browser talks to same-origin BFF routes for mutations such as Ask Brain; no client-supplied role/email/token is trusted; logout/session expiry is handled; production root cannot silently fall back to ChatGPT preview headers or sample credentials.  
+Dependencies: S-01.02.01, official WorkOS package installation and real lockfile. Size: M. Indicator: authenticated-browser UAT pass rate. Value: E-10. Priority: P0.
+
+#### F-10.05 Evidence and files experience
+**S-10.05.01 — Upload, browse and inspect governed documents/transcripts from the workspace**  
+As a team member, I want documents and meeting transcripts available in the workspace with provenance and permissions, so that non-chat context can be used without leaving Brain.  
+Acceptance: authorised user can upload supported S-02.04 sources, see processing/active/failed/deleted state, inspect source metadata/provenance and use resulting evidence in Search/Ask Brain; restricted uploads remain invisible to unauthorised users; deletion/revocation state is reflected without stale UI content.  
+Dependencies: S-02.04.01, S-05.01.01. Size: M. Indicator: successful governed upload-to-retrieval flow. Value: E-10. Priority: P0.
+
+#### F-10.06 Conversation UX
+**S-10.06.01 — Support threads, mentions, reactions and unread state in Brain channels**  
+As a team member, I want normal collaboration affordances around Brain-native channels, so that the workspace is practical for daily team communication.  
+Acceptance: thread/reaction/mention state is tenant/channel scoped; unread state is per user; notifications never reveal restricted channel/message text; agent-authored content is visibly attributed.  
+Dependencies: S-10.01.01. Size: L. Indicator: active channel participation. Value: E-10. Priority: P1.
+
+**S-10.06.02 — Support permission-safe direct messages without turning Brain into employee surveillance**  
+As a user, I want private direct conversations with explicit participants, so that sensitive collaboration has a bounded home in Brain.  
+Acceptance: DM membership is explicit; non-participants including executives cannot read content merely because of role; search/Ask Brain inclusion follows the approved OQ-002 private-message policy; no unrestricted employer/private-message capture; deletion/retention behaviour is explicit and audited.  
+Dependencies: S-10.01.01, OQ-002. Size: L. Indicator: zero private-message leakage. Value: E-10. Priority: P1.
+
+#### F-10.07 Developer and agent workspace
+**S-10.07.01 — Run governed engineering/agent work from project and channel context**  
+As an engineer, I want repo context, agent runs, approvals and resulting patches/PR references visible inside the project workspace, so that coding agents participate in the same company context without receiving an unrestricted shell.  
+Acceptance: UI exposes only tools/actions authorised by S-08.01; high-risk actions visibly require approval; repo/project context is permission-aware; agent/model identity and action state are explicit; no arbitrary browser-side credential access or hidden generic shell is introduced.  
+Dependencies: S-08.01.01, S-02.03.01, S-10.02.01. Size: L. Indicator: governed agent task completion rate. Value: E-10. Priority: P1.
+
+#### F-10.08 Workspace administration
+**S-10.08.01 — Manage integrations, members, permissions and AI/API governance from the workspace**  
+As an owner/admin, I want setup and governance surfaces inside Brain, so that the product can be operated without direct API calls or database work.  
+Acceptance: role-gated UI covers membership visibility, Slack/GitHub/evidence integration state, resource grants where supported, approved AI runtimes, budget/API-governance status and revocation flows; secrets are never displayed; unavailable capabilities fail closed rather than presenting fake controls.  
+Dependencies: E-01, E-02, E-06. Size: L. Indicator: admin workflow completion rate. Value: E-10. Priority: P1.
 
 ## Requirements -> Backlog coverage
 
 | Requirement | Backlog IDs |
 |---|---|
 | FastAPI backend | S-01.01.01, S-09.01.01 |
-| Production-grade active-user MVP | E-09, S-09.03.01, S-09.04.01 |
+| Production-grade active-user MVP | E-09, S-09.03.01, S-09.04.01, S-10.02.01, S-10.04.01 |
 | Existing Slack users | S-02.02.01 |
-| GitHub/code progress | S-02.03.01, S-07.01.01 |
-| Meetings/video/document evidence | S-02.04.01 |
+| GitHub/code progress | S-02.03.01, S-07.01.01, S-10.07.01 |
+| Meetings/video/document evidence | S-02.04.01, S-10.05.01 |
 | ChatGPT/OpenAI, Claude, Grok/xAI and other AI | S-06.01.01, S-06.02.01 |
-| Intake/channel/structure data | S-03.01.01, S-03.02.01 |
+| Intake/channel/structure data | S-03.01.01, S-03.02.01, S-10.02.01 |
 | Understand company activity | S-04.01.01, S-04.02.01 |
-| Boss/company overview | S-07.02.01 |
-| Project progress | S-07.01.01 |
-| AI/API access visibility | S-06.03.01 |
-| AI/API usage/cost visibility | S-06.02.01 |
-| Human communication | S-10.01.01 |
-| AI tracks/agents | S-08.01.01, S-10.01.01 |
+| Boss/company overview | S-07.02.01, S-10.03.01 |
+| Project progress | S-07.01.01, S-10.03.01 |
+| AI/API access visibility | S-06.03.01, S-10.08.01 |
+| AI/API usage/cost visibility | S-06.02.01, S-10.03.01 |
+| Slack/Discord-style company workspace | S-10.02.01, S-10.03.01 |
+| Human communication | S-10.01.01, S-10.06.01, S-10.06.02 |
+| AI tracks/agents | S-08.01.01, S-10.01.01, S-10.07.01 |
 | Permission-aware company memory | S-01.03.01, S-05.01.01 |
 | RAG/search | S-05.01.01, S-05.02.01 |
-| Citations / no unsupported claims | S-05.02.01 |
-| Data provenance | S-03.01.01, S-03.02.01 |
+| Citations / no unsupported claims | S-05.02.01, S-10.03.01 |
+| Data provenance | S-03.01.01, S-03.02.01, S-10.05.01 |
 | Identity resolution | S-03.03.01 |
-| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01 |
+| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01 |
 | Validation/data integrity/idempotency | S-03.01.01, S-03.02.01 |
 | Observability | S-09.01.01 |
 | Migrations/rollback/backup | S-09.03.01 |
 | Latency/cost benchmarks | S-09.04.01 |
-| Accessibility | S-07.01.01, S-07.02.01, S-10.01.01 |
+| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01 |
 | CI and lie-detector verifier | S-09.03.01 |
 | Agile/Scrum/Kanban artifacts | S-09.03.01 |
 
@@ -252,7 +303,7 @@ Orphan requirements: **0**.
 ## Out of scope for production MVP
 
 - Native video calling/recording: use connectors first; revisit after native tracks prove adoption.
-- Replacing Jira/Linear/CRM/email: Brain consumes their evidence rather than cloning them.
+- Replacing Jira/Linear/CRM/email: Brain consumes their evidence rather than cloning them; workspace surfaces may expose governed links/status/actions without recreating those products wholesale.
 - Custom foundation-model training/fine-tuning: no evidence it beats RAG/rules for MVP.
 - Kubernetes/microservices: modular monolith until measured scaling/failure-isolation needs justify split.
 - Graph database: PostgreSQL relationship tables first; add specialised graph storage only after measured query limits.
