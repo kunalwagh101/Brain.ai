@@ -195,7 +195,18 @@ export function WorkspaceShell({
             <p>{organization.name} / workspace</p>
             <h1 id="home">Home</h1>
           </div>
-          <span className={styles.liveBadge}>Permission-aware live data</span>
+          <div className={styles.topbarActions}>
+            <form className={styles.mobileOrgForm} method="get">
+              <label htmlFor="mobile-organization">Organisation</label>
+              <select id="mobile-organization" name="organizationId" defaultValue={organization.id}>
+                {organizations.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
+              </select>
+              <button type="submit">Switch</button>
+            </form>
+            <span className={styles.liveBadge}>Permission-aware live data</span>
+          </div>
         </header>
 
         <section className={styles.welcomeCard}>
