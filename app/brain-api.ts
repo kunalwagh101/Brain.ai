@@ -7,6 +7,19 @@ export type BrainOrganization = {
   role: OrganizationRole;
 };
 
+export type WorkspaceNavigationNode = {
+  node_id: string;
+  kind: "project" | "track";
+  display_name: string | null;
+  source_visibility: string;
+  provider: string | null;
+};
+
+export type WorkspaceNavigation = {
+  projects: WorkspaceNavigationNode[];
+  tracks: WorkspaceNavigationNode[];
+};
+
 export type AIRuntimeOption = {
   provider_configuration_id: string;
   provider_key: string;
@@ -296,6 +309,16 @@ async function brainApiFetch<T>(
 
 export function listOrganizations(accessToken: string): Promise<BrainOrganization[]> {
   return brainApiFetch(accessToken, "/api/v1/organizations");
+}
+
+export function listWorkspaceNavigation(
+  accessToken: string,
+  organizationId: string,
+): Promise<WorkspaceNavigation> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/workspace-navigation`,
+  );
 }
 
 export function listRuntimeOptions(
