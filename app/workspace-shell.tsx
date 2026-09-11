@@ -69,6 +69,7 @@ export function WorkspaceShell({
   runtimes,
   signedInName,
   askBrainEndpoint,
+  signOutAction,
 }: {
   organization: BrainOrganization;
   organizations: BrainOrganization[];
@@ -78,6 +79,7 @@ export function WorkspaceShell({
   runtimes: AIRuntimeOption[];
   signedInName: string;
   askBrainEndpoint: string | null;
+  signOutAction?: (formData: FormData) => Promise<void>;
 }) {
   const projectById = new Map(projects.map((project) => [project.project_node_id, project]));
   const blockers = uniqueMemory(projects.flatMap((project) => project.active_blockers));
@@ -179,6 +181,11 @@ export function WorkspaceShell({
         <footer className={styles.userCard}>
           <span>{initials(signedInName)}</span>
           <div><strong>{signedInName}</strong><small>Signed in</small></div>
+          {signOutAction ? (
+            <form action={signOutAction}>
+              <button className={styles.signOutButton} type="submit">Sign out</button>
+            </form>
+          ) : null}
         </footer>
       </aside>
 
@@ -343,7 +350,7 @@ export function WorkspaceShell({
           </div>
         </section>
 
-        <section className={styles.panel} id="ask-brain" aria-labelledby="ask-brain-workspace-heading">
+        <section className={styles.panel} id="ask-brain" aria-label="Ask Brain">
           {askBrainEndpoint ? (
             <div className={styles.embeddedIntelligence}>
               <AskBrainPanel endpoint={askBrainEndpoint} runtimes={runtimes} />
@@ -353,7 +360,7 @@ export function WorkspaceShell({
               <header className={styles.panelHeader}>
                 <div>
                   <p className={styles.eyebrow}>Ask Brain</p>
-                  <h2 id="ask-brain-workspace-heading">Evidence-backed answers</h2>
+                  <h2>Evidence-backed answers</h2>
                 </div>
                 <span className={styles.nextBadge}>S-10.04</span>
               </header>
