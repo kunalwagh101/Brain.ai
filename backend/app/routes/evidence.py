@@ -14,9 +14,9 @@ from app.evidence_ingestion import (
     delete_evidence_source,
     get_visible_evidence_source,
     ingest_evidence,
-    list_visible_evidence_sources,
 )
 from app.evidence_models import EvidenceKind, EvidenceSource, EvidenceSourceStatus, EvidenceVisibility
+from app.evidence_workspace import can_delete_evidence_source, list_visible_evidence_sources_page
 from app.permissions import AuthorizationContext, Permission, require_organization_permission
 
 router = APIRouter(
@@ -47,6 +47,7 @@ class EvidenceSourceRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None
+    can_delete: bool
 
     model_config = {"from_attributes": True}
 
@@ -69,6 +70,38 @@ def _raise_evidence_error(exc: EvidenceIngestionError) -> None:
     ) from exc
 
 
+def _read_source(
+    source: EvidenceSource,
+    authorization: AuthorizationContext,
+) -> EvidenceSourceRead:
+    return EvidenceSourceRead(
+        id=source.id,
+        organization_id=source.organization_id,
+        integration_connection_id=source.integration_connection_id,
+        kind=source.kind,
+        title=source.title,
+        filename=source.filename,
+        media_type=source.media_type,
+        content_sha256=source.content_sha256,
+        byte_size=source.byte_size,
+        source_visibility=source.source_visibility,
+        chunk_count=source.chunk_count,
+        extracted_char_count=source.extracted_char_count,
+        created_by_user_id=source.created_by_user_id,
+        occurred_at=source.occurred_at,
+        status=source.status,
+        last_error_code=source.last_error_code,
+        created_at=source.created_at,
+        updated_at=source.updated_at,
+        deleted_at=source.deleted_at,
+        can_delete=can_delete_evidence_source(
+            source,
+            actor_user_id=authorization.user_id,
+            actor_role=authorization.role,
+        ),
+    )
+
+
 @router.post("/uploads", response_model=EvidenceSourceRead, status_code=status.HTTP_201_CREATED)
 async def upload_evidence(
     organization_id: uuid.UUID,
@@ -81,7 +114,7 @@ async def upload_evidence(
     visibility: Annotated[EvidenceVisibility, Form()] = EvidenceVisibility.ORGANIZATION,
     occurred_at: Annotated[datetime | None, Form()] = None,
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key", max_length=128)] = None,
-) -> EvidenceSource:
+) -> EvidenceSourceRead:
     content = await file.read(MAX_EVIDENCE_BYTES + 1)
     if len(content) > MAX_EVIDENCE_BYTES:
         raise HTTPException(
@@ -89,7 +122,7 @@ async def upload_evidence(
             detail={"code": "upload_too_large", "message": "Evidence upload exceeds 10 MB"},
         )
     try:
-        return ingest_evidence(
+        source = ingest_evidence(
             db,
             organization_id=organization_id,
             actor_user_id=authorization.user_id,
@@ -103,6 +136,7 @@ async def upload_evidence(
             idempotency_key=idempotency_key,
             request_id=_request_id(request),
         )
+        return _read_source(source, authorization)
     except EvidenceIngestionError as exc:
         _raise_evidence_error(exc)
 
@@ -114,14 +148,15 @@ def list_evidence(
     db: Annotated[Session, Depends(get_db)],
     evidence_status: EvidenceSourceStatus | None = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
-) -> list[EvidenceSource]:
-    return list_visible_evidence_sources(
+) -> list[EvidenceSourceRead]:
+    sources = list_visible_evidence_sources_page(
         db,
         organization_id=organization_id,
         user_id=authorization.user_id,
         status=evidence_status,
         limit=limit,
     )
+    return [_read_source(source, authorization) for source in sources]
 
 
 @router.get("/{source_id}", response_model=EvidenceSourceRead)
@@ -130,7 +165,7 @@ def read_evidence(
     source_id: uuid.UUID,
     authorization: Annotated[AuthorizationContext, Depends(_read)],
     db: Annotated[Session, Depends(get_db)],
-) -> EvidenceSource:
+) -> EvidenceSourceRead:
     source = get_visible_evidence_source(
         db,
         organization_id=organization_id,
@@ -139,7 +174,7 @@ def read_evidence(
     )
     if source is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evidence source not found")
-    return source
+    return _read_source(source, authorization)
 
 
 @router.delete("/{source_id}", response_model=EvidenceSourceRead)
@@ -149,9 +184,9 @@ def delete_evidence(
     request: Request,
     authorization: Annotated[AuthorizationContext, Depends(_write)],
     db: Annotated[Session, Depends(get_db)],
-) -> EvidenceSource:
+) -> EvidenceSourceRead:
     try:
-        return delete_evidence_source(
+        source = delete_evidence_source(
             db,
             organization_id=organization_id,
             actor_user_id=authorization.user_id,
@@ -159,5 +194,6 @@ def delete_evidence(
             source_id=source_id,
             request_id=_request_id(request),
         )
+        return _read_source(source, authorization)
     except EvidenceIngestionError as exc:
         _raise_evidence_error(exc)
