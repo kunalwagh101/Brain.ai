@@ -299,6 +299,27 @@
   border-bottom: 0;
 }
 
+.userCard form { margin-left: auto; }
+
+.signOutButton {
+  border: 1px solid #353b49;
+  border-radius: 7px;
+  background: #11141b;
+  color: #9da6b5;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.signOutButton:hover,
+.signOutButton:focus-visible {
+  border-color: #626b7c;
+  color: #fff;
+  outline: 2px solid #8d82ff;
+  outline-offset: 2px;
+}
+
 .mainSurface {
   min-width: 0;
   padding: 0 26px 40px;
@@ -315,6 +336,42 @@
   border-bottom: 1px solid #252a34;
   margin-bottom: 24px;
 }
+
+.topbarActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mobileOrgForm { display: none; }
+
+.mobileOrgForm label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mobileOrgForm select,
+.mobileOrgForm button {
+  min-height: 34px;
+  border: 1px solid #353b49;
+  background: #151922;
+  color: #d2d8e2;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 11px;
+}
+
+.mobileOrgForm select { max-width: 180px; padding: 0 8px; }
+.mobileOrgForm button { padding: 0 9px; cursor: pointer; }
+.mobileOrgForm select:focus-visible,
+.mobileOrgForm button:focus-visible { outline: 2px solid #8d82ff; outline-offset: 2px; }
 
 .topbar p,
 .eyebrow {
@@ -642,6 +699,7 @@
   .memoryGrid,
   .projectDetailsGrid { grid-template-columns: 1fr; }
   .memoryGrid > div + div { border-left: 0; border-top: 1px solid #292f3a; }
+  .mobileOrgForm { display: flex; align-items: center; gap: 6px; }
 }
 
 @media (max-width: 560px) {
@@ -654,4 +712,7 @@
   .projectList > article { grid-template-columns: 1fr auto; }
   .statusChip { grid-column: 1 / -1; justify-self: start; }
   .topbar { align-items: flex-start; flex-direction: column; justify-content: center; padding: 14px 0; }
+  .topbarActions { width: 100%; align-items: flex-start; flex-direction: column; }
+  .mobileOrgForm { width: 100%; }
+  .mobileOrgForm select { flex: 1; max-width: none; }
 }
