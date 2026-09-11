@@ -31,10 +31,10 @@ IN_REVIEW | S-09.02.01 | F-09.02 | Audit/retention/deletion implementation/tests
 BLOCKED | S-09.03.01 | F-09.03 | Release/rollback/restore work plus a concrete Render staging Blueprint are staged; real deployment/recovery exercise and OQ-007 production topology remain unresolved
 BLOCKED | S-09.04.01 | F-09.04 | Performance/cost benchmark work is staged; no real Ask Brain staging performance run exists yet
 BACKLOG | S-10.01.01 | F-10.01 | Brain-native channel/message persistence is P1 and separate from the P0 workspace shell
-IN_PROGRESS | S-10.02.01 | F-10.02 | Permission-aware Slack/Discord-style shell, real organisation switching, navigation API/client, responsive controls, tests/docs/UAT are staged; executable frontend/backend and authenticated browser evidence remain open
-IN_PROGRESS | S-10.03.01 | F-10.03 | Project/memory/company-pulse/evidence surfaces plus governed runtime discovery and citation-first Ask Brain UI are staged inside the workspace; secure browser Ask Brain activation still depends on S-10.04
+BLOCKED | S-10.02.01 | F-10.02 | Workspace shell, real organisation switching, navigation API/client, responsive controls, tests/docs/UAT are staged; authenticated browser acceptance cannot advance until S-10.04 official WorkOS activation exists
+BLOCKED | S-10.03.01 | F-10.03 | Project/memory/company-pulse/evidence surfaces, runtime discovery and citation-first Ask Brain UI are staged; live authenticated Ask Brain/browser acceptance depends on S-10.04
 BLOCKED | S-10.04.01 | F-10.04 | Official WorkOS Next.js 16 templates, guarded install/activation scripts and BFF security contract are staged; blocked on real npm package/lockfile installation plus authenticated browser execution
-BACKLOG | S-10.05.01 | F-10.05 | Governed files/evidence upload, browse, provenance and lifecycle UI
+IN_PROGRESS | S-10.05.01 | F-10.05 | Governed evidence read model, browse/provenance UI, bounded same-origin upload/delete BFF templates, tests/docs/UAT are being built; executable/backend/browser acceptance remains pending
 BACKLOG | S-10.06.01 | F-10.06 | Threads, mentions, reactions and unread state after native channels exist
 BLOCKED | S-10.06.02 | F-10.06 | Permission-safe DMs require S-10.01.01 plus explicit OQ-002 private-message policy
 BACKLOG | S-10.07.01 | F-10.07 | Developer/agent workspace over governed repo/agent contracts
@@ -122,9 +122,11 @@ Formal state: `BLOCKED`. Its S-07.01.01 and S-06.02.01 dependencies are not DONE
 
 ## Frontend delivery train — E-10
 
-The product owner clarified on 2026-09-11 that Brain's requested frontend is a Slack/Discord-style company workspace. The earlier single deferred native-chat story did not adequately represent that requirement. `PRODUCT_BACKLOG.md` now separates the P0 workspace frontend from P1 native collaboration.
+The product owner clarified on 2026-09-11 that Brain's requested frontend is a Slack/Discord-style company workspace. The earlier single deferred native-chat story did not adequately represent that requirement. `PRODUCT_BACKLOG.md` separates the P0 workspace frontend from P1 native collaboration.
 
-### S-10.02.01 Workspace Shell and Navigation — IN_PROGRESS
+The board WIP rule is now explicit in this train: S-10.02 and S-10.03 have their repository implementation staged but cannot advance through authenticated browser acceptance without S-10.04. They are therefore represented as `BLOCKED`, freeing the active implementation slot for S-10.05 rather than accumulating a third unfinished story.
+
+### S-10.02.01 Workspace Shell and Navigation — BLOCKED
 
 Staged now:
 
@@ -140,15 +142,9 @@ Staged now:
 - frontend source-contract tests included in `npm test`;
 - `docs/planning/increment-22.md` and `UAT/F-10.02.md`.
 
-Still required before IN_REVIEW/DONE:
+Formal state: `BLOCKED` on S-10.04 for real authenticated root/browser execution. Frontend/backend tests and responsive/accessibility UAT are not claimed as passed.
 
-- execute backend permission-negative tests;
-- execute frontend lint/build/tests;
-- activate official WorkOS production root path in S-10.04.01;
-- authenticated browser UAT with real visible/restricted resources;
-- responsive/keyboard/accessibility verification.
-
-### S-10.03.01 Live Intelligence Surfaces — IN_PROGRESS
+### S-10.03.01 Live Intelligence Surfaces — BLOCKED
 
 Staged now:
 
@@ -162,7 +158,7 @@ Staged now:
 - Ask Brain BFF helper validates request shape and authenticated Brain organisation membership before forwarding;
 - `UAT/F-10.03.md` defines live browser/data reconciliation.
 
-Formal state: `IN_PROGRESS`. Ask Brain browser mutation remains deliberately inactive in the current preview root until S-10.04 activates official WorkOS/BFF. No frontend execution/UAT PASS is claimed.
+Formal state: `BLOCKED`. Ask Brain browser mutation remains deliberately inactive in the current preview root until S-10.04 activates official WorkOS/BFF. No frontend execution/UAT PASS is claimed.
 
 ### S-10.04.01 Production WorkOS Auth + BFF — BLOCKED
 
@@ -170,18 +166,44 @@ Repo-side staging now:
 
 - official current Next.js 16 AuthKit contract reviewed;
 - official npm installer verifies real package-lock resolution/integrity and never invents package metadata;
-- reviewed templates for `authkitProxy()`, `handleAuth()`, `getSignInUrl()`, `AuthKitProvider`, protected `withAuth()` root, `signOut()` and Ask Brain BFF;
+- reviewed templates for `authkitProxy()`, `handleAuth()`, `getSignInUrl()`, `AuthKitProvider`, protected `withAuth()` root, `signOut()`, Ask Brain BFF and evidence upload/delete BFF routes;
 - guarded activation script requires installed/pinned packages plus WorkOS/Brain environment values before copying templates and running lint/build/tests;
-- same-origin BFF route template uses server-side `withAuth()`, bounded JSON/body validation, membership validation and secret-safe errors;
+- same-origin BFF routes use server-side `withAuth()`, bounded request validation, membership validation and secret-safe errors;
+- evidence upload BFF additionally performs a bounded multipart stream read and preserves the 10 MB backend file contract;
 - `UAT/F-10.04.md` and `docs/WORKOS_FRONTEND_ACCEPTANCE.md` remain the authenticated security gates.
 
 Formal state: `BLOCKED`. The current environment cannot obtain the official npm packages/real lockfile, and no authenticated WorkOS browser/session execution has occurred. The active root remains the explicitly labelled preview until this external gate is satisfied.
+
+### S-10.05.01 Governed Files & Evidence Workspace — IN_PROGRESS
+
+Staged now:
+
+- permission-correct evidence workspace read model that applies requested limits after visibility filtering rather than allowing hidden rows to starve the page;
+- server-computed `can_delete` capability while FastAPI remains the authoritative deletion boundary;
+- backend regressions for hidden-row pagination and uploader/Owner/Admin delete presentation;
+- typed evidence-source frontend API plus server-side evidence loading;
+- Files & evidence surface embedded in the Brain shell with lifecycle state, source hash, provenance, local filtering and role-aware read-only/upload behavior;
+- supported-format guidance matching S-02.04 and no fake OCR/download/folder semantics;
+- browser mutations target same-origin BFF only and never receive a reusable backend bearer token;
+- reviewed WorkOS templates for bounded multipart upload and governed delete routes;
+- two-step deletion confirmation plus safe browser error messages;
+- frontend source-contract tests, `docs/planning/increment-23.md` and `UAT/F-10.05.md`.
+
+Still required before review/acceptance:
+
+- execute backend evidence workspace tests and the S-02.04/S-05.01 dependency gates;
+- execute frontend lint/build/source-contract tests;
+- activate S-10.04 with official WorkOS packages and a genuine generated lockfile;
+- run real browser UAT proving upload -> Search/Ask Brain -> delete/revoke disappearance and restricted-source isolation;
+- run accessibility/responsive verification.
+
+Formal state: `IN_PROGRESS`. No executable PASS or browser UAT is claimed.
 
 ## Acceptance phase
 
 `S-05.01.01` stays `IN_REVIEW`. Acceptance execution has now started, but the latest branch-head GitHub runs for Backend CI, Delivery Verifier and Release Gate all failed before any workflow step executed; their job step lists were empty. This supplies no pytest/Ruff/verifier result and does not satisfy the gate. The required local and Render verification must still prove tenant isolation, current permission filtering, revocation, provenance and retrieval quality before dependent features can advance to accepted states.
 
-After S-05.01.01 obtains real passing execution evidence, run the dependent executable suites/migrations, real OpenAI/Terra compatibility and cache-aware exact-cost smoke, representative Ask Brain retrieval/RAG evaluation, human citation review, staging performance, decision-memory precision/UAT, project-status permission/revocation UAT, Executive Overview permission/cost/budget/API reconciliation UAT, and the official WorkOS authenticated frontend/manual paths.
+After S-05.01.01 obtains real passing execution evidence, run the dependent executable suites/migrations, real OpenAI/Terra compatibility and cache-aware exact-cost smoke, representative Ask Brain retrieval/RAG evaluation, human citation review, staging performance, decision-memory precision/UAT, project-status permission/revocation UAT, Executive Overview permission/cost/budget/API reconciliation UAT, and the official WorkOS authenticated frontend/manual paths including S-10.05 evidence lifecycle UAT.
 
 Production quality gates remain: retrieval recall >=90%, zero forbidden evidence exposure/grounding-contract failures, every exact generated claim-citation pair human reviewed, semantic citation correctness >=98%, Decision/Blocker precision >=90% on the agreed representative set, and Ask Brain p95 <10 seconds on the accepted staging runtime.
 
