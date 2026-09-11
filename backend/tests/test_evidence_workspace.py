@@ -152,7 +152,7 @@ def test_workspace_evidence_exposes_server_computed_delete_capability(
     assert deleted.json()["retrieval_available"] is False
 
 
-def test_revoked_integration_is_not_presented_as_retrievable_evidence(
+def test_revoked_integration_is_not_presented_as_retrievable_or_reactivated(
     db_session: Session,
     client,
 ) -> None:
@@ -181,6 +181,18 @@ def test_revoked_integration_is_not_presented_as_retrievable_evidence(
     assert payload["status"] == "active"
     assert payload["integration_status"] == "revoked"
     assert payload["retrieval_available"] is False
+
+    blocked_upload = _upload(
+        client,
+        organization,
+        member,
+        title="Must not reactivate",
+        visibility="organization",
+        key="must-not-reactivate",
+    )
+    assert blocked_upload.status_code == 409
+    db_session.refresh(connection)
+    assert connection.status == IntegrationStatus.REVOKED
 
 
 def test_cross_tenant_source_id_does_not_bypass_organization_boundary(
