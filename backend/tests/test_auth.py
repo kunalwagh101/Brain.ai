@@ -25,7 +25,10 @@ def _token(private_key, **overrides) -> str:
         "client_id": "client_test",
         "exp": now + timedelta(minutes=5),
         "iat": now,
-        "act": {"sub": "person@example.com"},
+        "urn:brain:user_email": "person@example.com",
+        # Deliberately different from the subject email: Brain must not use the
+        # actor/delegation claim to identify the signed-in subject.
+        "act": {"sub": "impersonator@example.com"},
         "org_id": "org_workos_123",
         "role": "member",
         "permissions": ["project:read"],
@@ -59,6 +62,26 @@ def test_verify_access_token_accepts_current_authkit_client_id_contract(
     assert principal.email == "person@example.com"
     assert principal.provider_organization_id == "org_workos_123"
     assert principal.permissions == ("project:read",)
+
+
+def test_verify_access_token_does_not_use_actor_claim_as_subject_email(
+    monkeypatch, rsa_keys
+) -> None:
+    private_key, public_key = rsa_keys
+    _configure(monkeypatch, public_key)
+
+    principal = auth.verify_access_token(_token(private_key))
+    assert principal.email != "impersonator@example.com"
+
+
+def test_verify_access_token_requires_brain_email_template_claim(
+    monkeypatch, rsa_keys
+) -> None:
+    private_key, public_key = rsa_keys
+    _configure(monkeypatch, public_key)
+
+    with pytest.raises(InvalidTokenError):
+        auth.verify_access_token(_token(private_key, **{"urn:brain:user_email": None}))
 
 
 def test_verify_access_token_rejects_wrong_workos_client_id(monkeypatch, rsa_keys) -> None:
