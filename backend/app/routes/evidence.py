@@ -15,6 +15,7 @@ from fastapi import (
     status,
 )
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -36,6 +37,7 @@ from app.evidence_workspace import (
     can_delete_evidence_source,
     list_visible_evidence_sources_page,
 )
+from app.models import IntegrationConnection, IntegrationStatus
 from app.permissions import AuthorizationContext, Permission, require_organization_permission
 
 router = APIRouter(
@@ -62,6 +64,8 @@ class EvidenceSourceRead(BaseModel):
     created_by_user_id: uuid.UUID
     occurred_at: datetime | None
     status: EvidenceSourceStatus
+    integration_status: IntegrationStatus
+    retrieval_available: bool
     last_error_code: str | None
     created_at: datetime
     updated_at: datetime
@@ -89,9 +93,27 @@ def _raise_evidence_error(exc: EvidenceIngestionError) -> None:
     ) from exc
 
 
+def _integration_statuses(
+    db: Session,
+    sources: list[EvidenceSource],
+) -> dict[uuid.UUID, IntegrationStatus]:
+    connection_ids = {source.integration_connection_id for source in sources}
+    if not connection_ids:
+        return {}
+    return {
+        connection_id: connection_status
+        for connection_id, connection_status in db.execute(
+            select(IntegrationConnection.id, IntegrationConnection.status).where(
+                IntegrationConnection.id.in_(connection_ids)
+            )
+        ).all()
+    }
+
+
 def _read_source(
     source: EvidenceSource,
     authorization: AuthorizationContext,
+    integration_status: IntegrationStatus,
 ) -> EvidenceSourceRead:
     return EvidenceSourceRead(
         id=source.id,
@@ -109,6 +131,11 @@ def _read_source(
         created_by_user_id=source.created_by_user_id,
         occurred_at=source.occurred_at,
         status=source.status,
+        integration_status=integration_status,
+        retrieval_available=(
+            source.status == EvidenceSourceStatus.ACTIVE
+            and integration_status == IntegrationStatus.ACTIVE
+        ),
         last_error_code=source.last_error_code,
         created_at=source.created_at,
         updated_at=source.updated_at,
@@ -119,6 +146,21 @@ def _read_source(
             actor_role=authorization.role,
         ),
     )
+
+
+def _read_one(
+    db: Session,
+    source: EvidenceSource,
+    authorization: AuthorizationContext,
+) -> EvidenceSourceRead:
+    statuses = _integration_statuses(db, [source])
+    integration_status = statuses.get(source.integration_connection_id)
+    if integration_status is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Evidence integration state is unavailable",
+        )
+    return _read_source(source, authorization, integration_status)
 
 
 @router.post("/uploads", response_model=EvidenceSourceRead, status_code=status.HTTP_201_CREATED)
@@ -158,7 +200,7 @@ async def upload_evidence(
             idempotency_key=idempotency_key,
             request_id=_request_id(request),
         )
-        return _read_source(source, authorization)
+        return _read_one(db, source, authorization)
     except EvidenceIngestionError as exc:
         _raise_evidence_error(exc)
 
@@ -178,7 +220,12 @@ def list_evidence(
         status=evidence_status,
         limit=limit,
     )
-    return [_read_source(source, authorization) for source in sources]
+    statuses = _integration_statuses(db, sources)
+    return [
+        _read_source(source, authorization, statuses[source.integration_connection_id])
+        for source in sources
+        if source.integration_connection_id in statuses
+    ]
 
 
 @router.get("/{source_id}", response_model=EvidenceSourceRead)
@@ -199,7 +246,7 @@ def read_evidence(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Evidence source not found",
         )
-    return _read_source(source, authorization)
+    return _read_one(db, source, authorization)
 
 
 @router.delete("/{source_id}", response_model=EvidenceSourceRead)
@@ -219,6 +266,6 @@ def delete_evidence(
             source_id=source_id,
             request_id=_request_id(request),
         )
-        return _read_source(source, authorization)
+        return _read_one(db, source, authorization)
     except EvidenceIngestionError as exc:
         _raise_evidence_error(exc)
