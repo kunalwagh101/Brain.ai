@@ -14,12 +14,12 @@ export async function ProductionWorkspace({
   accessToken,
   signedInName,
   requestedOrganizationId,
-  askBrainEndpoint,
+  enableAskBrainBff = false,
 }: {
   accessToken: string;
   signedInName: string;
   requestedOrganizationId?: string | null;
-  askBrainEndpoint?: string | null;
+  enableAskBrainBff?: boolean;
 }) {
   const organizations = await listOrganizations(accessToken);
   if (!organizations.length) {
@@ -55,6 +55,10 @@ export async function ProductionWorkspace({
       : Promise.resolve([]),
   ]);
 
+  const askBrainEndpoint = enableAskBrainBff && AI_ROLES.has(organization.role)
+    ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/ask-brain`
+    : null;
+
   return (
     <WorkspaceShell
       organization={organization}
@@ -64,7 +68,7 @@ export async function ProductionWorkspace({
       overview={overview}
       runtimes={runtimes}
       signedInName={signedInName}
-      askBrainEndpoint={askBrainEndpoint ?? null}
+      askBrainEndpoint={askBrainEndpoint}
     />
   );
 }
