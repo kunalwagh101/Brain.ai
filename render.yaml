@@ -23,8 +23,6 @@ services:
         generateValue: true
       - key: BRAIN_WORKOS_CLIENT_ID
         sync: false
-      - key: BRAIN_WORKOS_AUDIENCE
-        sync: false
       - key: BRAIN_AWS_REGION
         sync: false
       - key: BRAIN_SECRETS_PREFIX
