@@ -1,9 +1,12 @@
 import type {
+  AIRuntimeOption,
   BrainOrganization,
   ExecutiveOverview,
+  ProjectMemory,
   ProjectStatus,
   WorkspaceNavigation,
 } from "./brain-api";
+import { AskBrainPanel } from "./ask-brain-panel";
 import styles from "./workspace-shell.module.css";
 
 function projectProgress(project: ProjectStatus): string {
@@ -21,22 +24,65 @@ function initials(value: string): string {
     .join("") || "B";
 }
 
+function uniqueMemory(items: ProjectMemory[]): ProjectMemory[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
+function formatKnownSpend(nanoUsd: number): string {
+  return new Intl.NumberFormat("en", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  }).format(nanoUsd / 1_000_000_000);
+}
+
+function MemoryProvenance({ item }: { item: ProjectMemory }) {
+  return (
+    <details className={styles.provenanceDetails}>
+      <summary>Evidence</summary>
+      <dl>
+        <div><dt>Canonical event</dt><dd>{item.canonical_event_id}</dd></div>
+        {item.search_document_id ? (
+          <div><dt>Search document</dt><dd>{item.search_document_id}</dd></div>
+        ) : null}
+        {item.work_graph_node_id ? (
+          <div><dt>Work Graph node</dt><dd>{item.work_graph_node_id}</dd></div>
+        ) : null}
+        <div><dt>Confidence</dt><dd>{Math.round(item.confidence * 100)}%</dd></div>
+      </dl>
+    </details>
+  );
+}
+
 export function WorkspaceShell({
   organization,
+  organizations,
   navigation,
   projects,
   overview,
+  runtimes,
   signedInName,
+  askBrainEndpoint,
 }: {
   organization: BrainOrganization;
+  organizations: BrainOrganization[];
   navigation: WorkspaceNavigation;
   projects: ProjectStatus[];
   overview: ExecutiveOverview | null;
+  runtimes: AIRuntimeOption[];
   signedInName: string;
+  askBrainEndpoint: string | null;
 }) {
   const projectById = new Map(projects.map((project) => [project.project_node_id, project]));
-  const blockers = projects.flatMap((project) => project.active_blockers);
-  const decisions = projects.flatMap((project) => project.confirmed_decisions);
+  const blockers = uniqueMemory(projects.flatMap((project) => project.active_blockers));
+  const decisions = uniqueMemory(projects.flatMap((project) => project.confirmed_decisions));
+  const warningCount = overview?.budget_warnings.filter((item) => item.warning_active).length ?? 0;
 
   return (
     <main className={styles.shell}>
@@ -46,7 +92,9 @@ export function WorkspaceShell({
         <div className={styles.brandMark} aria-label="Brain">B</div>
         <nav className={styles.railNav} aria-label="Primary workspace shortcuts">
           <a className={styles.railActive} href="#home" aria-label="Home">⌂</a>
+          <a href="#tracks" aria-label="Tracks">#</a>
           <a href="#projects" aria-label="Projects">▣</a>
+          <a href="#ask-brain" aria-label="Ask Brain">✦</a>
           <a href="#memory" aria-label="Decisions and blockers">◇</a>
           <a href="#files" aria-label="Files and evidence">▤</a>
         </nav>
@@ -62,14 +110,29 @@ export function WorkspaceShell({
               <small>{organization.role}</small>
             </div>
           </div>
-          <button type="button" aria-label="Workspace menu" disabled>⌄</button>
+          <details className={styles.workspaceMenu}>
+            <summary aria-label="Switch organisation">⌄</summary>
+            <div>
+              {organizations.map((item) => (
+                item.id === organization.id ? (
+                  <span className={styles.currentWorkspace} key={item.id}>
+                    <b>{item.name}</b><small>{item.role} · current</small>
+                  </span>
+                ) : (
+                  <a href={`?organizationId=${encodeURIComponent(item.id)}`} key={item.id}>
+                    <b>{item.name}</b><small>{item.role}</small>
+                  </a>
+                )
+              ))}
+            </div>
+          </details>
         </header>
 
-        <div className={styles.searchBox} aria-label="Search shortcut">
-          <span aria-hidden="true">⌕</span>
-          <span>Search Brain</span>
+        <a className={styles.searchBox} href="#ask-brain" aria-label="Open Ask Brain">
+          <span aria-hidden="true">✦</span>
+          <span>Ask Brain</span>
           <kbd>⌘K</kbd>
-        </div>
+        </a>
 
         <nav className={styles.navGroups}>
           <section>
@@ -107,9 +170,9 @@ export function WorkspaceShell({
 
           <section>
             <div className={styles.groupTitle}><span>Intelligence</span></div>
+            <a href="#ask-brain"><span>✦</span> Ask Brain</a>
             <a href="#projects"><span>▣</span> Project Command Centre</a>
             {overview ? <a href="#company-pulse"><span>◉</span> Company pulse</a> : null}
-            <span className={styles.comingSoon}><span>✦</span> Ask Brain <small>next</small></span>
           </section>
         </nav>
 
@@ -133,8 +196,8 @@ export function WorkspaceShell({
             <p className={styles.eyebrow}>Brain workspace</p>
             <h2>Everything your role can see, in one operating surface.</h2>
             <p>
-              Tracks and projects below come from the tenant-scoped Work Graph. Hidden resources are
-              filtered by the backend before their names reach this page.
+              Tracks and projects come from the tenant-scoped Work Graph. Restricted resources are
+              filtered by the backend before their names, counts or evidence reach this page.
             </p>
           </div>
           <div className={styles.summaryPills}>
@@ -146,10 +209,26 @@ export function WorkspaceShell({
 
         {overview ? (
           <section className={styles.metricGrid} id="company-pulse" aria-label="Company pulse">
-            <article><span>Visible projects</span><strong>{overview.visible_project_count}</strong><small>{overview.in_progress_project_count} in progress</small></article>
-            <article><span>Confirmed blockers</span><strong>{overview.active_blocker_count}</strong><small>Human-confirmed only</small></article>
-            <article><span>Confirmed decisions</span><strong>{overview.confirmed_decision_count}</strong><small>Evidence-backed</small></article>
-            <article><span>Budget warnings</span><strong>{overview.budget_warnings.filter((item) => item.warning_active).length}</strong><small>Visible scopes only</small></article>
+            <article>
+              <span>Visible projects</span>
+              <strong>{overview.visible_project_count}</strong>
+              <small>{overview.in_progress_project_count} in progress</small>
+            </article>
+            <article>
+              <span>Confirmed blockers</span>
+              <strong>{overview.active_blocker_count}</strong>
+              <small>Human-confirmed only</small>
+            </article>
+            <article>
+              <span>Known AI spend</span>
+              <strong>{formatKnownSpend(overview.ai_spend.known_spend_nano_usd)}</strong>
+              <small>{overview.ai_spend.cost_complete ? "Complete for period" : "Incomplete · unknown costs remain"}</small>
+            </article>
+            <article>
+              <span>Budget warnings</span>
+              <strong>{warningCount}</strong>
+              <small>Visible scopes only</small>
+            </article>
           </section>
         ) : (
           <section className={styles.roleNotice} role="status">
@@ -157,6 +236,24 @@ export function WorkspaceShell({
             <span>Your workspace remains available; Brain does not widen executive/audit access for this role.</span>
           </section>
         )}
+
+        <section className={styles.panel} id="tracks" aria-labelledby="tracks-heading">
+          <header className={styles.panelHeader}>
+            <div><p className={styles.eyebrow}>Workspace tracks</p><h2 id="tracks-heading">Visible tracks</h2></div>
+            <span>{navigation.tracks.length}</span>
+          </header>
+          <div className={styles.trackList}>
+            {navigation.tracks.length ? navigation.tracks.map((track) => (
+              <article id={`track-${track.node_id}`} key={track.node_id}>
+                <span className={styles.trackMark}>#</span>
+                <div>
+                  <strong>{track.display_name ?? "Untitled track"}</strong>
+                  <small>{track.provider ? `${track.provider} source` : "Brain track"} · {track.source_visibility}</small>
+                </div>
+              </article>
+            )) : <p className={styles.emptyState}>No tracks are currently visible to this account.</p>}
+          </div>
+        </section>
 
         <section className={styles.panel} id="projects" aria-labelledby="projects-heading">
           <header className={styles.panelHeader}>
@@ -175,6 +272,38 @@ export function WorkspaceShell({
                   <small>{project.active_blockers.length} blocker(s)</small>
                 </div>
                 <span className={styles.statusChip} data-status={project.status}>{project.status}</span>
+                <details className={styles.projectDetails}>
+                  <summary>Structured work & evidence</summary>
+                  <div className={styles.projectDetailsGrid}>
+                    <section>
+                      <h3>Structured work</h3>
+                      {project.progress_items.length ? (
+                        <ul>
+                          {project.progress_items.slice(0, 8).map((item) => (
+                            <li key={item.id}>
+                              <span>{item.work_item_name}</span>
+                              <small>{item.state} · weight {item.weight}</small>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : <p>No configured structured work is visible.</p>}
+                    </section>
+                    <section>
+                      <h3>Evidence</h3>
+                      {project.evidence.length ? (
+                        <ul>
+                          {project.evidence.slice(0, 8).map((item) => (
+                            <li key={item.document_id}>
+                              <span>{item.title}</span>
+                              <small>{item.source_provider} · {item.object_type}</small>
+                              <code>{item.canonical_event_id}</code>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : <p>No visible evidence is linked to this project.</p>}
+                    </section>
+                  </div>
+                </details>
               </article>
             )) : <p className={styles.emptyState}>No projects are currently visible to this account.</p>}
           </div>
@@ -187,17 +316,54 @@ export function WorkspaceShell({
           <div className={styles.memoryGrid}>
             <div>
               <h3>Blockers</h3>
-              {blockers.length ? blockers.slice(0, 6).map((item) => (
-                <article key={item.id}><span className={styles.blockerIcon}>!</span><div><strong>{item.summary}</strong><small>Confirmed blocker</small></div></article>
+              {blockers.length ? blockers.slice(0, 8).map((item) => (
+                <article key={item.id}>
+                  <span className={styles.blockerIcon}>!</span>
+                  <div>
+                    <strong>{item.summary}</strong>
+                    <small>Confirmed blocker</small>
+                    <MemoryProvenance item={item} />
+                  </div>
+                </article>
               )) : <p className={styles.emptyState}>No confirmed blockers in visible projects.</p>}
             </div>
             <div>
               <h3>Decisions</h3>
-              {decisions.length ? decisions.slice(0, 6).map((item) => (
-                <article key={item.id}><span className={styles.decisionIcon}>✓</span><div><strong>{item.summary}</strong><small>Confirmed decision</small></div></article>
+              {decisions.length ? decisions.slice(0, 8).map((item) => (
+                <article key={item.id}>
+                  <span className={styles.decisionIcon}>✓</span>
+                  <div>
+                    <strong>{item.summary}</strong>
+                    <small>Confirmed decision</small>
+                    <MemoryProvenance item={item} />
+                  </div>
+                </article>
               )) : <p className={styles.emptyState}>No confirmed decisions in visible projects.</p>}
             </div>
           </div>
+        </section>
+
+        <section className={styles.panel} id="ask-brain" aria-labelledby="ask-brain-workspace-heading">
+          {askBrainEndpoint ? (
+            <div className={styles.embeddedIntelligence}>
+              <AskBrainPanel endpoint={askBrainEndpoint} runtimes={runtimes} />
+            </div>
+          ) : (
+            <>
+              <header className={styles.panelHeader}>
+                <div>
+                  <p className={styles.eyebrow}>Ask Brain</p>
+                  <h2 id="ask-brain-workspace-heading">Evidence-backed answers</h2>
+                </div>
+                <span className={styles.nextBadge}>S-10.04</span>
+              </header>
+              <p className={styles.emptyState}>
+                The live Ask Brain surface is ready for governed runtimes, but the browser mutation stays
+                disabled until the official WorkOS same-origin BFF is installed. Brain will not expose a
+                reusable backend bearer token to make this button work early.
+              </p>
+            </>
+          )}
         </section>
 
         <section className={styles.panel} id="files" aria-labelledby="files-heading">
@@ -225,10 +391,11 @@ export function WorkspaceShell({
         </section>
         <section>
           <p className={styles.eyebrow}>Ask Brain</p>
-          <h2>Evidence-backed answers</h2>
+          <h2>{askBrainEndpoint ? "Secure BFF connected" : "Secure BFF pending"}</h2>
           <p>
-            The Ask Brain composer will be connected through the same-origin WorkOS BFF in S-10.03/S-10.04.
-            It is intentionally not wired to a dead or insecure endpoint here.
+            {askBrainEndpoint
+              ? `${runtimes.length} governed runtime(s) are available through the same-origin server path.`
+              : "The UI does not send WorkOS or Brain access tokens to browser code. AuthKit/BFF activation remains the S-10.04 gate."}
           </p>
         </section>
       </aside>
