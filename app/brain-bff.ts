@@ -1,4 +1,9 @@
-import { askBrain, type AskBrainInput, type AskBrainResponse } from "./brain-api";
+import {
+  askBrain,
+  listOrganizations,
+  type AskBrainInput,
+  type AskBrainResponse,
+} from "./brain-api";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -97,5 +102,11 @@ export async function handleAskBrainBff(
   body: unknown,
 ): Promise<AskBrainResponse> {
   if (!UUID_PATTERN.test(organizationId)) throw new Error("organizationId must be a UUID");
+
+  const organizations = await listOrganizations(accessToken);
+  if (!organizations.some((item) => item.id === organizationId)) {
+    throw new Error("organizationId is not available to the authenticated user");
+  }
+
   return askBrain(accessToken, organizationId, parseAskBrainBffInput(body));
 }
