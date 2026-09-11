@@ -1,12 +1,14 @@
 import type {
   AIRuntimeOption,
   BrainOrganization,
+  EvidenceSource,
   ExecutiveOverview,
   ProjectMemory,
   ProjectStatus,
   WorkspaceNavigation,
 } from "./brain-api";
 import { AskBrainPanel } from "./ask-brain-panel";
+import { EvidenceWorkspace } from "./evidence-workspace";
 import styles from "./workspace-shell.module.css";
 
 function projectProgress(project: ProjectStatus): string {
@@ -65,20 +67,26 @@ export function WorkspaceShell({
   organizations,
   navigation,
   projects,
+  evidenceSources,
   overview,
   runtimes,
   signedInName,
   askBrainEndpoint,
+  evidenceMutationBase,
+  canUploadEvidence,
   signOutAction,
 }: {
   organization: BrainOrganization;
   organizations: BrainOrganization[];
   navigation: WorkspaceNavigation;
   projects: ProjectStatus[];
+  evidenceSources: EvidenceSource[];
   overview: ExecutiveOverview | null;
   runtimes: AIRuntimeOption[];
   signedInName: string;
   askBrainEndpoint: string | null;
+  evidenceMutationBase: string | null;
+  canUploadEvidence: boolean;
   signOutAction?: (formData: FormData) => Promise<void>;
 }) {
   const projectById = new Map(projects.map((project) => [project.project_node_id, project]));
@@ -384,15 +392,12 @@ export function WorkspaceShell({
           )}
         </section>
 
-        <section className={styles.panel} id="files" aria-labelledby="files-heading">
-          <header className={styles.panelHeader}>
-            <div><p className={styles.eyebrow}>Files & evidence</p><h2 id="files-heading">Evidence workspace</h2></div>
-            <span className={styles.nextBadge}>S-10.05</span>
-          </header>
-          <p className={styles.emptyState}>
-            Governed upload, browsing and provenance UI is a separate P0 story. This shell does not fake
-            file data before that route is wired.
-          </p>
+        <section className={styles.panel} id="files" aria-label="Files and evidence">
+          <EvidenceWorkspace
+            sources={evidenceSources}
+            mutationBase={evidenceMutationBase}
+            canUpload={canUploadEvidence}
+          />
         </section>
       </section>
 
@@ -403,6 +408,7 @@ export function WorkspaceShell({
           <dl>
             <div><dt>Visible tracks</dt><dd>{navigation.tracks.length}</dd></div>
             <div><dt>Visible projects</dt><dd>{navigation.projects.length}</dd></div>
+            <div><dt>Evidence sources</dt><dd>{evidenceSources.length}</dd></div>
             <div><dt>Confirmed blockers</dt><dd>{blockers.length}</dd></div>
             <div><dt>Confirmed decisions</dt><dd>{decisions.length}</dd></div>
           </dl>
@@ -414,6 +420,15 @@ export function WorkspaceShell({
             {askBrainEndpoint
               ? `${runtimes.length} governed runtime(s) are available through the same-origin server path.`
               : "The UI does not send WorkOS or Brain access tokens to browser code. AuthKit/BFF activation remains the S-10.04 gate."}
+          </p>
+        </section>
+        <section>
+          <p className={styles.eyebrow}>Evidence</p>
+          <h2>{evidenceMutationBase ? "Governed mutations connected" : "Permission-aware read model"}</h2>
+          <p>
+            {evidenceMutationBase
+              ? "Upload and deletion use the authenticated same-origin server path; source lifecycle remains authoritative in FastAPI."
+              : "Visible evidence metadata is server-rendered. Upload/delete stays disabled until the authenticated WorkOS BFF is active."}
           </p>
         </section>
       </aside>
