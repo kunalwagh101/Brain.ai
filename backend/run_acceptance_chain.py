@@ -29,6 +29,7 @@ STAGES = (
     )),
     Stage("S-02.04.01", "Meeting/Document Evidence", (
         "tests/test_evidence_ingestion.py",
+        "tests/test_evidence_workspace.py",
     )),
     Stage("S-05.02.01", "Ask Brain + Governed AI/Cost Dependencies", (
         "tests/test_ai_gateway.py",
