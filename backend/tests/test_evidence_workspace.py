@@ -5,7 +5,14 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.evidence_models import EvidenceSource, EvidenceSourceStatus
 from app.main import app
-from app.models import Membership, MembershipRole, Organization, User
+from app.models import (
+    IntegrationConnection,
+    IntegrationStatus,
+    Membership,
+    MembershipRole,
+    Organization,
+    User,
+)
 
 
 def _seed(db: Session, suffix: str):
@@ -98,6 +105,7 @@ def test_workspace_list_limit_is_applied_after_permission_filter(
     assert len(payload) == 1
     assert payload[0]["id"] == visible.json()["id"]
     assert payload[0]["title"] == "Visible source"
+    assert payload[0]["retrieval_available"] is True
 
 
 def test_workspace_evidence_exposes_server_computed_delete_capability(
@@ -116,6 +124,7 @@ def test_workspace_evidence_exposes_server_computed_delete_capability(
     assert uploaded.status_code == 201
     source_id = uploaded.json()["id"]
     assert uploaded.json()["can_delete"] is True
+    assert uploaded.json()["retrieval_available"] is True
 
     app.dependency_overrides[get_current_user] = lambda: other
     other_read = client.get(f"/api/v1/organizations/{organization.id}/evidence/{source_id}")
@@ -140,6 +149,38 @@ def test_workspace_evidence_exposes_server_computed_delete_capability(
     assert deleted.status_code == 200
     assert deleted.json()["status"] == "deleted"
     assert deleted.json()["can_delete"] is False
+    assert deleted.json()["retrieval_available"] is False
+
+
+def test_revoked_integration_is_not_presented_as_retrievable_evidence(
+    db_session: Session,
+    client,
+) -> None:
+    organization, _, member, _ = _seed(db_session, "revoked")
+    uploaded = _upload(
+        client,
+        organization,
+        member,
+        title="Revoked source",
+        visibility="organization",
+        key="revoked-source",
+    )
+    assert uploaded.status_code == 201
+    source = db_session.get(EvidenceSource, uploaded.json()["id"])
+    assert source is not None
+    connection = db_session.get(IntegrationConnection, source.integration_connection_id)
+    assert connection is not None
+    connection.status = IntegrationStatus.REVOKED
+    connection.revoked_at = datetime.now(UTC)
+    db_session.commit()
+
+    app.dependency_overrides[get_current_user] = lambda: member
+    response = client.get(f"/api/v1/organizations/{organization.id}/evidence")
+    assert response.status_code == 200
+    payload = next(item for item in response.json() if item["id"] == str(source.id))
+    assert payload["status"] == "active"
+    assert payload["integration_status"] == "revoked"
+    assert payload["retrieval_available"] is False
 
 
 def test_cross_tenant_source_id_does_not_bypass_organization_boundary(
