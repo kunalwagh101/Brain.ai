@@ -221,10 +221,15 @@ def list_evidence(
         limit=limit,
     )
     statuses = _integration_statuses(db, sources)
+    expected_connection_ids = {source.integration_connection_id for source in sources}
+    if set(statuses) != expected_connection_ids:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Evidence integration state is unavailable",
+        )
     return [
         _read_source(source, authorization, statuses[source.integration_connection_id])
         for source in sources
-        if source.integration_connection_id in statuses
     ]
 
 
