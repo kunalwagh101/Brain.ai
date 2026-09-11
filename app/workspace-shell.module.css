@@ -93,13 +93,6 @@
   border-bottom: 1px solid #262a35;
 }
 
-.workspaceHeader button {
-  background: transparent;
-  color: #8f98a7;
-  border: 0;
-  font-size: 16px;
-}
-
 .workspaceIdentity,
 .userCard {
   display: flex;
@@ -140,6 +133,66 @@
   font-size: 12px;
 }
 
+.workspaceMenu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.workspaceMenu > summary {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #8f98a7;
+  cursor: pointer;
+  list-style: none;
+}
+
+.workspaceMenu > summary::-webkit-details-marker { display: none; }
+.workspaceMenu > summary:hover,
+.workspaceMenu > summary:focus-visible,
+.workspaceMenu[open] > summary {
+  background: #252a36;
+  color: #fff;
+  outline: none;
+}
+
+.workspaceMenu > div {
+  position: absolute;
+  z-index: 30;
+  top: 42px;
+  right: 0;
+  width: 236px;
+  display: grid;
+  gap: 4px;
+  padding: 7px;
+  border: 1px solid #353b49;
+  border-radius: 10px;
+  background: #13171f;
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.35);
+}
+
+.workspaceMenu a,
+.currentWorkspace {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 7px;
+  padding: 9px 10px;
+  color: #dce2eb;
+  text-decoration: none;
+}
+
+.workspaceMenu a:hover,
+.workspaceMenu a:focus-visible {
+  background: #252a36;
+  outline: none;
+}
+
+.currentWorkspace { background: #202530; }
+.workspaceMenu small { color: #818b9a; font-size: 11px; }
+
 .searchBox {
   margin: 12px 12px 4px;
   min-height: 38px;
@@ -152,6 +205,14 @@
   gap: 8px;
   padding: 0 10px;
   font-size: 13px;
+  text-decoration: none;
+}
+
+.searchBox:hover,
+.searchBox:focus-visible {
+  border-color: #565e70;
+  color: #e7ebf2;
+  outline: none;
 }
 
 .searchBox kbd {
@@ -219,9 +280,7 @@
   padding: 1px 6px;
 }
 
-.emptyNav {
-  margin: 4px 8px 0;
-}
+.emptyNav { margin: 4px 8px 0; }
 
 .projectDot {
   width: 8px;
@@ -379,7 +438,31 @@
 
 .panelHeader > span { color: #818b9a; font-size: 12px; }
 
-.projectList article {
+.trackList article {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 18px;
+  border-bottom: 1px solid #242a34;
+  scroll-margin-top: 20px;
+}
+
+.trackList article:last-child { border-bottom: 0; }
+.trackList article div { display: flex; flex-direction: column; gap: 2px; }
+.trackList article small { color: #7f8998; font-size: 11px; }
+.trackMark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #242a35;
+  color: #b9c1ce;
+  font-weight: 800;
+}
+
+.projectList > article {
   min-height: 70px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -390,7 +473,7 @@
   scroll-margin-top: 20px;
 }
 
-.projectList article:last-child { border-bottom: 0; }
+.projectList > article:last-child { border-bottom: 0; }
 
 .projectIdentity {
   min-width: 0;
@@ -432,6 +515,58 @@
 .statusChip[data-status="done"] { color: #86dcb7; border-color: #356553; }
 .statusChip[data-status="in_progress"] { color: #edc279; border-color: #6f5a34; }
 
+.projectDetails {
+  grid-column: 1 / -1;
+  border-top: 1px solid #2a303a;
+  padding-top: 9px;
+}
+
+.projectDetails > summary,
+.provenanceDetails > summary {
+  color: #9aa4b3;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.projectDetails > summary:focus-visible,
+.provenanceDetails > summary:focus-visible {
+  outline: 2px solid #8d82ff;
+  outline-offset: 2px;
+}
+
+.projectDetailsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.projectDetailsGrid section {
+  min-width: 0;
+  border: 1px solid #2c323e;
+  border-radius: 9px;
+  padding: 11px;
+  background: #12161d;
+}
+
+.projectDetailsGrid h3 {
+  margin: 0 0 8px;
+  color: #b7c0cd;
+  font-size: 12px;
+}
+
+.projectDetailsGrid ul { margin: 0; padding: 0; list-style: none; }
+.projectDetailsGrid li { display: grid; gap: 2px; padding: 7px 0; }
+.projectDetailsGrid li + li { border-top: 1px solid #282e38; }
+.projectDetailsGrid small { color: #7e8897; font-size: 10px; }
+.projectDetailsGrid code {
+  color: #788392;
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+.projectDetailsGrid p { color: #7e8897; font-size: 11px; }
+
 .memoryGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -442,7 +577,7 @@
 .memoryGrid h3 { margin: 0 0 12px; font-size: 13px; color: #aeb6c2; }
 .memoryGrid article { display: flex; gap: 10px; padding: 10px 0; }
 .memoryGrid article + article { border-top: 1px solid #242a34; }
-.memoryGrid article div { display: flex; flex-direction: column; gap: 3px; }
+.memoryGrid article > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .memoryGrid article small { color: #798391; }
 
 .blockerIcon,
@@ -458,6 +593,19 @@
   font-weight: 800;
 }
 .decisionIcon { background: #19362c; color: #79d8ad; }
+
+.provenanceDetails { margin-top: 5px; }
+.provenanceDetails dl { margin: 7px 0 0; }
+.provenanceDetails dl div {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px;
+  padding: 4px 0;
+}
+.provenanceDetails dt { color: #737d8c; font-size: 10px; }
+.provenanceDetails dd { margin: 0; color: #9aa4b3; font-size: 10px; overflow-wrap: anywhere; }
+
+.embeddedIntelligence { padding: 18px; }
 
 .emptyState {
   padding: 14px 18px;
@@ -491,17 +639,19 @@
   .metricGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .welcomeCard { align-items: flex-start; flex-direction: column; }
   .summaryPills { justify-content: flex-start; }
-  .memoryGrid { grid-template-columns: 1fr; }
+  .memoryGrid,
+  .projectDetailsGrid { grid-template-columns: 1fr; }
   .memoryGrid > div + div { border-left: 0; border-top: 1px solid #292f3a; }
 }
 
 @media (max-width: 560px) {
   .shell { display: block; }
   .workspaceRail { min-height: auto; height: 56px; flex-direction: row; padding: 8px 12px; position: sticky; top: 0; z-index: 10; }
-  .railNav { flex-direction: row; width: auto; }
-  .railNav a { width: 38px; height: 38px; }
+  .railNav { flex-direction: row; width: auto; overflow-x: auto; }
+  .railNav a { width: 38px; height: 38px; flex: 0 0 auto; }
   .railAvatar { margin: 0 0 0 auto; }
   .metricGrid { grid-template-columns: 1fr; }
-  .projectList article { grid-template-columns: 1fr auto; }
+  .projectList > article { grid-template-columns: 1fr auto; }
   .statusChip { grid-column: 1 / -1; justify-self: start; }
+  .topbar { align-items: flex-start; flex-direction: column; justify-content: center; padding: 14px 0; }
 }
