@@ -66,7 +66,7 @@ Give authorised leaders one evidence-backed organisation pulse across projects, 
 
 ## Acceptance gates still required
 
-1. `S-05.01.01` permission-aware retrieval verification passes locally and on Render when the project owner performs the deferred gate.
+1. `S-05.01.01` permission-aware retrieval verification passes locally and on Render.
 2. `S-02.04`, `S-05.02`, `S-04.02`, `S-06.02` and `S-07.01` receive their required executable evidence in dependency order.
 3. Executive-overview tests and all dependent backend suites execute successfully on PostgreSQL with migrations at head.
 4. Two-user restricted-project UAT proves the executive view omits hidden project names, progress, decisions, blockers, evidence and work-graph-scoped budget target IDs.
@@ -76,4 +76,8 @@ Give authorised leaders one evidence-backed organisation pulse across projects, 
 8. Production WorkOS frontend renders the organisation pulse and drill-down provenance without exposing tokens/secrets.
 9. Manual browser/accessibility UAT passes and confirms no employee productivity-score field or presentation exists.
 
-Until those gates pass, `S-07.02.01` must not be represented as `DONE` or `PASSED`.
+## Acceptance execution status — 2026-09-11
+
+The project owner has now asked to proceed into the acceptance phase. The latest branch-head GitHub runs for Backend CI, Delivery Verifier and Release Gate all concluded `failure`, but their job step lists were empty: no checkout, install, Ruff, pytest, verifier, migration or release step executed. This is a runner/platform-start failure, not a code-test result. No story state advances from it. Local and Render S-05.01.01 verification remain required.
+
+Until the required gates pass, `S-07.02.01` must not be represented as `DONE` or `PASSED`.
