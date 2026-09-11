@@ -18,7 +18,7 @@ DONE | S-03.02.01 | F-03.02 | Engineering evidence in TRACEABILITY.md; Slack/Git
 DONE | S-03.03.01 | F-03.03 | Engineering evidence in TRACEABILITY.md; real provider identity + frontend/manual UAT remains pending
 DONE | S-04.01.01 | F-04.01 | Engineering evidence in TRACEABILITY.md; real Slack/GitHub graph + frontend/manual UAT remains pending
 BLOCKED | S-04.02.01 | F-04.02 | Backend implementation is staged and hardened for generic evidence + human-authoritative review; formal review remains blocked until S-05.01.01 has executable passing verification
-IN_REVIEW | S-05.01.01 | F-05.01 | Implementation/docs/tests including provenance contract exist; project owner explicitly deferred local pytest + Render verification on 2026-09-10, so no passing evidence is claimed
+IN_REVIEW | S-05.01.01 | F-05.01 | Implementation/docs/tests including provenance contract exist; acceptance phase started on 2026-09-11, but latest GitHub jobs failed before any workflow step executed and no local/Render passing evidence exists
 BLOCKED | S-05.02.01 | F-05.02 | Backend RAG implementation is staged including generic evidence integration, strict output contract and cache-aware exact cost; dependency verification, real staging/eval/performance, WorkOS frontend build and manual UAT remain open
 IN_REVIEW | S-06.01.01 | F-06.01 | Provider registry/gateway implementation, migration, tests, docs and cache-token usage propagation are staged; executable passing verification remains outstanding
 BLOCKED | S-06.02.01 | F-06.02 | Cache-aware usage/cost/budget implementation and request-scoped cost audit are staged; tests are written but unexecuted and S-06.01.01 remains unverified
@@ -34,7 +34,7 @@ DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external
 
 ## Current implementation train — S-02.04 / S-05.02 / S-04.02 / S-07.01 / S-07.02
 
-Project-owner direction on 2026-09-10/11: continue implementation on the existing `increment-10-ai-provider-gateway` branch without running the deferred S-05.01.01 local pytest/Render acceptance gate yet. Dependency rules remain binding for formal story status; implementation presence is not a PASS.
+Project-owner direction on 2026-09-10 allowed implementation to continue without the S-05.01.01 execution gate. On 2026-09-11 the project owner said to proceed into the acceptance phase. Dependency rules remain binding: implementation presence is not a PASS, and a workflow failure before step execution is not a test result.
 
 ### S-02.04.01 Meeting/document evidence
 
@@ -107,16 +107,16 @@ Staged now:
 - trusted S-06.03 external API activity and active-grant counts plus an audited `/api-registry/usage` drill-down that exposes no secret material;
 - external API monetary cost deliberately remains `null` / `not_modeled` because no reviewed API tariff ledger exists; call counts are never converted into money;
 - deterministic risks only from project blocked state, budget state, incomplete AI cost and explicit API-cost-model absence;
-- explicit prohibition on employee productivity/worth/activity ranking; `employee_productivity_score` remains `null`;
+- no employee productivity/worth/activity ranking and no productivity-score field exists in the API contract;
 - backend contract/security tests, `docs/EXECUTIVE_OVERVIEW.md`, Increment 21 planning and `UAT/F-07.02.md` are staged.
 
 Formal state: `BLOCKED`. Its S-07.01.01 and S-06.02.01 dependencies are not DONE, and no executable backend, reconciliation, permission/revocation, frontend or accessibility UAT has run.
 
-## Deferred acceptance gate
+## Acceptance phase
 
-`S-05.01.01` stays `IN_REVIEW`. The project owner explicitly deferred its local pytest + Render verification. That gate must later prove tenant isolation, current permission filtering, revocation, provenance and retrieval quality before dependent features can advance to accepted states.
+`S-05.01.01` stays `IN_REVIEW`. Acceptance execution has now started, but the latest branch-head GitHub runs for Backend CI, Delivery Verifier and Release Gate all failed before any workflow step executed; their job step lists were empty. This supplies no pytest/Ruff/verifier result and does not satisfy the gate. The required local and Render verification must still prove tenant isolation, current permission filtering, revocation, provenance and retrieval quality before dependent features can advance to accepted states.
 
-After that verification, run the dependent executable suites/migrations, real OpenAI/Terra compatibility and cache-aware exact-cost smoke, representative Ask Brain retrieval/RAG evaluation, human citation review, staging performance, decision-memory precision/UAT, project-status permission/revocation UAT, Executive Overview permission/cost/budget/API reconciliation UAT, and the official WorkOS authenticated frontend/manual paths.
+After S-05.01.01 obtains real passing execution evidence, run the dependent executable suites/migrations, real OpenAI/Terra compatibility and cache-aware exact-cost smoke, representative Ask Brain retrieval/RAG evaluation, human citation review, staging performance, decision-memory precision/UAT, project-status permission/revocation UAT, Executive Overview permission/cost/budget/API reconciliation UAT, and the official WorkOS authenticated frontend/manual paths.
 
 Production quality gates remain: retrieval recall >=90%, zero forbidden evidence exposure/grounding-contract failures, every exact generated claim-citation pair human reviewed, semantic citation correctness >=98%, Decision/Blocker precision >=90% on the agreed representative set, and Ask Brain p95 <10 seconds on the accepted staging runtime.
 
