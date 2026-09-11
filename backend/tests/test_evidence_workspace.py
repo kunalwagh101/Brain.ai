@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
-from app.evidence_models import EvidenceSource
+from app.evidence_models import EvidenceSource, EvidenceSourceStatus
 from app.main import app
 from app.models import Membership, MembershipRole, Organization, User
 
@@ -122,6 +122,14 @@ def test_workspace_evidence_exposes_server_computed_delete_capability(
     assert other_read.status_code == 200
     assert other_read.json()["can_delete"] is False
 
+    forged_delete = client.delete(
+        f"/api/v1/organizations/{organization.id}/evidence/{source_id}"
+    )
+    assert forged_delete.status_code == 404
+    source = db_session.get(EvidenceSource, source_id)
+    assert source is not None
+    assert source.status == EvidenceSourceStatus.ACTIVE
+
     app.dependency_overrides[get_current_user] = lambda: owner
     owner_read = client.get(f"/api/v1/organizations/{organization.id}/evidence/{source_id}")
     assert owner_read.status_code == 200
@@ -132,3 +140,34 @@ def test_workspace_evidence_exposes_server_computed_delete_capability(
     assert deleted.status_code == 200
     assert deleted.json()["status"] == "deleted"
     assert deleted.json()["can_delete"] is False
+
+
+def test_cross_tenant_source_id_does_not_bypass_organization_boundary(
+    db_session: Session,
+    client,
+) -> None:
+    organization_a, _, member_a, _ = _seed(db_session, "tenant-a")
+    _, _, member_b, _ = _seed(db_session, "tenant-b")
+    uploaded = _upload(
+        client,
+        organization_a,
+        member_a,
+        title="Tenant A source",
+        visibility="organization",
+        key="tenant-a-source",
+    )
+    assert uploaded.status_code == 201
+    source_id = uploaded.json()["id"]
+
+    app.dependency_overrides[get_current_user] = lambda: member_b
+    read = client.get(
+        f"/api/v1/organizations/{organization_a.id}/evidence/{source_id}"
+    )
+    delete = client.delete(
+        f"/api/v1/organizations/{organization_a.id}/evidence/{source_id}"
+    )
+    listing = client.get(f"/api/v1/organizations/{organization_a.id}/evidence")
+
+    assert read.status_code == 404
+    assert delete.status_code == 404
+    assert listing.status_code == 404
