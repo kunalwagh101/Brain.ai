@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { EvidenceSource } from "./brain-api";
 import styles from "./evidence-workspace.module.css";
@@ -68,7 +68,7 @@ export function EvidenceWorkspace({
     ));
   }, [query, sources]);
 
-  async function submitUpload(event: React.FormEvent<HTMLFormElement>) {
+  async function submitUpload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!mutationBase || !canUpload) return;
 
@@ -219,7 +219,7 @@ export function EvidenceWorkspace({
 
       <div className={styles.toolbar}>
         <label>
-          <span className="sr-only">Filter evidence</span>
+          <span className={styles.visuallyHidden}>Filter evidence</span>
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
