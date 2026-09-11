@@ -1,0 +1,30 @@
+import { signOut, withAuth } from "@workos-inc/authkit-nextjs";
+import { ProductionWorkspace } from "./production-workspace";
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ organizationId?: string }>;
+}) {
+  const { user, accessToken } = await withAuth({ ensureSignedIn: true });
+  const params = await searchParams;
+  const signedInName = [user.firstName, user.lastName].filter(Boolean).join(" ")
+    || user.email
+    || "Brain user";
+
+  async function signOutAction(formData: FormData) {
+    "use server";
+    void formData;
+    await signOut();
+  }
+
+  return (
+    <ProductionWorkspace
+      accessToken={accessToken}
+      signedInName={signedInName}
+      requestedOrganizationId={params.organizationId ?? null}
+      enableAskBrainBff
+      signOutAction={signOutAction}
+    />
+  );
+}
