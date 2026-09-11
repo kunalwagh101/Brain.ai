@@ -66,11 +66,18 @@ if command -v git >/dev/null 2>&1; then
   fi
 fi
 
-mkdir -p app/auth/callback app/sign-in 'app/api/brain/organizations/[organizationId]/ask-brain'
+mkdir -p \
+  app/auth/callback \
+  app/sign-in \
+  'app/api/brain/organizations/[organizationId]/ask-brain' \
+  'app/api/brain/organizations/[organizationId]/evidence/uploads' \
+  'app/api/brain/organizations/[organizationId]/evidence/[sourceId]'
 cp docs/workos-activation/proxy.ts.template proxy.ts
 cp docs/workos-activation/app-auth-callback-route.ts.template app/auth/callback/route.ts
 cp docs/workos-activation/app-sign-in-route.ts.template app/sign-in/route.ts
 cp docs/workos-activation/app-api-brain-ask-route.ts.template 'app/api/brain/organizations/[organizationId]/ask-brain/route.ts'
+cp docs/workos-activation/app-api-brain-evidence-upload-route.ts.template 'app/api/brain/organizations/[organizationId]/evidence/uploads/route.ts'
+cp docs/workos-activation/app-api-brain-evidence-delete-route.ts.template 'app/api/brain/organizations/[organizationId]/evidence/[sourceId]/route.ts'
 cp docs/workos-activation/app-layout.tsx.template app/layout.tsx
 cp docs/workos-activation/app-page.tsx.template app/page.tsx
 
