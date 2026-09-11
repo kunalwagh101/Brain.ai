@@ -7,6 +7,12 @@ import styles from "./evidence-workspace.module.css";
 
 const MAX_FILE_BYTES = 10_000_000;
 const ACCEPTED_EXTENSIONS = ".txt,.md,.markdown,.csv,.json,.vtt,.srt,.pdf,.docx";
+const INTEGER_FORMAT = new Intl.NumberFormat("en");
+const DATE_FORMAT = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "UTC",
+});
 
 type MutationState =
   | { kind: "idle" }
@@ -23,7 +29,15 @@ function formatBytes(value: number): string {
 function formatDate(value: string | null): string {
   if (!value) return "Not supplied";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Unknown" : date.toLocaleString();
+  return Number.isNaN(date.getTime()) ? "Unknown" : `${DATE_FORMAT.format(date)} UTC`;
+}
+
+function retrievalLabel(source: EvidenceSource): string {
+  if (source.retrieval_available) return "retrievable";
+  if (source.integration_status === "revoked") return "retrieval revoked";
+  if (source.integration_status === "revoking") return "retrieval revoking";
+  if (source.integration_status === "revoke_failed") return "retrieval disabled";
+  return "not retrievable";
 }
 
 function safeMutationMessage(status: number, action: "upload" | "delete"): string {
@@ -64,6 +78,8 @@ export function EvidenceWorkspace({
       || source.filename.toLowerCase().includes(needle)
       || source.kind.includes(needle)
       || source.status.includes(needle)
+      || source.integration_status.includes(needle)
+      || retrievalLabel(source).includes(needle)
       || source.source_visibility.includes(needle)
     ));
   }, [query, sources]);
@@ -149,12 +165,13 @@ export function EvidenceWorkspace({
           <h2>Governed evidence workspace</h2>
           <p>
             Documents and transcripts keep source identity, visibility, hash and lifecycle state.
-            Brain does not expose the backend access token or raw secret material to this browser.
+            Retrieval availability also reflects the current integration state, so revoked evidence is
+            never presented as live intelligence.
           </p>
         </div>
         <div className={styles.summary} aria-label="Evidence summary">
           <span><b>{sources.length}</b> visible</span>
-          <span><b>{sources.filter((item) => item.status === "active").length}</b> active</span>
+          <span><b>{sources.filter((item) => item.retrieval_available).length}</b> retrievable</span>
           <span><b>{sources.filter((item) => item.source_visibility === "restricted").length}</b> restricted</span>
         </div>
       </header>
@@ -223,7 +240,7 @@ export function EvidenceWorkspace({
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Filter title, filename, kind or status"
+            placeholder="Filter title, filename, visibility or retrieval state"
           />
         </label>
         <span>{visibleSources.length} shown</span>
@@ -242,13 +259,16 @@ export function EvidenceWorkspace({
               </div>
               <div className={styles.badges}>
                 <span data-status={source.status}>{source.status}</span>
+                <span data-status={source.retrieval_available ? "active" : "unavailable"}>
+                  {retrievalLabel(source)}
+                </span>
                 <span>{source.source_visibility}</span>
               </div>
             </div>
 
             <dl className={styles.metadata}>
               <div><dt>Chunks</dt><dd>{source.chunk_count}</dd></div>
-              <div><dt>Extracted text</dt><dd>{source.extracted_char_count.toLocaleString()} chars</dd></div>
+              <div><dt>Extracted text</dt><dd>{INTEGER_FORMAT.format(source.extracted_char_count)} chars</dd></div>
               <div><dt>Occurred</dt><dd>{formatDate(source.occurred_at)}</dd></div>
               <div><dt>Uploaded</dt><dd>{formatDate(source.created_at)}</dd></div>
             </dl>
@@ -259,6 +279,8 @@ export function EvidenceWorkspace({
                 <div><dt>Evidence source</dt><dd><code>{source.id}</code></dd></div>
                 <div><dt>SHA-256</dt><dd><code>{source.content_sha256}</code></dd></div>
                 <div><dt>Integration</dt><dd><code>{source.integration_connection_id}</code></dd></div>
+                <div><dt>Integration state</dt><dd>{source.integration_status}</dd></div>
+                <div><dt>Retrieval available</dt><dd>{source.retrieval_available ? "yes" : "no"}</dd></div>
                 <div><dt>Uploader</dt><dd><code>{source.created_by_user_id}</code></dd></div>
                 <div><dt>Media type</dt><dd>{source.media_type}</dd></div>
                 {source.last_error_code ? <div><dt>Error code</dt><dd>{source.last_error_code}</dd></div> : null}
