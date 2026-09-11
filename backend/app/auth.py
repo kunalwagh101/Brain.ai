@@ -15,6 +15,7 @@ from app.database import get_db
 from app.models import ExternalIdentity, User
 
 _bearer = HTTPBearer(auto_error=False)
+_WORKOS_EMAIL_CLAIM = "urn:brain:user_email"
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +69,22 @@ def _validate_workos_application_claims(claims: dict[str, object]) -> None:
         raise InvalidTokenError("Access token audience does not match configured audience")
 
 
+def _workos_subject_email(claims: dict[str, object]) -> str:
+    # Brain deliberately does not use `act.sub` as the user's email. `act`
+    # represents actor/delegation context and may identify an impersonator.
+    # Configure WorkOS AuthKit's JWT Template with:
+    # {"urn:brain:user_email": {{ user.email }}}
+    value = claims.get(_WORKOS_EMAIL_CLAIM)
+    if not isinstance(value, str):
+        raise InvalidTokenError(
+            f"Verified token is missing required {_WORKOS_EMAIL_CLAIM} claim"
+        )
+    email = value.strip().lower()
+    if "@" not in email or len(email) > 320:
+        raise InvalidTokenError("Verified token contains an invalid Brain user email claim")
+    return email
+
+
 def verify_access_token(token: str) -> AuthPrincipal:
     settings = get_settings()
     if not settings.workos_client_id:
@@ -87,11 +104,7 @@ def verify_access_token(token: str) -> AuthPrincipal:
         },
     )
     _validate_workos_application_claims(claims)
-
-    actor = claims.get("act")
-    email = actor.get("sub") if isinstance(actor, dict) else None
-    if not isinstance(email, str) or "@" not in email:
-        raise InvalidTokenError("Verified token does not contain a usable user email")
+    email = _workos_subject_email(claims)
 
     permissions = claims.get("permissions")
     if not isinstance(permissions, list) or not all(isinstance(item, str) for item in permissions):
@@ -101,7 +114,7 @@ def verify_access_token(token: str) -> AuthPrincipal:
     role = claims.get("role")
     return AuthPrincipal(
         subject=str(claims["sub"]),
-        email=email.strip().lower(),
+        email=email,
         provider_organization_id=org_id if isinstance(org_id, str) else None,
         provider_role=role if isinstance(role, str) else None,
         permissions=tuple(permissions),
