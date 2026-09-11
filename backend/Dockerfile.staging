@@ -11,25 +11,18 @@ COPY app ./app
 COPY alembic.ini ./
 COPY migrations ./migrations
 COPY tests ./tests
+COPY run_acceptance_chain.py ./run_acceptance_chain.py
 
 RUN pip install --upgrade pip && pip install ".[dev]"
 
-# Fail the Render build before deployment if the retrieval slice has an
-# avoidable lint or portable-unit regression. Real PostgreSQL/pgvector
-# execution happens again at service start after migrations reach head.
-RUN ruff check \
-      app/search.py \
-      app/search_models.py \
-      app/routes/search.py \
-      tests/conftest.py \
-      tests/test_search.py \
-      tests/test_search_evaluation.py \
-      tests/test_search_contract.py \
-      migrations/versions/20260907_0009_permission_aware_search.py \
-    && pytest -q \
-      tests/test_search.py \
-      tests/test_search_evaluation.py \
-      tests/test_search_contract.py
+# Portable pre-deploy evidence. The ordered runner starts with S-05.01 and
+# stops immediately on the first failing story, so downstream stories cannot
+# acquire misleading backend PASS markers when an upstream contract fails.
+# Real PostgreSQL/pgvector execution runs again at service start after the
+# staging database is migrated to head.
+RUN python run_acceptance_chain.py \
+      --lint \
+      --report /tmp/brain-acceptance-portable.json
 
 RUN addgroup --system brain && adduser --system --ingroup brain brain
 USER brain
