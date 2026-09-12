@@ -632,6 +632,7 @@ def _message_payload(
     payload = {
         "native_message_id": str(message.id),
         "channel_id": str(channel.id),
+        "thread_root_id": str(message.thread_root_id) if message.thread_root_id else None,
         "channel_name": channel.name,
         "channel_slug": channel.slug,
         "actor_kind": message.actor_kind.value,
@@ -756,11 +757,17 @@ def _project_message(
                 "payload_sha256": raw.payload_sha256,
                 "native_message_id": str(message.id),
                 "channel_id": str(channel.id),
+                "thread_root_id": (
+                    str(message.thread_root_id) if message.thread_root_id else None
+                ),
                 "track_node_id": str(channel.work_graph_node_id),
             },
             event_metadata={
                 "text": message.body,
                 "channel_id": str(channel.id),
+                "thread_root_id": (
+                    str(message.thread_root_id) if message.thread_root_id else None
+                ),
                 "channel_name": channel.name,
                 "track_node_id": str(channel.work_graph_node_id),
                 "actor_kind": message.actor_kind.value,
@@ -831,6 +838,7 @@ def _existing_idempotent_message(
     actor_kind: NativeMessageActorKind,
     author_user_id: uuid.UUID | None,
     agent_run_id: uuid.UUID | None,
+    thread_root_id: uuid.UUID | None,
 ) -> NativeMessage | None:
     if idempotency_key is None:
         return None
@@ -847,6 +855,7 @@ def _existing_idempotent_message(
         or existing.actor_kind != actor_kind
         or existing.author_user_id != author_user_id
         or existing.agent_run_id != agent_run_id
+        or existing.thread_root_id != thread_root_id
     ):
         raise NativeChatConflictError(
             "idempotency_key_reused",
@@ -863,6 +872,7 @@ def _create_message_row(
     actor_kind: NativeMessageActorKind,
     author_user_id: uuid.UUID | None,
     agent_run_id: uuid.UUID | None,
+    thread_root_id: uuid.UUID | None,
     body: str,
     idempotency_key: str | None,
 ) -> NativeMessage:
@@ -885,6 +895,7 @@ def _create_message_row(
         actor_kind=actor_kind,
         author_user_id=author_user_id,
         agent_run_id=agent_run_id,
+        thread_root_id=thread_root_id,
     )
     if existing is not None:
         return existing
@@ -895,6 +906,7 @@ def _create_message_row(
         actor_kind=actor_kind,
         author_user_id=author_user_id,
         agent_run_id=agent_run_id,
+        thread_root_id=thread_root_id,
         body=body,
         body_sha256=body_sha256,
         body_char_count=len(body),
@@ -930,6 +942,7 @@ def post_user_message(
     actor_user_id: uuid.UUID,
     body: str,
     idempotency_key: str | None,
+    thread_root_id: uuid.UUID | None = None,
     request_id: str | None = None,
 ) -> NativeMessage:
     channel = get_visible_channel(
@@ -944,6 +957,15 @@ def post_user_message(
         user_id=actor_user_id,
     ):
         raise NativeChatError("channel_not_found", "Channel not found")
+    if thread_root_id is not None:
+        root = db.get(NativeMessage, thread_root_id)
+        if (
+            root is None
+            or root.organization_id != organization_id
+            or root.channel_id != channel_id
+            or root.thread_root_id is not None
+        ):
+            raise NativeChatError("thread_root_not_found", "Thread root not found")
     normalized_body = _normalize_message(body)
     message = _create_message_row(
         db,
@@ -952,6 +974,7 @@ def post_user_message(
         actor_kind=NativeMessageActorKind.USER,
         author_user_id=actor_user_id,
         agent_run_id=None,
+        thread_root_id=thread_root_id,
         body=normalized_body,
         idempotency_key=idempotency_key,
     )
@@ -1032,6 +1055,7 @@ def post_agent_message(
         actor_kind=NativeMessageActorKind.AGENT,
         author_user_id=None,
         agent_run_id=agent_run_id,
+        thread_root_id=None,
         body=normalized_body,
         idempotency_key=idempotency_key,
     )
@@ -1080,6 +1104,7 @@ def list_channel_messages(
     query = select(NativeMessage).where(
         NativeMessage.organization_id == organization_id,
         NativeMessage.channel_id == channel_id,
+        NativeMessage.thread_root_id.is_(None),
     )
     if before is not None:
         query = query.where(NativeMessage.created_at < before)

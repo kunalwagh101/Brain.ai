@@ -179,6 +179,9 @@ class NativeMessage(Base):
     channel_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("native_channels.id", ondelete="CASCADE"), nullable=False
     )
+    thread_root_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("native_messages.id", ondelete="CASCADE"), nullable=True
+    )
     actor_kind: Mapped[NativeMessageActorKind] = mapped_column(
         Enum(
             NativeMessageActorKind,
