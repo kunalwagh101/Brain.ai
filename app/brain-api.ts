@@ -61,6 +61,7 @@ export type NativeChannel = {
   member_count: number;
   can_post: boolean;
   can_manage_members: boolean;
+  unread_count?: number;
 };
 
 export type NativeChannelMember = {
@@ -72,10 +73,29 @@ export type NativeChannelMember = {
   revoked_at: string | null;
 };
 
+export type NativeMention = {
+  user_id: string;
+  email: string;
+  display_name: string | null;
+};
+
+export type NativeReaction = {
+  reaction: string;
+  count: number;
+  reacted_by_me: boolean;
+};
+
+export type NativeChannelUnread = {
+  channel_id: string;
+  unread_count: number;
+  last_read_at: string | null;
+};
+
 export type NativeMessage = {
   id: string;
   organization_id: string;
   channel_id: string;
+  thread_root_id: string | null;
   actor_kind: "user" | "agent";
   author_user_id: string | null;
   agent_run_id: string | null;
@@ -85,6 +105,9 @@ export type NativeMessage = {
   projection_status: "pending" | "ready" | "failed";
   canonical_event_id: string | null;
   created_at: string;
+  reply_count: number;
+  mentions: NativeMention[];
+  reactions: NativeReaction[];
 };
 
 export type NativeChannelCreateInput = {
@@ -462,7 +485,29 @@ export function listNativeMessages(
   const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 200);
   return brainApiFetch(
     accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-channels/${encodeURIComponent(channelId)}/messages?limit=${boundedLimit}`,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/messages?limit=${boundedLimit}`,
+  );
+}
+
+export function listNativeUnread(
+  accessToken: string,
+  organizationId: string,
+): Promise<NativeChannelUnread[]> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels`,
+  );
+}
+
+export function listNativeReplies(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  rootMessageId: string,
+): Promise<NativeMessage[]> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(rootMessageId)}/replies`,
   );
 }
 
@@ -525,11 +570,64 @@ export function sendNativeMessage(
 ): Promise<NativeMessage> {
   return brainApiFetch(
     accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-channels/${encodeURIComponent(channelId)}/messages`,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/messages`,
     {
       method: "POST",
       body: JSON.stringify(input),
       headers: { "Idempotency-Key": idempotencyKey },
+    },
+  );
+}
+
+export function sendNativeReply(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  rootMessageId: string,
+  input: NativeMessageCreateInput,
+  idempotencyKey: string,
+): Promise<NativeMessage> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(rootMessageId)}/replies`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+      headers: { "Idempotency-Key": idempotencyKey },
+    },
+  );
+}
+
+export function setNativeReaction(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  messageId: string,
+  reaction: string,
+  active: boolean,
+): Promise<NativeReaction | void> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/reaction`,
+    {
+      method: active ? "PUT" : "DELETE",
+      body: JSON.stringify({ reaction }),
+    },
+  );
+}
+
+export function markNativeChannelRead(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  throughMessageId: string,
+): Promise<NativeChannelUnread> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/read`,
+    {
+      method: "POST",
+      body: JSON.stringify({ through_message_id: throughMessageId }),
     },
   );
 }

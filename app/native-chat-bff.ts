@@ -1,8 +1,12 @@
 import {
   createNativeChannel,
   inviteNativeChannelMember,
+  listNativeReplies,
+  markNativeChannelRead,
   revokeNativeChannelMember,
   sendNativeMessage,
+  sendNativeReply,
+  setNativeReaction,
   type NativeChannel,
   type NativeChannelCreateInput,
   type NativeChannelMember,
@@ -17,6 +21,7 @@ import {
 const CHAT_WRITE_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ALLOWED_REACTIONS = new Set(["👍", "❤️", "🎉", "👀", "✅"]);
 
 export class NativeChatBffRequestError extends Error {
   status: number;
@@ -133,6 +138,27 @@ export function parseNativeMemberInvite(value: unknown): {
   return { email, access };
 }
 
+export function parseNativeReactionInput(value: unknown): { reaction: string } {
+  const body = exactObject(value, new Set(["reaction"]), "native reaction request");
+  const reaction = requiredText(body.reaction, "reaction", 32);
+  if (!ALLOWED_REACTIONS.has(reaction)) invalid(400, "reaction is not allowed");
+  return { reaction };
+}
+
+export function parseNativeReadInput(value: unknown): { through_message_id: string } {
+  const body = exactObject(
+    value,
+    new Set(["through_message_id"]),
+    "native read request",
+  );
+  return {
+    through_message_id: normalizedUuid(
+      requiredText(body.through_message_id, "through_message_id", 36),
+      "through_message_id",
+    ),
+  };
+}
+
 export async function handleNativeChannelCreateBff(
   accessToken: string,
   organizationId: string,
@@ -196,5 +222,78 @@ export async function handleNativeMemberRevokeBff(
     organizationId,
     channelId,
     userId,
+  );
+}
+
+
+export async function handleNativeThreadListBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  rootMessageId: string,
+): Promise<NativeMessage[]> {
+  await requireBrainOrganizationMembership(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  normalizedUuid(rootMessageId, "rootMessageId");
+  return listNativeReplies(accessToken, organizationId, channelId, rootMessageId);
+}
+
+export async function handleNativeReplyCreateBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  rootMessageId: string,
+  body: unknown,
+  idempotencyKey: string,
+): Promise<NativeMessage> {
+  await requireChatWriter(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  normalizedUuid(rootMessageId, "rootMessageId");
+  return sendNativeReply(
+    accessToken,
+    organizationId,
+    channelId,
+    rootMessageId,
+    parseNativeMessageInput(body),
+    normalizeIdempotencyKey(idempotencyKey),
+  );
+}
+
+export async function handleNativeReactionBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  messageId: string,
+  body: unknown,
+  active: boolean,
+): Promise<NativeReaction | void> {
+  await requireChatWriter(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  normalizedUuid(messageId, "messageId");
+  const { reaction } = parseNativeReactionInput(body);
+  return setNativeReaction(
+    accessToken,
+    organizationId,
+    channelId,
+    messageId,
+    reaction,
+    active,
+  );
+}
+
+export async function handleNativeReadBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  body: unknown,
+): Promise<NativeChannelUnread> {
+  await requireBrainOrganizationMembership(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  const { through_message_id } = parseNativeReadInput(body);
+  return markNativeChannelRead(
+    accessToken,
+    organizationId,
+    channelId,
+    through_message_id,
   );
 }
