@@ -243,10 +243,11 @@ Acceptance: authorised user can upload supported S-02.04 sources, see processing
 Dependencies: S-02.04.01, S-05.01.01. Size: M. Indicator: successful governed upload-to-retrieval flow. Value: E-10. Priority: P0.
 
 #### F-10.06 Conversation UX
-**S-10.06.01 — Support threads, mentions, reactions and unread state in Brain channels**  
-As a team member, I want normal collaboration affordances around Brain-native channels, so that the workspace is practical for daily team communication.  
-Acceptance: thread/reaction/mention state is tenant/channel scoped; unread state is per user; notifications never reveal restricted channel/message text; agent-authored content is visibly attributed.  
-Dependencies: S-10.01.01. Size: L. Indicator: active channel participation. Value: E-10. Priority: P1.
+**S-10.06.01 — Make Brain channels feel like Slack/Discord with safe conversation affordances**  
+As a team member, I want focused channels with threads, mentions, reactions and unread state, so that Brain is practical for daily team communication without weakening its permission model.  
+Acceptance: Given a permitted root message, when a permitted writer replies, then the reply is stored under exactly that root and is returned only inside the same tenant and channel; Given an exact @email for a current readable organisation/channel member, when a message or reply is created, then the mention is stored once, while unknown or unauthorised addresses create no mention; Given a permitted message, when a permitted writer adds or removes an allowed reaction, then one per-user reaction is stored idempotently and aggregate counts remain correct; Given channel messages created by other actors after a user's monotonic read cursor, when channels are listed, then only that user receives the correct unread count; Given access to a restricted channel is revoked, when unread, thread, reaction or mention endpoints are requested, then they return no channel or message content; Given an agent-authored message, when the channel renders, then the agent identity is visibly distinct; Given a channel is selected, when the workspace renders, then the channel conversation is the primary work surface with keyboard-visible controls, responsive layout, thread context, reaction controls and unread badges.  
+Dependencies: S-10.01.01. Blocking risk: executable/backend and authenticated-browser acceptance depend on the existing CI runner and S-10.04 WorkOS activation; repository implementation alone cannot satisfy DONE. Size: L. Leading indicator: active channel participation and unread-to-read conversion. Business value: E-10. Priority: P1.  
+Tasks: T-10.06.01.a conversation schema/migration; T-10.06.01.b tenant-safe thread/mention/reaction/read services; T-10.06.01.c permission-aware APIs and same-origin BFF contracts; T-10.06.01.d focused Slack/Discord-style channel UI; T-10.06.01.e security/idempotency/accessibility tests; T-10.06.01.f docs/UAT/demo/rollback.
 
 **S-10.06.02 — Support permission-safe direct messages without turning Brain into employee surveillance**  
 As a user, I want private direct conversations with explicit participants, so that sensitive collaboration has a bounded home in Brain.  
@@ -283,6 +284,13 @@ Dependencies: E-01, E-02, E-06. Size: L. Indicator: admin workflow completion ra
 | AI/API usage/cost visibility | S-06.02.01, S-10.03.01 |
 | Slack/Discord-style company workspace | S-10.02.01, S-10.03.01 |
 | Human communication | S-10.01.01, S-10.06.01, S-10.06.02 |
+| Tenant/channel-scoped message threads | S-10.06.01 |
+| Exact-member mentions without identity guessing | S-10.06.01 |
+| Idempotent per-user message reactions | S-10.06.01 |
+| Per-user monotonic unread state | S-10.06.01 |
+| Restricted-channel notification/content privacy | S-10.06.01 |
+| Visibly attributed agent messages | S-10.01.01, S-10.06.01 |
+| Focused responsive Slack/Discord-style channel surface | S-10.02.01, S-10.06.01 |
 | AI tracks/agents | S-08.01.01, S-10.01.01, S-10.07.01 |
 | Permission-aware company memory | S-01.03.01, S-05.01.01 |
 | RAG/search | S-05.01.01, S-05.02.01 |

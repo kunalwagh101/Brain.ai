@@ -30,12 +30,12 @@ IN_REVIEW | S-09.01.01 | F-09.01 | Observability implementation/tests/docs/UAT a
 IN_REVIEW | S-09.02.01 | F-09.02 | Audit/retention/deletion implementation/tests/docs/UAT are staged; executable PostgreSQL/Ruff/Pytest/Delivery Verifier evidence remains outstanding
 BLOCKED | S-09.03.01 | F-09.03 | Release/rollback/restore work plus a concrete Render staging Blueprint are staged; real deployment/recovery exercise and OQ-007 production topology remain unresolved
 BLOCKED | S-09.04.01 | F-09.04 | Performance/cost benchmark work is staged; no real Ask Brain staging performance run exists yet
-BACKLOG | S-10.01.01 | F-10.01 | Brain-native channel/message persistence is P1 and separate from the P0 workspace shell
+IN_REVIEW | S-10.01.01 | F-10.01 | Native channel/message persistence, evidence projection, restricted memberships, API/BFF/UI and tests are implemented; executable CI, migration and authenticated browser UAT evidence remain pending
 BLOCKED | S-10.02.01 | F-10.02 | Workspace shell, real organisation switching, navigation API/client, responsive controls, tests/docs/UAT are staged; authenticated browser acceptance cannot advance until S-10.04 official WorkOS activation exists
 BLOCKED | S-10.03.01 | F-10.03 | Project/memory/company-pulse/evidence surfaces, runtime discovery and citation-first Ask Brain UI are staged; live authenticated Ask Brain/browser acceptance depends on S-10.04
 BLOCKED | S-10.04.01 | F-10.04 | Official WorkOS Next.js 16 templates, guarded install/activation scripts and BFF security contract are staged; blocked on real npm package/lockfile installation plus authenticated browser execution
-IN_PROGRESS | S-10.05.01 | F-10.05 | Governed evidence read model, browse/provenance UI, bounded same-origin upload/delete BFF templates, tests/docs/UAT are being built; executable/backend/browser acceptance remains pending
-BACKLOG | S-10.06.01 | F-10.06 | Threads, mentions, reactions and unread state after native channels exist
+BLOCKED | S-10.05.01 | F-10.05 | Repository implementation is staged; external S-10.04 WorkOS activation plus executable backend/browser acceptance remain pending
+IN_PROGRESS | S-10.06.01 | F-10.06 | Building focused channel UX plus tenant-safe threads, exact-member mentions, reactions and per-user unread state on the existing S-10.01 foundation
 BLOCKED | S-10.06.02 | F-10.06 | Permission-safe DMs require S-10.01.01 plus explicit OQ-002 private-message policy
 BACKLOG | S-10.07.01 | F-10.07 | Developer/agent workspace over governed repo/agent contracts
 BACKLOG | S-10.08.01 | F-10.08 | Workspace admin UI for integrations, members, permissions and AI/API governance

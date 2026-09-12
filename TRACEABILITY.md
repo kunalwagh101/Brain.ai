@@ -28,7 +28,15 @@ This file is the engineering evidence index. A row is completed only after its s
 | S-09.02.01 | E-09 | audit/retention/deletion | backend/tests/test_data_governance.py + backend/tests/test_data_governance_routes.py + backend/tests/test_data_governance_worker.py + backend/tests/test_data_governance_retained_raw.py + backend/tests/test_data_governance_audit.py | backend/app/data_governance.py + backend/app/data_governance_models.py + backend/app/data_governance_worker.py + backend/app/routes/data_governance.py + backend/app/security_audit.py + backend/app/canonical_events.py | IN_REVIEW |
 | S-09.03.01 | E-09 | CI/deploy/rollback/restore | backend/tests/test_release_contract.py + backend/tests/test_database_url.py + backend/tests/test_acceptance_chain.py + UAT/F-09.03.md | .github/workflows/release-gate.yml + backend/Dockerfile.staging + backend/run_acceptance_chain.py + scripts/postgres-backup.sh + scripts/postgres-restore.sh + render.yaml + backend/app/database.py + docs/DEPLOYMENT.md + docs/RENDER_STAGING.md | BLOCKED |
 | S-09.04.01 | E-09 | latency/cost benchmarks | backend/tests/test_performance_budget.py + backend/tests/test_ai_cached_cost.py + UAT/F-09.04.md | backend/app/performance_budget.py + scripts/run-performance-benchmark.py + ops/performance/budgets.json + .github/workflows/performance-gate.yml + docs/PERFORMANCE.md | BLOCKED |
-| S-10.01.01 | E-10 | native tracks/chat | pending | pending | DEFERRED |
+| S-10.01.01 | E-10 | native tracks/chat | `backend/tests/test_native_chat.py`; `tests/workspace-contract.test.mjs` | Native channel API, evidence projection, restricted membership and workspace UI | IN_REVIEW |
+| S-10.02.01 | E-10 | workspace shell/navigation | `backend/tests/test_workspace_navigation.py`; `tests/workspace-contract.test.mjs` | Permission-aware workspace shell | BLOCKED |
+| S-10.03.01 | E-10 | live intelligence surfaces | `tests/workspace-contract.test.mjs` | Live project, memory, overview and Ask Brain composition | BLOCKED |
+| S-10.04.01 | E-10 | production frontend auth/BFF | `tests/workspace-contract.test.mjs` | Reviewed WorkOS activation templates | BLOCKED |
+| S-10.05.01 | E-10 | evidence/files workspace | `backend/tests/test_evidence_workspace.py`; `tests/workspace-contract.test.mjs` | Governed evidence UI and BFF contracts | BLOCKED |
+| S-10.06.01 | E-10 | conversation UX | `backend/tests/test_conversation_ux.py`; `tests/workspace-contract.test.mjs` | Threads, mentions, reactions, unread and focused channel UI | IN_PROGRESS |
+| S-10.06.02 | E-10 | direct messages | pending | pending | BLOCKED |
+| S-10.07.01 | E-10 | developer/agent workspace | pending | pending | BACKLOG |
+| S-10.08.01 | E-10 | workspace administration | pending | pending | BACKLOG |
 
 EVIDENCE S-01.01.01
 tests: backend/tests/test_organizations.py::test_cross_tenant_organization_read_returns_not_found
