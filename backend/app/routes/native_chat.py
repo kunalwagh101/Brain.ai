@@ -2,14 +2,23 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.agent_models import AgentDefinition, AgentRun
 from app.database import get_db
-from app.models import MembershipRole, ResourceAccessLevel, User
+from app.models import Membership, MembershipRole, ResourceAccessLevel, User
 from app.native_chat import (
     NativeChatConflictError,
     NativeChatError,
@@ -78,8 +87,18 @@ class NativeChannelMemberWrite(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class NativeChannelMemberInvite(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+    access: ResourceAccessLevel = ResourceAccessLevel.READ
+
+    model_config = {"extra": "forbid"}
+
+
 class NativeChannelMemberRead(BaseModel):
     user_id: uuid.UUID
+    email: str
+    display_name: str | None
+    role: MembershipRole
     access: ResourceAccessLevel
     revoked_at: datetime | None
 
@@ -170,6 +189,51 @@ def _channel_read(
             and _can_manage(channel, authorization)
         ),
     )
+
+
+def _member_read(
+    db: Session,
+    membership: NativeChannelMembership,
+) -> NativeChannelMemberRead:
+    user = db.get(User, membership.user_id)
+    organization_membership = db.scalar(
+        select(Membership).where(
+            Membership.organization_id == membership.organization_id,
+            Membership.user_id == membership.user_id,
+        )
+    )
+    if user is None or organization_membership is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Channel member identity is unavailable",
+        )
+    return NativeChannelMemberRead(
+        user_id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        role=organization_membership.role,
+        access=membership.access,
+        revoked_at=membership.revoked_at,
+    )
+
+
+def _managed_restricted_channel(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    authorization: AuthorizationContext,
+) -> NativeChannel:
+    channel = db.scalar(
+        select(NativeChannel).where(
+            NativeChannel.id == channel_id,
+            NativeChannel.organization_id == organization_id,
+            NativeChannel.visibility == NativeChannelVisibility.RESTRICTED,
+        )
+    )
+    if channel is None or not _can_manage(channel, authorization):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Channel not found")
+    return channel
 
 
 def _actor_labels(db: Session, messages: list[NativeMessage]) -> dict[uuid.UUID, str]:
@@ -280,6 +344,76 @@ def read_channel(
     return _channel_read(db, channel, authorization)
 
 
+@router.get("/{channel_id}/members", response_model=list[NativeChannelMemberRead])
+def list_channel_members(
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    authorization: Annotated[AuthorizationContext, Depends(_write)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[NativeChannelMemberRead]:
+    _managed_restricted_channel(
+        db,
+        organization_id=organization_id,
+        channel_id=channel_id,
+        authorization=authorization,
+    )
+    memberships = list(
+        db.scalars(
+            select(NativeChannelMembership)
+            .where(
+                NativeChannelMembership.organization_id == organization_id,
+                NativeChannelMembership.channel_id == channel_id,
+                NativeChannelMembership.revoked_at.is_(None),
+            )
+            .order_by(NativeChannelMembership.created_at, NativeChannelMembership.id)
+        )
+    )
+    return [_member_read(db, membership) for membership in memberships]
+
+
+@router.post("/{channel_id}/members", response_model=NativeChannelMemberRead)
+def invite_channel_member(
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    payload: NativeChannelMemberInvite,
+    request: Request,
+    authorization: Annotated[AuthorizationContext, Depends(_write)],
+    db: Annotated[Session, Depends(get_db)],
+) -> NativeChannelMemberRead:
+    _managed_restricted_channel(
+        db,
+        organization_id=organization_id,
+        channel_id=channel_id,
+        authorization=authorization,
+    )
+    email = payload.email.strip().lower()
+    target = db.scalar(
+        select(User)
+        .join(Membership, Membership.user_id == User.id)
+        .where(
+            Membership.organization_id == organization_id,
+            User.email == email,
+            User.status == "active",
+        )
+    )
+    if target is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+    try:
+        membership = upsert_channel_member(
+            db,
+            organization_id=organization_id,
+            channel_id=channel_id,
+            actor_user_id=authorization.user_id,
+            actor_role=authorization.role,
+            user_id=target.id,
+            access=payload.access,
+            request_id=_request_id(request),
+        )
+    except NativeChatError as exc:
+        _raise_chat_error(exc)
+    return _member_read(db, membership)
+
+
 @router.put("/{channel_id}/members/{user_id}", response_model=NativeChannelMemberRead)
 def grant_channel_member(
     organization_id: uuid.UUID,
@@ -303,11 +437,7 @@ def grant_channel_member(
         )
     except NativeChatError as exc:
         _raise_chat_error(exc)
-    return NativeChannelMemberRead(
-        user_id=membership.user_id,
-        access=membership.access,
-        revoked_at=membership.revoked_at,
-    )
+    return _member_read(db, membership)
 
 
 @router.delete("/{channel_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
