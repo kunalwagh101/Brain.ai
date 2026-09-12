@@ -3,12 +3,15 @@ import type {
   BrainOrganization,
   EvidenceSource,
   ExecutiveOverview,
+  NativeChannel,
+  NativeMessage,
   ProjectMemory,
   ProjectStatus,
   WorkspaceNavigation,
 } from "./brain-api";
 import { AskBrainPanel } from "./ask-brain-panel";
 import { EvidenceWorkspace } from "./evidence-workspace";
+import { NativeChatPanel } from "./native-chat-panel";
 import styles from "./workspace-shell.module.css";
 
 function projectProgress(project: ProjectStatus): string {
@@ -68,12 +71,19 @@ export function WorkspaceShell({
   navigation,
   projects,
   evidenceSources,
+  nativeChannels,
+  selectedNativeChannel,
+  nativeMessages,
+  invalidRequestedChannel,
   overview,
   runtimes,
   signedInName,
   askBrainEndpoint,
   evidenceMutationBase,
   canUploadEvidence,
+  nativeChatMutationBase,
+  nativeMessageEndpoint,
+  canCreateNativeChannel,
   signOutAction,
 }: {
   organization: BrainOrganization;
@@ -81,12 +91,19 @@ export function WorkspaceShell({
   navigation: WorkspaceNavigation;
   projects: ProjectStatus[];
   evidenceSources: EvidenceSource[];
+  nativeChannels: NativeChannel[];
+  selectedNativeChannel: NativeChannel | null;
+  nativeMessages: NativeMessage[];
+  invalidRequestedChannel: boolean;
   overview: ExecutiveOverview | null;
   runtimes: AIRuntimeOption[];
   signedInName: string;
   askBrainEndpoint: string | null;
   evidenceMutationBase: string | null;
   canUploadEvidence: boolean;
+  nativeChatMutationBase: string | null;
+  nativeMessageEndpoint: string | null;
+  canCreateNativeChannel: boolean;
   signOutAction?: (formData: FormData) => Promise<void>;
 }) {
   const projectById = new Map(projects.map((project) => [project.project_node_id, project]));
@@ -102,7 +119,7 @@ export function WorkspaceShell({
         <div className={styles.brandMark} aria-label="Brain">B</div>
         <nav className={styles.railNav} aria-label="Primary workspace shortcuts">
           <a className={styles.railActive} href="#home" aria-label="Home">⌂</a>
-          <a href="#tracks" aria-label="Tracks">#</a>
+          <a href="#native-chat" aria-label="Brain channels">#</a>
           <a href="#projects" aria-label="Projects">▣</a>
           <a href="#ask-brain" aria-label="Ask Brain">✦</a>
           <a href="#memory" aria-label="Decisions and blockers">◇</a>
@@ -154,13 +171,29 @@ export function WorkspaceShell({
 
           <section>
             <div className={styles.groupTitle}>
-              <span>Tracks</span><small>{navigation.tracks.length}</small>
+              <span>Brain channels</span><small>{nativeChannels.length}</small>
+            </div>
+            {nativeChannels.length ? nativeChannels.map((channel) => (
+              <a
+                href={`?organizationId=${encodeURIComponent(organization.id)}&channelId=${encodeURIComponent(channel.id)}#native-chat`}
+                key={channel.id}
+                aria-current={selectedNativeChannel?.id === channel.id ? "page" : undefined}
+              >
+                <span>{channel.visibility === "restricted" ? "▣" : "#"}</span>
+                {channel.name}
+              </a>
+            )) : <p className={styles.emptyNav}>No visible Brain channels</p>}
+          </section>
+
+          <section>
+            <div className={styles.groupTitle}>
+              <span>Connected tracks</span><small>{navigation.tracks.length}</small>
             </div>
             {navigation.tracks.length ? navigation.tracks.map((track) => (
               <a href={`#track-${track.node_id}`} key={track.node_id}>
                 <span>#</span> {track.display_name ?? "Untitled track"}
               </a>
-            )) : <p className={styles.emptyNav}>No visible tracks</p>}
+            )) : <p className={styles.emptyNav}>No visible connected tracks</p>}
           </section>
 
           <section>
@@ -168,10 +201,10 @@ export function WorkspaceShell({
               <span>Projects</span><small>{navigation.projects.length}</small>
             </div>
             {navigation.projects.length ? navigation.projects.map((project) => {
-              const status = projectById.get(project.node_id);
+              const projectStatus = projectById.get(project.node_id);
               return (
                 <a href={`#project-${project.node_id}`} key={project.node_id}>
-                  <span className={styles.projectDot} data-status={status?.status ?? "unconfigured"} />
+                  <span className={styles.projectDot} data-status={projectStatus?.status ?? "unconfigured"} />
                   {project.display_name ?? "Untitled project"}
                 </a>
               );
@@ -222,12 +255,12 @@ export function WorkspaceShell({
             <p className={styles.eyebrow}>Brain workspace</p>
             <h2>Everything your role can see, in one operating surface.</h2>
             <p>
-              Tracks and projects come from the tenant-scoped Work Graph. Restricted resources are
-              filtered by the backend before their names, counts or evidence reach this page.
+              Native Brain channels, connected tracks and projects share the same tenant and evidence
+              boundaries. Restricted names and messages are filtered by the backend before this page renders.
             </p>
           </div>
           <div className={styles.summaryPills}>
-            <span><b>{navigation.tracks.length}</b> tracks</span>
+            <span><b>{nativeChannels.length}</b> Brain channels</span>
             <span><b>{navigation.projects.length}</b> projects</span>
             <span><b>{blockers.length}</b> blockers</span>
           </div>
@@ -263,9 +296,32 @@ export function WorkspaceShell({
           </section>
         )}
 
+        <section className={styles.panel} id="native-chat" aria-label="Brain native channels">
+          {invalidRequestedChannel ? (
+            <div className={styles.roleNotice} role="alert">
+              <strong>Channel unavailable.</strong>
+              <span>The requested channel is not in your current permission-filtered channel list.</span>
+            </div>
+          ) : selectedNativeChannel ? (
+            <NativeChatPanel
+              channel={selectedNativeChannel}
+              messages={nativeMessages}
+              mutationEndpoint={nativeMessageEndpoint}
+            />
+          ) : (
+            <div className={styles.emptyState}>
+              {canCreateNativeChannel
+                ? nativeChatMutationBase
+                  ? "No Brain channels exist yet. Create-channel UI is staged next on the authenticated route."
+                  : "No Brain channels exist yet. Creation stays disabled until the authenticated WorkOS BFF is active."
+                : "No Brain channels are currently visible to this account."}
+            </div>
+          )}
+        </section>
+
         <section className={styles.panel} id="tracks" aria-labelledby="tracks-heading">
           <header className={styles.panelHeader}>
-            <div><p className={styles.eyebrow}>Workspace tracks</p><h2 id="tracks-heading">Visible tracks</h2></div>
+            <div><p className={styles.eyebrow}>Connected evidence tracks</p><h2 id="tracks-heading">Visible tracks</h2></div>
             <span>{navigation.tracks.length}</span>
           </header>
           <div className={styles.trackList}>
@@ -277,7 +333,7 @@ export function WorkspaceShell({
                   <small>{track.provider ? `${track.provider} source` : "Brain track"} · {track.source_visibility}</small>
                 </div>
               </article>
-            )) : <p className={styles.emptyState}>No tracks are currently visible to this account.</p>}
+            )) : <p className={styles.emptyState}>No connected tracks are currently visible to this account.</p>}
           </div>
         </section>
 
@@ -406,12 +462,22 @@ export function WorkspaceShell({
           <p className={styles.eyebrow}>Context</p>
           <h2>What Brain knows</h2>
           <dl>
-            <div><dt>Visible tracks</dt><dd>{navigation.tracks.length}</dd></div>
+            <div><dt>Brain channels</dt><dd>{nativeChannels.length}</dd></div>
+            <div><dt>Connected tracks</dt><dd>{navigation.tracks.length}</dd></div>
             <div><dt>Visible projects</dt><dd>{navigation.projects.length}</dd></div>
             <div><dt>Evidence sources</dt><dd>{evidenceSources.length}</dd></div>
             <div><dt>Confirmed blockers</dt><dd>{blockers.length}</dd></div>
             <div><dt>Confirmed decisions</dt><dd>{decisions.length}</dd></div>
           </dl>
+        </section>
+        <section>
+          <p className={styles.eyebrow}>Native chat</p>
+          <h2>{nativeChatMutationBase ? "Secure BFF connected" : "Secure BFF pending"}</h2>
+          <p>
+            {nativeChatMutationBase
+              ? "Human messages use the authenticated same-origin server path; agent identity remains server-controlled."
+              : "Visible channels can be composed server-side, but channel/message mutations stay disabled until AuthKit/BFF activation."}
+          </p>
         </section>
         <section>
           <p className={styles.eyebrow}>Ask Brain</p>
