@@ -23,6 +23,7 @@ from app.routes.executive_overview import router as executive_overview_router
 from app.routes.github import router as github_router
 from app.routes.identities import router as identities_router
 from app.routes.integrations import router as integrations_router
+from app.routes.native_chat import router as native_chat_router
 from app.routes.organizations import router as organizations_router
 from app.routes.project_status import router as project_status_router
 from app.routes.runtime_discovery import router as runtime_discovery_router
@@ -81,6 +82,7 @@ app.include_router(runtime_discovery_router, prefix=settings.api_prefix)
 app.include_router(organizations_router, prefix=settings.api_prefix)
 app.include_router(integrations_router, prefix=settings.api_prefix)
 app.include_router(evidence_router, prefix=settings.api_prefix)
+app.include_router(native_chat_router, prefix=settings.api_prefix)
 app.include_router(slack_router, prefix=settings.api_prefix)
 app.include_router(github_router, prefix=settings.api_prefix)
 app.include_router(identities_router, prefix=settings.api_prefix)
