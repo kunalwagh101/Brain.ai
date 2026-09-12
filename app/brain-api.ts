@@ -63,6 +63,15 @@ export type NativeChannel = {
   can_manage_members: boolean;
 };
 
+export type NativeChannelMember = {
+  user_id: string;
+  email: string;
+  display_name: string | null;
+  role: OrganizationRole;
+  access: "read" | "write";
+  revoked_at: string | null;
+};
+
 export type NativeMessage = {
   id: string;
   organization_id: string;
@@ -457,6 +466,17 @@ export function listNativeMessages(
   );
 }
 
+export function listNativeChannelMembers(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+): Promise<NativeChannelMember[]> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-channels/${encodeURIComponent(channelId)}/members`,
+  );
+}
+
 export function createNativeChannel(
   accessToken: string,
   organizationId: string,
@@ -466,6 +486,33 @@ export function createNativeChannel(
     accessToken,
     `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-channels`,
     { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export function inviteNativeChannelMember(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  email: string,
+  access: "read" | "write",
+): Promise<NativeChannelMember> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-channels/${encodeURIComponent(channelId)}/members`,
+    { method: "POST", body: JSON.stringify({ email, access }) },
+  );
+}
+
+export function revokeNativeChannelMember(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  userId: string,
+): Promise<void> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-channels/${encodeURIComponent(channelId)}/members/${encodeURIComponent(userId)}`,
+    { method: "DELETE" },
   );
 }
 
