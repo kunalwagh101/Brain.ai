@@ -11,6 +11,7 @@ import type {
 } from "./brain-api";
 import { AskBrainPanel } from "./ask-brain-panel";
 import { EvidenceWorkspace } from "./evidence-workspace";
+import { NativeChannelCreate } from "./native-channel-create";
 import { NativeChatPanel } from "./native-chat-panel";
 import styles from "./workspace-shell.module.css";
 
@@ -297,6 +298,9 @@ export function WorkspaceShell({
         )}
 
         <section className={styles.panel} id="native-chat" aria-label="Brain native channels">
+          {canCreateNativeChannel ? (
+            <NativeChannelCreate organizationId={organization.id} endpoint={nativeChatMutationBase} />
+          ) : null}
           {invalidRequestedChannel ? (
             <div className={styles.roleNotice} role="alert">
               <strong>Channel unavailable.</strong>
@@ -311,9 +315,7 @@ export function WorkspaceShell({
           ) : (
             <div className={styles.emptyState}>
               {canCreateNativeChannel
-                ? nativeChatMutationBase
-                  ? "No Brain channels exist yet. Create-channel UI is staged next on the authenticated route."
-                  : "No Brain channels exist yet. Creation stays disabled until the authenticated WorkOS BFF is active."
+                ? "No Brain channels exist yet. Create the first one above when the authenticated mutation route is active."
                 : "No Brain channels are currently visible to this account."}
             </div>
           )}
