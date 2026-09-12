@@ -13,7 +13,6 @@ from app.models import MembershipRole, ResourceAccessLevel, User
 from app.native_chat import (
     NativeChatConflictError,
     NativeChatError,
-    can_read_channel,
     can_write_channel,
     create_channel,
     get_visible_channel,
@@ -52,6 +51,8 @@ class NativeChannelCreate(BaseModel):
     description: str | None = Field(default=None, max_length=500)
     visibility: NativeChannelVisibility = NativeChannelVisibility.ORGANIZATION
 
+    model_config = {"extra": "forbid"}
+
 
 class NativeChannelRead(BaseModel):
     id: uuid.UUID
@@ -74,6 +75,8 @@ class NativeChannelRead(BaseModel):
 class NativeChannelMemberWrite(BaseModel):
     access: ResourceAccessLevel = ResourceAccessLevel.READ
 
+    model_config = {"extra": "forbid"}
+
 
 class NativeChannelMemberRead(BaseModel):
     user_id: uuid.UUID
@@ -83,6 +86,8 @@ class NativeChannelMemberRead(BaseModel):
 
 class NativeMessageCreate(BaseModel):
     body: str = Field(min_length=1, max_length=20_000)
+
+    model_config = {"extra": "forbid"}
 
 
 class NativeMessageRead(BaseModel):
@@ -168,8 +173,16 @@ def _channel_read(
 
 
 def _actor_labels(db: Session, messages: list[NativeMessage]) -> dict[uuid.UUID, str]:
-    user_ids = {message.author_user_id for message in messages if message.author_user_id is not None}
-    run_ids = {message.agent_run_id for message in messages if message.agent_run_id is not None}
+    user_ids = {
+        message.author_user_id
+        for message in messages
+        if message.author_user_id is not None
+    }
+    run_ids = {
+        message.agent_run_id
+        for message in messages
+        if message.agent_run_id is not None
+    }
     labels: dict[uuid.UUID, str] = {}
     if user_ids:
         for user in db.scalars(select(User).where(User.id.in_(user_ids))):
