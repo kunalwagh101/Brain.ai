@@ -189,10 +189,10 @@ class NativeMessage(Base):
         nullable=False,
     )
     author_user_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
     )
     agent_run_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("agent_runs.id", ondelete="SET NULL"), nullable=True
+        ForeignKey("agent_runs.id", ondelete="RESTRICT"), nullable=True
     )
     body: Mapped[str] = mapped_column(Text, nullable=False)
     body_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
