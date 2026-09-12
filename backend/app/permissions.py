@@ -23,6 +23,7 @@ class Permission(StrEnum):
     RESOURCE_ACL_MANAGE = "resource_acl.manage"
     INTEGRATION_MANAGE = "integration.manage"
     IDENTITY_MANAGE = "identity.manage"
+    NATIVE_CHAT_WRITE = "native_chat.write"
     AI_USE = "ai.use"
     AI_MANAGE = "ai.manage"
     AGENT_USE = "agent.use"
@@ -42,6 +43,7 @@ ROLE_PERMISSIONS: dict[MembershipRole, frozenset[Permission]] = {
             Permission.ORGANIZATION_READ,
             Permission.MEMBERSHIP_READ,
             Permission.RESOURCE_READ,
+            Permission.NATIVE_CHAT_WRITE,
             Permission.AI_USE,
             Permission.AGENT_USE,
             Permission.AUDIT_READ,
@@ -53,6 +55,7 @@ ROLE_PERMISSIONS: dict[MembershipRole, frozenset[Permission]] = {
             Permission.MEMBERSHIP_READ,
             Permission.RESOURCE_READ,
             Permission.RESOURCE_WRITE,
+            Permission.NATIVE_CHAT_WRITE,
             Permission.AI_USE,
             Permission.AGENT_USE,
         }
@@ -63,6 +66,7 @@ ROLE_PERMISSIONS: dict[MembershipRole, frozenset[Permission]] = {
             Permission.MEMBERSHIP_READ,
             Permission.RESOURCE_READ,
             Permission.RESOURCE_WRITE,
+            Permission.NATIVE_CHAT_WRITE,
             Permission.AI_USE,
             Permission.AGENT_USE,
         }
