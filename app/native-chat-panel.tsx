@@ -2,7 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { NativeChannel, NativeMessage } from "./brain-api";
+import type {
+  NativeChannel,
+  NativeChannelMember,
+  NativeMessage,
+} from "./brain-api";
 import styles from "./native-chat-panel.module.css";
 
 function formatTime(value: string): string {
@@ -25,7 +29,7 @@ function initials(value: string): string {
     .join("") || "?";
 }
 
-function safeError(status: number): string {
+function safeMessageError(status: number): string {
   if (status === 400 || status === 422) return "The message was not accepted. Check the content and try again.";
   if (status === 401) return "Your session is no longer authenticated.";
   if (status === 403) return "Your current role cannot send messages.";
@@ -35,14 +39,27 @@ function safeError(status: number): string {
   return "The message could not be sent safely.";
 }
 
+function safeMemberError(status: number): string {
+  if (status === 400 || status === 422) return "The member request was not accepted.";
+  if (status === 401) return "Your session is no longer authenticated.";
+  if (status === 403) return "You cannot manage this channel's members.";
+  if (status === 404) return "The channel or exact organisation member was not found.";
+  if (status === 409) return "That membership change conflicts with the channel state.";
+  return "The membership change could not be completed safely.";
+}
+
 export function NativeChatPanel({
   channel,
   messages,
+  members,
   mutationEndpoint,
+  memberEndpoint,
 }: {
   channel: NativeChannel;
   messages: NativeMessage[];
+  members: NativeChannelMember[];
   mutationEndpoint: string | null;
+  memberEndpoint: string | null;
 }) {
   const router = useRouter();
   const [body, setBody] = useState("");
@@ -51,6 +68,8 @@ export function NativeChatPanel({
     | { kind: "working"; text: string }
     | { kind: "error"; text: string }
   >({ kind: "idle" });
+  const [memberError, setMemberError] = useState<string | null>(null);
+  const [memberWorking, setMemberWorking] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -73,7 +92,7 @@ export function NativeChatPanel({
         body: JSON.stringify({ body: normalized }),
       });
       if (!response.ok) {
-        setStatus({ kind: "error", text: safeError(response.status) });
+        setStatus({ kind: "error", text: safeMessageError(response.status) });
         return;
       }
       setBody("");
@@ -81,6 +100,59 @@ export function NativeChatPanel({
       router.refresh();
     } catch {
       setStatus({ kind: "error", text: "The message could not reach the secure Brain route." });
+    }
+  }
+
+  async function inviteMember(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!memberEndpoint) return;
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") ?? "").trim().toLowerCase();
+    const access = String(form.get("access") ?? "read");
+    if (!email) {
+      setMemberError("Enter the exact email of an existing organisation member.");
+      return;
+    }
+    setMemberWorking(true);
+    setMemberError(null);
+    try {
+      const response = await fetch(memberEndpoint, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, access }),
+      });
+      if (!response.ok) {
+        setMemberError(safeMemberError(response.status));
+        return;
+      }
+      event.currentTarget.reset();
+      router.refresh();
+    } catch {
+      setMemberError("The membership change could not reach the secure Brain route.");
+    } finally {
+      setMemberWorking(false);
+    }
+  }
+
+  async function revokeMember(userId: string) {
+    if (!memberEndpoint || userId === channel.created_by_user_id) return;
+    setMemberWorking(true);
+    setMemberError(null);
+    try {
+      const response = await fetch(`${memberEndpoint}/${encodeURIComponent(userId)}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      if (!response.ok) {
+        setMemberError(safeMemberError(response.status));
+        return;
+      }
+      router.refresh();
+    } catch {
+      setMemberError("The membership change could not reach the secure Brain route.");
+    } finally {
+      setMemberWorking(false);
     }
   }
 
@@ -98,6 +170,54 @@ export function NativeChatPanel({
           <span>{channel.status}</span>
         </div>
       </header>
+
+      {channel.can_manage_members ? (
+        <details className={styles.memberManager}>
+          <summary>Manage restricted-channel members</summary>
+          {memberEndpoint ? (
+            <form onSubmit={inviteMember}>
+              <label>
+                <span>Exact member email</span>
+                <input name="email" type="email" maxLength={320} required />
+              </label>
+              <label>
+                <span>Access</span>
+                <select name="access" defaultValue="read">
+                  <option value="read">Read</option>
+                  <option value="write">Read & write</option>
+                </select>
+              </label>
+              <button disabled={memberWorking} type="submit">
+                {memberWorking ? "Working…" : "Invite member"}
+              </button>
+            </form>
+          ) : (
+            <p>Member mutations stay disabled until the authenticated WorkOS BFF is active.</p>
+          )}
+          <div className={styles.memberList}>
+            {members.map((member) => (
+              <div key={member.user_id}>
+                <span>
+                  <strong>{member.display_name ?? member.email}</strong>
+                  <small>{member.email} · {member.role} · {member.access}</small>
+                </span>
+                {member.user_id === channel.created_by_user_id ? (
+                  <small>Creator</small>
+                ) : memberEndpoint ? (
+                  <button
+                    disabled={memberWorking}
+                    type="button"
+                    onClick={() => revokeMember(member.user_id)}
+                  >
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          {memberError ? <p className={styles.error} role="alert">{memberError}</p> : null}
+        </details>
+      ) : null}
 
       <div className={styles.feed} role="log" aria-live="polite" aria-label={`${channel.name} messages`}>
         {messages.length ? messages.map((message) => (
