@@ -45,6 +45,49 @@ export type EvidenceSource = {
   can_delete: boolean;
 };
 
+export type NativeChannel = {
+  id: string;
+  organization_id: string;
+  work_graph_node_id: string | null;
+  name: string;
+  slug: string;
+  description: string | null;
+  visibility: "organization" | "restricted";
+  status: "active" | "archived";
+  created_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+  archived_at: string | null;
+  member_count: number;
+  can_post: boolean;
+  can_manage_members: boolean;
+};
+
+export type NativeMessage = {
+  id: string;
+  organization_id: string;
+  channel_id: string;
+  actor_kind: "user" | "agent";
+  author_user_id: string | null;
+  agent_run_id: string | null;
+  actor_display_name: string;
+  body: string;
+  body_sha256: string;
+  projection_status: "pending" | "ready" | "failed";
+  canonical_event_id: string | null;
+  created_at: string;
+};
+
+export type NativeChannelCreateInput = {
+  name: string;
+  description?: string | null;
+  visibility: "organization" | "restricted";
+};
+
+export type NativeMessageCreateInput = {
+  body: string;
+};
+
 export type AIRuntimeOption = {
   provider_configuration_id: string;
   provider_key: string;
@@ -388,6 +431,59 @@ export function deleteEvidenceSource(
     accessToken,
     `/api/v1/organizations/${encodeURIComponent(organizationId)}/evidence/${encodeURIComponent(sourceId)}`,
     { method: "DELETE" },
+  );
+}
+
+export function listNativeChannels(
+  accessToken: string,
+  organizationId: string,
+): Promise<NativeChannel[]> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-channels`,
+  );
+}
+
+export function listNativeMessages(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  limit = 100,
+): Promise<NativeMessage[]> {
+  const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 200);
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-channels/${encodeURIComponent(channelId)}/messages?limit=${boundedLimit}`,
+  );
+}
+
+export function createNativeChannel(
+  accessToken: string,
+  organizationId: string,
+  input: NativeChannelCreateInput,
+): Promise<NativeChannel> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-channels`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export function sendNativeMessage(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  input: NativeMessageCreateInput,
+  idempotencyKey: string,
+): Promise<NativeMessage> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-channels/${encodeURIComponent(channelId)}/messages`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+      headers: { "Idempotency-Key": idempotencyKey },
+    },
   );
 }
 
