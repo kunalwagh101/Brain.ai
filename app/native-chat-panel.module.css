@@ -64,6 +64,64 @@
   color: #b8afff;
 }
 
+.channelCreate {
+  padding: 12px 16px;
+  border-bottom: 1px solid #292f3a;
+  background: #0f131a;
+}
+
+.channelCreate > button,
+.channelCreate form > button {
+  border: 1px solid #3d4554;
+  border-radius: 8px;
+  background: #252b38;
+  color: #edf0f5;
+  padding: 7px 11px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.channelCreate > button:focus-visible,
+.channelCreate form > button:focus-visible {
+  outline: 2px solid #5148a8;
+  outline-offset: 2px;
+}
+
+.channelCreate form {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr 1fr auto;
+  align-items: end;
+  gap: 9px;
+  margin-top: 10px;
+}
+
+.channelCreate label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #909aa8;
+  font-size: 10px;
+}
+
+.channelCreate input,
+.channelCreate select {
+  min-width: 0;
+  min-height: 36px;
+  border: 1px solid #343b48;
+  border-radius: 8px;
+  background: #151a22;
+  color: #edf0f5;
+  padding: 7px 9px;
+  font: inherit;
+}
+
+.channelCreate input:focus-visible,
+.channelCreate select:focus-visible {
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+  border-color: #776bf7;
+}
+
 .feed {
   display: flex;
   flex: 1;
@@ -243,7 +301,8 @@
   cursor: pointer;
 }
 
-.composer button:disabled {
+.composer button:disabled,
+.channelCreate form > button:disabled {
   opacity: .5;
   cursor: default;
 }
@@ -264,6 +323,12 @@
   color: #e6a0a7;
 }
 
+@media (max-width: 900px) {
+  .channelCreate form {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 @media (max-width: 720px) {
   .header {
     flex-direction: column;
@@ -271,6 +336,10 @@
 
   .channelMeta {
     justify-content: flex-start;
+  }
+
+  .channelCreate form {
+    grid-template-columns: 1fr;
   }
 
   .message {
