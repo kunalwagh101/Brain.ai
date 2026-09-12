@@ -1,0 +1,356 @@
+import uuid
+
+from sqlalchemy.orm import Session
+
+from app.auth import get_current_user
+from app.main import app
+from app.models import Membership, MembershipRole, Organization, User
+
+
+def _seed(db: Session, suffix: str):
+    organization = Organization(
+        name=f"Conversation UX {suffix}",
+        slug=f"conversation-ux-{suffix}-{uuid.uuid4().hex[:6]}",
+    )
+    owner = User(
+        email=f"owner-{suffix}-{uuid.uuid4().hex[:6]}@example.com",
+        display_name="Owner",
+    )
+    member = User(
+        email=f"member-{suffix}-{uuid.uuid4().hex[:6]}@example.com",
+        display_name="Member",
+    )
+    outsider = User(
+        email=f"outsider-{suffix}-{uuid.uuid4().hex[:6]}@example.com",
+        display_name="Outsider",
+    )
+    db.add_all([organization, owner, member, outsider])
+    db.flush()
+    db.add_all(
+        [
+            Membership(
+                organization_id=organization.id,
+                user_id=owner.id,
+                role=MembershipRole.OWNER,
+            ),
+            Membership(
+                organization_id=organization.id,
+                user_id=member.id,
+                role=MembershipRole.MEMBER,
+            ),
+            Membership(
+                organization_id=organization.id,
+                user_id=outsider.id,
+                role=MembershipRole.MEMBER,
+            ),
+        ]
+    )
+    db.commit()
+    return organization, owner, member, outsider
+
+
+def _as(user: User) -> None:
+    app.dependency_overrides[get_current_user] = lambda: user
+
+
+def _channel(client, organization, user, visibility="organization"):
+    _as(user)
+    response = client.post(
+        f"/api/v1/organizations/{organization.id}/native-channels",
+        json={
+            "name": f"channel-{uuid.uuid4().hex[:7]}",
+            "visibility": visibility,
+        },
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def _root(client, organization, channel_id, user, body, key):
+    _as(user)
+    return client.post(
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel_id}/messages",
+        headers={"Idempotency-Key": key},
+        json={"body": body},
+    )
+
+
+def _reply(client, organization, channel_id, root_id, user, body, key):
+    _as(user)
+    return client.post(
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel_id}/messages/{root_id}/replies",
+        headers={"Idempotency-Key": key},
+        json={"body": body},
+    )
+
+
+def test_threads_and_exact_mentions_are_scoped_and_idempotent(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, _ = _seed(db_session, "thread")
+    channel = _channel(client, organization, owner)
+    body = f"Please review @{member.email} and @{member.email}."
+    root = _root(
+        client,
+        organization,
+        channel["id"],
+        owner,
+        body,
+        "thread-root",
+    )
+    assert root.status_code == 201
+    assert root.json()["thread_root_id"] is None
+    assert [item["user_id"] for item in root.json()["mentions"]] == [str(member.id)]
+
+    reply = _reply(
+        client,
+        organization,
+        channel["id"],
+        root.json()["id"],
+        member,
+        "Reviewed. Looks safe.",
+        "thread-reply",
+    )
+    assert reply.status_code == 201
+    assert reply.json()["thread_root_id"] == root.json()["id"]
+
+    repeated = _reply(
+        client,
+        organization,
+        channel["id"],
+        root.json()["id"],
+        member,
+        "Reviewed. Looks safe.",
+        "thread-reply",
+    )
+    assert repeated.status_code == 201
+    assert repeated.json()["id"] == reply.json()["id"]
+
+    _as(member)
+    roots = client.get(
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/messages"
+    )
+    replies = client.get(
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/messages/{root.json()['id']}/replies"
+    )
+    nested = _reply(
+        client,
+        organization,
+        channel["id"],
+        reply.json()["id"],
+        member,
+        "Nested replies are rejected.",
+        "nested-reply",
+    )
+    assert [row["id"] for row in roots.json()] == [root.json()["id"]]
+    assert roots.json()[0]["reply_count"] == 1
+    assert [row["id"] for row in replies.json()] == [reply.json()["id"]]
+    assert nested.status_code == 404
+
+
+def test_reactions_are_allow_listed_per_user_and_idempotent(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, _ = _seed(db_session, "reaction")
+    channel = _channel(client, organization, owner)
+    root = _root(
+        client,
+        organization,
+        channel["id"],
+        owner,
+        "React to this.",
+        "reaction-root",
+    ).json()
+    endpoint = (
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/messages/{root['id']}/reaction"
+    )
+
+    _as(owner)
+    first = client.put(endpoint, json={"reaction": "👍"})
+    duplicate = client.put(endpoint, json={"reaction": "👍"})
+    _as(member)
+    second_user = client.put(endpoint, json={"reaction": "👍"})
+    disallowed = client.put(endpoint, json={"reaction": "<script>"})
+    removed = client.request("DELETE", endpoint, json={"reaction": "👍"})
+
+    assert first.status_code == 200
+    assert duplicate.json()["count"] == 1
+    assert second_user.json()["count"] == 2
+    assert disallowed.status_code == 400
+    assert removed.status_code == 204
+
+    _as(owner)
+    roots = client.get(
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/messages"
+    )
+    assert roots.json()[0]["reactions"] == [
+        {"reaction": "👍", "count": 1, "reacted_by_me": True}
+    ]
+
+
+def test_unread_state_is_per_user_excludes_own_and_never_moves_back(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, _ = _seed(db_session, "unread")
+    channel = _channel(client, organization, owner)
+    first = _root(
+        client,
+        organization,
+        channel["id"],
+        owner,
+        "First update.",
+        "unread-first",
+    ).json()
+    second = _root(
+        client,
+        organization,
+        channel["id"],
+        owner,
+        "Second update.",
+        "unread-second",
+    ).json()
+    summary_url = (
+        f"/api/v1/organizations/{organization.id}/native-conversation/channels"
+    )
+
+    _as(owner)
+    owner_summary = client.get(summary_url)
+    _as(member)
+    member_summary = client.get(summary_url)
+    assert owner_summary.json()[0]["unread_count"] == 0
+    assert member_summary.json()[0]["unread_count"] == 2
+
+    read_url = (
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/read"
+    )
+    read_second = client.post(
+        read_url,
+        json={"through_message_id": second["id"]},
+    )
+    stale_read = client.post(
+        read_url,
+        json={"through_message_id": first["id"]},
+    )
+    assert read_second.json()["unread_count"] == 0
+    assert stale_read.json()["last_read_at"] == read_second.json()["last_read_at"]
+
+    _root(
+        client,
+        organization,
+        channel["id"],
+        owner,
+        "Third update.",
+        "unread-third",
+    )
+    _as(member)
+    assert client.get(summary_url).json()[0]["unread_count"] == 1
+
+
+def test_revoked_restricted_member_gets_no_conversation_content(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, _ = _seed(db_session, "revoked")
+    channel = _channel(client, organization, owner, visibility="restricted")
+    _as(owner)
+    grant = client.put(
+        f"/api/v1/organizations/{organization.id}/native-channels/"
+        f"{channel['id']}/members/{member.id}",
+        json={"access": "write"},
+    )
+    assert grant.status_code == 200
+    root = _root(
+        client,
+        organization,
+        channel["id"],
+        owner,
+        f"Restricted note for @{member.email}.",
+        "restricted-root",
+    ).json()
+    reply = _reply(
+        client,
+        organization,
+        channel["id"],
+        root["id"],
+        member,
+        "Acknowledged.",
+        "restricted-reply",
+    )
+    assert reply.status_code == 201
+
+    _as(owner)
+    revoked = client.delete(
+        f"/api/v1/organizations/{organization.id}/native-channels/"
+        f"{channel['id']}/members/{member.id}"
+    )
+    assert revoked.status_code == 204
+
+    _as(member)
+    roots_url = (
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/messages"
+    )
+    replies_url = f"{roots_url}/{root['id']}/replies"
+    reaction_url = f"{roots_url}/{root['id']}/reaction"
+    read_url = (
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/read"
+    )
+    assert client.get(roots_url).status_code == 404
+    assert client.get(replies_url).status_code == 404
+    assert client.put(reaction_url, json={"reaction": "👍"}).status_code in {403, 404}
+    assert (
+        client.post(read_url, json={"through_message_id": root["id"]}).status_code
+        == 404
+    )
+    summary = client.get(
+        f"/api/v1/organizations/{organization.id}/native-conversation/channels"
+    )
+    assert channel["id"] not in summary.text
+    assert "Restricted note" not in summary.text
+
+
+def test_cross_tenant_message_ids_never_resolve(
+    db_session: Session,
+    client,
+) -> None:
+    organization_a, owner_a, _, _ = _seed(db_session, "tenant-a")
+    organization_b, owner_b, _, _ = _seed(db_session, "tenant-b")
+    channel = _channel(client, organization_a, owner_a)
+    root = _root(
+        client,
+        organization_a,
+        channel["id"],
+        owner_a,
+        "Tenant A only.",
+        "tenant-a-root",
+    ).json()
+
+    _as(owner_b)
+    replies = client.get(
+        f"/api/v1/organizations/{organization_b.id}/native-conversation/"
+        f"channels/{channel['id']}/messages/{root['id']}/replies"
+    )
+    reaction = client.put(
+        f"/api/v1/organizations/{organization_b.id}/native-conversation/"
+        f"channels/{channel['id']}/messages/{root['id']}/reaction",
+        json={"reaction": "👍"},
+    )
+    read = client.post(
+        f"/api/v1/organizations/{organization_b.id}/native-conversation/"
+        f"channels/{channel['id']}/read",
+        json={"through_message_id": root["id"]},
+    )
+    assert replies.status_code == 404
+    assert reaction.status_code == 404
+    assert read.status_code == 404
