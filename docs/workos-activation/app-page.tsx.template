@@ -4,7 +4,7 @@ import { ProductionWorkspace } from "./production-workspace";
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ organizationId?: string }>;
+  searchParams: Promise<{ organizationId?: string; channelId?: string }>;
 }) {
   const { user, accessToken } = await withAuth({ ensureSignedIn: true });
   const params = await searchParams;
@@ -23,8 +23,10 @@ export default async function Home({
       accessToken={accessToken}
       signedInName={signedInName}
       requestedOrganizationId={params.organizationId ?? null}
+      requestedChannelId={params.channelId ?? null}
       enableAskBrainBff
       enableEvidenceBff
+      enableNativeChatBff
       signOutAction={signOutAction}
     />
   );
