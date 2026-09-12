@@ -4,6 +4,7 @@ import type {
   EvidenceSource,
   ExecutiveOverview,
   NativeChannel,
+  NativeChannelMember,
   NativeMessage,
   ProjectMemory,
   ProjectStatus,
@@ -75,6 +76,7 @@ export function WorkspaceShell({
   nativeChannels,
   selectedNativeChannel,
   nativeMessages,
+  selectedNativeMembers,
   invalidRequestedChannel,
   overview,
   runtimes,
@@ -84,6 +86,7 @@ export function WorkspaceShell({
   canUploadEvidence,
   nativeChatMutationBase,
   nativeMessageEndpoint,
+  nativeMemberEndpoint,
   canCreateNativeChannel,
   signOutAction,
 }: {
@@ -95,6 +98,7 @@ export function WorkspaceShell({
   nativeChannels: NativeChannel[];
   selectedNativeChannel: NativeChannel | null;
   nativeMessages: NativeMessage[];
+  selectedNativeMembers: NativeChannelMember[];
   invalidRequestedChannel: boolean;
   overview: ExecutiveOverview | null;
   runtimes: AIRuntimeOption[];
@@ -104,6 +108,7 @@ export function WorkspaceShell({
   canUploadEvidence: boolean;
   nativeChatMutationBase: string | null;
   nativeMessageEndpoint: string | null;
+  nativeMemberEndpoint: string | null;
   canCreateNativeChannel: boolean;
   signOutAction?: (formData: FormData) => Promise<void>;
 }) {
@@ -310,7 +315,9 @@ export function WorkspaceShell({
             <NativeChatPanel
               channel={selectedNativeChannel}
               messages={nativeMessages}
+              members={selectedNativeMembers}
               mutationEndpoint={nativeMessageEndpoint}
+              memberEndpoint={nativeMemberEndpoint}
             />
           ) : (
             <div className={styles.emptyState}>
