@@ -32,10 +32,11 @@ from app.native_chat_models import (
     NativeMessageActorKind,
     NativeMessageProjectionStatus,
 )
+from app.permissions import Permission, role_has_permission
 from app.raw_events import persist_raw_event
 from app.search import project_search_document
-from app.search_models import SearchDocument, SearchEmbeddingStatus
-from app.work_graph import create_manual_edge, create_manual_node
+from app.search_models import SearchEmbeddingStatus
+from app.work_graph import create_manual_edge, project_canonical_event
 from app.work_graph_models import WorkGraphEdgeType, WorkGraphNode, WorkGraphNodeType
 
 NATIVE_CHAT_PROVIDER = "brain_native"
@@ -74,7 +75,10 @@ def _normalize_channel_name(value: str) -> str:
 def _slugify(name: str) -> str:
     slug = _SLUG_RE.sub("-", name.casefold()).strip("-")[:96]
     if not slug:
-        raise NativeChatError("invalid_channel_slug", "Channel name cannot produce a channel slug")
+        raise NativeChatError(
+            "invalid_channel_slug",
+            "Channel name cannot produce a channel slug",
+        )
     return slug
 
 
@@ -83,7 +87,10 @@ def _normalize_description(value: str | None) -> str | None:
         return None
     description = " ".join(value.strip().split())
     if len(description) > MAX_CHANNEL_DESCRIPTION_CHARS:
-        raise NativeChatError("invalid_channel_description", "Channel description is too long")
+        raise NativeChatError(
+            "invalid_channel_description",
+            "Channel description is too long",
+        )
     return description or None
 
 
@@ -92,7 +99,10 @@ def _normalize_message(value: str) -> str:
     if not body:
         raise NativeChatError("empty_message", "Message must not be empty")
     if len(body) > MAX_MESSAGE_CHARS:
-        raise NativeChatError("message_too_large", "Message exceeds the 20,000 character limit")
+        raise NativeChatError(
+            "message_too_large",
+            "Message exceeds the 20,000 character limit",
+        )
     return body
 
 
@@ -227,11 +237,19 @@ def list_visible_channels(
     user_id: uuid.UUID,
     include_archived: bool = False,
 ) -> list[NativeChannel]:
-    query = select(NativeChannel).where(NativeChannel.organization_id == organization_id)
+    query = select(NativeChannel).where(
+        NativeChannel.organization_id == organization_id
+    )
     if not include_archived:
         query = query.where(NativeChannel.status == NativeChannelStatus.ACTIVE)
-    channels = list(db.scalars(query.order_by(NativeChannel.name, NativeChannel.id)))
-    return [channel for channel in channels if can_read_channel(db, channel, user_id=user_id)]
+    channels = list(
+        db.scalars(query.order_by(NativeChannel.name, NativeChannel.id))
+    )
+    return [
+        channel
+        for channel in channels
+        if can_read_channel(db, channel, user_id=user_id)
+    ]
 
 
 def _grant_node(
@@ -267,7 +285,10 @@ def _grant_node(
         existing.created_by_user_id = granted_by_user_id
 
 
-def _channel_evidence_node_ids(db: Session, channel: NativeChannel) -> list[uuid.UUID]:
+def _channel_evidence_node_ids(
+    db: Session,
+    channel: NativeChannel,
+) -> list[uuid.UUID]:
     canonical_ids = select(NativeMessage.canonical_event_id).where(
         NativeMessage.organization_id == channel.organization_id,
         NativeMessage.channel_id == channel.id,
@@ -327,7 +348,9 @@ def _revoke_channel_grants(
             ResourceGrant.organization_id == channel.organization_id,
             ResourceGrant.resource_type == "work_graph.node",
             ResourceGrant.user_id == user_id,
-            ResourceGrant.resource_id.in_([str(node_id) for node_id in set(node_ids)]),
+            ResourceGrant.resource_id.in_(
+                [str(node_id) for node_id in set(node_ids)]
+            ),
         )
     )
 
@@ -351,8 +374,33 @@ def create_channel(
         actor_user_id=actor_user_id,
     )
 
-    channel = NativeChannel(
+    channel_id = uuid.uuid4()
+    track_id = uuid.uuid4()
+    visibility_value = (
+        "organization"
+        if visibility == NativeChannelVisibility.ORGANIZATION
+        else "restricted"
+    )
+    track = WorkGraphNode(
+        id=track_id,
         organization_id=organization_id,
+        node_type=WorkGraphNodeType.TRACK,
+        stable_key=f"native:track:{channel_id}",
+        display_name=normalized_name,
+        source_visibility=visibility_value,
+        source_acl=[],
+        attributes={
+            "source": "brain_native",
+            "provider": NATIVE_CHAT_PROVIDER,
+            "native_channel_id": str(channel_id),
+            "channel_slug": slug,
+            "created_by_user_id": str(actor_user_id),
+        },
+    )
+    channel = NativeChannel(
+        id=channel_id,
+        organization_id=organization_id,
+        work_graph_node_id=track_id,
         name=normalized_name,
         slug=slug,
         description=normalized_description,
@@ -360,39 +408,12 @@ def create_channel(
         status=NativeChannelStatus.ACTIVE,
         created_by_user_id=actor_user_id,
     )
-    db.add(channel)
-    try:
-        db.commit()
-    except IntegrityError as exc:
-        db.rollback()
-        raise NativeChatConflictError(
-            "channel_slug_conflict",
-            "A Brain channel with this name already exists",
-        ) from exc
-    db.refresh(channel)
-
-    track = create_manual_node(
-        db,
-        organization_id=organization_id,
-        node_type=WorkGraphNodeType.TRACK,
-        key=f"native-channel:{channel.id}",
-        display_name=normalized_name,
-        actor_user_id=actor_user_id,
-    )
-    track.source_visibility = _source_visibility(channel)
-    track.source_acl = []
-    track.attributes = {
-        **track.attributes,
-        "provider": NATIVE_CHAT_PROVIDER,
-        "native_channel_id": str(channel.id),
-        "channel_slug": channel.slug,
-    }
-    channel.work_graph_node_id = track.id
+    db.add_all([track, channel])
 
     if visibility == NativeChannelVisibility.RESTRICTED:
         membership = NativeChannelMembership(
             organization_id=organization_id,
-            channel_id=channel.id,
+            channel_id=channel_id,
             user_id=actor_user_id,
             access=ResourceAccessLevel.WRITE,
             granted_by_user_id=actor_user_id,
@@ -402,11 +423,19 @@ def create_channel(
             db,
             organization_id=organization_id,
             user_id=actor_user_id,
-            node_id=track.id,
+            node_id=track_id,
             access=ResourceAccessLevel.WRITE,
             granted_by_user_id=actor_user_id,
         )
-    db.commit()
+
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise NativeChatConflictError(
+            "channel_slug_conflict",
+            "A Brain channel with this name already exists",
+        ) from exc
     db.refresh(channel)
 
     append_audit_event(
@@ -421,7 +450,7 @@ def create_channel(
         request_id=request_id,
         metadata={
             "visibility": visibility.value,
-            "work_graph_node_id": str(track.id),
+            "work_graph_node_id": str(track_id),
         },
     )
     return channel
@@ -456,9 +485,16 @@ def upsert_channel_member(
             NativeChannel.organization_id == organization_id,
         )
     )
-    if channel is None or channel.visibility != NativeChannelVisibility.RESTRICTED:
+    if (
+        channel is None
+        or channel.visibility != NativeChannelVisibility.RESTRICTED
+    ):
         raise NativeChatError("channel_not_found", "Channel not found")
-    if not _can_manage_members(channel, actor_user_id=actor_user_id, actor_role=actor_role):
+    if not _can_manage_members(
+        channel,
+        actor_user_id=actor_user_id,
+        actor_role=actor_role,
+    ):
         raise NativeChatError("channel_not_found", "Channel not found")
 
     target = db.scalar(
@@ -470,6 +506,14 @@ def upsert_channel_member(
     user = db.get(User, user_id)
     if target is None or user is None or user.status != "active":
         raise NativeChatError("member_not_found", "Organization member not found")
+    if (
+        access == ResourceAccessLevel.WRITE
+        and not role_has_permission(target.role, Permission.NATIVE_CHAT_WRITE)
+    ):
+        raise NativeChatError(
+            "member_cannot_write",
+            "This organization role cannot receive native chat write access",
+        )
 
     membership = db.scalar(
         select(NativeChannelMembership).where(
@@ -504,7 +548,9 @@ def upsert_channel_member(
     append_audit_event(
         db,
         organization_id=organization_id,
-        event_key=f"native_chat.member.granted:{channel.id}:{user_id}:{membership.id}",
+        event_key=(
+            f"native_chat.member.granted:{channel.id}:{user_id}:{membership.id}"
+        ),
         event_type="native_chat.member.granted",
         outcome="succeeded",
         actor_user_id=actor_user_id,
@@ -532,9 +578,16 @@ def revoke_channel_member(
             NativeChannel.organization_id == organization_id,
         )
     )
-    if channel is None or channel.visibility != NativeChannelVisibility.RESTRICTED:
+    if (
+        channel is None
+        or channel.visibility != NativeChannelVisibility.RESTRICTED
+    ):
         raise NativeChatError("channel_not_found", "Channel not found")
-    if not _can_manage_members(channel, actor_user_id=actor_user_id, actor_role=actor_role):
+    if not _can_manage_members(
+        channel,
+        actor_user_id=actor_user_id,
+        actor_role=actor_role,
+    ):
         raise NativeChatError("channel_not_found", "Channel not found")
     if user_id == channel.created_by_user_id:
         raise NativeChatConflictError(
@@ -559,7 +612,9 @@ def revoke_channel_member(
     append_audit_event(
         db,
         organization_id=organization_id,
-        event_key=f"native_chat.member.revoked:{channel.id}:{user_id}:{membership.id}",
+        event_key=(
+            f"native_chat.member.revoked:{channel.id}:{user_id}:{membership.id}"
+        ),
         event_type="native_chat.member.revoked",
         outcome="succeeded",
         actor_user_id=actor_user_id,
@@ -580,12 +635,18 @@ def _message_payload(
         "channel_name": channel.name,
         "channel_slug": channel.slug,
         "actor_kind": message.actor_kind.value,
-        "author_user_id": str(message.author_user_id) if message.author_user_id else None,
+        "author_user_id": (
+            str(message.author_user_id) if message.author_user_id else None
+        ),
         "agent_run_id": str(message.agent_run_id) if message.agent_run_id else None,
         "text": message.body,
         "body_sha256": message.body_sha256,
     }
-    return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode()
 
 
 def _grant_message_evidence(
@@ -653,9 +714,17 @@ def _project_message(
         db.commit()
         db.refresh(message)
 
-    canonical = db.get(CanonicalEvent, message.canonical_event_id) if message.canonical_event_id else None
+    canonical = (
+        db.get(CanonicalEvent, message.canonical_event_id)
+        if message.canonical_event_id
+        else None
+    )
     if canonical is None:
-        actor_type = "brain_user" if message.actor_kind == NativeMessageActorKind.USER else "brain_agent"
+        actor_type = (
+            "brain_user"
+            if message.actor_kind == NativeMessageActorKind.USER
+            else "brain_agent"
+        )
         actor_external_id = (
             str(message.author_user_id)
             if message.author_user_id is not None
@@ -695,7 +764,11 @@ def _project_message(
                 "channel_name": channel.name,
                 "track_node_id": str(channel.work_graph_node_id),
                 "actor_kind": message.actor_kind.value,
-                "agent_run_id": str(message.agent_run_id) if message.agent_run_id else None,
+                "agent_run_id": (
+                    str(message.agent_run_id)
+                    if message.agent_run_id
+                    else None
+                ),
             },
         )
         raw.processing_status = RawEventStatus.PROCESSED
@@ -706,30 +779,21 @@ def _project_message(
         db.commit()
         db.refresh(message)
 
-    from app.work_graph import project_canonical_event
-
     evidence_node = project_canonical_event(db, canonical)
     if channel.work_graph_node_id is None:
         raise NativeChatConflictError(
             "channel_track_missing",
             "Native channel is missing its Work Graph track",
         )
-    try:
-        create_manual_edge(
-            db,
-            organization_id=channel.organization_id,
-            source_node_id=channel.work_graph_node_id,
-            target_node_id=evidence_node.id,
-            edge_type=WorkGraphEdgeType.RELATED_TO,
-            actor_user_id=actor_user_id_for_audit,
-            reason="Brain native channel message evidence",
-        )
-    except Exception as exc:
-        # The edge is deterministic/idempotent. Only a genuinely conflicting graph invariant
-        # should surface; duplicate creation returns the existing edge in work_graph.py.
-        if isinstance(exc, NativeChatError):
-            raise
-        raise
+    create_manual_edge(
+        db,
+        organization_id=channel.organization_id,
+        source_node_id=channel.work_graph_node_id,
+        target_node_id=evidence_node.id,
+        edge_type=WorkGraphEdgeType.RELATED_TO,
+        actor_user_id=actor_user_id_for_audit,
+        reason="Brain native channel message evidence",
+    )
 
     document = project_search_document(db, canonical)
     document.title = f"#{channel.name}"
@@ -802,9 +866,16 @@ def _create_message_row(
     body: str,
     idempotency_key: str | None,
 ) -> NativeMessage:
-    normalized_key = " ".join(idempotency_key.strip().split())[:128] if idempotency_key else None
+    normalized_key = (
+        " ".join(idempotency_key.strip().split())[:128]
+        if idempotency_key
+        else None
+    )
     if idempotency_key and not normalized_key:
-        raise NativeChatError("invalid_idempotency_key", "Idempotency key is invalid")
+        raise NativeChatError(
+            "invalid_idempotency_key",
+            "Idempotency key is invalid",
+        )
     body_sha256 = hashlib.sha256(body.encode()).hexdigest()
     existing = _existing_idempotent_message(
         db,
@@ -867,7 +938,11 @@ def post_user_message(
         channel_id=channel_id,
         user_id=actor_user_id,
     )
-    if channel is None or not can_write_channel(db, channel, user_id=actor_user_id):
+    if channel is None or not can_write_channel(
+        db,
+        channel,
+        user_id=actor_user_id,
+    ):
         raise NativeChatError("channel_not_found", "Channel not found")
     normalized_body = _normalize_message(body)
     message = _create_message_row(
@@ -893,7 +968,11 @@ def post_user_message(
             persisted = db.get(NativeMessage, message.id)
             if persisted is not None:
                 persisted.projection_status = NativeMessageProjectionStatus.FAILED
-                persisted.last_error_code = getattr(exc, "code", "native_message_projection_failed")[:128]
+                persisted.last_error_code = getattr(
+                    exc,
+                    "code",
+                    "native_message_projection_failed",
+                )[:128]
                 db.commit()
             raise
 
@@ -963,6 +1042,21 @@ def post_agent_message(
             channel=channel,
             actor_user_id_for_audit=run.requested_by_user_id,
         )
+    append_audit_event(
+        db,
+        organization_id=organization_id,
+        event_key=f"native_chat.message.agent_created:{message.id}",
+        event_type="native_chat.message.agent_created",
+        outcome="succeeded",
+        actor_user_id=run.requested_by_user_id,
+        resource_type="native_channel",
+        resource_id=channel.id,
+        metadata={
+            "native_message_id": str(message.id),
+            "agent_run_id": str(run.id),
+            "body_sha256": message.body_sha256,
+        },
+    )
     return message
 
 
@@ -991,7 +1085,10 @@ def list_channel_messages(
         query = query.where(NativeMessage.created_at < before)
     rows = list(
         db.scalars(
-            query.order_by(NativeMessage.created_at.desc(), NativeMessage.id.desc()).limit(limit)
+            query.order_by(
+                NativeMessage.created_at.desc(),
+                NativeMessage.id.desc(),
+            ).limit(limit)
         )
     )
     rows.reverse()
