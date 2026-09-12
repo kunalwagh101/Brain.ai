@@ -1,6 +1,7 @@
 import {
   getExecutiveOverview,
   listEvidenceSources,
+  listNativeChannelMembers,
   listNativeChannels,
   listNativeMessages,
   listOrganizations,
@@ -74,9 +75,14 @@ export async function ProductionWorkspace({
     ? nativeChannels.find((item) => item.id === requestedChannelId) ?? null
     : nativeChannels[0] ?? null;
   const invalidRequestedChannel = Boolean(requestedChannelId && !selectedChannel);
-  const nativeMessages = selectedChannel
-    ? await listNativeMessages(accessToken, organization.id, selectedChannel.id)
-    : [];
+  const [nativeMessages, selectedNativeMembers] = selectedChannel
+    ? await Promise.all([
+        listNativeMessages(accessToken, organization.id, selectedChannel.id),
+        selectedChannel.can_manage_members
+          ? listNativeChannelMembers(accessToken, organization.id, selectedChannel.id)
+          : Promise.resolve([]),
+      ])
+    : [[], []];
 
   const askBrainEndpoint = enableAskBrainBff && AI_ROLES.has(organization.role)
     ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/ask-brain`
@@ -92,6 +98,9 @@ export async function ProductionWorkspace({
   const nativeMessageEndpoint = selectedChannel && nativeChatMutationBase && selectedChannel.can_post
     ? `${nativeChatMutationBase}/${encodeURIComponent(selectedChannel.id)}/messages`
     : null;
+  const nativeMemberEndpoint = selectedChannel && nativeChatMutationBase && selectedChannel.can_manage_members
+    ? `${nativeChatMutationBase}/${encodeURIComponent(selectedChannel.id)}/members`
+    : null;
 
   return (
     <WorkspaceShell
@@ -103,6 +112,7 @@ export async function ProductionWorkspace({
       nativeChannels={nativeChannels}
       selectedNativeChannel={selectedChannel}
       nativeMessages={nativeMessages}
+      selectedNativeMembers={selectedNativeMembers}
       invalidRequestedChannel={invalidRequestedChannel}
       overview={overview}
       runtimes={runtimes}
@@ -112,6 +122,7 @@ export async function ProductionWorkspace({
       canUploadEvidence={canUploadEvidence}
       nativeChatMutationBase={nativeChatMutationBase}
       nativeMessageEndpoint={nativeMessageEndpoint}
+      nativeMemberEndpoint={nativeMemberEndpoint}
       canCreateNativeChannel={canCreateNativeChannel}
       signOutAction={signOutAction}
     />
