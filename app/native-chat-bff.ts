@@ -1,8 +1,11 @@
 import {
   createNativeChannel,
+  inviteNativeChannelMember,
+  revokeNativeChannelMember,
   sendNativeMessage,
   type NativeChannel,
   type NativeChannelCreateInput,
+  type NativeChannelMember,
   type NativeMessage,
 } from "./brain-api";
 import {
@@ -13,6 +16,7 @@ import {
 
 const CHAT_WRITE_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export class NativeChatBffRequestError extends Error {
   status: number;
@@ -52,6 +56,17 @@ function optionalText(value: unknown, field: string, maxLength: number): string 
   const normalized = value.trim();
   if (normalized.length > maxLength) invalid(400, `${field} is invalid`);
   return normalized || null;
+}
+
+function normalizedUuid(value: string, field: string): string {
+  try {
+    return requireUuid(value, field);
+  } catch (error) {
+    if (error instanceof BrainMembershipError) {
+      throw new NativeChatBffRequestError(error.status, error.message);
+    }
+    throw error;
+  }
 }
 
 function normalizeIdempotencyKey(value: string): string {
@@ -100,6 +115,24 @@ export function parseNativeMessageInput(value: unknown): { body: string } {
   return { body: requiredText(body.body, "body", 20_000) };
 }
 
+export function parseNativeMemberInvite(value: unknown): {
+  email: string;
+  access: "read" | "write";
+} {
+  const body = exactObject(
+    value,
+    new Set(["email", "access"]),
+    "native channel member request",
+  );
+  const email = requiredText(body.email, "email", 320).toLowerCase();
+  if (!EMAIL_PATTERN.test(email)) invalid(400, "email is invalid");
+  const access = body.access ?? "read";
+  if (access !== "read" && access !== "write") {
+    invalid(400, "access must be read or write");
+  }
+  return { email, access };
+}
+
 export async function handleNativeChannelCreateBff(
   accessToken: string,
   organizationId: string,
@@ -121,19 +154,47 @@ export async function handleNativeMessageCreateBff(
   idempotencyKey: string,
 ): Promise<NativeMessage> {
   await requireChatWriter(accessToken, organizationId);
-  try {
-    requireUuid(channelId, "channelId");
-  } catch (error) {
-    if (error instanceof BrainMembershipError) {
-      throw new NativeChatBffRequestError(error.status, error.message);
-    }
-    throw error;
-  }
+  normalizedUuid(channelId, "channelId");
   return sendNativeMessage(
     accessToken,
     organizationId,
     channelId,
     parseNativeMessageInput(body),
     normalizeIdempotencyKey(idempotencyKey),
+  );
+}
+
+export async function handleNativeMemberInviteBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  body: unknown,
+): Promise<NativeChannelMember> {
+  await requireChatWriter(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  const input = parseNativeMemberInvite(body);
+  return inviteNativeChannelMember(
+    accessToken,
+    organizationId,
+    channelId,
+    input.email,
+    input.access,
+  );
+}
+
+export async function handleNativeMemberRevokeBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  userId: string,
+): Promise<void> {
+  await requireChatWriter(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  normalizedUuid(userId, "userId");
+  return revokeNativeChannelMember(
+    accessToken,
+    organizationId,
+    channelId,
+    userId,
   );
 }
