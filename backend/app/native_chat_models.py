@@ -18,6 +18,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models import Base, ResourceAccessLevel
 
 
+def _enum_values(enum_type):
+    return [item.value for item in enum_type]
+
+
 class NativeChannelVisibility(StrEnum):
     ORGANIZATION = "organization"
     RESTRICTED = "restricted"
@@ -71,11 +75,21 @@ class NativeChannel(Base):
     slug: Mapped[str] = mapped_column(String(96), nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     visibility: Mapped[NativeChannelVisibility] = mapped_column(
-        Enum(NativeChannelVisibility, native_enum=False, length=24),
+        Enum(
+            NativeChannelVisibility,
+            native_enum=False,
+            length=24,
+            values_callable=_enum_values,
+        ),
         nullable=False,
     )
     status: Mapped[NativeChannelStatus] = mapped_column(
-        Enum(NativeChannelStatus, native_enum=False, length=24),
+        Enum(
+            NativeChannelStatus,
+            native_enum=False,
+            length=24,
+            values_callable=_enum_values,
+        ),
         default=NativeChannelStatus.ACTIVE,
         nullable=False,
     )
@@ -166,7 +180,13 @@ class NativeMessage(Base):
         ForeignKey("native_channels.id", ondelete="CASCADE"), nullable=False
     )
     actor_kind: Mapped[NativeMessageActorKind] = mapped_column(
-        Enum(NativeMessageActorKind, native_enum=False, length=16), nullable=False
+        Enum(
+            NativeMessageActorKind,
+            native_enum=False,
+            length=16,
+            values_callable=_enum_values,
+        ),
+        nullable=False,
     )
     author_user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
@@ -185,7 +205,12 @@ class NativeMessage(Base):
         ForeignKey("canonical_events.id", ondelete="SET NULL"), nullable=True
     )
     projection_status: Mapped[NativeMessageProjectionStatus] = mapped_column(
-        Enum(NativeMessageProjectionStatus, native_enum=False, length=16),
+        Enum(
+            NativeMessageProjectionStatus,
+            native_enum=False,
+            length=16,
+            values_callable=_enum_values,
+        ),
         default=NativeMessageProjectionStatus.PENDING,
         nullable=False,
     )
