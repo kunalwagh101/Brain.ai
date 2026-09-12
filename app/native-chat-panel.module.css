@@ -1,0 +1,283 @@
+.chat {
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+  border: 1px solid #2a303b;
+  border-radius: 12px;
+  background: #11151c;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #292f3a;
+}
+
+.header h2,
+.header p {
+  margin-top: 0;
+}
+
+.header h2 {
+  margin-bottom: 5px;
+}
+
+.header p:last-child {
+  margin-bottom: 0;
+  color: #8d97a5;
+}
+
+.eyebrow {
+  margin: 0 0 3px;
+  color: #747e8d;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.channelMeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.channelMeta span,
+.agentBadge,
+.projection {
+  border: 1px solid #39404c;
+  border-radius: 999px;
+  padding: 4px 7px;
+  color: #9da6b4;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.agentBadge {
+  border-color: #514993;
+  color: #b8afff;
+}
+
+.feed {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0;
+  max-height: 620px;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.message {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 18px;
+}
+
+.message:hover {
+  background: #151a22;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #29303d;
+  color: #d8dde5;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.avatar[data-agent="true"] {
+  background: #302b59;
+  color: #c9c2ff;
+}
+
+.messageMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.messageMeta strong {
+  color: #edf0f5;
+  font-size: 13px;
+}
+
+.messageMeta time {
+  color: #727c8b;
+  font-size: 10px;
+}
+
+.projection[data-status="failed"] {
+  border-color: #6a3f45;
+  color: #e6949c;
+}
+
+.body {
+  margin: 4px 0 0;
+  color: #c8ced7;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.provenance {
+  margin-top: 7px;
+}
+
+.provenance summary {
+  cursor: pointer;
+  color: #788291;
+  font-size: 10px;
+}
+
+.provenance dl {
+  margin: 7px 0 0;
+  padding: 8px;
+  border: 1px solid #272d37;
+  border-radius: 8px;
+  background: #0d1117;
+}
+
+.provenance dl div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.provenance dt {
+  color: #747f8d;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.provenance dd {
+  min-width: 0;
+  margin: 0;
+  color: #aeb6c2;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 180px;
+  color: #7e8998;
+  text-align: center;
+}
+
+.empty strong {
+  color: #bac1cb;
+}
+
+.composer {
+  padding: 12px 16px 14px;
+  border-top: 1px solid #292f3a;
+  background: #0e1218;
+}
+
+.composer label {
+  display: block;
+  margin-bottom: 6px;
+  color: #8f99a7;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.composer textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 72px;
+  border: 1px solid #353c49;
+  border-radius: 9px;
+  background: #151a22;
+  color: #edf0f5;
+  padding: 10px;
+  font: inherit;
+  line-height: 1.45;
+}
+
+.composer textarea:focus-visible {
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+  border-color: #776bf7;
+}
+
+.composer > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.composer span {
+  color: #747e8d;
+  font-size: 10px;
+}
+
+.composer button {
+  border: 1px solid #6157ca;
+  border-radius: 8px;
+  background: #5148a8;
+  color: #fff;
+  padding: 7px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.composer button:disabled {
+  opacity: .5;
+  cursor: default;
+}
+
+.notice,
+.error {
+  margin: 12px 16px 14px;
+  padding: 11px 12px;
+  border: 1px solid #343b48;
+  border-radius: 8px;
+  background: #151a22;
+  color: #8f99a7;
+  line-height: 1.45;
+}
+
+.error {
+  border-color: #694148;
+  color: #e6a0a7;
+}
+
+@media (max-width: 720px) {
+  .header {
+    flex-direction: column;
+  }
+
+  .channelMeta {
+    justify-content: flex-start;
+  }
+
+  .message {
+    padding-inline: 12px;
+  }
+
+  .provenance dl div {
+    grid-template-columns: 1fr;
+  }
+}
