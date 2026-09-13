@@ -1,8 +1,7 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import run_acceptance_chain as acceptance
-
 
 EXPECTED_STORY_ORDER = [
     "S-05.01.01",
@@ -24,7 +23,9 @@ def test_acceptance_chain_references_existing_test_files() -> None:
     backend_root = Path(__file__).resolve().parents[1]
     referenced = [test for stage in acceptance.STAGES for test in stage.tests]
 
-    assert len(referenced) == len(set(referenced)), "acceptance stages must not duplicate test files"
+    assert len(referenced) == len(set(referenced)), (
+        "acceptance stages must not duplicate test files"
+    )
     missing = [path for path in referenced if not (backend_root / path).is_file()]
     assert missing == [], f"acceptance chain references missing tests: {missing}"
 

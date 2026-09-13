@@ -1,7 +1,6 @@
 import ipaddress
 import json
 import re
-import socket
 from dataclasses import dataclass
 from typing import Protocol
 from urllib.error import HTTPError, URLError
@@ -114,7 +113,7 @@ class OpenAIChatCompletionsAdapter:
             if 400 <= exc.code < 500:
                 raise AIProviderCallError("provider_rejected_request") from exc
             raise AIProviderCallError("provider_unavailable") from exc
-        except (TimeoutError, socket.timeout) as exc:
+        except TimeoutError as exc:
             raise AIProviderCallError("provider_timeout") from exc
         except URLError as exc:
             raise AIProviderCallError("provider_unavailable") from exc
@@ -213,3 +212,4 @@ def normalize_model_key(value: str) -> str:
     if not _MODEL_KEY_RE.fullmatch(key):
         raise AIGatewayError("Model key contains unsupported characters")
     return key
+

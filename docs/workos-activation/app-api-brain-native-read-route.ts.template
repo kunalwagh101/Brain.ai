@@ -1,6 +1,6 @@
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import { NextRequest } from "next/server";
-import { handleNativeMessageCreateBff } from "../../../../../../../native-chat-bff";
+import { handleNativeReadBff } from "../../../../../../../native-chat-bff";
 import {
   nativeChatJson,
   nativeChatRouteError,
@@ -20,16 +20,10 @@ export async function POST(
   }
   try {
     const { organizationId, channelId } = await context.params;
-    const body = await readNativeChatJson(request, 24 * 1024);
-    const result = await handleNativeMessageCreateBff(
-      auth.accessToken,
-      organizationId,
-      channelId,
-      body,
-      request.headers.get("idempotency-key") ?? "",
-    );
-    return nativeChatJson(result, 201);
+    const body = await readNativeChatJson(request, 1024);
+    const result = await handleNativeReadBff(auth.accessToken, organizationId, channelId, body);
+    return nativeChatJson(result, 200);
   } catch (error) {
-    return nativeChatRouteError(error, "Native message request");
+    return nativeChatRouteError(error, "Native read request");
   }
 }

@@ -12,6 +12,7 @@ from app import health
 from app.config import Settings
 from app.observability import (
     JSONLogFormatter,
+    log_event,
     metrics_response,
     record_ai_request,
     record_connector_event,
@@ -107,6 +108,34 @@ def test_json_logging_keeps_safe_background_context_and_drops_unknown_extra() ->
     assert "integration_id" in payload
     assert "secret_payload" not in payload
     assert "must-not-be-emitted" not in json.dumps(payload)
+
+
+def test_structured_event_fields_cannot_overwrite_log_record_attributes() -> None:
+    logger = logging.getLogger("brain.test.reserved-fields")
+    records: list[logging.LogRecord] = []
+
+    class Capture(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record)
+
+    handler = Capture()
+    logger.addHandler(handler)
+    logger.propagate = False
+    try:
+        log_event(
+            logger,
+            logging.INFO,
+            "connector.event.persisted",
+            created=True,
+            event_created=True,
+        )
+    finally:
+        logger.removeHandler(handler)
+        logger.propagate = True
+
+    assert len(records) == 1
+    assert records[0].event_created is True
+    assert isinstance(records[0].created, float)
 
 
 def test_metrics_require_configured_bearer_token_and_do_not_expose_tenant_labels() -> None:

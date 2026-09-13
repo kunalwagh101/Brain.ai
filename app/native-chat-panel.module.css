@@ -132,6 +132,28 @@
   padding: 8px 0;
 }
 
+.conversation {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 520px;
+}
+
+.conversation[data-thread-open="true"] {
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 42%);
+}
+
+.channelPane,
+.threadPane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.channelPane .feed,
+.threadFeed {
+  min-height: 280px;
+}
+
 .message {
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr);
@@ -141,6 +163,10 @@
 
 .message:hover {
   background: #151a22;
+}
+
+.messageContent {
+  min-width: 0;
 }
 
 .avatar {
@@ -188,6 +214,75 @@
   line-height: 1.55;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.mention {
+  border-radius: 4px;
+  background: #343064;
+  color: #ddd9ff;
+  padding: 1px 3px;
+}
+
+.messageActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.messageActions button,
+.threadHeader button,
+.memberManager button {
+  min-height: 28px;
+  border: 1px solid #343b48;
+  border-radius: 7px;
+  background: #181d26;
+  color: #aeb6c2;
+  padding: 3px 7px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.messageActions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.messageActions button small {
+  color: inherit;
+  font-size: 10px;
+}
+
+.messageActions button:hover,
+.messageActions button:focus-visible,
+.threadHeader button:hover,
+.threadHeader button:focus-visible,
+.memberManager button:hover,
+.memberManager button:focus-visible {
+  border-color: #7469e8;
+  color: #fff;
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+}
+
+.messageActions button[data-active="true"] {
+  border-color: #645bd0;
+  background: #2b2850;
+  color: #e1ddff;
+}
+
+.messageActions button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.threadButton {
+  margin-left: 3px;
+  color: #a9a0ff !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
 }
 
 .provenance {
@@ -291,6 +386,12 @@
   font-size: 10px;
 }
 
+.composerHint {
+  margin: 5px 0 0;
+  color: #747e8d;
+  font-size: 10px;
+}
+
 .composer button {
   border: 1px solid #6157ca;
   border-radius: 8px;
@@ -318,6 +419,162 @@
   line-height: 1.45;
 }
 
+.memberManager {
+  border-bottom: 1px solid #292f3a;
+  padding: 11px 16px;
+  background: #0f131a;
+}
+
+.memberManager > summary {
+  color: #aeb6c2;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.memberManager form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 150px auto;
+  align-items: end;
+  gap: 9px;
+  margin-top: 11px;
+}
+
+.memberManager label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #8f99a7;
+  font-size: 10px;
+}
+
+.memberManager input,
+.memberManager select {
+  min-height: 36px;
+  border: 1px solid #343b48;
+  border-radius: 7px;
+  background: #151a22;
+  color: #edf0f5;
+  padding: 6px 8px;
+  font: inherit;
+}
+
+.memberList {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.memberList > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 9px;
+  border: 1px solid #292f3a;
+  border-radius: 7px;
+}
+
+.memberList > div > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.memberList small {
+  color: #7f8998;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.threadPane {
+  max-height: 720px;
+  border-left: 1px solid #292f3a;
+  background: #0e1218;
+}
+
+.threadHeader {
+  min-height: 63px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #292f3a;
+}
+
+.threadHeader h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.threadHeader h3:focus { outline: none; }
+.threadHeader small { color: #7f8998; }
+.threadHeader button { min-width: 30px; font-size: 20px; }
+
+.threadFeed {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0 8px;
+}
+
+.threadFeed .message {
+  grid-template-columns: 32px minmax(0, 1fr);
+  padding-inline: 13px;
+}
+
+.threadFeed .avatar {
+  width: 30px;
+  height: 30px;
+}
+
+.replyDivider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 7px 13px;
+  color: #858f9e;
+  font-size: 10px;
+}
+
+.replyDivider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #2a303b;
+}
+
+.threadStatus {
+  padding: 10px 14px;
+  color: #7f8998;
+  font-size: 11px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 1100px) {
+  .conversation[data-thread-open="true"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .threadPane {
+    max-height: 620px;
+    border-top: 1px solid #292f3a;
+    border-left: 0;
+  }
+}
+
 .error {
   border-color: #694148;
   color: #e6a0a7;
@@ -339,6 +596,10 @@
   }
 
   .channelCreate form {
+    grid-template-columns: 1fr;
+  }
+
+  .memberManager form {
     grid-template-columns: 1fr;
   }
 

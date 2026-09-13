@@ -1,0 +1,61 @@
+import { withAuth } from "@workos-inc/authkit-nextjs";
+import { NextRequest } from "next/server";
+import {
+  handleNativeReplyCreateBff,
+  handleNativeThreadListBff,
+} from "../../../../../../../../../native-chat-bff";
+import {
+  nativeChatJson,
+  nativeChatRouteError,
+  readNativeChatJson,
+  rejectCrossSiteMutation,
+} from "../../../../../../../../../native-chat-route";
+
+type Params = Promise<{
+  organizationId: string;
+  channelId: string;
+  rootMessageId: string;
+}>;
+
+export async function GET(_request: NextRequest, context: { params: Params }) {
+  const auth = await withAuth();
+  if (!auth.user || !auth.accessToken) {
+    return nativeChatJson({ detail: "Authentication required" }, 401);
+  }
+  try {
+    const { organizationId, channelId, rootMessageId } = await context.params;
+    const result = await handleNativeThreadListBff(
+      auth.accessToken,
+      organizationId,
+      channelId,
+      rootMessageId,
+    );
+    return nativeChatJson(result, 200);
+  } catch (error) {
+    return nativeChatRouteError(error, "Native thread request");
+  }
+}
+
+export async function POST(request: NextRequest, context: { params: Params }) {
+  const crossSite = rejectCrossSiteMutation(request);
+  if (crossSite) return crossSite;
+  const auth = await withAuth();
+  if (!auth.user || !auth.accessToken) {
+    return nativeChatJson({ detail: "Authentication required" }, 401);
+  }
+  try {
+    const { organizationId, channelId, rootMessageId } = await context.params;
+    const body = await readNativeChatJson(request, 24 * 1024);
+    const result = await handleNativeReplyCreateBff(
+      auth.accessToken,
+      organizationId,
+      channelId,
+      rootMessageId,
+      body,
+      request.headers.get("idempotency-key") ?? "",
+    );
+    return nativeChatJson(result, 201);
+  } catch (error) {
+    return nativeChatRouteError(error, "Native reply request");
+  }
+}

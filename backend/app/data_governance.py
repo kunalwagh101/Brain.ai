@@ -26,6 +26,7 @@ from app.models import (
     SourceIdentityObservation,
     SourceIdentityState,
 )
+from app.search_models import SearchDocument
 
 MAX_RETENTION_BATCH = 500
 _DELETION_STALE_AFTER = timedelta(minutes=15)
@@ -170,7 +171,7 @@ def append_audit_event(
         with db.begin_nested():
             db.add(event)
             db.flush()
-    except IntegrityError:
+    except IntegrityError as exc:
         existing = db.scalar(
             select(SecurityAuditEvent).where(
                 SecurityAuditEvent.organization_id == organization_id,
@@ -182,7 +183,7 @@ def append_audit_event(
         if existing.payload_sha256 != digest:
             raise DataGovernanceError(
                 "Audit event key was reused with different content"
-            )
+            ) from exc
         db.commit()
         return existing
     db.commit()
@@ -631,6 +632,12 @@ def execute_deletion_request(
             canonical_ids=canonical_ids,
         )
         if canonical_ids:
+            db.execute(
+                delete(SearchDocument).where(
+                    SearchDocument.organization_id == organization_id,
+                    SearchDocument.canonical_event_id.in_(canonical_ids),
+                )
+            )
             db.execute(
                 delete(CanonicalEvent).where(
                     CanonicalEvent.organization_id == organization_id,

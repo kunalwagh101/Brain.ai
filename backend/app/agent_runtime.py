@@ -1,9 +1,9 @@
 import hashlib
 import json
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Callable
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -55,6 +55,12 @@ class AgentAdvanceResult:
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+def _utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _sha256_text(value: str) -> str:
@@ -365,7 +371,7 @@ def decide_agent_step(
     if step.status != AgentStepStatus.WAITING_APPROVAL:
         raise AgentRuntimeError("Agent step is not waiting for approval")
     now = _now()
-    if step.approval_expires_at is None or step.approval_expires_at <= now:
+    if step.approval_expires_at is None or _utc(step.approval_expires_at) <= now:
         try:
             _expire_approval(db, run, step)
         except (DataGovernanceError, SQLAlchemyError) as exc:
@@ -679,7 +685,7 @@ def advance_agent_run(
 
     waiting = _pending_step(db, run, AgentStepStatus.WAITING_APPROVAL)
     if waiting is not None:
-        if waiting.approval_expires_at and waiting.approval_expires_at <= _now():
+        if waiting.approval_expires_at and _utc(waiting.approval_expires_at) <= _now():
             try:
                 _expire_approval(db, run, waiting)
             except (DataGovernanceError, SQLAlchemyError) as exc:
@@ -796,7 +802,11 @@ def advance_agent_run(
         tool = tool_definition(tool_name)
         policy = policies.get(tool_name, AgentToolPolicyMode.DENY)
         sequence = run.step_count + 1
-        if tool is None or not policy_valid_for_tool(tool, policy) or policy == AgentToolPolicyMode.DENY:
+        if (
+            tool is None
+            or not policy_valid_for_tool(tool, policy)
+            or policy == AgentToolPolicyMode.DENY
+        ):
             digest = _sha256_json(raw_arguments)
             step = AgentStep(
                 organization_id=organization_id,

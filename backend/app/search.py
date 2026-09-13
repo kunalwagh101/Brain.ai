@@ -1,5 +1,6 @@
 import json
 import math
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -21,6 +22,31 @@ from app.models import (
 )
 from app.search_models import SearchDocument, SearchEmbeddingStatus, Vector, vector_literal
 from app.work_graph_models import WorkGraphNode
+
+_KEYWORD_TOKEN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+_QUESTION_STOP_WORDS = frozenset(
+    {
+        "a",
+        "an",
+        "are",
+        "can",
+        "could",
+        "did",
+        "do",
+        "does",
+        "how",
+        "is",
+        "me",
+        "the",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "why",
+        "would",
+    }
+)
 
 
 class SearchMode(StrEnum):
@@ -401,8 +427,16 @@ def _keyword_hits(
         organization_id=organization_id,
         user_id=user_id,
     )
+    terms = [
+        token
+        for token in _KEYWORD_TOKEN_RE.findall(query)
+        if token.casefold() not in _QUESTION_STOP_WORDS
+    ]
+    if not terms:
+        terms = _KEYWORD_TOKEN_RE.findall(query)
+    normalized_query = " ".join(terms) or query
     if db.bind is not None and db.bind.dialect.name == "postgresql":
-        ts_query = func.plainto_tsquery("simple", query)
+        ts_query = func.plainto_tsquery("simple", normalized_query)
         vector = func.to_tsvector(
             "simple",
             func.coalesce(SearchDocument.title, "")
@@ -424,26 +458,30 @@ def _keyword_hits(
             for row in rows
         ]
 
-    pattern = f"%{query}%"
+    term_predicates = [
+        or_(
+            SearchDocument.title.ilike(f"%{term}%"),
+            SearchDocument.content.ilike(f"%{term}%"),
+        )
+        for term in terms
+    ]
     documents = list(
         db.scalars(
-            base.where(
-                or_(
-                    SearchDocument.title.ilike(pattern),
-                    SearchDocument.content.ilike(pattern),
-                )
-            )
+            base.where(and_(*term_predicates))
             .order_by(SearchDocument.occurred_at.desc())
             .limit(limit)
         )
     )
-    lowered = query.casefold()
+    lowered_terms = [term.casefold() for term in terms]
     return [
         SearchHit(
             document=document,
             score=float(
-                2 * document.title.casefold().count(lowered)
-                + document.content.casefold().count(lowered)
+                sum(
+                    2 * document.title.casefold().count(term)
+                    + document.content.casefold().count(term)
+                    for term in lowered_terms
+                )
             ),
         )
         for document in documents

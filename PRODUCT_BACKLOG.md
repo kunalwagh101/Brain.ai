@@ -282,7 +282,7 @@ Dependencies: E-01, E-02, E-06. Size: L. Indicator: admin workflow completion ra
 | Project progress | S-07.01.01, S-10.03.01 |
 | AI/API access visibility | S-06.03.01, S-10.08.01 |
 | AI/API usage/cost visibility | S-06.02.01, S-10.03.01 |
-| Slack/Discord-style company workspace | S-10.02.01, S-10.03.01 |
+| Slack/Discord-style company workspace | S-10.02.01, S-10.03.01, S-10.06.01 |
 | Human communication | S-10.01.01, S-10.06.01, S-10.06.02 |
 | Tenant/channel-scoped message threads | S-10.06.01 |
 | Exact-member mentions without identity guessing | S-10.06.01 |
@@ -297,12 +297,12 @@ Dependencies: E-01, E-02, E-06. Size: L. Indicator: admin workflow completion ra
 | Citations / no unsupported claims | S-05.02.01, S-10.03.01 |
 | Data provenance | S-03.01.01, S-03.02.01, S-10.05.01 |
 | Identity resolution | S-03.03.01 |
-| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01 |
-| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01 |
+| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01 |
+| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01 |
 | Observability | S-09.01.01 |
-| Migrations/rollback/backup | S-09.03.01 |
+| Migrations/rollback/backup | S-09.03.01, S-10.06.01 |
 | Latency/cost benchmarks | S-09.04.01 |
-| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01 |
+| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01 |
 | CI and lie-detector verifier | S-09.03.01 |
 | Agile/Scrum/Kanban artifacts | S-09.03.01 |
 

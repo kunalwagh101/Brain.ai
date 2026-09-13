@@ -62,6 +62,7 @@ export type NativeChannel = {
   can_post: boolean;
   can_manage_members: boolean;
   unread_count?: number;
+  latest_message_id?: string | null;
 };
 
 export type NativeChannelMember = {
@@ -89,6 +90,7 @@ export type NativeChannelUnread = {
   channel_id: string;
   unread_count: number;
   last_read_at: string | null;
+  latest_message_id: string | null;
 };
 
 export type NativeMessage = {

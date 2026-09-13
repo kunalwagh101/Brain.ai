@@ -73,7 +73,12 @@ mkdir -p \
   'app/api/brain/organizations/[organizationId]/evidence/uploads' \
   'app/api/brain/organizations/[organizationId]/evidence/[sourceId]' \
   'app/api/brain/organizations/[organizationId]/native-channels' \
-  'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages'
+  'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages' \
+  'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[rootMessageId]/replies' \
+  'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/reaction' \
+  'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/read' \
+  'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/members' \
+  'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/members/[userId]'
 cp docs/workos-activation/proxy.ts.template proxy.ts
 cp docs/workos-activation/app-auth-callback-route.ts.template app/auth/callback/route.ts
 cp docs/workos-activation/app-sign-in-route.ts.template app/sign-in/route.ts
@@ -82,6 +87,11 @@ cp docs/workos-activation/app-api-brain-evidence-upload-route.ts.template 'app/a
 cp docs/workos-activation/app-api-brain-evidence-delete-route.ts.template 'app/api/brain/organizations/[organizationId]/evidence/[sourceId]/route.ts'
 cp docs/workos-activation/app-api-brain-native-channels-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/route.ts'
 cp docs/workos-activation/app-api-brain-native-messages-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/route.ts'
+cp docs/workos-activation/app-api-brain-native-replies-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[rootMessageId]/replies/route.ts'
+cp docs/workos-activation/app-api-brain-native-reaction-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/reaction/route.ts'
+cp docs/workos-activation/app-api-brain-native-read-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/read/route.ts'
+cp docs/workos-activation/app-api-brain-native-members-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/members/route.ts'
+cp docs/workos-activation/app-api-brain-native-member-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/members/[userId]/route.ts'
 cp docs/workos-activation/app-layout.tsx.template app/layout.tsx
 cp docs/workos-activation/app-page.tsx.template app/page.tsx
 
@@ -92,3 +102,4 @@ node --test tests/*.test.mjs
 
 echo "WorkOS source activation compiled and passed repository frontend gates."
 echo "This is not production UAT. Complete docs/WORKOS_FRONTEND_ACCEPTANCE.md before marking S-10.04 DONE."
+echo "Complete UAT/F-10.06.md before marking S-10.06.01 DONE or accepted."

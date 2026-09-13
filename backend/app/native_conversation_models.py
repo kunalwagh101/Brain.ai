@@ -1,7 +1,17 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, UniqueConstraint, func
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models import Base
@@ -21,18 +31,22 @@ class NativeMessageMention(Base):
             "mentioned_user_id",
             "created_at",
         ),
+        ForeignKeyConstraint(
+            ["organization_id", "channel_id", "message_id"],
+            [
+                "native_messages.organization_id",
+                "native_messages.channel_id",
+                "native_messages.id",
+            ],
+            name="fk_native_message_mention_message_scope",
+            ondelete="CASCADE",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    organization_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
-    )
-    channel_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("native_channels.id", ondelete="CASCADE"), nullable=False
-    )
-    message_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("native_messages.id", ondelete="CASCADE"), nullable=False
-    )
+    organization_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    channel_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    message_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
     mentioned_user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -55,19 +69,26 @@ class NativeMessageReaction(Base):
             "organization_id",
             "message_id",
         ),
-        CheckConstraint("length(reaction) > 0", name="ck_native_reaction_not_empty"),
+        CheckConstraint(
+            "reaction IN ('👍', '❤️', '🎉', '👀', '✅')",
+            name="ck_native_reaction_allowed",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "channel_id", "message_id"],
+            [
+                "native_messages.organization_id",
+                "native_messages.channel_id",
+                "native_messages.id",
+            ],
+            name="fk_native_message_reaction_message_scope",
+            ondelete="CASCADE",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    organization_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
-    )
-    channel_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("native_channels.id", ondelete="CASCADE"), nullable=False
-    )
-    message_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("native_messages.id", ondelete="CASCADE"), nullable=False
-    )
+    organization_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    channel_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    message_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -90,21 +111,26 @@ class NativeChannelReadState(Base):
             "organization_id",
             "user_id",
         ),
+        ForeignKeyConstraint(
+            ["organization_id", "channel_id", "last_read_message_id"],
+            [
+                "native_messages.organization_id",
+                "native_messages.channel_id",
+                "native_messages.id",
+            ],
+            name="fk_native_channel_read_state_message_scope",
+            ondelete="CASCADE",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    organization_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
-    )
-    channel_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("native_channels.id", ondelete="CASCADE"), nullable=False
-    )
+    organization_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    channel_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    last_read_message_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("native_messages.id", ondelete="CASCADE"), nullable=False
-    )
+    last_read_message_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    last_read_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
     last_read_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

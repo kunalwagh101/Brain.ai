@@ -13,7 +13,11 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.data_governance import create_deletion_request, execute_deletion_request
+from app.data_governance import (
+    append_audit_event,
+    create_deletion_request,
+    execute_deletion_request,
+)
 from app.data_governance_models import DeletionScope, DeletionStatus
 from app.evidence_models import (
     EvidenceKind,
@@ -35,7 +39,6 @@ from app.models import (
 from app.raw_events import persist_raw_event
 from app.search_models import SearchDocument, SearchEmbeddingStatus
 from app.security_audit import audit_authorization_decision
-from app.data_governance import append_audit_event
 from app.work_graph import project_canonical_event
 
 GENERIC_EVIDENCE_PROVIDER = "generic_upload"
@@ -79,7 +82,10 @@ def _normalize_text(value: str) -> str:
     value = value.replace("\r\n", "\n").replace("\r", "\n").replace("\x00", "")
     value = value.strip()
     if not value:
-        raise EvidenceIngestionError("empty_extracted_text", "Evidence contains no extractable text")
+        raise EvidenceIngestionError(
+            "empty_extracted_text",
+            "Evidence contains no extractable text",
+        )
     if len(value) > MAX_EXTRACTED_CHARS:
         raise EvidenceIngestionError(
             "extracted_text_too_large",
@@ -114,7 +120,10 @@ def _extract_pdf(content: bytes) -> str:
             if text:
                 pages.append(f"[Page {page_number}]\n{text}")
     except Exception as exc:
-        raise EvidenceIngestionError("pdf_text_extraction_failed", "PDF text extraction failed") from exc
+        raise EvidenceIngestionError(
+            "pdf_text_extraction_failed",
+            "PDF text extraction failed",
+        ) from exc
     return _normalize_text("\n\n".join(pages))
 
 

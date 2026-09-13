@@ -1,5 +1,4 @@
 import json
-import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -214,6 +213,9 @@ def test_source_object_deletion_removes_evidence_and_suppresses_reingestion(
         message_ts="1710000000.000100",
         occurred_at=now,
     )
+    raw_id = raw.id
+    canonical_id = canonical.id
+    document_id = document.id
     deletion = create_deletion_request(
         db_session,
         organization_id=organization.id,
@@ -239,9 +241,9 @@ def test_source_object_deletion_removes_evidence_and_suppresses_reingestion(
     )
 
     db_session.expire_all()
-    assert db_session.get(RawEvent, raw.id) is None
-    assert db_session.get(CanonicalEvent, canonical.id) is None
-    assert db_session.get(SearchDocument, document.id) is None
+    assert db_session.get(RawEvent, raw_id) is None
+    assert db_session.get(CanonicalEvent, canonical_id) is None
+    assert db_session.get(SearchDocument, document_id) is None
 
     replay_payload = {
         "event": {
@@ -286,6 +288,9 @@ def test_derived_retention_keeps_raw_but_prevents_rebuild(db_session: Session) -
         message_ts="1600000000.000100",
         occurred_at=now - timedelta(days=90),
     )
+    raw_id = raw.id
+    canonical_id = canonical.id
+    document_id = document.id
     set_retention_policy(
         db_session,
         organization_id=organization.id,
@@ -300,13 +305,13 @@ def test_derived_retention_keeps_raw_but_prevents_rebuild(db_session: Session) -
     assert run.derived_events_deleted == 1
 
     db_session.expire_all()
-    retained_raw = db_session.get(RawEvent, raw.id)
+    retained_raw = db_session.get(RawEvent, raw_id)
     assert retained_raw is not None
-    assert db_session.get(CanonicalEvent, canonical.id) is None
-    assert db_session.get(SearchDocument, document.id) is None
+    assert db_session.get(CanonicalEvent, canonical_id) is None
+    assert db_session.get(SearchDocument, document_id) is None
     tombstone = db_session.scalar(
         select(DerivedRetentionTombstone).where(
-            DerivedRetentionTombstone.raw_event_id == raw.id
+            DerivedRetentionTombstone.raw_event_id == raw_id
         )
     )
     assert tombstone is not None

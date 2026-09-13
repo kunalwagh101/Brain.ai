@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Increment 24 — Slack/Discord-quality Brain conversations
+
+- Made the selected Brain channel the primary workspace surface with unread badges, responsive thread context, visible agent identity, resolved mention highlighting, reaction controls, empty/error states and keyboard-visible controls.
+- Added tenant/channel-scoped root replies, exact active readable-member `@email` mentions and five allow-listed per-user idempotent reactions.
+- Replaced timestamp/random-UUID unread ordering with an atomic per-channel message sequence and monotonic per-user read cursor; unread summaries are batched and include the latest root or reply cursor.
+- Added composite tenant/channel/message foreign keys for thread, mention, reaction and read-state rows, plus a database reaction allow-list.
+- Added complete same-origin WorkOS BFF templates for channel messages, replies, reactions, read state and restricted-channel member changes with bounded JSON, UUID/role validation, safe errors and cross-site mutation rejection.
+- Hardened structured logging so a caller-provided field cannot overwrite a reserved `LogRecord` attribute and crash ingestion/message projection.
+- Added focused backend security/idempotency/read-order tests, frontend source contracts, architecture/rollback documentation, manual UAT and demo commands.
+
+Local automated checks passed on 2026-09-13: repository-wide Ruff, all 299 backend tests, 24 focused conversation tests, frontend lint/build, 12 frontend tests with 1 intentional unauthenticated skip, and PostgreSQL offline migration compilation. The delivery verifier was not completed after the product owner directed the run to be skipped; no verifier PASS is claimed. S-10.06.01 remains `IN_REVIEW` until the verifier, live PostgreSQL upgrade/downgrade, official WorkOS activation and authenticated responsive/keyboard browser UAT pass.
+
 ### Increment 21 — Permission-aware Executive Overview
 
 - Added an `audit.read`-gated organisation Executive Overview that composes existing project, decision/blocker, AI usage/cost/budget and external API usage sources of truth rather than persisting a second dashboard state.

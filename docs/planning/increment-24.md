@@ -28,7 +28,7 @@ The existing S-10.01 surface provides flat persisted messages, restricted-channe
 
 ## Data and privacy assessment
 
-Conversation bodies remain in the existing NativeMessage and evidence pipeline. New rows store only relationship state: message IDs, exact resolved user IDs, an allow-listed reaction and a monotonic read timestamp. There is no fuzzy name matching, cross-tenant lookup, outbound notification body, new model training data or analytics score.
+Conversation bodies remain in the existing NativeMessage and evidence pipeline. New rows store only relationship state: message IDs, exact resolved user IDs, an allow-listed reaction and a monotonic numeric read sequence. There is no fuzzy name matching, cross-tenant lookup, outbound notification body, new model training data or analytics score.
 
 ## Scope
 
@@ -48,3 +48,15 @@ Conversation bodies remain in the existing NativeMessage and evidence pipeline. 
 ## Dependencies and acceptance truth
 
 S-10.01 repository implementation is the upstream code foundation and is in review. Final DONE still requires an executable backend/migration run and S-10.04 authenticated WorkOS browser UAT. Until those gates pass, S-10.06.01 may advance only to IN_REVIEW.
+
+## Retrospective — 2026-09-13
+
+No accepted S-10.06.01 scope was cut. Direct messages, voice/video, presence, editing/deletion, attachments and push notifications were already explicit later-stage or out-of-scope work and remain visible in the backlog/planning record.
+
+The estimate understated integration repair. The staged baseline did not import cleanly, reused a request-specific audit value under a semantic idempotency key, used a timestamp/random-UUID unread cursor, lacked the actual thread/reaction/read WorkOS routes and rendered only a flat feed. The L size was still appropriate, but more of it belonged to correctness and secure integration than visual styling.
+
+What worked: reusing NativeMessage, current channel permissions, evidence projection and the existing server-session BFF boundary avoided a second chat store or client-side authorization model. The permanent unread fix is an atomic per-channel sequence, not a timing delay.
+
+Next-process change: create and inspect the Ready record before a story is pulled. Compile the staged backend and enumerate every browser endpoint during refinement so missing route/decorator drift is found before `IN_PROGRESS`.
+
+The final delivery-verifier run was not completed after its dynamic test execution was stopped by the environment safety layer and the product owner directed work to move forward without it. This was not converted into a PASS. S-10.06.01 stays `IN_REVIEW`, and the verifier remains an explicit acceptance gate.

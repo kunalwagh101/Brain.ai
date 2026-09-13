@@ -11,11 +11,9 @@ from app.models import (
     MembershipRole,
     Organization,
     RawEvent,
-    ResourceAccessLevel,
     User,
 )
 from app.native_chat_models import (
-    NativeChannel,
     NativeMessage,
     NativeMessageActorKind,
     NativeMessageProjectionStatus,
@@ -183,7 +181,7 @@ def test_message_projects_to_canonical_work_graph_and_search(
     assert sent.status_code == 201
     message_id = sent.json()["id"]
 
-    message = db_session.get(NativeMessage, message_id)
+    message = db_session.get(NativeMessage, uuid.UUID(message_id))
     assert message is not None
     assert message.actor_kind == NativeMessageActorKind.USER
     assert message.projection_status == NativeMessageProjectionStatus.READY

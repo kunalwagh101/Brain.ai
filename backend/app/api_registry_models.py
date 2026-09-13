@@ -3,6 +3,7 @@ from datetime import datetime
 from enum import StrEnum
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
@@ -11,7 +12,6 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
-    JSON,
     String,
     UniqueConstraint,
     func,
@@ -213,3 +213,4 @@ class APIUsageObservation(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+

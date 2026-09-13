@@ -91,6 +91,8 @@ def test_http_runner_uses_aggregate_status_without_response_body() -> None:
                 query=None,
                 body={"prompt": "test-only"},
                 expected_statuses={200},
+                expected_json_fields=None,
+                required_non_null_json_fields=[],
                 timeout_seconds=1,
             )
 

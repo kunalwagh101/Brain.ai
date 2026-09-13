@@ -282,6 +282,25 @@
 
 .emptyNav { margin: 4px 8px 0; }
 
+.channelName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unreadBadge {
+  min-width: 21px;
+  margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #6d5dfc;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+}
+
 .projectDot {
   width: 8px;
   height: 8px;

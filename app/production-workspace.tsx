@@ -4,6 +4,7 @@ import {
   listNativeChannelMembers,
   listNativeChannels,
   listNativeMessages,
+  listNativeUnread,
   listOrganizations,
   listProjectStatuses,
   listRuntimeOptions,
@@ -58,11 +59,12 @@ export async function ProductionWorkspace({
     );
   }
 
-  const [navigation, projects, evidenceSources, nativeChannels, overview, runtimes] = await Promise.all([
+  const [navigation, projects, evidenceSources, channelRows, unreadRows, overview, runtimes] = await Promise.all([
     listWorkspaceNavigation(accessToken, organization.id),
     listProjectStatuses(accessToken, organization.id),
     listEvidenceSources(accessToken, organization.id),
     listNativeChannels(accessToken, organization.id),
+    listNativeUnread(accessToken, organization.id),
     EXECUTIVE_ROLES.has(organization.role)
       ? getExecutiveOverview(accessToken, organization.id)
       : Promise.resolve(null),
@@ -70,6 +72,12 @@ export async function ProductionWorkspace({
       ? listRuntimeOptions(accessToken, organization.id)
       : Promise.resolve([]),
   ]);
+  const unreadByChannel = new Map(unreadRows.map((item) => [item.channel_id, item]));
+  const nativeChannels = channelRows.map((channel) => ({
+    ...channel,
+    unread_count: unreadByChannel.get(channel.id)?.unread_count ?? 0,
+    latest_message_id: unreadByChannel.get(channel.id)?.latest_message_id ?? null,
+  }));
 
   const selectedChannel = requestedChannelId
     ? nativeChannels.find((item) => item.id === requestedChannelId) ?? null
@@ -101,6 +109,9 @@ export async function ProductionWorkspace({
   const nativeMemberEndpoint = selectedChannel && nativeChatMutationBase && selectedChannel.can_manage_members
     ? `${nativeChatMutationBase}/${encodeURIComponent(selectedChannel.id)}/members`
     : null;
+  const nativeConversationEndpoint = selectedChannel && enableNativeChatBff
+    ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/native-channels/${encodeURIComponent(selectedChannel.id)}`
+    : null;
 
   return (
     <WorkspaceShell
@@ -123,6 +134,7 @@ export async function ProductionWorkspace({
       nativeChatMutationBase={nativeChatMutationBase}
       nativeMessageEndpoint={nativeMessageEndpoint}
       nativeMemberEndpoint={nativeMemberEndpoint}
+      nativeConversationEndpoint={nativeConversationEndpoint}
       canCreateNativeChannel={canCreateNativeChannel}
       signOutAction={signOutAction}
     />

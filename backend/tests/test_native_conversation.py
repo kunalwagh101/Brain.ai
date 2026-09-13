@@ -1,10 +1,13 @@
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.main import app
 from app.models import Membership, MembershipRole, Organization, User
+from app.native_chat_models import NativeMessage
+from app.native_conversation_models import NativeMessageMention
 
 
 def _seed(db: Session, suffix: str):
@@ -116,6 +119,11 @@ def test_threads_and_exact_mentions_are_scoped_and_idempotent(
     )
     assert reply.status_code == 201
     assert reply.json()["thread_root_id"] == root.json()["id"]
+    persisted_root = db_session.get(NativeMessage, uuid.UUID(root.json()["id"]))
+    persisted_reply = db_session.get(NativeMessage, uuid.UUID(reply.json()["id"]))
+    assert persisted_root is not None
+    assert persisted_reply is not None
+    assert persisted_reply.message_sequence > persisted_root.message_sequence
 
     repeated = _reply(
         client,
@@ -151,6 +159,48 @@ def test_threads_and_exact_mentions_are_scoped_and_idempotent(
     assert roots.json()[0]["reply_count"] == 1
     assert [row["id"] for row in replies.json()] == [reply.json()["id"]]
     assert nested.status_code == 404
+
+
+def test_all_message_entry_points_share_exact_mention_resolution(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, _ = _seed(db_session, "legacy-mention")
+    channel = _channel(client, organization, owner)
+    _as(owner)
+    created = client.post(
+        f"/api/v1/organizations/{organization.id}/native-channels/"
+        f"{channel['id']}/messages",
+        headers={"Idempotency-Key": "legacy-mention"},
+        json={"body": f"Legacy path still resolves @{member.email}."},
+    )
+    assert created.status_code == 201
+    mentions = list(
+        db_session.scalars(
+            select(NativeMessageMention).where(
+                NativeMessageMention.message_id == uuid.UUID(created.json()["id"])
+            )
+        )
+    )
+    assert [row.mentioned_user_id for row in mentions] == [member.id]
+
+
+def test_restricted_channel_does_not_resolve_unauthorized_mentions(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, _ = _seed(db_session, "hidden-mention")
+    channel = _channel(client, organization, owner, visibility="restricted")
+    message = _root(
+        client,
+        organization,
+        channel["id"],
+        owner,
+        f"Do not notify @{member.email} or @missing@example.com.",
+        "hidden-mention",
+    )
+    assert message.status_code == 201
+    assert message.json()["mentions"] == []
 
 
 def test_reactions_are_allow_listed_per_user_and_idempotent(
@@ -228,6 +278,7 @@ def test_unread_state_is_per_user_excludes_own_and_never_moves_back(
     member_summary = client.get(summary_url)
     assert owner_summary.json()[0]["unread_count"] == 0
     assert member_summary.json()[0]["unread_count"] == 2
+    assert member_summary.json()[0]["latest_message_id"] == second["id"]
 
     read_url = (
         f"/api/v1/organizations/{organization.id}/native-conversation/"
@@ -244,16 +295,18 @@ def test_unread_state_is_per_user_excludes_own_and_never_moves_back(
     assert read_second.json()["unread_count"] == 0
     assert stale_read.json()["last_read_at"] == read_second.json()["last_read_at"]
 
-    _root(
+    third = _root(
         client,
         organization,
         channel["id"],
         owner,
         "Third update.",
         "unread-third",
-    )
+    ).json()
     _as(member)
-    assert client.get(summary_url).json()[0]["unread_count"] == 1
+    latest_summary = client.get(summary_url).json()[0]
+    assert latest_summary["unread_count"] == 1
+    assert latest_summary["latest_message_id"] == third["id"]
 
 
 def test_revoked_restricted_member_gets_no_conversation_content(

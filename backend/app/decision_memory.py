@@ -537,6 +537,7 @@ def review_memory_candidate(
             previous_summary=previous_summary,
             new_summary=new_summary,
             reason=normalized_reason,
+            created_at=datetime.now(UTC),
         )
     )
     db.commit()

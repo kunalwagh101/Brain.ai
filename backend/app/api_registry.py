@@ -161,6 +161,7 @@ def _history(
             previous_environment=previous_environment,
             new_environment=new_environment,
             reason=clean_reason,
+            created_at=_now(),
         )
     )
 

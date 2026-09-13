@@ -1,12 +1,11 @@
-import re
 import uuid
 from collections import defaultdict
 
-from sqlalchemy import String, and_, cast, func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Membership, User
+from app.models import User
 from app.native_chat import (
     NativeChatConflictError,
     NativeChatError,
@@ -22,13 +21,6 @@ from app.native_conversation_models import (
 )
 
 ALLOWED_REACTIONS = ("👍", "❤️", "🎉", "👀", "✅")
-_MENTION_EMAIL_RE = re.compile(
-    r"(?<![A-Za-z0-9._%+\-])@([A-Za-z0-9.!#$%&'*+/=?^_`{|}~\-]+"
-    r"@[A-Za-z0-9.-]+\.[A-Za-z]{2,63})",
-    re.IGNORECASE,
-)
-
-
 def visible_message(
     db: Session,
     *,
@@ -80,65 +72,11 @@ def list_thread_replies(
                 NativeMessage.channel_id == channel_id,
                 NativeMessage.thread_root_id == root_message_id,
             )
-            .order_by(NativeMessage.created_at, NativeMessage.id)
+            .order_by(NativeMessage.message_sequence)
             .limit(limit)
         )
     )
     return root, replies
-
-
-def sync_exact_mentions(
-    db: Session,
-    *,
-    channel: NativeChannel,
-    message: NativeMessage,
-) -> list[NativeMessageMention]:
-    emails = {item.casefold() for item in _MENTION_EMAIL_RE.findall(message.body)}
-    if not emails:
-        return []
-    users = list(
-        db.scalars(
-            select(User)
-            .join(Membership, Membership.user_id == User.id)
-            .where(
-                Membership.organization_id == channel.organization_id,
-                User.status == "active",
-                func.lower(User.email).in_(emails),
-            )
-        )
-    )
-    existing = {
-        row.mentioned_user_id: row
-        for row in db.scalars(
-            select(NativeMessageMention).where(
-                NativeMessageMention.message_id == message.id
-            )
-        )
-    }
-    for user in users:
-        if user.id in existing:
-            continue
-        if not can_read_channel(db, channel, user_id=user.id):
-            continue
-        row = NativeMessageMention(
-            organization_id=channel.organization_id,
-            channel_id=channel.id,
-            message_id=message.id,
-            mentioned_user_id=user.id,
-        )
-        db.add(row)
-        existing[user.id] = row
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-    return list(
-        db.scalars(
-            select(NativeMessageMention)
-            .where(NativeMessageMention.message_id == message.id)
-            .order_by(NativeMessageMention.created_at, NativeMessageMention.id)
-        )
-    )
 
 
 def add_reaction(
@@ -253,21 +191,101 @@ def unread_count(
         ),
     ]
     if state is not None:
-        conditions.append(
-            or_(
-                NativeMessage.created_at > state.last_read_at,
-                and_(
-                    NativeMessage.created_at == state.last_read_at,
-                    cast(NativeMessage.id, String)
-                    > str(state.last_read_message_id),
-                ),
-            )
-        )
+        conditions.append(NativeMessage.message_sequence > state.last_read_sequence)
     count = int(
         db.scalar(select(func.count()).select_from(NativeMessage).where(*conditions))
         or 0
     )
     return count, state
+
+
+def channel_unread_summaries(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    channels: list[NativeChannel],
+    user_id: uuid.UUID,
+) -> dict[
+    uuid.UUID,
+    tuple[int, NativeChannelReadState | None, uuid.UUID | None],
+]:
+    """Return personal unread counts and latest cursors in three bounded queries."""
+    channel_ids = [channel.id for channel in channels]
+    if not channel_ids:
+        return {}
+
+    states = {
+        state.channel_id: state
+        for state in db.scalars(
+            select(NativeChannelReadState).where(
+                NativeChannelReadState.organization_id == organization_id,
+                NativeChannelReadState.channel_id.in_(channel_ids),
+                NativeChannelReadState.user_id == user_id,
+            )
+        )
+    }
+    unread_by_channel = {
+        channel_id: int(count)
+        for channel_id, count in db.execute(
+            select(NativeMessage.channel_id, func.count())
+            .outerjoin(
+                NativeChannelReadState,
+                and_(
+                    NativeChannelReadState.organization_id
+                    == NativeMessage.organization_id,
+                    NativeChannelReadState.channel_id == NativeMessage.channel_id,
+                    NativeChannelReadState.user_id == user_id,
+                ),
+            )
+            .where(
+                NativeMessage.organization_id == organization_id,
+                NativeMessage.channel_id.in_(channel_ids),
+                or_(
+                    NativeMessage.author_user_id.is_(None),
+                    NativeMessage.author_user_id != user_id,
+                ),
+                or_(
+                    NativeChannelReadState.id.is_(None),
+                    NativeMessage.message_sequence
+                    > NativeChannelReadState.last_read_sequence,
+                ),
+            )
+            .group_by(NativeMessage.channel_id)
+        )
+    }
+    latest_sequences = (
+        select(
+            NativeMessage.channel_id.label("channel_id"),
+            func.max(NativeMessage.message_sequence).label("message_sequence"),
+        )
+        .where(
+            NativeMessage.organization_id == organization_id,
+            NativeMessage.channel_id.in_(channel_ids),
+        )
+        .group_by(NativeMessage.channel_id)
+        .subquery()
+    )
+    latest_by_channel = {
+        channel_id: message_id
+        for channel_id, message_id in db.execute(
+            select(NativeMessage.channel_id, NativeMessage.id).join(
+                latest_sequences,
+                and_(
+                    latest_sequences.c.channel_id == NativeMessage.channel_id,
+                    latest_sequences.c.message_sequence
+                    == NativeMessage.message_sequence,
+                ),
+            )
+        )
+    }
+    return {
+        channel_id: (
+            unread_by_channel.get(channel_id, 0),
+            states.get(channel_id),
+            latest_by_channel.get(channel_id),
+        )
+        for channel_id in channel_ids
+    }
 
 
 def mark_read(
@@ -294,18 +312,20 @@ def mark_read(
         )
         .with_for_update()
     )
-    cursor = (message.created_at, str(message.id))
+    cursor = message.message_sequence
     if state is None:
         state = NativeChannelReadState(
             organization_id=organization_id,
             channel_id=channel_id,
             user_id=user_id,
             last_read_message_id=message.id,
+            last_read_sequence=message.message_sequence,
             last_read_at=message.created_at,
         )
         db.add(state)
-    elif cursor > (state.last_read_at, str(state.last_read_message_id)):
+    elif cursor > state.last_read_sequence:
         state.last_read_message_id = message.id
+        state.last_read_sequence = message.message_sequence
         state.last_read_at = message.created_at
     try:
         db.commit()
@@ -323,8 +343,9 @@ def mark_read(
                 "read_state_conflict",
                 "Read state could not be updated",
             ) from None
-        if cursor > (state.last_read_at, str(state.last_read_message_id)):
+        if cursor > state.last_read_sequence:
             state.last_read_message_id = message.id
+            state.last_read_sequence = message.message_sequence
             state.last_read_at = message.created_at
             db.commit()
     db.refresh(state)

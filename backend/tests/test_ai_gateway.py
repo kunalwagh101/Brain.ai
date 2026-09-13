@@ -480,6 +480,7 @@ def test_production_provider_url_requires_https_and_allowlisted_host() -> None:
         environment="production",
         app_secret="production-secret",
         workos_client_id="client_123",
+        metrics_enabled=False,
         ai_provider_allowed_hosts="api.approved.example",
     )
     approved = "https://api.approved.example/v1/chat/completions"
@@ -491,6 +492,6 @@ def test_production_provider_url_requires_https_and_allowlisted_host() -> None:
         )
     with pytest.raises(AIGatewayError, match="not approved"):
         validate_provider_api_url(
-            "https://169.254.169.254/latest/meta-data",
+            "https://unapproved.invalid/v1/chat/completions",
             settings=settings,
         )

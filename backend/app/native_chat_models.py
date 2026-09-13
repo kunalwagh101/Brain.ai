@@ -3,10 +3,12 @@ from datetime import datetime
 from enum import StrEnum
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     String,
     Text,
@@ -54,6 +56,11 @@ class NativeChannel(Base):
         UniqueConstraint(
             "work_graph_node_id",
             name="uq_native_channel_work_graph_node",
+        ),
+        UniqueConstraint(
+            "organization_id",
+            "id",
+            name="uq_native_channel_org_id",
         ),
         Index(
             "ix_native_channel_org_status_created",
@@ -106,6 +113,12 @@ class NativeChannel(Base):
         nullable=False,
     )
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_message_sequence: Mapped[int] = mapped_column(
+        BigInteger,
+        default=0,
+        server_default="0",
+        nullable=False,
+    )
 
 
 class NativeChannelMembership(Base):
@@ -158,6 +171,27 @@ class NativeMessage(Base):
             "canonical_event_id",
             name="uq_native_message_canonical_event",
         ),
+        UniqueConstraint(
+            "organization_id",
+            "channel_id",
+            "id",
+            name="uq_native_message_org_channel_id",
+        ),
+        UniqueConstraint(
+            "channel_id",
+            "message_sequence",
+            name="uq_native_message_channel_sequence",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "channel_id", "thread_root_id"],
+            [
+                "native_messages.organization_id",
+                "native_messages.channel_id",
+                "native_messages.id",
+            ],
+            name="fk_native_message_thread_root_scope",
+            ondelete="CASCADE",
+        ),
         CheckConstraint("body_char_count > 0", name="ck_native_message_body_chars"),
         CheckConstraint(
             "(actor_kind = 'user' AND author_user_id IS NOT NULL AND agent_run_id IS NULL) OR "
@@ -179,9 +213,8 @@ class NativeMessage(Base):
     channel_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("native_channels.id", ondelete="CASCADE"), nullable=False
     )
-    thread_root_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("native_messages.id", ondelete="CASCADE"), nullable=True
-    )
+    thread_root_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    message_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
     actor_kind: Mapped[NativeMessageActorKind] = mapped_column(
         Enum(
             NativeMessageActorKind,

@@ -1,4 +1,5 @@
 import io
+import uuid
 
 from docx import Document as DocxDocument
 from sqlalchemy import select
@@ -86,7 +87,7 @@ def test_upload_projects_immutable_provenance_into_search(
     assert response.status_code == 201
     source_id = response.json()["id"]
 
-    source = db_session.get(EvidenceSource, source_id)
+    source = db_session.get(EvidenceSource, uuid.UUID(source_id))
     assert source is not None
     assert source.status == EvidenceSourceStatus.ACTIVE
     assert source.raw_content is not None
@@ -103,7 +104,10 @@ def test_upload_projects_immutable_provenance_into_search(
     )
     assert documents
     assert all(document.source_provider == "generic_upload" for document in documents)
-    assert all(document.provenance["source_sha256"] == source.content_sha256 for document in documents)
+    assert all(
+        document.provenance["source_sha256"] == source.content_sha256
+        for document in documents
+    )
     assert all(document.provenance["evidence_source_id"] == source_id for document in documents)
 
     canonical = list(
@@ -205,7 +209,7 @@ def test_delete_physically_removes_source_bytes_and_searchable_derivatives(
 
     deleted = client.delete(f"/api/v1/organizations/{organization.id}/evidence/{source_id}")
     assert deleted.status_code == 200
-    source = db_session.get(EvidenceSource, source_id)
+    source = db_session.get(EvidenceSource, uuid.UUID(source_id))
     assert source is not None
     assert source.status == EvidenceSourceStatus.DELETED
     assert source.raw_content is None
@@ -229,7 +233,7 @@ def test_revoked_generic_adapter_disappears_from_search(
     uploaded = _upload(client, organization, member, key="revoke-key")
     assert uploaded.status_code == 201
     source_id = uploaded.json()["id"]
-    source = db_session.get(EvidenceSource, source_id)
+    source = db_session.get(EvidenceSource, uuid.UUID(source_id))
     assert source is not None
     connection = db_session.get(IntegrationConnection, source.integration_connection_id)
     assert connection is not None

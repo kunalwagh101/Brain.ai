@@ -2,7 +2,6 @@ import os
 import subprocess
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -74,3 +73,4 @@ def test_docker_build_context_excludes_local_secret_and_backup_material() -> Non
     required_patterns = (".env", ".venv/", "*.dump", "*.dump.sha256", "*.sql")
     for pattern in required_patterns:
         assert pattern in dockerignore
+

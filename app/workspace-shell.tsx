@@ -87,6 +87,7 @@ export function WorkspaceShell({
   nativeChatMutationBase,
   nativeMessageEndpoint,
   nativeMemberEndpoint,
+  nativeConversationEndpoint,
   canCreateNativeChannel,
   signOutAction,
 }: {
@@ -109,6 +110,7 @@ export function WorkspaceShell({
   nativeChatMutationBase: string | null;
   nativeMessageEndpoint: string | null;
   nativeMemberEndpoint: string | null;
+  nativeConversationEndpoint: string | null;
   canCreateNativeChannel: boolean;
   signOutAction?: (formData: FormData) => Promise<void>;
 }) {
@@ -186,7 +188,12 @@ export function WorkspaceShell({
                 aria-current={selectedNativeChannel?.id === channel.id ? "page" : undefined}
               >
                 <span>{channel.visibility === "restricted" ? "▣" : "#"}</span>
-                {channel.name}
+                <span className={styles.channelName}>{channel.name}</span>
+                {channel.unread_count ? (
+                  <span className={styles.unreadBadge} aria-label={`${channel.unread_count} unread`}>
+                    {channel.unread_count > 99 ? "99+" : channel.unread_count}
+                  </span>
+                ) : null}
               </a>
             )) : <p className={styles.emptyNav}>No visible Brain channels</p>}
           </section>
@@ -239,8 +246,8 @@ export function WorkspaceShell({
       <section className={styles.mainSurface} id="brain-workspace-main">
         <header className={styles.topbar}>
           <div>
-            <p>{organization.name} / workspace</p>
-            <h1 id="home">Home</h1>
+            <p>{organization.name} / Brain channels</p>
+            <h1 id="home">{selectedNativeChannel ? `# ${selectedNativeChannel.name}` : "Brain channels"}</h1>
           </div>
           <div className={styles.topbarActions}>
             <form className={styles.mobileOrgForm} method="get">
@@ -255,6 +262,34 @@ export function WorkspaceShell({
             <span className={styles.liveBadge}>Permission-aware live data</span>
           </div>
         </header>
+
+        <section className={styles.panel} id="native-chat" aria-label="Brain native channels">
+          {canCreateNativeChannel ? (
+            <NativeChannelCreate organizationId={organization.id} endpoint={nativeChatMutationBase} />
+          ) : null}
+          {invalidRequestedChannel ? (
+            <div className={styles.roleNotice} role="alert">
+              <strong>Channel unavailable.</strong>
+              <span>The requested channel is not in your current permission-filtered channel list.</span>
+            </div>
+          ) : selectedNativeChannel ? (
+            <NativeChatPanel
+              channel={selectedNativeChannel}
+              key={`${selectedNativeChannel.id}:${selectedNativeChannel.latest_message_id ?? "empty"}`}
+              messages={nativeMessages}
+              members={selectedNativeMembers}
+              mutationEndpoint={nativeMessageEndpoint}
+              memberEndpoint={nativeMemberEndpoint}
+              conversationEndpoint={nativeConversationEndpoint}
+            />
+          ) : (
+            <div className={styles.emptyState}>
+              {canCreateNativeChannel
+                ? "No Brain channels exist yet. Create the first one above when the authenticated mutation route is active."
+                : "No Brain channels are currently visible to this account."}
+            </div>
+          )}
+        </section>
 
         <section className={styles.welcomeCard}>
           <div>
@@ -301,32 +336,6 @@ export function WorkspaceShell({
             <span>Your workspace remains available; Brain does not widen executive/audit access for this role.</span>
           </section>
         )}
-
-        <section className={styles.panel} id="native-chat" aria-label="Brain native channels">
-          {canCreateNativeChannel ? (
-            <NativeChannelCreate organizationId={organization.id} endpoint={nativeChatMutationBase} />
-          ) : null}
-          {invalidRequestedChannel ? (
-            <div className={styles.roleNotice} role="alert">
-              <strong>Channel unavailable.</strong>
-              <span>The requested channel is not in your current permission-filtered channel list.</span>
-            </div>
-          ) : selectedNativeChannel ? (
-            <NativeChatPanel
-              channel={selectedNativeChannel}
-              messages={nativeMessages}
-              members={selectedNativeMembers}
-              mutationEndpoint={nativeMessageEndpoint}
-              memberEndpoint={nativeMemberEndpoint}
-            />
-          ) : (
-            <div className={styles.emptyState}>
-              {canCreateNativeChannel
-                ? "No Brain channels exist yet. Create the first one above when the authenticated mutation route is active."
-                : "No Brain channels are currently visible to this account."}
-            </div>
-          )}
-        </section>
 
         <section className={styles.panel} id="tracks" aria-labelledby="tracks-heading">
           <header className={styles.panelHeader}>

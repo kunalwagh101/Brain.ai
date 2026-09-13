@@ -18,11 +18,11 @@ from app.agent_runtime import (
     decide_agent_step,
 )
 from app.ai_gateway import (
-    AIProviderAdapterKind,
     AIProviderResult,
     create_model_configuration,
     create_provider_configuration,
 )
+from app.ai_gateway_models import AIProviderAdapterKind
 from app.data_governance_models import SecurityAuditEvent
 from app.models import Membership, MembershipRole, Organization, User
 from app.permissions import Permission, role_has_permission
@@ -321,7 +321,12 @@ def test_high_risk_action_pauses_then_executes_after_explicit_approval(
     assert step is not None
     assert step.status == AgentStepStatus.WAITING_APPROVAL
     assert step.arguments_json["key"] == "security-review"
-    assert db_session.scalar(select(WorkGraphNode).where(WorkGraphNode.stable_key.like("%security-review"))) is None
+    node = db_session.scalar(
+        select(WorkGraphNode).where(
+            WorkGraphNode.stable_key.like("%security-review")
+        )
+    )
+    assert node is None
 
     decide_agent_step(
         db_session,

@@ -1,6 +1,6 @@
 import uuid
-from contextlib import contextmanager
 from collections.abc import Iterator
+from contextlib import contextmanager
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -38,3 +38,4 @@ def agent_run_lock(db: Session, run_id: uuid.UUID) -> Iterator[None]:
                 text("SELECT pg_advisory_unlock(:key)"),
                 {"key": key},
             )
+

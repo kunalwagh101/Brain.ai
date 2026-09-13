@@ -13,6 +13,24 @@ A story may enter `READY` only when all conditions below are true. `IN_PROGRESS`
 - Out-of-scope items are explicit; nothing is silently removed from scope.
 - Tasks are small engineering steps and the story remains an independently shippable vertical slice.
 
+## Increment 24 readiness record — S-10.06.01
+
+Decision: `NOT READY` under the formal dependency rule when it was pulled, now `IN_REVIEW`. The session-open audit on 2026-09-13 found no dedicated Ready record while S-10.01.01 remained `IN_REVIEW`. This is recorded process drift, not silently reclassified as compliant. The project owner directed work to continue, so the already-active item was finished rather than pulling another story.
+
+Dependencies: S-10.01.01 supplies the usable NativeChannel/NativeMessage, permission, restricted-membership and evidence-projection contracts but is not engineering-DONE. S-10.04.01 remains the named external dependency for official WorkOS package activation and authenticated browser acceptance.
+
+Data/contracts known: one existing NativeMessage store, exact organisation Membership email, current `can_read_channel`/`can_write_channel`, per-message evidence projection, five explicit reactions, one root-only thread link and a per-channel numeric message sequence define the complete shape. No AI model, fuzzy identity rule, second chat store or browser-held backend token is permitted.
+
+Open questions: none changes S-10.06.01. OQ-002 applies only to the separate S-10.06.02 direct-message privacy policy. Presence/WebSockets, voice/video, editing/deletion, attachments and external notifications are explicit out-of-scope items, not hidden assumptions.
+
+Security/data integrity: every service entry rechecks current organisation/channel visibility; revoked restricted access returns no conversation content; composite foreign keys bind thread, mention, reaction and read rows to one tenant/channel/message; reactions are allow-listed in service and database; messages and reactions are idempotent; the read cursor advances only by atomic message sequence; browser mutations require an authenticated same-origin BFF route with bounded JSON and safe errors.
+
+Migration/rollback: migration `20260912_0020` deterministically backfills existing message order, advances each channel counter, then adds scoped constraints and conversation tables. Rollback requires stopping message writes, exporting conversation relationship/read data if it must survive, downgrading to `20260912_0019`, deploying code that does not read the removed columns/tables, and verifying root message/evidence integrity.
+
+Leading indicators: zero tenant/revocation disclosures; correct per-user unread counts; thread/reaction idempotency; active channel participation and unread-to-read conversion. No production latency, adoption or cost result is invented before real measurement.
+
+Current verification: 24 focused backend tests, 11 frontend source-contract tests, frontend lint/build and PostgreSQL offline migration compilation passed locally on 2026-09-13. Live PostgreSQL upgrade/downgrade, official WorkOS activation and authenticated browser accessibility/responsive UAT remain open; therefore the story cannot enter DONE.
+
 ## Increment 21 readiness record — S-07.02.01
 
 Decision: `BLOCKED`. The project owner explicitly directed implementation to continue against the staged upstream contracts, so the Executive Overview backend is present on `increment-10-ai-provider-gateway`; formal Ready is not satisfied while S-07.01.01 and S-06.02.01 are not engineering-DONE.

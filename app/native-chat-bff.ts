@@ -10,7 +10,9 @@ import {
   type NativeChannel,
   type NativeChannelCreateInput,
   type NativeChannelMember,
+  type NativeChannelUnread,
   type NativeMessage,
+  type NativeReaction,
 } from "./brain-api";
 import {
   BrainMembershipError,
@@ -91,6 +93,17 @@ async function requireChatWriter(accessToken: string, organizationId: string) {
     return organization;
   } catch (error) {
     if (error instanceof NativeChatBffRequestError) throw error;
+    if (error instanceof BrainMembershipError) {
+      throw new NativeChatBffRequestError(error.status, error.message);
+    }
+    throw error;
+  }
+}
+
+async function requireChatReader(accessToken: string, organizationId: string) {
+  try {
+    return await requireBrainOrganizationMembership(accessToken, organizationId);
+  } catch (error) {
     if (error instanceof BrainMembershipError) {
       throw new NativeChatBffRequestError(error.status, error.message);
     }
@@ -232,7 +245,7 @@ export async function handleNativeThreadListBff(
   channelId: string,
   rootMessageId: string,
 ): Promise<NativeMessage[]> {
-  await requireBrainOrganizationMembership(accessToken, organizationId);
+  await requireChatReader(accessToken, organizationId);
   normalizedUuid(channelId, "channelId");
   normalizedUuid(rootMessageId, "rootMessageId");
   return listNativeReplies(accessToken, organizationId, channelId, rootMessageId);
@@ -287,7 +300,7 @@ export async function handleNativeReadBff(
   channelId: string,
   body: unknown,
 ): Promise<NativeChannelUnread> {
-  await requireBrainOrganizationMembership(accessToken, organizationId);
+  await requireChatReader(accessToken, organizationId);
   normalizedUuid(channelId, "channelId");
   const { through_message_id } = parseNativeReadInput(body);
   return markNativeChannelRead(

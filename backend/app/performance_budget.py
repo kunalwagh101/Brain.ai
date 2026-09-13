@@ -123,7 +123,9 @@ def evaluate_budget(
         reasons.append("exact AI cost is incomplete for this scenario")
     if budget.maximum_cost_nano_usd_per_success is not None:
         if exact_cost_missing:
-            reasons.append("exact AI cost is incomplete; configured cost budget cannot be evaluated")
+            reasons.append(
+                "exact AI cost is incomplete; configured cost budget cannot be evaluated"
+            )
         elif cost_nano_usd_per_success > budget.maximum_cost_nano_usd_per_success:
             reasons.append(
                 "cost_nano_usd_per_success "

@@ -99,7 +99,7 @@ def persist_raw_event(
                 provider=provider,
                 source_event_type=source_event_type,
                 delivery_kind=delivery_kind,
-                created=False,
+                event_created=False,
             )
             return RawEventPersistResult(event=existing, created=False)
 
@@ -114,6 +114,6 @@ def persist_raw_event(
             provider=provider,
             source_event_type=source_event_type,
             delivery_kind=delivery_kind,
-            created=True,
+            event_created=True,
         )
         return RawEventPersistResult(event=event, created=True)

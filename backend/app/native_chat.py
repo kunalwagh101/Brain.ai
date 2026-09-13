@@ -4,7 +4,7 @@ import re
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -32,6 +32,7 @@ from app.native_chat_models import (
     NativeMessageActorKind,
     NativeMessageProjectionStatus,
 )
+from app.native_conversation_models import NativeMessageMention
 from app.permissions import Permission, role_has_permission
 from app.raw_events import persist_raw_event
 from app.search import project_search_document
@@ -45,6 +46,11 @@ MAX_MESSAGE_CHARS = 20_000
 MAX_CHANNEL_NAME_CHARS = 160
 MAX_CHANNEL_DESCRIPTION_CHARS = 500
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
+_MENTION_EMAIL_RE = re.compile(
+    r"(?<![A-Za-z0-9._%+\-])@([A-Za-z0-9.!#$%&'*+/=?^_`{|}~\-]+"
+    r"@[A-Za-z0-9.-]+\.[A-Za-z]{2,63})",
+    re.IGNORECASE,
+)
 
 
 class NativeChatError(ValueError):
@@ -864,6 +870,65 @@ def _existing_idempotent_message(
     return existing
 
 
+def sync_exact_mentions(
+    db: Session,
+    *,
+    channel: NativeChannel,
+    message: NativeMessage,
+) -> list[NativeMessageMention]:
+    emails = {item.casefold() for item in _MENTION_EMAIL_RE.findall(message.body)}
+    if not emails:
+        return []
+    users = list(
+        db.scalars(
+            select(User)
+            .join(Membership, Membership.user_id == User.id)
+            .where(
+                Membership.organization_id == channel.organization_id,
+                User.status == "active",
+                func.lower(User.email).in_(emails),
+            )
+        )
+    )
+    existing = {
+        row.mentioned_user_id: row
+        for row in db.scalars(
+            select(NativeMessageMention).where(
+                NativeMessageMention.message_id == message.id
+            )
+        )
+    }
+    for user in users:
+        if user.id in existing or not can_read_channel(db, channel, user_id=user.id):
+            continue
+        row = NativeMessageMention(
+            organization_id=channel.organization_id,
+            channel_id=channel.id,
+            message_id=message.id,
+            mentioned_user_id=user.id,
+        )
+        db.add(row)
+        existing[user.id] = row
+    expected_user_ids = set(existing)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+    rows = list(
+        db.scalars(
+            select(NativeMessageMention)
+            .where(NativeMessageMention.message_id == message.id)
+            .order_by(NativeMessageMention.created_at, NativeMessageMention.id)
+        )
+    )
+    if expected_user_ids - {row.mentioned_user_id for row in rows}:
+        raise NativeChatConflictError(
+            "mention_sync_failed",
+            "Message mentions could not be saved",
+        )
+    return rows
+
+
 def _create_message_row(
     db: Session,
     *,
@@ -900,6 +965,18 @@ def _create_message_row(
     if existing is not None:
         return existing
 
+    message_sequence = db.scalar(
+        update(NativeChannel)
+        .where(
+            NativeChannel.id == channel_id,
+            NativeChannel.organization_id == organization_id,
+        )
+        .values(last_message_sequence=NativeChannel.last_message_sequence + 1)
+        .returning(NativeChannel.last_message_sequence)
+    )
+    if message_sequence is None:
+        raise NativeChatError("channel_not_found", "Channel not found")
+
     message = NativeMessage(
         organization_id=organization_id,
         channel_id=channel_id,
@@ -907,6 +984,7 @@ def _create_message_row(
         author_user_id=author_user_id,
         agent_run_id=agent_run_id,
         thread_root_id=thread_root_id,
+        message_sequence=message_sequence,
         body=body,
         body_sha256=body_sha256,
         body_char_count=len(body),
@@ -926,6 +1004,7 @@ def _create_message_row(
             actor_kind=actor_kind,
             author_user_id=author_user_id,
             agent_run_id=agent_run_id,
+            thread_root_id=thread_root_id,
         )
         if existing is None:
             raise
@@ -1008,13 +1087,16 @@ def post_user_message(
         actor_user_id=actor_user_id,
         resource_type="native_channel",
         resource_id=channel.id,
-        request_id=request_id,
+        # This is one semantic creation event, even when a client retries with
+        # a different HTTP request ID under the same idempotency key.
+        request_id=None,
         metadata={
             "native_message_id": str(message.id),
             "projection_status": message.projection_status.value,
             "body_sha256": message.body_sha256,
         },
     )
+    sync_exact_mentions(db, channel=channel, message=message)
     return message
 
 
@@ -1081,6 +1163,7 @@ def post_agent_message(
             "body_sha256": message.body_sha256,
         },
     )
+    sync_exact_mentions(db, channel=channel, message=message)
     return message
 
 
@@ -1111,8 +1194,7 @@ def list_channel_messages(
     rows = list(
         db.scalars(
             query.order_by(
-                NativeMessage.created_at.desc(),
-                NativeMessage.id.desc(),
+                NativeMessage.message_sequence.desc(),
             ).limit(limit)
         )
     )

@@ -6,6 +6,7 @@ Standard-library only by design.
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -118,6 +119,12 @@ def verify_done(
     evidence = {match.group(1): match.groups()[1:] for match in EVIDENCE_RE.finditer(combined)}
     tested = 0
     total = len(done)
+    command_environment = os.environ.copy()
+    local_venv_bin = ROOT / ".venv" / "bin"
+    if local_venv_bin.is_dir():
+        command_environment["PATH"] = os.pathsep.join(
+            (str(local_venv_bin), command_environment.get("PATH", ""))
+        )
 
     for story in sorted(done):
         block = evidence.get(story)
@@ -157,6 +164,7 @@ def verify_done(
                 text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
+                env=command_environment,
                 timeout=300,
                 check=False,
             )

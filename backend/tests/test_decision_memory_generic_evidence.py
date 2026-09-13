@@ -66,7 +66,10 @@ def test_transcript_upload_projects_decision_and_blocker_candidates(db_session: 
     assert len(candidates) == 2
     assert all(candidate.state == MemoryState.CANDIDATE for candidate in candidates)
     assert all(candidate.search_document_id == document.id for candidate in candidates)
-    assert all(candidate.work_graph_node_id == document.work_graph_node_id for candidate in candidates)
+    assert all(
+        candidate.work_graph_node_id == document.work_graph_node_id
+        for candidate in candidates
+    )
 
 
 def test_reextraction_does_not_supersede_human_reopened_candidate(db_session: Session) -> None:

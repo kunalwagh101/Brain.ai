@@ -3,6 +3,7 @@ from datetime import datetime
 from enum import StrEnum
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -10,7 +11,6 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
-    JSON,
     String,
     UniqueConstraint,
     func,
@@ -189,3 +189,4 @@ class AgentStep(Base):
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     execution_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+

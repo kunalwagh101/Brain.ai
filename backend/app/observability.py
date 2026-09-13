@@ -4,9 +4,10 @@ import logging
 import re
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from fastapi import HTTPException, Request, Response, status
 from opentelemetry import propagate, trace
@@ -53,7 +54,7 @@ _SAFE_FIELDS = frozenset(
         "cost_nano_usd",
         "source_event_type",
         "delivery_kind",
-        "created",
+        "event_created",
         "dependency",
         "dependency_status",
         "worker",
@@ -61,6 +62,10 @@ _SAFE_FIELDS = frozenset(
         "remaining",
     }
 )
+_LOG_RECORD_RESERVED = frozenset(logging.makeLogRecord({}).__dict__) | {
+    "asctime",
+    "message",
+}
 
 HTTP_REQUESTS = Counter(
     "brain_http_requests_total",
@@ -194,7 +199,13 @@ def bind_organization_context(organization_id: uuid.UUID | str) -> None:
 
 
 def log_event(logger: logging.Logger, level: int, event: str, **fields: Any) -> None:
-    safe = {key: value for key, value in fields.items() if key in _SAFE_FIELDS}
+    # Structured telemetry must never be able to crash the request path by
+    # overwriting a built-in LogRecord attribute.
+    safe = {
+        key: value
+        for key, value in fields.items()
+        if key in _SAFE_FIELDS and key not in _LOG_RECORD_RESERVED
+    }
     logger.log(level, event, extra=safe)
 
 

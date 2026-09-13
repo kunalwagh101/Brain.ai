@@ -2,14 +2,23 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agent_models import AgentDefinition, AgentRun
 from app.database import get_db
-from app.models import User
+from app.models import Membership, User
 from app.native_chat import (
     NativeChatConflictError,
     NativeChatError,
@@ -17,20 +26,22 @@ from app.native_chat import (
     list_visible_channels,
     post_user_message,
 )
-from app.native_chat_models import NativeMessage, NativeMessageActorKind
-from app.native_chat_models import NativeMessageProjectionStatus
+from app.native_chat_models import (
+    NativeMessage,
+    NativeMessageActorKind,
+    NativeMessageProjectionStatus,
+)
 from app.native_conversation import (
     add_reaction,
+    channel_unread_summaries,
     list_thread_replies,
     mark_read,
     message_affordances,
     remove_reaction,
-    sync_exact_mentions,
     unread_count,
     visible_message,
 )
-from app.permissions import AuthorizationContext, Permission
-from app.permissions import require_organization_permission
+from app.permissions import AuthorizationContext, Permission, require_organization_permission
 
 router = APIRouter(
     prefix="/organizations/{organization_id}/native-conversation",
@@ -81,6 +92,7 @@ class ChannelUnreadRead(BaseModel):
     channel_id: uuid.UUID
     unread_count: int
     last_read_at: datetime | None
+    latest_message_id: uuid.UUID | None
 
 
 class MarkReadWrite(BaseModel):
@@ -120,15 +132,26 @@ def _raise_chat_error(exc: NativeChatError) -> None:
 def _actor_labels(db: Session, messages: list[NativeMessage]) -> dict[uuid.UUID, str]:
     user_ids = {message.author_user_id for message in messages if message.author_user_id}
     run_ids = {message.agent_run_id for message in messages if message.agent_run_id}
+    organization_ids = {message.organization_id for message in messages}
     labels: dict[uuid.UUID, str] = {}
     if user_ids:
-        for user in db.scalars(select(User).where(User.id.in_(user_ids))):
+        for user in db.scalars(
+            select(User)
+            .join(Membership, Membership.user_id == User.id)
+            .where(
+                User.id.in_(user_ids),
+                Membership.organization_id.in_(organization_ids),
+            )
+        ).unique():
             labels[user.id] = user.display_name or user.email
     if run_ids:
         rows = db.execute(
             select(AgentRun.id, AgentDefinition.name)
             .join(AgentDefinition, AgentDefinition.id == AgentRun.agent_definition_id)
-            .where(AgentRun.id.in_(run_ids))
+            .where(
+                AgentRun.id.in_(run_ids),
+                AgentRun.organization_id.in_(organization_ids),
+            )
         ).all()
         for run_id, name in rows:
             labels[run_id] = f"{name} · agent"
@@ -180,19 +203,21 @@ def list_channel_unread(
         organization_id=organization_id,
         user_id=authorization.user_id,
     )
+    summaries = channel_unread_summaries(
+        db,
+        organization_id=organization_id,
+        channels=channels,
+        user_id=authorization.user_id,
+    )
     result = []
     for channel in channels:
-        count, read_state = unread_count(
-            db,
-            organization_id=organization_id,
-            channel=channel,
-            user_id=authorization.user_id,
-        )
+        count, read_state, latest_message_id = summaries[channel.id]
         result.append(
             ChannelUnreadRead(
                 channel_id=channel.id,
                 unread_count=count,
                 last_read_at=read_state.last_read_at if read_state else None,
+                latest_message_id=latest_message_id,
             )
         )
     return result
@@ -245,14 +270,6 @@ def _send(
         thread_root_id=thread_root_id,
         request_id=request_id,
     )
-    channel, _ = visible_message(
-        db,
-        organization_id=organization_id,
-        channel_id=channel_id,
-        message_id=message.id,
-        user_id=actor_user_id,
-    )
-    sync_exact_mentions(db, channel=channel, message=message)
     return message
 
 
@@ -387,9 +404,8 @@ def put_reaction(
     return next(item for item in reactions if item["reaction"] == payload.reaction)
 
 
-@router.request(
+@router.delete(
     "/channels/{channel_id}/messages/{message_id}/reaction",
-    methods=["DELETE"],
     status_code=status.HTTP_204_NO_CONTENT,
 )
 def delete_reaction(
@@ -452,4 +468,5 @@ def mark_channel_read(
         channel_id=channel_id,
         unread_count=count,
         last_read_at=state.last_read_at,
+        latest_message_id=payload.through_message_id,
     )

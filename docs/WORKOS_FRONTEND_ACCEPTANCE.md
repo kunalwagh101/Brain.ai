@@ -180,7 +180,7 @@ Repo-side implementation now includes:
 - `tests/workspace-contract.test.mjs` — browser-boundary/source contracts;
 - `docs/workos-activation/*` — reviewed production activation templates including Ask Brain and evidence BFF routes;
 - `scripts/install-workos-authkit.sh` and `scripts/activate-workos-authkit.sh` — package/activation gates;
-- `UAT/F-10.02.md`, `UAT/F-10.03.md`, `UAT/F-10.04.md`, `UAT/F-10.05.md` — feature acceptance contracts.
+- `UAT/F-10.02.md`, `UAT/F-10.03.md`, `UAT/F-10.04.md`, `UAT/F-10.05.md`, `UAT/F-10.06.md` — feature acceptance contracts.
 
 No source-presence statement above is a PASS claim.
 

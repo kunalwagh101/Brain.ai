@@ -40,6 +40,7 @@ exclude = ["migrations*", "tests*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+pythonpath = ["."]
 
 [tool.ruff]
 line-length = 100

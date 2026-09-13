@@ -17,25 +17,25 @@ DONE | S-03.01.01 | F-03.01 | Engineering evidence in TRACEABILITY.md; realistic
 DONE | S-03.02.01 | F-03.02 | Engineering evidence in TRACEABILITY.md; Slack/GitHub real-data + frontend UAT remains pending
 DONE | S-03.03.01 | F-03.03 | Engineering evidence in TRACEABILITY.md; real provider identity + frontend/manual UAT remains pending
 DONE | S-04.01.01 | F-04.01 | Engineering evidence in TRACEABILITY.md; real Slack/GitHub graph + frontend/manual UAT remains pending
-BLOCKED | S-04.02.01 | F-04.02 | Backend implementation is staged and hardened for generic evidence + human-authoritative review; formal review remains blocked until S-05.01.01 has executable passing verification
+BLOCKED | S-04.02.01 | F-04.02 | Backend implementation is staged and hardened for generic evidence + human-authoritative review; external dependency: real evidence evaluation/UAT, after S-05.01.01 verification
 IN_REVIEW | S-05.01.01 | F-05.01 | Implementation/docs/tests including provenance contract exist; acceptance phase started on 2026-09-11, but latest GitHub jobs failed before any workflow step executed and no local/Render passing evidence exists
-BLOCKED | S-05.02.01 | F-05.02 | Backend RAG implementation is staged including generic evidence integration, strict output contract and cache-aware exact cost; dependency verification, real staging/eval/performance, WorkOS frontend build and manual UAT remain open
+BLOCKED | S-05.02.01 | F-05.02 | Backend RAG implementation is staged including generic evidence integration, strict output contract and cache-aware exact cost; external dependency: real AI provider staging/evaluation/performance and WorkOS browser UAT
 IN_REVIEW | S-06.01.01 | F-06.01 | Provider registry/gateway implementation, migration, tests, docs and cache-token usage propagation are staged; executable passing verification remains outstanding
-BLOCKED | S-06.02.01 | F-06.02 | Cache-aware usage/cost/budget implementation and request-scoped cost audit are staged; tests are written but unexecuted and S-06.01.01 remains unverified
+BLOCKED | S-06.02.01 | F-06.02 | Cache-aware usage/cost/budget implementation and request-scoped cost audit are staged; external dependency: real provider usage/cost reconciliation, after S-06.01.01 verification
 IN_REVIEW | S-06.03.01 | F-06.03 | External API registry/lifecycle/expiry implementation is staged; executable passing verification remains outstanding
-BLOCKED | S-07.01.01 | F-07.01 | Evidence-backed project-status backend, deterministic structured progress, migration, tests/docs/UAT are staged; depends on S-04.02.01 completion plus executable verification and production frontend UAT
-BLOCKED | S-07.02.01 | F-07.02 | Permission-aware executive overview, AI spend/budget risk, API activity, provenance, tests/docs/UAT are staged; depends on S-07.01.01 + S-06.02.01 completion and executable/frontend UAT
-BLOCKED | S-08.01.01 | F-08.01 | Governed agent runtime is staged; dependencies and this story still lack executable passing verification
+BLOCKED | S-07.01.01 | F-07.01 | Evidence-backed project-status backend, deterministic structured progress, migration, tests/docs/UAT are staged; external dependency: production frontend UAT, after S-04.02.01 completion
+BLOCKED | S-07.02.01 | F-07.02 | Permission-aware executive overview, AI spend/budget risk, API activity, provenance, tests/docs/UAT are staged; external dependency: production frontend UAT, after S-07.01.01 + S-06.02.01
+BLOCKED | S-08.01.01 | F-08.01 | Governed agent runtime is staged; external dependency: real tool/provider safety UAT after upstream dependency verification
 IN_REVIEW | S-09.01.01 | F-09.01 | Observability implementation/tests/docs/UAT are staged; executable passing verification remains outstanding
 IN_REVIEW | S-09.02.01 | F-09.02 | Audit/retention/deletion implementation/tests/docs/UAT are staged; executable PostgreSQL/Ruff/Pytest/Delivery Verifier evidence remains outstanding
 BLOCKED | S-09.03.01 | F-09.03 | Release/rollback/restore work plus a concrete Render staging Blueprint are staged; real deployment/recovery exercise and OQ-007 production topology remain unresolved
-BLOCKED | S-09.04.01 | F-09.04 | Performance/cost benchmark work is staged; no real Ask Brain staging performance run exists yet
+BLOCKED | S-09.04.01 | F-09.04 | Performance/cost benchmark work is staged; external dependency: a real Ask Brain staging target and provider credentials
 IN_REVIEW | S-10.01.01 | F-10.01 | Native channel/message persistence, evidence projection, restricted memberships, API/BFF/UI and tests are implemented; executable CI, migration and authenticated browser UAT evidence remain pending
-BLOCKED | S-10.02.01 | F-10.02 | Workspace shell, real organisation switching, navigation API/client, responsive controls, tests/docs/UAT are staged; authenticated browser acceptance cannot advance until S-10.04 official WorkOS activation exists
-BLOCKED | S-10.03.01 | F-10.03 | Project/memory/company-pulse/evidence surfaces, runtime discovery and citation-first Ask Brain UI are staged; live authenticated Ask Brain/browser acceptance depends on S-10.04
-BLOCKED | S-10.04.01 | F-10.04 | Official WorkOS Next.js 16 templates, guarded install/activation scripts and BFF security contract are staged; blocked on real npm package/lockfile installation plus authenticated browser execution
+BLOCKED | S-10.02.01 | F-10.02 | Workspace shell, real organisation switching, navigation API/client, responsive controls, tests/docs/UAT are staged; external dependency: official WorkOS activation and authenticated browser acceptance
+BLOCKED | S-10.03.01 | F-10.03 | Project/memory/company-pulse/evidence surfaces, runtime discovery and citation-first Ask Brain UI are staged; external dependency: live authenticated WorkOS/Ask Brain browser acceptance
+BLOCKED | S-10.04.01 | F-10.04 | Official WorkOS Next.js 16 templates, guarded install/activation scripts and BFF security contract are staged; external dependency: real WorkOS configuration plus authenticated browser execution
 BLOCKED | S-10.05.01 | F-10.05 | Repository implementation is staged; external S-10.04 WorkOS activation plus executable backend/browser acceptance remain pending
-IN_PROGRESS | S-10.06.01 | F-10.06 | Building focused channel UX plus tenant-safe threads, exact-member mentions, reactions and per-user unread state on the existing S-10.01 foundation
+IN_REVIEW | S-10.06.01 | F-10.06 | Ruff, 299 backend tests and frontend build/tests pass locally; verifier was skipped by product-owner direction, and live PostgreSQL/WorkOS/browser UAT remain pending
 BLOCKED | S-10.06.02 | F-10.06 | Permission-safe DMs require S-10.01.01 plus explicit OQ-002 private-message policy
 BACKLOG | S-10.07.01 | F-10.07 | Developer/agent workspace over governed repo/agent contracts
 BACKLOG | S-10.08.01 | F-10.08 | Workspace admin UI for integrations, members, permissions and AI/API governance
@@ -174,7 +174,7 @@ Repo-side staging now:
 
 Formal state: `BLOCKED`. The current environment cannot obtain the official npm packages/real lockfile, and no authenticated WorkOS browser/session execution has occurred. The active root remains the explicitly labelled preview until this external gate is satisfied.
 
-### S-10.05.01 Governed Files & Evidence Workspace — IN_PROGRESS
+### S-10.05.01 Governed Files & Evidence Workspace — BLOCKED
 
 Staged now:
 
@@ -197,13 +197,33 @@ Still required before review/acceptance:
 - run real browser UAT proving upload -> Search/Ask Brain -> delete/revoke disappearance and restricted-source isolation;
 - run accessibility/responsive verification.
 
-Formal state: `IN_PROGRESS`. No executable PASS or browser UAT is claimed.
+Formal state: `BLOCKED`, matching the fixed board row. No executable PASS or browser UAT is claimed.
+
+### S-10.06.01 Slack/Discord-quality Brain conversations — IN_REVIEW
+
+Implemented and locally verified on 2026-09-13:
+
+- channel-first workspace layout with personal unread badges;
+- same-channel root threads with a responsive, keyboard-closeable thread pane;
+- exact permitted-member `@email` resolution and server-resolved mention highlighting;
+- five allow-listed, per-user idempotent reactions with aggregate counts;
+- atomic per-channel message sequence and monotonic per-user read cursor;
+- batched unread summaries with the latest message cursor, including thread replies;
+- composite tenant/channel/message foreign keys that reject cross-scope conversation rows;
+- visibly distinct agent messages and preserved evidence provenance;
+- authenticated same-origin WorkOS route templates for roots, replies, reactions, reads and restricted-channel member changes;
+- safe bounded JSON, identifier/role validation and cross-site mutation rejection;
+- focused backend tests, frontend source-contract tests, frontend lint/build and PostgreSQL offline migration compilation.
+
+Repository-wide Ruff and all 299 backend tests also pass. The full frontend build/test run reports 12 passed and 1 intentional unauthenticated skip. The delivery verifier was not completed after the product owner directed execution to be skipped; no verifier PASS is claimed.
+
+Formal state: `IN_REVIEW`. The session-open audit found that this story had been pulled without a dedicated Definition-of-Ready record while S-10.01 was still `IN_REVIEW`; that process drift is now recorded in `DEFINITION_OF_READY.md`. No accepted S-10.06.01 scope was silently removed. Final DONE remains blocked on a delivery-verifier PASS, real PostgreSQL upgrade/downgrade exercise, official S-10.04 WorkOS activation and the authenticated desktop/mobile/keyboard UAT in `UAT/F-10.06.md`.
 
 ## Acceptance phase
 
 `S-05.01.01` stays `IN_REVIEW`. Acceptance execution has now started, but the latest branch-head GitHub runs for Backend CI, Delivery Verifier and Release Gate all failed before any workflow step executed; their job step lists were empty. This supplies no pytest/Ruff/verifier result and does not satisfy the gate. The required local and Render verification must still prove tenant isolation, current permission filtering, revocation, provenance and retrieval quality before dependent features can advance to accepted states.
 
-After S-05.01.01 obtains real passing execution evidence, run the dependent executable suites/migrations, real OpenAI/Terra compatibility and cache-aware exact-cost smoke, representative Ask Brain retrieval/RAG evaluation, human citation review, staging performance, decision-memory precision/UAT, project-status permission/revocation UAT, Executive Overview permission/cost/budget/API reconciliation UAT, and the official WorkOS authenticated frontend/manual paths including S-10.05 evidence lifecycle UAT.
+After S-05.01.01 obtains real passing execution evidence, run the dependent executable suites/migrations, real OpenAI/Terra compatibility and cache-aware exact-cost smoke, representative Ask Brain retrieval/RAG evaluation, human citation review, staging performance, decision-memory precision/UAT, project-status permission/revocation UAT, Executive Overview permission/cost/budget/API reconciliation UAT, and the official WorkOS authenticated frontend/manual paths including S-10.05 evidence lifecycle and S-10.06 conversation UAT.
 
 Production quality gates remain: retrieval recall >=90%, zero forbidden evidence exposure/grounding-contract failures, every exact generated claim-citation pair human reviewed, semantic citation correctness >=98%, Decision/Blocker precision >=90% on the agreed representative set, and Ask Brain p95 <10 seconds on the accepted staging runtime.
 

@@ -238,7 +238,11 @@ def _run_read(db: Session, run: AgentRun) -> AgentRunRead:
     )
 
 
-@router.post("/definitions", response_model=AgentDefinitionRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/definitions",
+    response_model=AgentDefinitionRead,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_definition(
     organization_id: uuid.UUID,
     payload: AgentDefinitionCreate,

@@ -44,6 +44,69 @@ test("workspace shell uses real navigation, evidence and no employee scoring sur
   assert.doesNotMatch(text, /employee worth/i);
 });
 
+test("Brain channels expose unread, exact mentions, reactions and accessible threads", async () => {
+  const [workspace, shell, panel] = await Promise.all([
+    source("app/production-workspace.tsx"),
+    source("app/workspace-shell.tsx"),
+    source("app/native-chat-panel.tsx"),
+  ]);
+
+  assert.match(workspace, /listNativeUnread/);
+  assert.match(workspace, /latest_message_id/);
+  assert.match(shell, /unreadBadge/);
+  assert.match(shell, /nativeConversationEndpoint/);
+  assert.match(panel, /message\.mentions\.map/);
+  assert.match(panel, /aria-pressed/);
+  assert.match(panel, /Reply in thread/);
+  assert.match(panel, /aria-labelledby="thread-heading"/);
+  assert.match(panel, /event\.key === "Escape"/);
+  assert.match(panel, /credentials: "same-origin"/);
+  assert.doesNotMatch(panel, /Authorization\s*:/);
+  assert.doesNotMatch(panel, /Bearer |accessToken|localStorage|sessionStorage/);
+});
+
+test("native channel BFF validates membership, identifiers and bounded inputs", async () => {
+  const [bff, route] = await Promise.all([
+    source("app/native-chat-bff.ts"),
+    source("app/native-chat-route.ts"),
+  ]);
+
+  assert.match(bff, /requireChatReader/);
+  assert.match(bff, /requireChatWriter/);
+  assert.match(bff, /ALLOWED_REACTIONS/);
+  assert.match(bff, /normalizeIdempotencyKey/);
+  assert.match(bff, /normalizedUuid\(rootMessageId/);
+  assert.match(route, /origin !== request\.nextUrl\.origin/);
+  assert.match(route, /fetchSite !== "same-origin"/);
+  assert.match(route, /TextEncoder/);
+  assert.match(route, /SAFE_UPSTREAM_STATUSES/);
+});
+
+test("WorkOS activation includes every native conversation route", async () => {
+  const files = [
+    "docs/workos-activation/app-api-brain-native-channels-route.ts.template",
+    "docs/workos-activation/app-api-brain-native-messages-route.ts.template",
+    "docs/workos-activation/app-api-brain-native-replies-route.ts.template",
+    "docs/workos-activation/app-api-brain-native-reaction-route.ts.template",
+    "docs/workos-activation/app-api-brain-native-read-route.ts.template",
+    "docs/workos-activation/app-api-brain-native-members-route.ts.template",
+    "docs/workos-activation/app-api-brain-native-member-route.ts.template",
+  ];
+  const [activation, ...routes] = await Promise.all([
+    source("scripts/activate-workos-authkit.sh"),
+    ...files.map(source),
+  ]);
+
+  for (const [index, route] of routes.entries()) {
+    assert.match(route, /withAuth\(\)/, files[index]);
+    assert.match(route, /Cache-Control|nativeChatJson/, files[index]);
+    assert.match(activation, new RegExp(files[index].split("/").at(-1).replaceAll(".", "\\.")));
+  }
+  for (const route of routes.filter((text) => /POST|PUT|DELETE/.test(text))) {
+    assert.match(route, /rejectCrossSiteMutation/);
+  }
+});
+
 test("Ask Brain browser component stays same-origin and never accepts or creates a bearer token", async () => {
   const text = await source("app/ask-brain-panel.tsx");
 

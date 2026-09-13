@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
@@ -86,8 +87,8 @@ def test_workspace_list_limit_is_applied_after_permission_filter(
     assert visible.status_code == 201
     assert hidden.status_code == 201
 
-    visible_source = db_session.get(EvidenceSource, visible.json()["id"])
-    hidden_source = db_session.get(EvidenceSource, hidden.json()["id"])
+    visible_source = db_session.get(EvidenceSource, uuid.UUID(visible.json()["id"]))
+    hidden_source = db_session.get(EvidenceSource, uuid.UUID(hidden.json()["id"]))
     assert visible_source is not None
     assert hidden_source is not None
     base = datetime.now(UTC)
@@ -135,7 +136,7 @@ def test_workspace_evidence_exposes_server_computed_delete_capability(
         f"/api/v1/organizations/{organization.id}/evidence/{source_id}"
     )
     assert forged_delete.status_code == 404
-    source = db_session.get(EvidenceSource, source_id)
+    source = db_session.get(EvidenceSource, uuid.UUID(source_id))
     assert source is not None
     assert source.status == EvidenceSourceStatus.ACTIVE
 
@@ -166,7 +167,7 @@ def test_revoked_integration_is_not_presented_as_retrievable_or_reactivated(
         key="revoked-source",
     )
     assert uploaded.status_code == 201
-    source = db_session.get(EvidenceSource, uploaded.json()["id"])
+    source = db_session.get(EvidenceSource, uuid.UUID(uploaded.json()["id"]))
     assert source is not None
     connection = db_session.get(IntegrationConnection, source.integration_connection_id)
     assert connection is not None

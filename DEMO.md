@@ -182,3 +182,38 @@ Expected engineering evidence:
 - synthetic explicit-marker precision instrumentation is at least 90%, while remaining explicitly non-representative of real production quality.
 
 For real acceptance, execute `UAT/F-04.02.md` with representative labelled company evidence. Decision and blocker precision must each reach the agreed >=90% production threshold, and the actual frontend/manual review workflow must be validated.
+
+## Increment 24 — Slack/Discord-quality Brain conversations
+
+Status: **SAFE AUTOMATED CHECKS PASS; FINAL DEMO PENDING.** The focused and repository-wide checks listed below passed on 2026-09-13. The delivery verifier was not completed by product-owner direction. A verifier PASS, real PostgreSQL migration/recovery exercise and authenticated WorkOS browser demo remain mandatory, so S-10.06.01 is `IN_REVIEW`, not DONE.
+
+Commands you can paste from the repository root:
+
+```bash
+python -m venv .venv
+.venv/bin/pip install -e "./backend[dev]"
+npm ci
+
+cd backend
+../.venv/bin/ruff check app tests migrations
+../.venv/bin/pytest -q
+../.venv/bin/ruff check app/native_chat.py app/native_chat_models.py app/native_conversation.py app/native_conversation_models.py app/routes/native_conversation.py tests/test_native_chat.py tests/test_native_conversation.py tests/test_observability.py migrations/versions/20260912_0020_conversation_ux.py
+../.venv/bin/pytest -q tests/test_native_chat.py tests/test_native_conversation.py tests/test_observability.py
+../.venv/bin/alembic upgrade head --sql
+
+cd ..
+npm run lint
+npm test
+node --test tests/workspace-contract.test.mjs
+```
+
+Expected focused output:
+
+- Ruff: `All checks passed!`;
+- full backend: `299 passed`;
+- backend: `24 passed`;
+- frontend: build complete, `12` passed and `1` intentionally skipped; focused source contracts: `11` passed;
+- offline Alembic SQL reaches `20260912_0020` and emits scoped foreign keys plus the sequence backfill;
+- delivery verifier: **NOT COMPLETED**; no PASS is claimed.
+
+For the final live demo, start PostgreSQL from `compose.yaml`, set `BRAIN_TEST_DATABASE_URL`, execute upgrade/downgrade/forward recovery, activate the official WorkOS templates, then follow `UAT/F-10.06.md`. Show two users' independent unread state, root-only thread placement, exact permitted mention resolution, idempotent aggregate reactions, agent attribution, restricted-channel revocation and keyboard/mobile behaviour. Do not call the story DONE from the local checks alone.
