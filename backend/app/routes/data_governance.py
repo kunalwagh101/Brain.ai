@@ -38,6 +38,7 @@ class RetentionPolicyUpdate(BaseModel):
     raw_event_days: int | None = Field(default=None, ge=1, le=36_500)
     derived_content_days: int | None = Field(default=None, ge=1, le=36_500)
     audit_event_days: int | None = Field(default=None, ge=1, le=36_500)
+    private_message_days: int | None = Field(default=None, ge=1, le=36_500)
     legal_hold: bool = False
 
 
@@ -47,6 +48,7 @@ class RetentionPolicyRead(BaseModel):
     raw_event_days: int | None
     derived_content_days: int | None
     audit_event_days: int | None
+    private_message_days: int | None
     legal_hold: bool
     updated_by_user_id: uuid.UUID
     created_at: datetime
@@ -62,9 +64,11 @@ class RetentionRunRead(BaseModel):
     raw_event_days: int | None
     derived_content_days: int | None
     audit_event_days: int | None
+    private_message_days: int | None
     raw_events_deleted: int
     derived_events_deleted: int
     audit_events_deleted: int
+    private_messages_deleted: int
     error_code: str | None
     started_at: datetime
     completed_at: datetime | None
@@ -168,6 +172,7 @@ def update_retention_policy(
             raw_event_days=payload.raw_event_days,
             derived_content_days=payload.derived_content_days,
             audit_event_days=payload.audit_event_days,
+            private_message_days=payload.private_message_days,
             legal_hold=payload.legal_hold,
             request_id=_request_id(request),
         )
@@ -307,4 +312,3 @@ def list_audit_events(
             .limit(limit)
         )
     )
-
