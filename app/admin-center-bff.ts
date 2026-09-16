@@ -150,10 +150,10 @@ function bool(value: unknown, field: string): boolean {
 
 function nullablePositiveInt(value: unknown, field: string, max: number): number | null {
   if (value === undefined || value === null || value === "") return null;
-  if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > max) {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > max) {
     invalid(400, `${field} is invalid`);
   }
-  return value as number;
+  return value;
 }
 
 function reason(value: unknown): string | null {
@@ -322,42 +322,14 @@ export async function handleAdminCenterAction(accessToken: string, organizationI
     case "member_remove": await removeOrganizationMember(accessToken, organizationId, action.membership_id); return;
     case "integration_revoke": await revokeIntegration(accessToken, organizationId, action.integration_id); return;
     case "ai_provider_create":
-      await createAIProvider(accessToken, organizationId, {
-        provider_key: action.provider_key,
-        display_name: action.display_name,
-        adapter_kind: action.adapter_kind,
-        api_url: action.api_url,
-        credentials: action.credentials,
-      }); return;
+      await createAIProvider(accessToken, organizationId, { provider_key: action.provider_key, display_name: action.display_name, adapter_kind: action.adapter_kind, api_url: action.api_url, credentials: action.credentials }); return;
     case "ai_provider_status": await setAIProviderEnabled(accessToken, organizationId, action.provider_id, action.enabled); return;
     case "ai_provider_rotate": await rotateAIProviderCredentials(accessToken, organizationId, action.provider_id, action.credentials); return;
     case "ai_provider_revoke": await revokeAIProvider(accessToken, organizationId, action.provider_id); return;
-    case "ai_model_create":
-      await createAIModel(accessToken, organizationId, action.provider_id, {
-        model_key: action.model_key,
-        display_name: action.display_name,
-        enabled: action.enabled,
-        max_output_tokens: action.max_output_tokens,
-      }); return;
+    case "ai_model_create": await createAIModel(accessToken, organizationId, action.provider_id, { model_key: action.model_key, display_name: action.display_name, enabled: action.enabled, max_output_tokens: action.max_output_tokens }); return;
     case "ai_model_status": await setAIModelEnabled(accessToken, organizationId, action.model_id, action.enabled); return;
-    case "api_service_create":
-      await createAPIService(accessToken, organizationId, {
-        service_key: action.service_key,
-        display_name: action.display_name,
-        provider_name: action.provider_name,
-        base_url: action.base_url,
-      }); return;
-    case "api_grant_create":
-      await createAPIGrant(accessToken, organizationId, {
-        service_id: action.service_id,
-        grant_key: action.grant_key,
-        display_name: action.display_name,
-        owner_user_id: action.owner_user_id,
-        environment: action.environment,
-        scopes: action.scopes,
-        expires_at: action.expires_at,
-        credentials: action.credentials,
-      }); return;
+    case "api_service_create": await createAPIService(accessToken, organizationId, { service_key: action.service_key, display_name: action.display_name, provider_name: action.provider_name, base_url: action.base_url }); return;
+    case "api_grant_create": await createAPIGrant(accessToken, organizationId, { service_id: action.service_id, grant_key: action.grant_key, display_name: action.display_name, owner_user_id: action.owner_user_id, environment: action.environment, scopes: action.scopes, expires_at: action.expires_at, credentials: action.credentials }); return;
     case "api_grant_owner": await changeAPIGrantOwner(accessToken, organizationId, action.grant_id, action.owner_user_id, action.reason); return;
     case "api_grant_scopes": await changeAPIGrantScopes(accessToken, organizationId, action.grant_id, action.scopes, action.reason); return;
     case "api_grant_environment": await changeAPIGrantEnvironment(accessToken, organizationId, action.grant_id, action.environment, action.reason); return;
