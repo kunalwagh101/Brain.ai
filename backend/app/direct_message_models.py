@@ -37,8 +37,11 @@ class DirectConversation(Base):
             name="ck_direct_conversation_distinct_participants",
         ),
         CheckConstraint(
-            "next_message_sequence >= 1 AND participant_a_visible_from_sequence >= 1 "
-            "AND participant_b_visible_from_sequence >= 1",
+            "next_message_sequence >= 1 "
+            "AND participant_a_visible_from_sequence >= 1 "
+            "AND participant_b_visible_from_sequence >= 1 "
+            "AND participant_a_visible_from_sequence <= next_message_sequence "
+            "AND participant_b_visible_from_sequence <= next_message_sequence",
             name="ck_direct_conversation_sequence_bounds",
         ),
         Index(
