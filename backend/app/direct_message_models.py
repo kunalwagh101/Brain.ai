@@ -36,6 +36,11 @@ class DirectConversation(Base):
             "participant_a_user_id <> participant_b_user_id",
             name="ck_direct_conversation_distinct_participants",
         ),
+        CheckConstraint(
+            "next_message_sequence >= 1 AND participant_a_visible_from_sequence >= 1 "
+            "AND participant_b_visible_from_sequence >= 1",
+            name="ck_direct_conversation_sequence_bounds",
+        ),
         Index(
             "ix_direct_conversation_org_a_created",
             "organization_id",
@@ -60,11 +65,12 @@ class DirectConversation(Base):
     participant_b_user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
-    participant_a_visible_from: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+    next_message_sequence: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    participant_a_visible_from_sequence: Mapped[int] = mapped_column(
+        Integer, default=1, nullable=False
     )
-    participant_b_visible_from: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+    participant_b_visible_from_sequence: Mapped[int] = mapped_column(
+        Integer, default=1, nullable=False
     )
     participant_a_revoked_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -96,8 +102,13 @@ class DirectMessage(Base):
             name="fk_direct_message_org_conversation",
         ),
         CheckConstraint(
-            "body_char_count > 0",
-            name="ck_direct_message_body_chars",
+            "body_char_count > 0 AND sequence >= 1",
+            name="ck_direct_message_bounds",
+        ),
+        UniqueConstraint(
+            "conversation_id",
+            "sequence",
+            name="uq_direct_message_conversation_sequence",
         ),
         UniqueConstraint(
             "conversation_id",
@@ -115,6 +126,7 @@ class DirectMessage(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     organization_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
     conversation_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
     author_user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
