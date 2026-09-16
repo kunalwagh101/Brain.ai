@@ -103,7 +103,9 @@ def upgrade() -> None:
         "direct_conversations",
         "next_message_sequence >= 1 "
         "AND participant_a_visible_from_sequence >= 1 "
-        "AND participant_b_visible_from_sequence >= 1",
+        "AND participant_b_visible_from_sequence >= 1 "
+        "AND participant_a_visible_from_sequence <= next_message_sequence "
+        "AND participant_b_visible_from_sequence <= next_message_sequence",
     )
 
 
