@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.agent_locking import AgentRunBusyError, agent_run_lock
 from app.agent_models import AgentRunStatus
-from app.agent_runtime import AgentRuntimeError, advance_agent_run
+from app.agent_runtime import AgentRuntimeError, advance_agent_run, decide_agent_step
 from app.agent_workspace import (
     AgentWorkspaceError,
     execute_workspace_tool,
@@ -32,10 +32,22 @@ class AgentWorkspaceAdvanceRequest(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class AgentWorkspaceApprovalRequest(BaseModel):
+    approve: bool
+    reason: str | None = Field(default=None, max_length=500)
+
+    model_config = {"extra": "forbid"}
+
+
 class AgentWorkspaceAdvanceResponse(BaseModel):
     run_id: uuid.UUID
     status: AgentRunStatus
     final_output: str | None
+
+
+class AgentWorkspaceActionResponse(BaseModel):
+    run_id: uuid.UUID
+    status: AgentRunStatus
 
 
 def _raise_workspace_error(exc: AgentWorkspaceError) -> None:
@@ -50,6 +62,30 @@ def _raise_workspace_error(exc: AgentWorkspaceError) -> None:
     ) from exc
 
 
+def _current_workspace_context(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    run_id: uuid.UUID,
+    authorization: AuthorizationContext,
+):
+    run, binding = get_workspace_run(
+        db,
+        organization_id=organization_id,
+        user_id=authorization.user_id,
+        run_id=run_id,
+    )
+    context = resolve_workspace_context(
+        db,
+        organization_id=organization_id,
+        user_id=authorization.user_id,
+        role=authorization.role,
+        project_node_id=binding.project_node_id,
+        native_channel_id=binding.native_channel_id,
+    )
+    return run, context
+
+
 @router.post("/runs/{run_id}/advance", response_model=AgentWorkspaceAdvanceResponse)
 def advance_workspace_run(
     organization_id: uuid.UUID,
@@ -61,19 +97,11 @@ def advance_workspace_run(
 ) -> AgentWorkspaceAdvanceResponse:
     try:
         with agent_run_lock(db, run_id):
-            run, binding = get_workspace_run(
+            run, context = _current_workspace_context(
                 db,
                 organization_id=organization_id,
-                user_id=authorization.user_id,
                 run_id=run_id,
-            )
-            context = resolve_workspace_context(
-                db,
-                organization_id=organization_id,
-                user_id=authorization.user_id,
-                role=authorization.role,
-                project_node_id=binding.project_node_id,
-                native_channel_id=binding.native_channel_id,
+                authorization=authorization,
             )
             result = advance_agent_run(
                 db,
@@ -104,3 +132,60 @@ def advance_workspace_run(
         status=result.run.status,
         final_output=result.final_output,
     )
+
+
+@router.post(
+    "/runs/{run_id}/steps/{step_id}/approval",
+    response_model=AgentWorkspaceActionResponse,
+)
+def decide_workspace_step(
+    organization_id: uuid.UUID,
+    run_id: uuid.UUID,
+    step_id: uuid.UUID,
+    payload: AgentWorkspaceApprovalRequest,
+    authorization: Annotated[AuthorizationContext, Depends(_use_agents)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AgentWorkspaceActionResponse:
+    try:
+        with agent_run_lock(db, run_id):
+            run, binding = get_workspace_run(
+                db,
+                organization_id=organization_id,
+                user_id=authorization.user_id,
+                run_id=run_id,
+            )
+            if payload.approve:
+                resolve_workspace_context(
+                    db,
+                    organization_id=organization_id,
+                    user_id=authorization.user_id,
+                    role=authorization.role,
+                    project_node_id=binding.project_node_id,
+                    native_channel_id=binding.native_channel_id,
+                )
+            decide_agent_step(
+                db,
+                organization_id=organization_id,
+                run_id=run.id,
+                step_id=step_id,
+                user_id=authorization.user_id,
+                approve=payload.approve,
+                reason=payload.reason,
+            )
+            run, _ = get_workspace_run(
+                db,
+                organization_id=organization_id,
+                user_id=authorization.user_id,
+                run_id=run_id,
+            )
+    except AgentRunBusyError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except AgentWorkspaceError as exc:
+        _raise_workspace_error(exc)
+    except AgentRuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Agent approval decision could not be applied safely",
+        ) from exc
+
+    return AgentWorkspaceActionResponse(run_id=run.id, status=run.status)
