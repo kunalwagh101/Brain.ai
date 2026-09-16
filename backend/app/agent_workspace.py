@@ -9,11 +9,15 @@ from app.agent_models import AgentDefinition, AgentRun, AgentStep, AgentToolPoli
 from app.agent_runtime import AgentRuntimeError, cancel_agent_run, create_agent_run
 from app.agent_tools import ToolRisk, tool_definition
 from app.agent_workspace_models import AgentRunContext
-from app.ai_gateway_models import AIModelConfiguration, AIProviderConfiguration
+from app.ai_gateway_models import (
+    AIModelConfiguration,
+    AIProviderConfiguration,
+    AIProviderStatus,
+)
 from app.data_governance import DataGovernanceError, append_audit_event
 from app.models import MembershipRole
 from app.native_chat import get_visible_channel
-from app.native_chat_models import NativeChannel
+from app.native_chat_models import NativeChannel, NativeChannelStatus
 from app.work_graph import node_visible_to_user
 from app.work_graph_models import WorkGraphNode, WorkGraphNodeType
 
@@ -90,7 +94,7 @@ def resolve_workspace_context(
             channel_id=native_channel_id,
             user_id=user_id,
         )
-        if channel is None:
+        if channel is None or channel.status != NativeChannelStatus.ACTIVE:
             raise AgentWorkspaceError(
                 "workspace_context_not_found",
                 "Workspace context not found",
@@ -249,7 +253,12 @@ def list_agent_identities(
                 AIModelConfiguration.organization_id == organization_id,
             )
         )
-        if provider is None or model is None:
+        if (
+            provider is None
+            or model is None
+            or provider.status != AIProviderStatus.ENABLED
+            or not model.enabled
+        ):
             continue
         policies = tuple(
             db.scalars(
