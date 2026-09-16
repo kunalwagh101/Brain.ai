@@ -21,10 +21,39 @@ function safeError(status: number): string {
   if (status === 401) return "Your authenticated session has expired.";
   if (status === 403) return "Your current role cannot perform this admin action.";
   if (status === 404) return "The selected organisation resource is no longer available.";
-  if (status === 409) return "The action conflicts with current organisation state, such as the last-owner rule.";
+  if (status === 409) return "The action conflicts with current organisation or credential state.";
+  if (status === 413) return "The submitted admin payload is too large.";
   if (status === 429) return "Admin actions are temporarily rate limited.";
   if (status === 503) return "The governance backend or secret store is temporarily unavailable.";
   return "The admin action failed safely.";
+}
+
+function stringField(form: FormData, name: string): string {
+  const value = form.get(name);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function parseScopes(value: string): string[] {
+  return [...new Set(value.split(/[\s,]+/).map((item) => item.trim()).filter(Boolean))];
+}
+
+function parseCredentials(value: string): Record<string, string> | null {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    const entries = Object.entries(parsed as Record<string, unknown>);
+    if (!entries.length || entries.length > 16) return null;
+    const result: Record<string, string> = {};
+    for (const [key, raw] of entries) {
+      if (!key.trim() || key.length > 128 || typeof raw !== "string" || !raw || raw.length > 8192) {
+        return null;
+      }
+      result[key.trim()] = raw;
+    }
+    return result;
+  } catch {
+    return null;
+  }
 }
 
 const ALL_ROLES = ["owner", "admin", "executive", "manager", "member", "guest"] as const;
@@ -76,6 +105,92 @@ export function AdminCenterPanel({ admin }: { admin: AdminCenter }) {
     if (ok) setEmail("");
   }
 
+  async function rotateProviderSecret(event: FormEvent<HTMLFormElement>, providerId: string) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const apiKey = stringField(data, "api_key");
+    if (!apiKey) {
+      setError("Enter the replacement API key.");
+      return;
+    }
+    const ok = await act(
+      { action: "ai_provider_rotate", provider_id: providerId, credentials: { api_key: apiKey } },
+      "AI provider credential rotated. The secret value is not retained in this page.",
+    );
+    if (ok) form.reset();
+  }
+
+  async function createGrant(event: FormEvent<HTMLFormElement>, serviceId: string) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const credentials = parseCredentials(stringField(data, "credentials"));
+    const scopes = parseScopes(stringField(data, "scopes"));
+    if (!credentials) {
+      setError("Credentials must be a JSON object containing only string values.");
+      return;
+    }
+    if (!scopes.length) {
+      setError("Enter at least one API scope.");
+      return;
+    }
+    const expiresLocal = stringField(data, "expires_at");
+    const expiresAt = expiresLocal ? new Date(expiresLocal).toISOString() : null;
+    const ok = await act(
+      {
+        action: "api_grant_create",
+        service_id: serviceId,
+        grant_key: stringField(data, "grant_key"),
+        display_name: stringField(data, "display_name"),
+        owner_user_id: stringField(data, "owner_user_id"),
+        environment: stringField(data, "environment"),
+        scopes,
+        expires_at: expiresAt,
+        credentials,
+      },
+      "API grant created. Credential values are stored only in the configured secret store.",
+    );
+    if (ok) form.reset();
+  }
+
+  async function updateGrantMetadata(
+    event: FormEvent<HTMLFormElement>,
+    grantId: string,
+    action: "api_grant_environment" | "api_grant_scopes",
+  ) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const reason = stringField(data, "reason") || null;
+    const payload: Record<string, unknown> = { action, grant_id: grantId, reason };
+    if (action === "api_grant_environment") payload.environment = stringField(data, "environment");
+    else payload.scopes = parseScopes(stringField(data, "scopes"));
+    const ok = await act(payload, action === "api_grant_environment" ? "API grant environment updated." : "API grant scopes updated.");
+    if (ok) form.reset();
+  }
+
+  async function rotateGrantSecret(event: FormEvent<HTMLFormElement>, grantId: string) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const credentials = parseCredentials(stringField(data, "credentials"));
+    if (!credentials) {
+      setError("Credentials must be a JSON object containing only string values.");
+      return;
+    }
+    const ok = await act(
+      {
+        action: "api_grant_rotate",
+        grant_id: grantId,
+        credentials,
+        reason: stringField(data, "reason") || null,
+      },
+      "API grant credential rotated. The secret value is not retained in this page.",
+    );
+    if (ok) form.reset();
+  }
+
   return (
     <section className={styles.admin} aria-labelledby="admin-center-heading">
       <header className={styles.header}>
@@ -84,7 +199,7 @@ export function AdminCenterPanel({ admin }: { admin: AdminCenter }) {
           <h2 id="admin-center-heading">Admin & governance</h2>
           <p>
             Current organisation controls and credential health. Brain exposes status and ownership here,
-            never stored secret values. Destructive actions remain enforced again by FastAPI.
+            never stored secret values. Secret-entry fields are transient and cleared after a successful save.
           </p>
         </div>
         <div className={styles.headerMeta}>
@@ -190,79 +305,146 @@ export function AdminCenterPanel({ admin }: { admin: AdminCenter }) {
         <section className={styles.card}>
           <header><div><p className={styles.eyebrow}>AI governance</p><h3>Providers & models</h3></div><span>{admin.ai_providers.length}</span></header>
           <div className={styles.providerList}>
-            {admin.ai_providers.length ? admin.ai_providers.map((provider) => (
-              <article key={provider.id}>
-                <header>
-                  <div><strong>{provider.display_name}</strong><small>{provider.provider_key} · {provider.adapter_kind}</small></div>
-                  <div className={styles.actions}>
-                    <span data-status={provider.status}>{statusLabel(provider.status)}</span>
-                    {provider.status !== "revoked" ? (
-                      <>
-                        <button disabled={working} onClick={() => void act(
-                          { action: "ai_provider_status", provider_id: provider.id, enabled: provider.status !== "enabled" },
-                          provider.status === "enabled" ? "AI provider disabled." : "AI provider enabled.",
-                        )} type="button">{provider.status === "enabled" ? "Disable" : "Enable"}</button>
-                        <button className={styles.dangerButton} disabled={working} onClick={() => {
-                          if (!window.confirm(`Revoke ${provider.display_name}? Its stored provider credential will be removed.`)) return;
-                          void act({ action: "ai_provider_revoke", provider_id: provider.id }, "AI provider revoked.");
-                        }} type="button">Revoke</button>
-                      </>
-                    ) : null}
-                  </div>
-                </header>
-                <small className={styles.endpoint}>{provider.api_url}</small>
-                <div className={styles.models}>
-                  {provider.models.map((model) => (
-                    <div key={model.id}>
-                      <span>{model.display_name}</span>
-                      <small>{model.model_key}</small>
-                      <button
-                        disabled={working || provider.status === "revoked"}
-                        onClick={() => void act(
-                          { action: "ai_model_status", model_id: model.id, enabled: !model.enabled },
-                          model.enabled ? "AI model disabled." : "AI model enabled.",
-                        )}
-                        type="button"
-                      >{model.enabled ? "Disable" : "Enable"}</button>
+            {admin.ai_providers.length ? admin.ai_providers.map((provider) => {
+              const providerMutable = ["enabled", "disabled"].includes(provider.status);
+              return (
+                <article key={provider.id}>
+                  <header>
+                    <div><strong>{provider.display_name}</strong><small>{provider.provider_key} · {provider.adapter_kind}</small></div>
+                    <div className={styles.actions}>
+                      <span data-status={provider.status}>{statusLabel(provider.status)}</span>
+                      {providerMutable ? (
+                        <>
+                          <button disabled={working} onClick={() => void act(
+                            { action: "ai_provider_status", provider_id: provider.id, enabled: provider.status !== "enabled" },
+                            provider.status === "enabled" ? "AI provider disabled." : "AI provider enabled.",
+                          )} type="button">{provider.status === "enabled" ? "Disable" : "Enable"}</button>
+                          <button className={styles.dangerButton} disabled={working} onClick={() => {
+                            if (!window.confirm(`Revoke ${provider.display_name}? Its stored provider credential will be removed.`)) return;
+                            void act({ action: "ai_provider_revoke", provider_id: provider.id }, "AI provider revoked.");
+                          }} type="button">Revoke</button>
+                        </>
+                      ) : null}
                     </div>
-                  ))}
-                </div>
-              </article>
-            )) : <p className={styles.empty}>No AI providers configured.</p>}
+                  </header>
+                  <small className={styles.endpoint}>{provider.api_url}</small>
+                  {providerMutable ? (
+                    <form className={styles.secretForm} onSubmit={(event) => void rotateProviderSecret(event, provider.id)}>
+                      <label>
+                        Replacement API key
+                        <input name="api_key" type="password" autoComplete="new-password" maxLength={8192} required />
+                      </label>
+                      <button type="submit" disabled={working}>Rotate credential</button>
+                      <small>Current secret is never displayed. Last rotated {dateLabel(provider.credential_rotated_at)}.</small>
+                    </form>
+                  ) : null}
+                  <div className={styles.models}>
+                    {provider.models.map((model) => (
+                      <div key={model.id}>
+                        <span>{model.display_name}</span>
+                        <small>{model.model_key}</small>
+                        <button
+                          disabled={working || !providerMutable}
+                          onClick={() => void act(
+                            { action: "ai_model_status", model_id: model.id, enabled: !model.enabled },
+                            model.enabled ? "AI model disabled." : "AI model enabled.",
+                          )}
+                          type="button"
+                        >{model.enabled ? "Disable" : "Enable"}</button>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              );
+            }) : <p className={styles.empty}>No AI providers configured.</p>}
           </div>
         </section>
 
         <section className={styles.card}>
           <header><div><p className={styles.eyebrow}>External API governance</p><h3>Services & grants</h3></div><span>{admin.api_services.length}</span></header>
+          <p className={styles.securityNote}>Credential JSON is submitted once to the server-side secret store and is never returned by this page.</p>
           <div className={styles.providerList}>
             {admin.api_services.length ? admin.api_services.map((service) => (
               <article key={service.id}>
                 <header><div><strong>{service.display_name}</strong><small>{service.provider_name} · {service.service_key}</small></div><span>{service.grants.length} grant(s)</span></header>
                 {service.base_url ? <small className={styles.endpoint}>{service.base_url}</small> : null}
+                <form className={styles.secretForm} onSubmit={(event) => void createGrant(event, service.id)}>
+                  <label>Grant key<input name="grant_key" placeholder="production-read" maxLength={96} required /></label>
+                  <label>Display name<input name="display_name" maxLength={160} required /></label>
+                  <label>
+                    Owner
+                    <select name="owner_user_id" defaultValue={admin.members[0]?.user_id ?? ""} required>
+                      {admin.members.map((member) => <option key={member.user_id} value={member.user_id}>{member.email}</option>)}
+                    </select>
+                  </label>
+                  <label>Environment<input name="environment" defaultValue="production" maxLength={64} required /></label>
+                  <label>Scopes<input name="scopes" placeholder="people.read, companies.read" maxLength={4096} required /></label>
+                  <label>Expires at (optional)<input name="expires_at" type="datetime-local" /></label>
+                  <label className={styles.wideField}>
+                    Credential JSON
+                    <textarea name="credentials" rows={3} maxLength={24000} autoComplete="off" spellCheck={false} placeholder='{"api_key":"..."}' required />
+                  </label>
+                  <button type="submit" disabled={working || !admin.members.length}>Create grant</button>
+                </form>
                 <div className={styles.grants}>
-                  {service.grants.map((grant) => (
-                    <div key={grant.id}>
-                      <div><strong>{grant.display_name}</strong><small>{grant.owner_email || grant.owner_user_id}</small></div>
-                      <div className={styles.actions}>
-                        <span data-status={grant.status}>{statusLabel(grant.status)}</span>
-                        <small>{grant.environment} · {grant.scopes.length} scope(s)</small>
-                        <small>{grant.credential_present ? "credential stored" : "credential missing"} · {grant.usage_count} use(s)</small>
-                        <small>Expires {dateLabel(grant.expires_at)}</small>
-                        {!["revoked", "revoking", "expired"].includes(grant.status) ? (
-                          <>
-                            <button disabled={working} onClick={() => void act(
-                              { action: "api_grant_status", grant_id: grant.id, enabled: grant.status !== "active", reason: "Changed from Brain Admin Center" },
-                              grant.status === "active" ? "API grant disabled." : "API grant enabled.",
-                            )} type="button">{grant.status === "active" ? "Disable" : "Enable"}</button>
-                            <button className={styles.dangerButton} disabled={working} onClick={() => {
-                              if (!window.confirm(`Revoke API grant ${grant.display_name}? Its stored credential will be removed.`)) return;
-                              void act({ action: "api_grant_revoke", grant_id: grant.id, reason: "Revoked from Brain Admin Center" }, "API grant revoked.");
-                            }} type="button">Revoke</button>
-                          </>
+                  {service.grants.map((grant) => {
+                    const mutable = ["active", "disabled"].includes(grant.status);
+                    return (
+                      <div key={grant.id} className={styles.grantRow}>
+                        <div><strong>{grant.display_name}</strong><small>{grant.owner_email || grant.owner_user_id}</small></div>
+                        <div className={styles.actions}>
+                          <span data-status={grant.status}>{statusLabel(grant.status)}</span>
+                          <small>{grant.environment} · {grant.scopes.join(", ")}</small>
+                          <small>{grant.credential_present ? "credential stored" : "credential missing"} · {grant.usage_count} use(s)</small>
+                          <small>Expires {dateLabel(grant.expires_at)} · rotated {dateLabel(grant.credential_rotated_at)}</small>
+                          {mutable ? (
+                            <>
+                              <button disabled={working} onClick={() => void act(
+                                { action: "api_grant_status", grant_id: grant.id, enabled: grant.status !== "active", reason: "Changed from Brain Admin Center" },
+                                grant.status === "active" ? "API grant disabled." : "API grant enabled.",
+                              )} type="button">{grant.status === "active" ? "Disable" : "Enable"}</button>
+                              <button className={styles.dangerButton} disabled={working} onClick={() => {
+                                if (!window.confirm(`Revoke API grant ${grant.display_name}? Its stored credential will be removed.`)) return;
+                                void act({ action: "api_grant_revoke", grant_id: grant.id, reason: "Revoked from Brain Admin Center" }, "API grant revoked.");
+                              }} type="button">Revoke</button>
+                            </>
+                          ) : null}
+                        </div>
+                        {mutable ? (
+                          <div className={styles.grantEditors}>
+                            <label>
+                              Owner
+                              <select
+                                value={grant.owner_user_id}
+                                disabled={working}
+                                onChange={(event) => void act(
+                                  { action: "api_grant_owner", grant_id: grant.id, owner_user_id: event.target.value, reason: "Owner changed from Brain Admin Center" },
+                                  "API grant owner updated.",
+                                )}
+                              >
+                                {admin.members.map((member) => <option key={member.user_id} value={member.user_id}>{member.email}</option>)}
+                              </select>
+                            </label>
+                            <form onSubmit={(event) => void updateGrantMetadata(event, grant.id, "api_grant_environment")}>
+                              <label>Environment<input name="environment" defaultValue={grant.environment} maxLength={64} required /></label>
+                              <input name="reason" type="hidden" value="Environment changed from Brain Admin Center" readOnly />
+                              <button type="submit" disabled={working}>Save</button>
+                            </form>
+                            <form onSubmit={(event) => void updateGrantMetadata(event, grant.id, "api_grant_scopes")}>
+                              <label>Scopes<input name="scopes" defaultValue={grant.scopes.join(", ")} maxLength={4096} required /></label>
+                              <input name="reason" type="hidden" value="Scopes changed from Brain Admin Center" readOnly />
+                              <button type="submit" disabled={working}>Save</button>
+                            </form>
+                            <form onSubmit={(event) => void rotateGrantSecret(event, grant.id)}>
+                              <label>Replacement credential JSON<textarea name="credentials" rows={2} maxLength={24000} autoComplete="off" spellCheck={false} placeholder='{"api_key":"..."}' required /></label>
+                              <input name="reason" type="hidden" value="Credential rotated from Brain Admin Center" readOnly />
+                              <button type="submit" disabled={working}>Rotate credential</button>
+                            </form>
+                          </div>
                         ) : null}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </article>
             )) : <p className={styles.empty}>No external API services registered.</p>}
