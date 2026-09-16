@@ -225,6 +225,46 @@ def test_direct_message_target_must_be_current_message_capable_member(
     assert cross_tenant.status_code == 404
 
 
+def test_role_downgrade_removes_dm_list_read_and_send_access(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    organization, alice, bob, _, _, _, _, _ = _seed(db_session)
+    conversation = _create_dm(client, organization, alice, bob)
+    conversation_id = conversation["id"]
+
+    membership = db_session.scalar(
+        select(Membership).where(
+            Membership.organization_id == organization.id,
+            Membership.user_id == alice.id,
+        )
+    )
+    assert membership is not None
+    membership.role = MembershipRole.GUEST
+    db_session.commit()
+
+    _as(alice)
+    try:
+        listed = client.get(
+            f"/api/v1/organizations/{organization.id}/direct-messages"
+        )
+        read = client.get(
+            f"/api/v1/organizations/{organization.id}/direct-messages/"
+            f"{conversation_id}/messages"
+        )
+        send = client.post(
+            f"/api/v1/organizations/{organization.id}/direct-messages/"
+            f"{conversation_id}/messages",
+            json={"body": "Must be denied after downgrade"},
+        )
+    finally:
+        _clear()
+
+    assert listed.status_code == 403
+    assert read.status_code == 403
+    assert send.status_code == 403
+
+
 def test_private_message_retention_is_explicit_and_legal_hold_safe(
     client: TestClient,
     db_session: Session,
