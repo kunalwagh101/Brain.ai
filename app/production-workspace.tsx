@@ -12,6 +12,7 @@ import {
   listRuntimeOptions,
   listWorkspaceNavigation,
 } from "./brain-api";
+import { listDirectConversations, listDirectMessages } from "./direct-message-api";
 import { WorkspaceShell } from "./workspace-shell";
 
 const ADMIN_ROLES = new Set(["owner", "admin"]);
@@ -20,15 +21,18 @@ const AI_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
 const AGENT_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
 const EVIDENCE_WRITE_ROLES = new Set(["owner", "admin", "manager", "member"]);
 const CHAT_WRITE_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
+const DM_ROLES = CHAT_WRITE_ROLES;
 
 export async function ProductionWorkspace({
   accessToken,
   signedInName,
   requestedOrganizationId,
   requestedChannelId,
+  requestedDirectMessageId,
   enableAskBrainBff = false,
   enableEvidenceBff = false,
   enableNativeChatBff = false,
+  enableDirectMessageBff = false,
   enableAgentWorkspaceBff = false,
   signOutAction,
 }: {
@@ -36,9 +40,11 @@ export async function ProductionWorkspace({
   signedInName: string;
   requestedOrganizationId?: string | null;
   requestedChannelId?: string | null;
+  requestedDirectMessageId?: string | null;
   enableAskBrainBff?: boolean;
   enableEvidenceBff?: boolean;
   enableNativeChatBff?: boolean;
+  enableDirectMessageBff?: boolean;
   enableAgentWorkspaceBff?: boolean;
   signOutAction?: (formData: FormData) => Promise<void>;
 }) {
@@ -75,6 +81,7 @@ export async function ProductionWorkspace({
     runtimes,
     agentWorkspace,
     adminCenter,
+    directConversations,
   ] = await Promise.all([
     listWorkspaceNavigation(accessToken, organization.id),
     listProjectStatuses(accessToken, organization.id),
@@ -93,6 +100,9 @@ export async function ProductionWorkspace({
     ADMIN_ROLES.has(organization.role)
       ? getAdminCenter(accessToken, organization.id)
       : Promise.resolve(null),
+    DM_ROLES.has(organization.role)
+      ? listDirectConversations(accessToken, organization.id)
+      : Promise.resolve([]),
   ]);
   const unreadByChannel = new Map(unreadRows.map((item) => [item.channel_id, item]));
   const nativeChannels = channelRows.map((channel) => ({
@@ -114,6 +124,16 @@ export async function ProductionWorkspace({
       ])
     : [[], []];
 
+  const selectedDirectConversation = requestedDirectMessageId
+    ? directConversations.find((item) => item.id === requestedDirectMessageId) ?? null
+    : directConversations[0] ?? null;
+  const invalidRequestedDirectMessage = Boolean(
+    requestedDirectMessageId && !selectedDirectConversation,
+  );
+  const directMessages = selectedDirectConversation
+    ? await listDirectMessages(accessToken, organization.id, selectedDirectConversation.id)
+    : [];
+
   const askBrainEndpoint = enableAskBrainBff && AI_ROLES.has(organization.role)
     ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/ask-brain`
     : null;
@@ -134,6 +154,12 @@ export async function ProductionWorkspace({
   const nativeConversationEndpoint = selectedChannel && enableNativeChatBff
     ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/native-channels/${encodeURIComponent(selectedChannel.id)}`
     : null;
+  const directMessageCreateEndpoint = enableDirectMessageBff && DM_ROLES.has(organization.role)
+    ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/direct-messages`
+    : null;
+  const directMessageSendEndpoint = selectedDirectConversation && directMessageCreateEndpoint
+    ? `${directMessageCreateEndpoint}/${encodeURIComponent(selectedDirectConversation.id)}/messages`
+    : null;
   const agentMutationBase = enableAgentWorkspaceBff && AGENT_ROLES.has(organization.role)
     ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/agent-workspace`
     : null;
@@ -150,6 +176,10 @@ export async function ProductionWorkspace({
       nativeMessages={nativeMessages}
       selectedNativeMembers={selectedNativeMembers}
       invalidRequestedChannel={invalidRequestedChannel}
+      directConversations={directConversations}
+      selectedDirectConversation={selectedDirectConversation}
+      directMessages={directMessages}
+      invalidRequestedDirectMessage={invalidRequestedDirectMessage}
       overview={overview}
       runtimes={runtimes}
       agentWorkspace={agentWorkspace}
@@ -163,6 +193,8 @@ export async function ProductionWorkspace({
       nativeMemberEndpoint={nativeMemberEndpoint}
       nativeConversationEndpoint={nativeConversationEndpoint}
       canCreateNativeChannel={canCreateNativeChannel}
+      directMessageCreateEndpoint={directMessageCreateEndpoint}
+      directMessageSendEndpoint={directMessageSendEndpoint}
       agentMutationBase={agentMutationBase}
       signOutAction={signOutAction}
     />
