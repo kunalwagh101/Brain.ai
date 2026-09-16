@@ -21,6 +21,7 @@ from app.routes.ask_brain import router as ask_brain_router
 from app.routes.auth import router as auth_router
 from app.routes.data_governance import router as data_governance_router
 from app.routes.decision_memory import router as decision_memory_router
+from app.routes.direct_messages import router as direct_messages_router
 from app.routes.evidence import router as evidence_router
 from app.routes.executive_overview import router as executive_overview_router
 from app.routes.github import router as github_router
@@ -88,6 +89,7 @@ app.include_router(integrations_router, prefix=settings.api_prefix)
 app.include_router(evidence_router, prefix=settings.api_prefix)
 app.include_router(native_chat_router, prefix=settings.api_prefix)
 app.include_router(native_conversation_router, prefix=settings.api_prefix)
+app.include_router(direct_messages_router, prefix=settings.api_prefix)
 app.include_router(slack_router, prefix=settings.api_prefix)
 app.include_router(github_router, prefix=settings.api_prefix)
 app.include_router(identities_router, prefix=settings.api_prefix)
