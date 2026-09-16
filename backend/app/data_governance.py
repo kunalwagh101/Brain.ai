@@ -17,6 +17,7 @@ from app.data_governance_models import (
     RetentionRunStatus,
     SecurityAuditEvent,
 )
+from app.direct_message_models import DirectConversation, DirectMessage
 from app.models import (
     CanonicalEvent,
     IntegrationConnection,
@@ -200,6 +201,7 @@ def set_retention_policy(
     derived_content_days: int | None,
     audit_event_days: int | None,
     legal_hold: bool,
+    private_message_days: int | None = None,
     request_id: str | None = None,
 ) -> OrganizationRetentionPolicy:
     raw_days = _normalize_optional_days(raw_event_days, "raw_event_days")
@@ -208,6 +210,10 @@ def set_retention_policy(
         "derived_content_days",
     )
     audit_days = _normalize_optional_days(audit_event_days, "audit_event_days")
+    private_days = _normalize_optional_days(
+        private_message_days,
+        "private_message_days",
+    )
     policy = db.scalar(
         select(OrganizationRetentionPolicy).where(
             OrganizationRetentionPolicy.organization_id == organization_id
@@ -223,6 +229,7 @@ def set_retention_policy(
     policy.raw_event_days = raw_days
     policy.derived_content_days = derived_days
     policy.audit_event_days = audit_days
+    policy.private_message_days = private_days
     policy.legal_hold = legal_hold
     policy.updated_by_user_id = actor_user_id
     append_audit_event(
@@ -239,6 +246,7 @@ def set_retention_policy(
             "raw_event_days": raw_days,
             "derived_content_days": derived_days,
             "audit_event_days": audit_days,
+            "private_message_days": private_days,
             "legal_hold": legal_hold,
         },
     )
@@ -781,6 +789,60 @@ def _stage_derived_tombstones(
         )
 
 
+def _purge_private_messages(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    cutoff: datetime,
+    limit: int,
+) -> int:
+    query = (
+        select(DirectMessage.id)
+        .where(
+            DirectMessage.organization_id == organization_id,
+            DirectMessage.created_at < cutoff,
+        )
+        .order_by(DirectMessage.created_at, DirectMessage.id)
+        .limit(limit)
+    )
+    message_ids = list(db.scalars(_skip_locked(query, db)))
+    if not message_ids:
+        return 0
+    result = db.execute(
+        delete(DirectMessage).where(
+            DirectMessage.organization_id == organization_id,
+            DirectMessage.id.in_(message_ids),
+        )
+    )
+    deleted = _deleted_count(result.rowcount, len(message_ids))
+
+    old_conversation_ids = list(
+        db.scalars(
+            select(DirectConversation.id).where(
+                DirectConversation.organization_id == organization_id,
+                DirectConversation.updated_at < cutoff,
+            )
+        )
+    )
+    for conversation_id in old_conversation_ids:
+        remaining = db.scalar(
+            select(DirectMessage.id)
+            .where(
+                DirectMessage.organization_id == organization_id,
+                DirectMessage.conversation_id == conversation_id,
+            )
+            .limit(1)
+        )
+        if remaining is None:
+            db.execute(
+                delete(DirectConversation).where(
+                    DirectConversation.organization_id == organization_id,
+                    DirectConversation.id == conversation_id,
+                )
+            )
+    return deleted
+
+
 def run_retention_once(
     db: Session,
     *,
@@ -807,6 +869,7 @@ def run_retention_once(
         raw_event_days=policy.raw_event_days,
         derived_content_days=policy.derived_content_days,
         audit_event_days=policy.audit_event_days,
+        private_message_days=policy.private_message_days,
     )
     db.add(run)
     db.commit()
@@ -903,6 +966,15 @@ def run_retention_once(
                     len(derived_ids),
                 )
 
+        if policy.private_message_days is not None:
+            private_cutoff = _retention_cutoff(policy.private_message_days, now)
+            run.private_messages_deleted = _purge_private_messages(
+                db,
+                organization_id=organization_id,
+                cutoff=private_cutoff,
+                limit=limit,
+            )
+
         if policy.audit_event_days is not None:
             audit_cutoff = _retention_cutoff(policy.audit_event_days, now)
             audit_query = (
@@ -947,6 +1019,7 @@ def run_retention_once(
                 "raw_events_deleted": run.raw_events_deleted,
                 "derived_events_deleted": run.derived_events_deleted,
                 "audit_events_deleted": run.audit_events_deleted,
+                "private_messages_deleted": run.private_messages_deleted,
             },
         )
         db.refresh(run)
