@@ -30,6 +30,8 @@ test("admin mutations use one same-origin route and browser code never handles b
   assert.match(bff, /parseAdminCenterAction/);
   assert.match(template, /withAuth\(\)/);
   assert.match(template, /MAX_BODY_BYTES = 8 \* 1024/);
+  assert.match(template, /sec-fetch-site/);
+  assert.match(template, /origin !== request\.nextUrl\.origin/);
 });
 
 test("admin aggregate serializes credential presence but not stored secret values", () => {
