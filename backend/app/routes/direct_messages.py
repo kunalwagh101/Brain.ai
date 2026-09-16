@@ -23,8 +23,7 @@ router = APIRouter(
     prefix="/organizations/{organization_id}/direct-messages",
     tags=["direct-messages"],
 )
-_read = require_organization_permission(Permission.ORGANIZATION_READ)
-_write = require_organization_permission(Permission.NATIVE_CHAT_WRITE)
+_dm_access = require_organization_permission(Permission.NATIVE_CHAT_WRITE)
 
 
 class DirectConversationCreate(BaseModel):
@@ -106,7 +105,7 @@ def _raise_dm_error(exc: DirectMessageError) -> None:
 @router.get("", response_model=list[DirectConversationRead])
 def list_conversations(
     organization_id: uuid.UUID,
-    access: Annotated[AuthorizationContext, Depends(_read)],
+    access: Annotated[AuthorizationContext, Depends(_dm_access)],
     db: Annotated[Session, Depends(get_db)],
 ) -> list[DirectConversationRead]:
     return [
@@ -123,7 +122,7 @@ def list_conversations(
 def create_conversation(
     organization_id: uuid.UUID,
     payload: DirectConversationCreate,
-    access: Annotated[AuthorizationContext, Depends(_write)],
+    access: Annotated[AuthorizationContext, Depends(_dm_access)],
     db: Annotated[Session, Depends(get_db)],
 ) -> DirectConversationRead:
     try:
@@ -150,7 +149,7 @@ def create_conversation(
 def read_messages(
     organization_id: uuid.UUID,
     conversation_id: uuid.UUID,
-    access: Annotated[AuthorizationContext, Depends(_read)],
+    access: Annotated[AuthorizationContext, Depends(_dm_access)],
     db: Annotated[Session, Depends(get_db)],
     limit: Annotated[int, Query(ge=1, le=500)] = 200,
 ) -> list[DirectMessageRead]:
@@ -179,7 +178,7 @@ def post_message(
     organization_id: uuid.UUID,
     conversation_id: uuid.UUID,
     payload: DirectMessageCreate,
-    access: Annotated[AuthorizationContext, Depends(_write)],
+    access: Annotated[AuthorizationContext, Depends(_dm_access)],
     db: Annotated[Session, Depends(get_db)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> DirectMessageRead:
