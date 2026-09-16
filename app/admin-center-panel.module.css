@@ -19,6 +19,12 @@
   max-width: 70ch;
 }
 
+.headerMeta {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: end;
+}
+
 .eyebrow {
   margin: 0 0 0.25rem;
   font-size: 0.72rem;
@@ -33,6 +39,17 @@
   border-radius: 999px;
   padding: 0.35rem 0.65rem;
   font-size: 0.75rem;
+}
+
+.notice,
+.error {
+  border: 1px solid rgba(128, 128, 128, 0.24);
+  border-radius: 0.7rem;
+  padding: 0.7rem 0.8rem;
+}
+
+.error {
+  font-weight: 650;
 }
 
 .metrics {
@@ -110,14 +127,71 @@
   gap: 0.15rem;
 }
 
-.meta {
+.meta,
+.actions {
   display: grid;
-  gap: 0.15rem;
+  gap: 0.35rem;
   justify-items: end;
   text-align: right;
 }
 
+.actions button,
+.actions select,
+.inlineForm button,
+.inlineForm input,
+.inlineForm select {
+  font: inherit;
+}
+
+.actions button,
+.inlineForm button {
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 0.55rem;
+  padding: 0.35rem 0.6rem;
+  background: transparent;
+  cursor: pointer;
+}
+
+.actions button:disabled,
+.inlineForm button:disabled,
+.actions select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.actions select,
+.inlineForm input,
+.inlineForm select {
+  border: 1px solid rgba(128, 128, 128, 0.28);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.45rem;
+  background: transparent;
+  color: inherit;
+}
+
+.dangerButton {
+  font-weight: 700;
+}
+
+.inlineForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8rem auto;
+  gap: 0.55rem;
+  align-items: end;
+  border: 1px dashed rgba(128, 128, 128, 0.25);
+  border-radius: 0.7rem;
+  padding: 0.7rem;
+  margin-bottom: 0.8rem;
+}
+
+.inlineForm label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+}
+
 .meta span,
+.actions > span,
 .providerList header > span,
 .models b {
   border: 1px solid rgba(128, 128, 128, 0.25);
@@ -177,12 +251,18 @@
     flex-direction: column;
   }
 
+  .headerMeta {
+    justify-items: start;
+  }
+
   .metrics,
-  .grid {
+  .grid,
+  .inlineForm {
     grid-template-columns: 1fr;
   }
 
-  .meta {
+  .meta,
+  .actions {
     justify-items: start;
     text-align: left;
   }
