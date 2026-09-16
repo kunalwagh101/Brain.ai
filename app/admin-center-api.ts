@@ -73,6 +73,7 @@ export type AdminCenter = {
   organization_id: string;
   organization_name: string;
   organization_slug: string;
+  viewer_role: "owner" | "admin";
   members: AdminMember[];
   integrations: AdminIntegration[];
   ai_providers: AdminAIProvider[];
