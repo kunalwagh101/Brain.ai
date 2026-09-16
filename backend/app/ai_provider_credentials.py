@@ -13,7 +13,7 @@ MAX_AI_CREDENTIAL_FIELD_LENGTH = 128
 MAX_AI_CREDENTIAL_VALUE_LENGTH = 8192
 
 
-def _validated_credentials(credentials: dict[str, str]) -> dict[str, str]:
+def validate_ai_provider_credentials(credentials: dict[str, str]) -> dict[str, str]:
     if not credentials or len(credentials) > MAX_AI_CREDENTIAL_FIELDS:
         raise AIGatewayError("AI provider credentials have an invalid shape")
     sanitized: dict[str, str] = {}
@@ -51,7 +51,7 @@ def rotate_ai_provider_credentials(
     if not provider.secret_ref:
         raise AIGatewayError("AI provider has no credential secret reference")
 
-    sanitized = _validated_credentials(credentials)
+    sanitized = validate_ai_provider_credentials(credentials)
     try:
         secret_store.replace_secret(provider.secret_ref, sanitized)
     except SecretStoreError as exc:
