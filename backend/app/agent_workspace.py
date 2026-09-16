@@ -1,0 +1,314 @@
+import uuid
+from dataclasses import dataclass
+
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from app.agent_models import AgentDefinition, AgentRun, AgentStep, AgentToolPolicy
+from app.agent_runtime import AgentRuntimeError, cancel_agent_run, create_agent_run
+from app.agent_tools import ToolRisk, tool_definition
+from app.agent_workspace_models import AgentRunContext
+from app.ai_gateway_models import AIModelConfiguration, AIProviderConfiguration
+from app.data_governance import DataGovernanceError, append_audit_event
+from app.models import MembershipRole
+from app.native_chat import get_visible_channel
+from app.native_chat_models import NativeChannel
+from app.work_graph import node_visible_to_user
+from app.work_graph_models import WorkGraphNode, WorkGraphNodeType
+
+
+class AgentWorkspaceError(ValueError):
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code[:128]
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedWorkspaceContext:
+    project: WorkGraphNode | None
+    channel: NativeChannel | None
+
+
+@dataclass(frozen=True, slots=True)
+class AgentIdentity:
+    definition: AgentDefinition
+    provider: AIProviderConfiguration
+    model: AIModelConfiguration
+    policies: tuple[AgentToolPolicy, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class AgentArtifact:
+    kind: str
+    label: str
+    reference_id: str
+    metadata: dict[str, object]
+
+
+def resolve_workspace_context(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    user_id: uuid.UUID,
+    role: MembershipRole,
+    project_node_id: uuid.UUID | None,
+    native_channel_id: uuid.UUID | None,
+) -> ResolvedWorkspaceContext:
+    if project_node_id is None and native_channel_id is None:
+        raise AgentWorkspaceError(
+            "workspace_context_required",
+            "Agent workspace runs require a visible project or Brain channel context",
+        )
+
+    project: WorkGraphNode | None = None
+    if project_node_id is not None:
+        candidate = db.scalar(
+            select(WorkGraphNode).where(
+                WorkGraphNode.id == project_node_id,
+                WorkGraphNode.organization_id == organization_id,
+                WorkGraphNode.node_type == WorkGraphNodeType.PROJECT,
+            )
+        )
+        if candidate is None or not node_visible_to_user(
+            db,
+            candidate,
+            user_id=user_id,
+            role=role,
+        ):
+            raise AgentWorkspaceError(
+                "workspace_context_not_found",
+                "Workspace context not found",
+            )
+        project = candidate
+
+    channel: NativeChannel | None = None
+    if native_channel_id is not None:
+        channel = get_visible_channel(
+            db,
+            organization_id=organization_id,
+            channel_id=native_channel_id,
+            user_id=user_id,
+        )
+        if channel is None:
+            raise AgentWorkspaceError(
+                "workspace_context_not_found",
+                "Workspace context not found",
+            )
+
+    return ResolvedWorkspaceContext(project=project, channel=channel)
+
+
+def create_workspace_run(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    agent_definition_id: uuid.UUID,
+    requested_by_user_id: uuid.UUID,
+    role: MembershipRole,
+    objective: str,
+    project_node_id: uuid.UUID | None,
+    native_channel_id: uuid.UUID | None,
+) -> tuple[AgentRun, AgentRunContext]:
+    context = resolve_workspace_context(
+        db,
+        organization_id=organization_id,
+        user_id=requested_by_user_id,
+        role=role,
+        project_node_id=project_node_id,
+        native_channel_id=native_channel_id,
+    )
+
+    run = create_agent_run(
+        db,
+        organization_id=organization_id,
+        agent_definition_id=agent_definition_id,
+        requested_by_user_id=requested_by_user_id,
+        objective=objective,
+    )
+    binding = AgentRunContext(
+        organization_id=organization_id,
+        run_id=run.id,
+        project_node_id=context.project.id if context.project else None,
+        native_channel_id=context.channel.id if context.channel else None,
+    )
+    try:
+        db.add(binding)
+        db.flush()
+        append_audit_event(
+            db,
+            organization_id=organization_id,
+            event_key=f"agent.workspace.bound:{run.id}",
+            event_type="agent.workspace.bound",
+            outcome="succeeded",
+            actor_user_id=requested_by_user_id,
+            resource_type="agent_run",
+            resource_id=run.id,
+            metadata={
+                "project_node_id": binding.project_node_id,
+                "native_channel_id": binding.native_channel_id,
+            },
+        )
+    except (DataGovernanceError, SQLAlchemyError) as exc:
+        db.rollback()
+        try:
+            cancel_agent_run(
+                db,
+                organization_id=organization_id,
+                run_id=run.id,
+                user_id=requested_by_user_id,
+            )
+        except (AgentRuntimeError, DataGovernanceError, SQLAlchemyError):
+            pass
+        raise AgentWorkspaceError(
+            "workspace_context_binding_failed",
+            "Agent workspace run could not be bound safely",
+        ) from exc
+
+    db.refresh(binding)
+    return run, binding
+
+
+def list_workspace_runs(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    user_id: uuid.UUID,
+    limit: int,
+    project_node_id: uuid.UUID | None = None,
+    native_channel_id: uuid.UUID | None = None,
+) -> list[tuple[AgentRun, AgentRunContext]]:
+    query = (
+        select(AgentRun, AgentRunContext)
+        .join(AgentRunContext, AgentRunContext.run_id == AgentRun.id)
+        .where(
+            AgentRun.organization_id == organization_id,
+            AgentRun.requested_by_user_id == user_id,
+            AgentRunContext.organization_id == organization_id,
+        )
+    )
+    if project_node_id is not None:
+        query = query.where(AgentRunContext.project_node_id == project_node_id)
+    if native_channel_id is not None:
+        query = query.where(AgentRunContext.native_channel_id == native_channel_id)
+    return list(
+        db.execute(
+            query.order_by(AgentRun.created_at.desc(), AgentRun.id.desc()).limit(limit)
+        ).all()
+    )
+
+
+def get_workspace_run(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    user_id: uuid.UUID,
+    run_id: uuid.UUID,
+) -> tuple[AgentRun, AgentRunContext]:
+    row = db.execute(
+        select(AgentRun, AgentRunContext)
+        .join(AgentRunContext, AgentRunContext.run_id == AgentRun.id)
+        .where(
+            AgentRun.id == run_id,
+            AgentRun.organization_id == organization_id,
+            AgentRun.requested_by_user_id == user_id,
+            AgentRunContext.organization_id == organization_id,
+        )
+    ).first()
+    if row is None:
+        raise AgentWorkspaceError("workspace_run_not_found", "Agent workspace run not found")
+    return row[0], row[1]
+
+
+def list_agent_identities(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+) -> list[AgentIdentity]:
+    definitions = list(
+        db.scalars(
+            select(AgentDefinition)
+            .where(
+                AgentDefinition.organization_id == organization_id,
+                AgentDefinition.enabled.is_(True),
+            )
+            .order_by(AgentDefinition.name, AgentDefinition.id)
+        )
+    )
+    identities: list[AgentIdentity] = []
+    for definition in definitions:
+        provider = db.scalar(
+            select(AIProviderConfiguration).where(
+                AIProviderConfiguration.id == definition.provider_configuration_id,
+                AIProviderConfiguration.organization_id == organization_id,
+            )
+        )
+        model = db.scalar(
+            select(AIModelConfiguration).where(
+                AIModelConfiguration.id == definition.model_configuration_id,
+                AIModelConfiguration.organization_id == organization_id,
+            )
+        )
+        if provider is None or model is None:
+            continue
+        policies = tuple(
+            db.scalars(
+                select(AgentToolPolicy)
+                .where(
+                    AgentToolPolicy.organization_id == organization_id,
+                    AgentToolPolicy.agent_definition_id == definition.id,
+                )
+                .order_by(AgentToolPolicy.tool_name)
+            )
+        )
+        identities.append(
+            AgentIdentity(
+                definition=definition,
+                provider=provider,
+                model=model,
+                policies=policies,
+            )
+        )
+    return identities
+
+
+def run_artifacts(db: Session, run: AgentRun) -> list[AgentArtifact]:
+    steps = list(
+        db.scalars(
+            select(AgentStep)
+            .where(
+                AgentStep.organization_id == run.organization_id,
+                AgentStep.run_id == run.id,
+            )
+            .order_by(AgentStep.sequence)
+        )
+    )
+    artifacts: list[AgentArtifact] = []
+    for step in steps:
+        if step.tool_name != "work_graph.create_work_item" or not step.result_metadata:
+            continue
+        node_id = step.result_metadata.get("node_id")
+        display_name = step.result_metadata.get("display_name")
+        if not isinstance(node_id, str) or not isinstance(display_name, str):
+            continue
+        artifacts.append(
+            AgentArtifact(
+                kind="work_item",
+                label=display_name,
+                reference_id=node_id,
+                metadata={
+                    "stable_key": step.result_metadata.get("stable_key"),
+                    "node_type": step.result_metadata.get("node_type"),
+                    "step_id": str(step.id),
+                },
+            )
+        )
+    return artifacts
+
+
+def policy_risk(policy: AgentToolPolicy) -> tuple[str, bool]:
+    definition = tool_definition(policy.tool_name)
+    if definition is None:
+        return "unknown", False
+    risk = definition.risk.value if isinstance(definition.risk, ToolRisk) else str(definition.risk)
+    return risk, definition.replay_safe
