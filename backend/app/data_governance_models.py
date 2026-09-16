@@ -56,6 +56,11 @@ class OrganizationRetentionPolicy(Base):
             "(audit_event_days >= 1 AND audit_event_days <= 36500)",
             name="ck_retention_policy_audit_days",
         ),
+        CheckConstraint(
+            "private_message_days IS NULL OR "
+            "(private_message_days >= 1 AND private_message_days <= 36500)",
+            name="ck_retention_policy_private_message_days",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -65,6 +70,7 @@ class OrganizationRetentionPolicy(Base):
     raw_event_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     derived_content_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     audit_event_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    private_message_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     legal_hold: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     updated_by_user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
@@ -114,7 +120,7 @@ class RetentionRun(Base):
     __table_args__ = (
         CheckConstraint(
             "raw_events_deleted >= 0 AND derived_events_deleted >= 0 "
-            "AND audit_events_deleted >= 0",
+            "AND audit_events_deleted >= 0 AND private_messages_deleted >= 0",
             name="ck_retention_run_nonnegative_counts",
         ),
         Index("ix_retention_runs_org_started", "organization_id", "started_at"),
@@ -132,9 +138,11 @@ class RetentionRun(Base):
     raw_event_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     derived_content_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     audit_event_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    private_message_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     raw_events_deleted: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     derived_events_deleted: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     audit_events_deleted: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    private_messages_deleted: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error_code: Mapped[str | None] = mapped_column(String(128), nullable=True)
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -219,6 +227,4 @@ class DerivedRetentionTombstone(Base):
     source_provider: Mapped[str] = mapped_column(String(40), nullable=False)
     object_type: Mapped[str] = mapped_column(String(64), nullable=False)
     object_external_id: Mapped[str] = mapped_column(String(512), nullable=False)
-    purged_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    purged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
