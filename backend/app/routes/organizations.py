@@ -11,9 +11,15 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.data_governance import DataGovernanceError, append_audit_event
 from app.database import get_db
+from app.direct_message_models import DirectConversation
 from app.models import Membership, MembershipRole, Organization, ResourceGrant, User
 from app.native_chat_models import NativeChannelMembership
-from app.permissions import AuthorizationContext, Permission, require_organization_permission
+from app.permissions import (
+    AuthorizationContext,
+    Permission,
+    require_organization_permission,
+    role_has_permission,
+)
 from app.schemas import (
     MembershipCreate,
     MembershipRead,
@@ -109,6 +115,35 @@ def _require_owner_survives(
             status_code=status.HTTP_409_CONFLICT,
             detail="The organization must retain at least one owner",
         )
+
+
+def _revoke_direct_message_participation(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    user_id: uuid.UUID,
+    revoked_at: datetime,
+) -> None:
+    # Keep the other participant's historical private view while preventing the
+    # removed/downgraded user from silently regaining old DM history if re-added.
+    db.execute(
+        update(DirectConversation)
+        .where(
+            DirectConversation.organization_id == organization_id,
+            DirectConversation.participant_a_user_id == user_id,
+            DirectConversation.participant_a_revoked_at.is_(None),
+        )
+        .values(participant_a_revoked_at=revoked_at)
+    )
+    db.execute(
+        update(DirectConversation)
+        .where(
+            DirectConversation.organization_id == organization_id,
+            DirectConversation.participant_b_user_id == user_id,
+            DirectConversation.participant_b_revoked_at.is_(None),
+        )
+        .values(participant_b_revoked_at=revoked_at)
+    )
 
 
 @router.post("", response_model=OrganizationRead, status_code=status.HTTP_201_CREATED)
@@ -259,7 +294,18 @@ def update_membership_role(
         return membership
 
     previous_role = membership.role
+    lost_dm_access = (
+        role_has_permission(previous_role, Permission.NATIVE_CHAT_WRITE)
+        and not role_has_permission(payload.role, Permission.NATIVE_CHAT_WRITE)
+    )
     membership.role = payload.role
+    if lost_dm_access:
+        _revoke_direct_message_participation(
+            db,
+            organization_id=organization_id,
+            user_id=membership.user_id,
+            revoked_at=datetime.now(UTC),
+        )
     try:
         append_audit_event(
             db,
@@ -274,6 +320,7 @@ def update_membership_role(
                 "target_user_id": membership.user_id,
                 "previous_role": previous_role.value,
                 "new_role": payload.role.value,
+                "direct_message_access_revoked": lost_dm_access,
             },
         )
     except (DataGovernanceError, SQLAlchemyError) as exc:
@@ -313,7 +360,7 @@ def delete_membership(
     now = datetime.now(UTC)
 
     # Membership removal must clear dormant authorization. Otherwise re-adding the same
-    # user could silently reactivate old restricted Work Graph or native-channel access.
+    # user could silently reactivate old Work Graph, channel or private-message access.
     db.execute(
         delete(ResourceGrant).where(
             ResourceGrant.organization_id == organization_id,
@@ -328,6 +375,12 @@ def delete_membership(
             NativeChannelMembership.revoked_at.is_(None),
         )
         .values(revoked_at=now)
+    )
+    _revoke_direct_message_participation(
+        db,
+        organization_id=organization_id,
+        user_id=target_user_id,
+        revoked_at=now,
     )
     db.delete(membership)
     try:
@@ -344,6 +397,7 @@ def delete_membership(
                 "target_user_id": target_user_id,
                 "previous_role": previous_role.value,
                 "access_grants_cleared": True,
+                "direct_message_access_revoked": True,
             },
         )
     except (DataGovernanceError, SQLAlchemyError) as exc:
@@ -427,44 +481,4 @@ def list_resource_grants(
             )
             .order_by(ResourceGrant.created_at, ResourceGrant.id)
         )
-    )
-
-
-@router.delete(
-    "/{organization_id}/resource-grants/{grant_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
-def delete_resource_grant(
-    organization_id: uuid.UUID,
-    grant_id: uuid.UUID,
-    access: AclManager,
-    db: Annotated[Session, Depends(get_db)],
-) -> None:
-    grant = db.scalar(
-        select(ResourceGrant).where(
-            ResourceGrant.id == grant_id,
-            ResourceGrant.organization_id == organization_id,
-        )
-    )
-    if grant is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Resource grant not found",
-        )
-
-    target_user_id = grant.user_id
-    resource_type = grant.resource_type
-    resource_id = grant.resource_id
-    grant_access = grant.access.value
-    db.delete(grant)
-    audit_acl_change(
-        action="deleted",
-        organization_id=organization_id,
-        actor_user_id=access.user_id,
-        target_user_id=target_user_id,
-        resource_type=resource_type,
-        resource_id=resource_id,
-        access=grant_access,
-        db=db,
-        required=True,
     )
