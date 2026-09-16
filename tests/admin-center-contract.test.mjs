@@ -84,6 +84,21 @@ test("API grant lifecycle exposes governed owner, scope, environment and rotatio
   }
 });
 
+test("grant expiry parsing fails safely before mutation", () => {
+  const panel = read("app/admin-center-panel.tsx");
+  assert.match(panel, /Number\.isNaN\(expiresDate\.getTime\(\)\)/);
+  assert.match(panel, /Expiry date is invalid/);
+  assert.match(panel, /expiresDate \? expiresDate\.toISOString\(\) : null/);
+});
+
+test("AI provider creation and rotation share bounded backend credential validation", () => {
+  const registry = read("backend/app/ai_provider_registry.py");
+  const credentials = read("backend/app/ai_provider_credentials.py");
+  assert.match(registry, /validate_ai_provider_credentials\(credentials\)/);
+  assert.match(credentials, /MAX_AI_CREDENTIAL_FIELDS = 16/);
+  assert.match(credentials, /MAX_AI_CREDENTIAL_VALUE_LENGTH = 8192/);
+});
+
 test("AI provider rotation is server-side and secret-safe", () => {
   const route = read("backend/app/routes/ai_provider_credentials.py");
   const service = read("backend/app/ai_provider_credentials.py");
