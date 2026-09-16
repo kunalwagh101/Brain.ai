@@ -90,6 +90,17 @@ export type AdminCenter = {
   };
 };
 
+export type APIGrantCreateInput = {
+  service_id: string;
+  grant_key: string;
+  display_name: string;
+  owner_user_id: string;
+  environment: string;
+  scopes: string[];
+  expires_at: string | null;
+  credentials: Record<string, string>;
+};
+
 function apiBaseUrl(): string {
   const configured = process.env.BRAIN_API_BASE_URL?.trim();
   if (!configured) throw new Error("BRAIN_API_BASE_URL is required for the production frontend");
@@ -200,6 +211,19 @@ export function setAIProviderEnabled(
   );
 }
 
+export function rotateAIProviderCredentials(
+  accessToken: string,
+  organizationId: string,
+  providerId: string,
+  credentials: Record<string, string>,
+): Promise<unknown> {
+  return adminApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/ai/providers/${encodeURIComponent(providerId)}/rotate`,
+    { method: "POST", body: JSON.stringify({ credentials }) },
+  );
+}
+
 export function revokeAIProvider(
   accessToken: string,
   organizationId: string,
@@ -222,6 +246,74 @@ export function setAIModelEnabled(
     accessToken,
     `/api/v1/organizations/${encodeURIComponent(organizationId)}/ai/models/${encodeURIComponent(modelId)}/status`,
     { method: "POST", body: JSON.stringify({ enabled }) },
+  );
+}
+
+export function createAPIGrant(
+  accessToken: string,
+  organizationId: string,
+  input: APIGrantCreateInput,
+): Promise<unknown> {
+  return adminApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export function changeAPIGrantOwner(
+  accessToken: string,
+  organizationId: string,
+  grantId: string,
+  ownerUserId: string,
+  reason: string | null,
+): Promise<unknown> {
+  return adminApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/owner`,
+    { method: "POST", body: JSON.stringify({ owner_user_id: ownerUserId, reason }) },
+  );
+}
+
+export function changeAPIGrantScopes(
+  accessToken: string,
+  organizationId: string,
+  grantId: string,
+  scopes: string[],
+  reason: string | null,
+): Promise<unknown> {
+  return adminApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/scopes`,
+    { method: "POST", body: JSON.stringify({ scopes, reason }) },
+  );
+}
+
+export function changeAPIGrantEnvironment(
+  accessToken: string,
+  organizationId: string,
+  grantId: string,
+  environment: string,
+  reason: string | null,
+): Promise<unknown> {
+  return adminApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/environment`,
+    { method: "POST", body: JSON.stringify({ environment, reason }) },
+  );
+}
+
+export function rotateAPIGrantCredentials(
+  accessToken: string,
+  organizationId: string,
+  grantId: string,
+  credentials: Record<string, string>,
+  reason: string | null,
+): Promise<unknown> {
+  return adminApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/rotate`,
+    { method: "POST", body: JSON.stringify({ credentials, reason }) },
   );
 }
 
