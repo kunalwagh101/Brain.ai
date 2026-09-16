@@ -27,6 +27,7 @@ export default async function Home({
       enableAskBrainBff
       enableEvidenceBff
       enableNativeChatBff
+      enableAgentWorkspaceBff
       signOutAction={signOutAction}
     />
   );
