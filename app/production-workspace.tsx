@@ -1,3 +1,4 @@
+import { getAdminCenter } from "./admin-center-api";
 import { getAgentWorkspace } from "./agent-workspace-api";
 import {
   getExecutiveOverview,
@@ -13,6 +14,7 @@ import {
 } from "./brain-api";
 import { WorkspaceShell } from "./workspace-shell";
 
+const ADMIN_ROLES = new Set(["owner", "admin"]);
 const EXECUTIVE_ROLES = new Set(["owner", "admin", "executive"]);
 const AI_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
 const AGENT_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
@@ -72,6 +74,7 @@ export async function ProductionWorkspace({
     overview,
     runtimes,
     agentWorkspace,
+    adminCenter,
   ] = await Promise.all([
     listWorkspaceNavigation(accessToken, organization.id),
     listProjectStatuses(accessToken, organization.id),
@@ -87,6 +90,9 @@ export async function ProductionWorkspace({
     AGENT_ROLES.has(organization.role)
       ? getAgentWorkspace(accessToken, organization.id)
       : Promise.resolve({ agents: [], runs: [] }),
+    ADMIN_ROLES.has(organization.role)
+      ? getAdminCenter(accessToken, organization.id)
+      : Promise.resolve(null),
   ]);
   const unreadByChannel = new Map(unreadRows.map((item) => [item.channel_id, item]));
   const nativeChannels = channelRows.map((channel) => ({
@@ -147,6 +153,7 @@ export async function ProductionWorkspace({
       overview={overview}
       runtimes={runtimes}
       agentWorkspace={agentWorkspace}
+      adminCenter={adminCenter}
       signedInName={signedInName}
       askBrainEndpoint={askBrainEndpoint}
       evidenceMutationBase={evidenceMutationBase}
