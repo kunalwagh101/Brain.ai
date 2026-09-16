@@ -36,9 +36,9 @@ BLOCKED | S-10.03.01 | F-10.03 | Project/memory/company-pulse/evidence surfaces,
 BLOCKED | S-10.04.01 | F-10.04 | Official WorkOS Next.js 16 templates, guarded install/activation scripts and BFF security contract are staged; external dependency: real WorkOS configuration plus authenticated browser execution
 BLOCKED | S-10.05.01 | F-10.05 | Repository implementation is staged; external S-10.04 WorkOS activation plus executable backend/browser acceptance remain pending
 IN_REVIEW | S-10.06.01 | F-10.06 | Ruff, 299 backend tests and frontend build/tests pass locally; verifier was skipped by product-owner direction, and live PostgreSQL/WorkOS/browser UAT remain pending
-IN_PROGRESS | S-10.06.02 | F-10.06 | Participant-only Brain-native DMs, privacy-safe UI/BFF, migrations 0022/0023, explicit private-message retention and regression/UAT contracts are staged; current-commit Ruff/Pytest/PostgreSQL/frontend/WorkOS browser verification has not executed
+IN_REVIEW | S-10.06.02 | F-10.06 | Participant-only Brain-native DMs, sequence-based revocable visibility epochs, privacy-safe UI/BFF, migrations 0022/0023/0024, explicit private-message retention and regression/UAT contracts are implementation-staged; current-commit Ruff/Pytest/PostgreSQL/frontend/WorkOS browser verification has not executed
 IN_REVIEW | S-10.07.01 | F-10.07 | Governed developer/agent workspace, project/channel context binding, approvals, context-aware tool execution, ephemeral final output and privacy/security contracts are implementation-staged; executable verification and authenticated browser UAT remain pending
-IN_PROGRESS | S-10.08.01 | F-10.08 | Owner/Admin governance center and first mutation layer for membership, integrations, AI provider/model and API grant lifecycle are implemented; credential-creation/rotation and executable/browser verification remain outstanding
+IN_REVIEW | S-10.08.01 | F-10.08 | Owner/Admin governance center now covers member/integration lifecycle, AI provider/model bootstrap and credential rotation, API service/grant bootstrap, owner/scope/environment/credential lifecycle and safe same-origin WorkOS BFF contracts; executable/backend/browser verification remains outstanding
 
 ## Current implementation train — S-02.04 / S-05.02 / S-04.02 / S-07.01 / S-07.02
 
@@ -124,7 +124,7 @@ Formal state: `BLOCKED`. Its S-07.01.01 and S-06.02.01 dependencies are not DONE
 
 The product owner clarified on 2026-09-11 that Brain's requested frontend is a Slack/Discord-style company workspace. The earlier single deferred native-chat story did not adequately represent that requirement. `PRODUCT_BACKLOG.md` separates the P0 workspace frontend from P1 native collaboration.
 
-The board WIP rule remains binding. Repository-staged stories that are waiting on external/authenticated acceptance stay `BLOCKED` or `IN_REVIEW` rather than consuming implementation WIP. The two current implementation slots are `S-10.06.02` Brain-native DMs and `S-10.08.01` Workspace Administration.
+The board WIP rule remains binding. Repository-staged stories that are waiting on external/authenticated acceptance stay `BLOCKED` or `IN_REVIEW` rather than consuming implementation WIP. `S-10.06.02` and `S-10.08.01` have now moved to `IN_REVIEW`; there is no active `IN_PROGRESS` E-10 story until the next backlog/dependency pull is explicitly selected.
 
 ### S-10.02.01 Workspace Shell and Navigation — BLOCKED
 
@@ -219,9 +219,9 @@ Repository-wide Ruff and all 299 backend tests also pass. The full frontend buil
 
 Formal state: `IN_REVIEW`. The session-open audit found that this story had been pulled without a dedicated Definition-of-Ready record while S-10.01 was still `IN_REVIEW`; that process drift is now recorded in `DEFINITION_OF_READY.md`. No accepted S-10.06.01 scope was silently removed. Final DONE remains blocked on a delivery-verifier PASS, real PostgreSQL upgrade/downgrade exercise, official S-10.04 WorkOS activation and the authenticated desktop/mobile/keyboard UAT in `UAT/F-10.06.md`.
 
-### S-10.06.02 Participant-safe Brain-native direct messages — IN_PROGRESS
+### S-10.06.02 Participant-safe Brain-native direct messages — IN_REVIEW
 
-Staged now:
+Implementation staged:
 
 - separate one-to-one `DirectConversation` / `DirectMessage` persistence rather than reusing restricted-channel administration semantics;
 - participant-only listing and reads with no Owner/Admin/Executive content override;
@@ -229,14 +229,17 @@ Staged now:
 - no RawEvent/CanonicalEvent/Work Graph/SearchDocument projection, keeping DMs outside organisation-wide Search/Ask Brain/Decision Memory/Project/Executive surfaces;
 - no organisation-wide per-message/per-conversation DM audit records;
 - composite `(organization_id, conversation_id)` database foreign key;
-- migrations `20260916_0022` and `20260916_0023` for DMs plus independent `private_message_days` retention and retention-run accounting;
+- migrations `20260916_0022`, `20260916_0023` and `20260916_0024` for DMs, independent `private_message_days` retention, revocable participant access and monotonic visibility/message sequences;
+- row-locked PostgreSQL message-sequence allocation, old-epoch idempotency-key rejection and participant visibility floors that avoid clock-skew/resolution bugs;
+- membership removal or messaging-role downgrade revokes that participant's DM access without destroying the other participant's permitted history;
+- re-add/re-promotion does not silently revive old DM history; explicit DM re-initiation starts a new visibility epoch;
 - legal-hold-safe private-message purge through the existing scheduled governance runner;
-- Slack-style DM navigation/panel, exact-email new-DM flow, server-computed bubble ownership and explicit privacy messaging;
+- Slack-style DM navigation/panel, history-only counterpart state, exact-email new-DM flow, server-computed bubble ownership and explicit privacy messaging;
 - server-validated `dmId` selection and suppression of ambient default-channel context while a DM is active;
 - same-origin WorkOS BFF templates with bounded JSON, session/membership revalidation and cross-site rejection;
 - backend/frontend regression contracts and `UAT/F-10.06.02.md`.
 
-Formal state: `IN_PROGRESS`. The code/tests/docs are staged, but current-commit Ruff/Pytest/frontend execution, live PostgreSQL `0022/0023` upgrade/downgrade/re-upgrade and authenticated WorkOS multi-user browser UAT have not executed. No PASS/DONE claim exists.
+Formal state: `IN_REVIEW`. The implementation, migrations and acceptance contracts are review-ready, but current-commit Ruff/Pytest/frontend execution, live PostgreSQL `0022/0023/0024` upgrade/downgrade/re-upgrade, unique-sentinel Search/Ask Brain negative test and authenticated WorkOS multi-user browser UAT have not executed. Latest GitHub-hosted Backend CI still failed before any step executed (`steps: null`), so no PASS/DONE evidence exists.
 
 ### S-10.07.01 Developer & Agent Workspace — IN_REVIEW
 
@@ -255,20 +258,25 @@ Staged now:
 
 Formal state: `IN_REVIEW`. Implementation is staged, but no new executable PASS, PostgreSQL/browser UAT or real provider/tool safety acceptance is claimed.
 
-### S-10.08.01 Workspace Administration — IN_PROGRESS
+### S-10.08.01 Workspace Administration — IN_REVIEW
 
-Staged now:
+Implementation staged:
 
-- Owner/Admin-only Admin Center aggregate with members, integrations, AI providers/models and API grants;
+- Owner/Admin-only Admin Center aggregate with members, integrations, AI providers/models and API services/grants;
 - safe serialization excludes raw credentials, tokens and secret references;
 - member invitation, role change and removal with last-Owner protection and Owner/Admin authority separation;
-- membership removal also clears organisation resource grants and restricted-channel memberships to prevent dormant access revival;
-- integration revoke, AI provider/model lifecycle controls and API-grant enable/disable/revoke actions;
-- one typed same-origin admin BFF action boundary with bounded JSON, WorkOS session/membership validation and cross-site rejection;
+- membership removal clears organisation resource grants, revokes restricted-channel memberships and revokes dormant DM participation so re-adding a user cannot silently recover stale access;
+- integration revoke and AI provider/model lifecycle controls;
+- AI provider bootstrap from an empty workspace, governed model creation and in-place provider credential rotation through the configured secret store;
+- AI credential creation/rotation share one backend validator with a bounded credential shape and required `api_key`;
+- external API service bootstrap plus grant creation, owner/scope/environment changes, enable/disable, credential rotation and revocation through the existing API registry lifecycle;
+- transient browser secret entry only: no local/session storage, no server echo, no Admin Center serialization of stored secret values, and forms clear after successful secret submission;
+- one typed same-origin admin BFF action boundary with strict discriminated parsing, a bounded 32 KiB JSON body, WorkOS session/membership validation and cross-site rejection;
+- grant expiry parsing fails safely in the browser before mutation and is validated again server-side;
 - workspace UI controls refresh from authoritative backend state rather than optimistic local authority;
-- backend/frontend security contracts plus `UAT/F-10.08.md`.
+- backend credential-rotation tests, frontend source/security contracts and `UAT/F-10.08.md`.
 
-Formal state: `IN_PROGRESS`. Credential creation/rotation plus API grant owner/scope/environment editing remain to be finished, and current mutation tests/browser UAT have not executed.
+Formal state: `IN_REVIEW`. The implementation scope is now review-ready, including credential creation/rotation and API grant metadata editing. Current Ruff/Pytest/frontend build/source-contract execution, PostgreSQL-backed admin mutation acceptance, real secret-store smoke and authenticated Owner/Admin/Member WorkOS browser/network UAT have not executed. Latest GitHub-hosted jobs continue to fail before step execution, so no PASS/DONE claim exists.
 
 ## Acceptance phase
 
