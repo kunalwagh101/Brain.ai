@@ -2,11 +2,13 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from pydantic import BaseModel
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
+from app.data_governance import DataGovernanceError, append_audit_event
 from app.database import get_db
 from app.models import Membership, MembershipRole, Organization, ResourceGrant, User
 from app.permissions import AuthorizationContext, Permission, require_organization_permission
@@ -38,6 +40,73 @@ AclManager = Annotated[
     AuthorizationContext,
     Depends(require_organization_permission(Permission.RESOURCE_ACL_MANAGE)),
 ]
+
+
+class MembershipRoleUpdate(BaseModel):
+    role: MembershipRole
+
+    model_config = {"extra": "forbid"}
+
+
+def _membership_or_404(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    membership_id: uuid.UUID,
+) -> Membership:
+    membership = db.scalar(
+        select(Membership).where(
+            Membership.id == membership_id,
+            Membership.organization_id == organization_id,
+        )
+    )
+    if membership is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Membership not found",
+        )
+    return membership
+
+
+def _require_membership_mutation_authority(
+    access: AuthorizationContext,
+    *,
+    current_role: MembershipRole,
+    requested_role: MembershipRole | None = None,
+) -> None:
+    protected_roles = {MembershipRole.OWNER, MembershipRole.ADMIN}
+    if access.role != MembershipRole.OWNER and (
+        current_role in protected_roles
+        or (requested_role is not None and requested_role in protected_roles)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only owners can manage owner or admin memberships",
+        )
+
+
+def _require_owner_survives(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    target: Membership,
+    requested_role: MembershipRole | None,
+) -> None:
+    if target.role != MembershipRole.OWNER:
+        return
+    if requested_role == MembershipRole.OWNER:
+        return
+    owner_count = db.scalar(
+        select(func.count(Membership.id)).where(
+            Membership.organization_id == organization_id,
+            Membership.role == MembershipRole.OWNER,
+        )
+    ) or 0
+    if owner_count <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The organization must retain at least one owner",
+        )
 
 
 @router.post("", response_model=OrganizationRead, status_code=status.HTTP_201_CREATED)
@@ -114,13 +183,30 @@ def create_membership(
     )
     db.add(membership)
     try:
-        db.commit()
+        db.flush()
+        append_audit_event(
+            db,
+            organization_id=organization_id,
+            event_key=f"membership.created:{membership.id}",
+            event_type="membership.created",
+            outcome="succeeded",
+            actor_user_id=access.user_id,
+            resource_type="membership",
+            resource_id=membership.id,
+            metadata={"target_user_id": membership.user_id, "role": membership.role.value},
+        )
     except IntegrityError:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Membership already exists",
         ) from None
+    except (DataGovernanceError, SQLAlchemyError) as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Membership could not be audited",
+        ) from exc
     db.refresh(membership)
     return membership
 
@@ -138,6 +224,112 @@ def list_memberships(
             .order_by(Membership.created_at, Membership.id)
         )
     )
+
+
+@router.post(
+    "/{organization_id}/memberships/{membership_id}/role",
+    response_model=MembershipRead,
+)
+def update_membership_role(
+    organization_id: uuid.UUID,
+    membership_id: uuid.UUID,
+    payload: MembershipRoleUpdate,
+    access: MembershipManager,
+    db: Annotated[Session, Depends(get_db)],
+) -> Membership:
+    membership = _membership_or_404(
+        db,
+        organization_id=organization_id,
+        membership_id=membership_id,
+    )
+    _require_membership_mutation_authority(
+        access,
+        current_role=membership.role,
+        requested_role=payload.role,
+    )
+    _require_owner_survives(
+        db,
+        organization_id=organization_id,
+        target=membership,
+        requested_role=payload.role,
+    )
+    if membership.role == payload.role:
+        return membership
+
+    previous_role = membership.role
+    membership.role = payload.role
+    try:
+        append_audit_event(
+            db,
+            organization_id=organization_id,
+            event_key=f"membership.role_changed:{membership.id}:{uuid.uuid4()}",
+            event_type="membership.role_changed",
+            outcome="succeeded",
+            actor_user_id=access.user_id,
+            resource_type="membership",
+            resource_id=membership.id,
+            metadata={
+                "target_user_id": membership.user_id,
+                "previous_role": previous_role.value,
+                "new_role": payload.role.value,
+            },
+        )
+    except (DataGovernanceError, SQLAlchemyError) as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Membership role change could not be audited",
+        ) from exc
+    db.refresh(membership)
+    return membership
+
+
+@router.delete(
+    "/{organization_id}/memberships/{membership_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_membership(
+    organization_id: uuid.UUID,
+    membership_id: uuid.UUID,
+    access: MembershipManager,
+    db: Annotated[Session, Depends(get_db)],
+) -> None:
+    membership = _membership_or_404(
+        db,
+        organization_id=organization_id,
+        membership_id=membership_id,
+    )
+    _require_membership_mutation_authority(access, current_role=membership.role)
+    _require_owner_survives(
+        db,
+        organization_id=organization_id,
+        target=membership,
+        requested_role=None,
+    )
+    target_user_id = membership.user_id
+    previous_role = membership.role
+    db.delete(membership)
+    try:
+        append_audit_event(
+            db,
+            organization_id=organization_id,
+            event_key=f"membership.deleted:{membership_id}:{uuid.uuid4()}",
+            event_type="membership.deleted",
+            outcome="succeeded",
+            actor_user_id=access.user_id,
+            resource_type="membership",
+            resource_id=membership_id,
+            metadata={
+                "target_user_id": target_user_id,
+                "previous_role": previous_role.value,
+            },
+        )
+    except (DataGovernanceError, SQLAlchemyError) as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Membership removal could not be audited",
+        ) from exc
 
 
 @router.post(
