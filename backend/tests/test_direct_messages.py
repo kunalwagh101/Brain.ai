@@ -114,6 +114,17 @@ def _create_dm(
     return response.json()
 
 
+def _membership(db: Session, organization: Organization, user: User) -> Membership:
+    membership = db.scalar(
+        select(Membership).where(
+            Membership.organization_id == organization.id,
+            Membership.user_id == user.id,
+        )
+    )
+    assert membership is not None
+    return membership
+
+
 def test_direct_messages_are_participant_only_and_not_projected_to_company_memory(
     client: TestClient,
     db_session: Session,
@@ -128,6 +139,7 @@ def test_direct_messages_are_participant_only_and_not_projected_to_company_memor
     created = _create_dm(client, organization, alice, bob)
     conversation_id = created["id"]
     assert created["other_email"] == bob.email
+    assert created["can_send"] is True
 
     reverse = _create_dm(client, organization, bob, alice)
     assert reverse["id"] == conversation_id
@@ -225,23 +237,135 @@ def test_direct_message_target_must_be_current_message_capable_member(
     assert cross_tenant.status_code == 404
 
 
+def test_role_downgrade_revokes_old_dm_until_explicit_reinitiation(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    organization, alice, bob, owner, _, _, _, _ = _seed(db_session)
+    conversation = _create_dm(client, organization, alice, bob)
+    conversation_id = conversation["id"]
+
+    _as(alice)
+    try:
+        old = client.post(
+            f"/api/v1/organizations/{organization.id}/direct-messages/"
+            f"{conversation_id}/messages",
+            json={"body": "History before role downgrade"},
+            headers={"Idempotency-Key": "before-downgrade"},
+        )
+    finally:
+        _clear()
+    assert old.status_code == 201
+
+    alice_membership = _membership(db_session, organization, alice)
+    _as(owner)
+    try:
+        downgrade = client.post(
+            f"/api/v1/organizations/{organization.id}/memberships/"
+            f"{alice_membership.id}/role",
+            json={"role": "guest"},
+        )
+        restore = client.post(
+            f"/api/v1/organizations/{organization.id}/memberships/"
+            f"{alice_membership.id}/role",
+            json={"role": "member"},
+        )
+    finally:
+        _clear()
+    assert downgrade.status_code == 200
+    assert restore.status_code == 200
+
+    _as(alice)
+    try:
+        after_restore = client.get(
+            f"/api/v1/organizations/{organization.id}/direct-messages"
+        )
+        guessed_old = client.get(
+            f"/api/v1/organizations/{organization.id}/direct-messages/"
+            f"{conversation_id}/messages"
+        )
+    finally:
+        _clear()
+    assert after_restore.status_code == 200
+    assert after_restore.json() == []
+    assert guessed_old.status_code == 404
+
+    _as(bob)
+    try:
+        bob_list = client.get(
+            f"/api/v1/organizations/{organization.id}/direct-messages"
+        )
+        bob_history = client.get(
+            f"/api/v1/organizations/{organization.id}/direct-messages/"
+            f"{conversation_id}/messages"
+        )
+        blocked_send = client.post(
+            f"/api/v1/organizations/{organization.id}/direct-messages/"
+            f"{conversation_id}/messages",
+            json={"body": "Cannot send while Alice side remains revoked"},
+        )
+    finally:
+        _clear()
+    assert bob_list.status_code == 200
+    assert bob_list.json()[0]["can_send"] is False
+    assert [item["body"] for item in bob_history.json()] == ["History before role downgrade"]
+    assert blocked_send.status_code == 409
+
+    reopened = _create_dm(client, organization, alice, bob)
+    assert reopened["id"] == conversation_id
+    assert reopened["can_send"] is True
+
+    _as(alice)
+    try:
+        alice_reopened_history = client.get(
+            f"/api/v1/organizations/{organization.id}/direct-messages/"
+            f"{conversation_id}/messages"
+        )
+        new_message = client.post(
+            f"/api/v1/organizations/{organization.id}/direct-messages/"
+            f"{conversation_id}/messages",
+            json={"body": "New epoch message"},
+            headers={"Idempotency-Key": "after-reopen"},
+        )
+    finally:
+        _clear()
+    assert alice_reopened_history.status_code == 200
+    assert alice_reopened_history.json() == []
+    assert new_message.status_code == 201
+
+    _as(bob)
+    try:
+        bob_after_reopen = client.get(
+            f"/api/v1/organizations/{organization.id}/direct-messages/"
+            f"{conversation_id}/messages"
+        )
+    finally:
+        _clear()
+    assert [item["body"] for item in bob_after_reopen.json()] == [
+        "History before role downgrade",
+        "New epoch message",
+    ]
+
+
 def test_role_downgrade_removes_dm_list_read_and_send_access(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    organization, alice, bob, _, _, _, _, _ = _seed(db_session)
+    organization, alice, bob, owner, _, _, _, _ = _seed(db_session)
     conversation = _create_dm(client, organization, alice, bob)
     conversation_id = conversation["id"]
+    alice_membership = _membership(db_session, organization, alice)
 
-    membership = db_session.scalar(
-        select(Membership).where(
-            Membership.organization_id == organization.id,
-            Membership.user_id == alice.id,
+    _as(owner)
+    try:
+        downgrade = client.post(
+            f"/api/v1/organizations/{organization.id}/memberships/"
+            f"{alice_membership.id}/role",
+            json={"role": "guest"},
         )
-    )
-    assert membership is not None
-    membership.role = MembershipRole.GUEST
-    db_session.commit()
+    finally:
+        _clear()
+    assert downgrade.status_code == 200
 
     _as(alice)
     try:
