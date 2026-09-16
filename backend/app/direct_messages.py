@@ -75,14 +75,14 @@ def _message_capable_member(
     return role_has_permission(row[0], Permission.NATIVE_CHAT_WRITE)
 
 
-def _participant_visible_from(
+def _participant_visible_from_sequence(
     conversation: DirectConversation,
     user_id: uuid.UUID,
-) -> datetime:
+) -> int:
     if conversation.participant_a_user_id == user_id:
-        return conversation.participant_a_visible_from
+        return conversation.participant_a_visible_from_sequence
     if conversation.participant_b_user_id == user_id:
-        return conversation.participant_b_visible_from
+        return conversation.participant_b_visible_from_sequence
     raise DirectMessageError("conversation_not_found", "Direct conversation not found")
 
 
@@ -97,29 +97,49 @@ def _other_participant_state(
     raise DirectMessageError("conversation_not_found", "Direct conversation not found")
 
 
+def _pair_conversation(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    participant_a_user_id: uuid.UUID,
+    participant_b_user_id: uuid.UUID,
+    for_update: bool = False,
+) -> DirectConversation | None:
+    query = select(DirectConversation).where(
+        DirectConversation.organization_id == organization_id,
+        DirectConversation.participant_a_user_id == participant_a_user_id,
+        DirectConversation.participant_b_user_id == participant_b_user_id,
+    )
+    if for_update:
+        query = query.with_for_update()
+    return db.scalar(query)
+
+
 def _participant_conversation(
     db: Session,
     *,
     organization_id: uuid.UUID,
     conversation_id: uuid.UUID,
     user_id: uuid.UUID,
+    for_update: bool = False,
 ) -> DirectConversation:
-    conversation = db.scalar(
-        select(DirectConversation).where(
-            DirectConversation.id == conversation_id,
-            DirectConversation.organization_id == organization_id,
-            or_(
-                and_(
-                    DirectConversation.participant_a_user_id == user_id,
-                    DirectConversation.participant_a_revoked_at.is_(None),
-                ),
-                and_(
-                    DirectConversation.participant_b_user_id == user_id,
-                    DirectConversation.participant_b_revoked_at.is_(None),
-                ),
+    query = select(DirectConversation).where(
+        DirectConversation.id == conversation_id,
+        DirectConversation.organization_id == organization_id,
+        or_(
+            and_(
+                DirectConversation.participant_a_user_id == user_id,
+                DirectConversation.participant_a_revoked_at.is_(None),
             ),
-        )
+            and_(
+                DirectConversation.participant_b_user_id == user_id,
+                DirectConversation.participant_b_revoked_at.is_(None),
+            ),
+        ),
     )
+    if for_update:
+        query = query.with_for_update()
+    conversation = db.scalar(query)
     if conversation is None:
         raise DirectMessageError("conversation_not_found", "Direct conversation not found")
     return conversation
@@ -135,13 +155,19 @@ def _reactivate_current_pair(
     now = datetime.now(UTC)
     changed = False
     for user_id in (actor_user_id, target_user_id):
-        if conversation.participant_a_user_id == user_id and conversation.participant_a_revoked_at is not None:
+        if (
+            conversation.participant_a_user_id == user_id
+            and conversation.participant_a_revoked_at is not None
+        ):
             conversation.participant_a_revoked_at = None
-            conversation.participant_a_visible_from = now
+            conversation.participant_a_visible_from_sequence = conversation.next_message_sequence
             changed = True
-        elif conversation.participant_b_user_id == user_id and conversation.participant_b_revoked_at is not None:
+        elif (
+            conversation.participant_b_user_id == user_id
+            and conversation.participant_b_revoked_at is not None
+        ):
             conversation.participant_b_revoked_at = None
-            conversation.participant_b_visible_from = now
+            conversation.participant_b_visible_from_sequence = conversation.next_message_sequence
             changed = True
     if changed:
         conversation.updated_at = now
@@ -155,7 +181,7 @@ def _idempotent_message_for_epoch(
     *,
     conversation_id: uuid.UUID,
     idempotency_key: str,
-    visible_from: datetime,
+    visible_from_sequence: int,
 ) -> DirectMessage | None:
     existing = db.scalar(
         select(DirectMessage).where(
@@ -165,13 +191,7 @@ def _idempotent_message_for_epoch(
     )
     if existing is None:
         return None
-    visible = db.scalar(
-        select(DirectMessage.id).where(
-            DirectMessage.id == existing.id,
-            DirectMessage.created_at >= visible_from,
-        )
-    )
-    if visible is None:
+    if existing.sequence < visible_from_sequence:
         raise DirectMessageConflictError(
             "idempotency_key_reused",
             "Idempotency key belongs to an earlier private-message visibility epoch",
@@ -194,7 +214,10 @@ def create_or_get_direct_conversation(
         organization_id=organization_id,
         user_id=actor_user_id,
     ):
-        raise DirectMessageError("actor_not_available", "Current member is not available for direct messages")
+        raise DirectMessageError(
+            "actor_not_available",
+            "Current member is not available for direct messages",
+        )
 
     target_row = db.execute(
         select(Membership, User)
@@ -209,17 +232,23 @@ def create_or_get_direct_conversation(
         raise DirectMessageError("target_not_found", "Organization member not found")
     target_membership, target_user = target_row
     if target_user.id == actor_user_id:
-        raise DirectMessageError("self_dm_not_allowed", "Cannot create a direct conversation with yourself")
+        raise DirectMessageError(
+            "self_dm_not_allowed",
+            "Cannot create a direct conversation with yourself",
+        )
     if not role_has_permission(target_membership.role, Permission.NATIVE_CHAT_WRITE):
-        raise DirectMessageError("target_not_available", "Organization member is not available for direct messages")
+        raise DirectMessageError(
+            "target_not_available",
+            "Organization member is not available for direct messages",
+        )
 
     participant_a, participant_b = _ordered_pair(actor_user_id, target_user.id)
-    existing = db.scalar(
-        select(DirectConversation).where(
-            DirectConversation.organization_id == organization_id,
-            DirectConversation.participant_a_user_id == participant_a,
-            DirectConversation.participant_b_user_id == participant_b,
-        )
+    existing = _pair_conversation(
+        db,
+        organization_id=organization_id,
+        participant_a_user_id=participant_a,
+        participant_b_user_id=participant_b,
+        for_update=True,
     )
     if existing is not None:
         return _reactivate_current_pair(
@@ -240,12 +269,12 @@ def create_or_get_direct_conversation(
         db.commit()
     except IntegrityError:
         db.rollback()
-        existing = db.scalar(
-            select(DirectConversation).where(
-                DirectConversation.organization_id == organization_id,
-                DirectConversation.participant_a_user_id == participant_a,
-                DirectConversation.participant_b_user_id == participant_b,
-            )
+        existing = _pair_conversation(
+            db,
+            organization_id=organization_id,
+            participant_a_user_id=participant_a,
+            participant_b_user_id=participant_b,
+            for_update=True,
         )
         if existing is None:
             raise
@@ -318,16 +347,16 @@ def list_direct_messages(
         conversation_id=conversation_id,
         user_id=user_id,
     )
-    visible_from = _participant_visible_from(conversation, user_id)
+    visible_from_sequence = _participant_visible_from_sequence(conversation, user_id)
     latest = list(
         db.scalars(
             select(DirectMessage)
             .where(
                 DirectMessage.organization_id == organization_id,
                 DirectMessage.conversation_id == conversation_id,
-                DirectMessage.created_at >= visible_from,
+                DirectMessage.sequence >= visible_from_sequence,
             )
-            .order_by(DirectMessage.created_at.desc(), DirectMessage.id.desc())
+            .order_by(DirectMessage.sequence.desc())
             .limit(limit)
         )
     )
@@ -344,14 +373,23 @@ def send_direct_message(
     body: str,
     idempotency_key: str | None,
 ) -> DirectMessage:
+    normalized_body = _normalize_body(body)
+    normalized_key = _normalize_idempotency_key(idempotency_key)
     conversation = _participant_conversation(
         db,
         organization_id=organization_id,
         conversation_id=conversation_id,
         user_id=author_user_id,
+        for_update=True,
     )
-    visible_from = _participant_visible_from(conversation, author_user_id)
-    other_user_id, other_revoked_at = _other_participant_state(conversation, author_user_id)
+    visible_from_sequence = _participant_visible_from_sequence(
+        conversation,
+        author_user_id,
+    )
+    other_user_id, other_revoked_at = _other_participant_state(
+        conversation,
+        author_user_id,
+    )
     if other_revoked_at is not None or not _message_capable_member(
         db,
         organization_id=organization_id,
@@ -362,29 +400,30 @@ def send_direct_message(
             "The other participant is not currently available for direct messages",
         )
 
-    normalized_body = _normalize_body(body)
-    normalized_key = _normalize_idempotency_key(idempotency_key)
     if normalized_key is not None:
         existing = _idempotent_message_for_epoch(
             db,
             conversation_id=conversation_id,
             idempotency_key=normalized_key,
-            visible_from=visible_from,
+            visible_from_sequence=visible_from_sequence,
         )
         if existing is not None:
             return existing
 
+    sequence = conversation.next_message_sequence
+    conversation.next_message_sequence = sequence + 1
+    conversation.updated_at = datetime.now(UTC)
     digest = hashlib.sha256(normalized_body.encode()).hexdigest()
     message = DirectMessage(
         organization_id=organization_id,
         conversation_id=conversation_id,
+        sequence=sequence,
         author_user_id=author_user_id,
         body=normalized_body,
         body_sha256=digest,
         body_char_count=len(normalized_body),
         idempotency_key=normalized_key,
     )
-    conversation.updated_at = datetime.now(UTC)
     db.add(message)
     try:
         db.commit()
@@ -392,11 +431,20 @@ def send_direct_message(
         db.rollback()
         if normalized_key is None:
             raise
+        current = _participant_conversation(
+            db,
+            organization_id=organization_id,
+            conversation_id=conversation_id,
+            user_id=author_user_id,
+        )
         existing = _idempotent_message_for_epoch(
             db,
             conversation_id=conversation_id,
             idempotency_key=normalized_key,
-            visible_from=visible_from,
+            visible_from_sequence=_participant_visible_from_sequence(
+                current,
+                author_user_id,
+            ),
         )
         if existing is None:
             raise
