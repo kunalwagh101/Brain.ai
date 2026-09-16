@@ -25,6 +25,7 @@ from app.ai_provider_adapter import (
     normalize_provider_key,
     validate_provider_api_url,
 )
+from app.ai_provider_credentials import validate_ai_provider_credentials
 from app.ai_usage import exhausted_hard_budget, materialize_request_cost
 from app.ai_usage_models import AICostResolutionStatus
 from app.config import get_settings
@@ -71,9 +72,7 @@ def create_provider_configuration(
     api_url = validate_provider_api_url(api_url)
     if not display_name.strip():
         raise AIGatewayError("Provider display name is required")
-    api_key = credentials.get("api_key")
-    if not isinstance(api_key, str) or not api_key.strip():
-        raise AIGatewayError("AI provider credentials require api_key")
+    validated_credentials = validate_ai_provider_credentials(credentials)
 
     duplicate = db.scalar(
         select(AIProviderConfiguration.id).where(
@@ -90,7 +89,7 @@ def create_provider_configuration(
             organization_id=organization_id,
             provider_configuration_id=provider_id,
             provider=provider_key,
-            credentials=credentials,
+            credentials=validated_credentials,
         )
     except SecretStoreError as exc:
         raise AIGatewayError("AI provider credential storage failed") from exc
@@ -417,56 +416,23 @@ def invoke_ai(
             "model": model.model_key,
         }
         if not provider.secret_ref:
-            _mark_failed(
-                db,
-                record,
-                code="provider_revoked",
-                started=started,
-                **failure_fields,
-            )
+            _mark_failed(db, record, code="provider_revoked", started=started, **failure_fields)
             raise AIInvocationError(request_id=record.id, code="provider_revoked")
         try:
             credentials = secret_store.load_connection_secret(provider.secret_ref)
         except SecretStoreError as exc:
-            _mark_failed(
-                db,
-                record,
-                code="credential_unavailable",
-                started=started,
-                **failure_fields,
-            )
-            raise AIInvocationError(
-                request_id=record.id,
-                code="credential_unavailable",
-            ) from exc
+            _mark_failed(db, record, code="credential_unavailable", started=started, **failure_fields)
+            raise AIInvocationError(request_id=record.id, code="credential_unavailable") from exc
         api_key = credentials.get("api_key")
         if not isinstance(api_key, str) or not api_key:
-            _mark_failed(
-                db,
-                record,
-                code="invalid_provider_credentials",
-                started=started,
-                **failure_fields,
-            )
-            raise AIInvocationError(
-                request_id=record.id,
-                code="invalid_provider_credentials",
-            )
+            _mark_failed(db, record, code="invalid_provider_credentials", started=started, **failure_fields)
+            raise AIInvocationError(request_id=record.id, code="invalid_provider_credentials")
 
         runtime = adapter or adapter_for(provider.adapter_kind)
         timeout = timeout_seconds or get_settings().ai_provider_timeout_seconds
         if timeout <= 0 or timeout > 120:
-            _mark_failed(
-                db,
-                record,
-                code="invalid_gateway_timeout",
-                started=started,
-                **failure_fields,
-            )
-            raise AIInvocationError(
-                request_id=record.id,
-                code="invalid_gateway_timeout",
-            )
+            _mark_failed(db, record, code="invalid_gateway_timeout", started=started, **failure_fields)
+            raise AIInvocationError(request_id=record.id, code="invalid_gateway_timeout")
         try:
             result = runtime.invoke(
                 api_url=provider.api_url,
@@ -478,13 +444,7 @@ def invoke_ai(
                 timeout_seconds=timeout,
             )
         except AIProviderCallError as exc:
-            _mark_failed(
-                db,
-                record,
-                code=exc.code,
-                started=started,
-                **failure_fields,
-            )
+            _mark_failed(db, record, code=exc.code, started=started, **failure_fields)
             raise AIInvocationError(request_id=record.id, code=exc.code) from exc
 
         latency_ms = max(0, round((time.perf_counter() - started) * 1000))
