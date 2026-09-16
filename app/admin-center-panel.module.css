@@ -42,7 +42,8 @@
 }
 
 .notice,
-.error {
+.error,
+.securityNote {
   border: 1px solid rgba(128, 128, 128, 0.24);
   border-radius: 0.7rem;
   padding: 0.7rem 0.8rem;
@@ -50,6 +51,12 @@
 
 .error {
   font-weight: 650;
+}
+
+.securityNote {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  opacity: 0.82;
 }
 
 .metrics {
@@ -103,7 +110,8 @@
 .rows,
 .providerList,
 .models,
-.grants {
+.grants,
+.grantEditors {
   display: grid;
   gap: 0.6rem;
 }
@@ -139,21 +147,34 @@
 .actions select,
 .inlineForm button,
 .inlineForm input,
-.inlineForm select {
+.inlineForm select,
+.secretForm button,
+.secretForm input,
+.secretForm select,
+.secretForm textarea,
+.grantEditors button,
+.grantEditors input,
+.grantEditors select,
+.grantEditors textarea {
   font: inherit;
 }
 
 .actions button,
-.inlineForm button {
+.inlineForm button,
+.secretForm button,
+.grantEditors button {
   border: 1px solid rgba(128, 128, 128, 0.3);
   border-radius: 0.55rem;
   padding: 0.35rem 0.6rem;
   background: transparent;
+  color: inherit;
   cursor: pointer;
 }
 
 .actions button:disabled,
 .inlineForm button:disabled,
+.secretForm button:disabled,
+.grantEditors button:disabled,
 .actions select:disabled {
   cursor: not-allowed;
   opacity: 0.55;
@@ -161,21 +182,34 @@
 
 .actions select,
 .inlineForm input,
-.inlineForm select {
+.inlineForm select,
+.secretForm input,
+.secretForm select,
+.secretForm textarea,
+.grantEditors input,
+.grantEditors select,
+.grantEditors textarea {
   border: 1px solid rgba(128, 128, 128, 0.28);
   border-radius: 0.5rem;
   padding: 0.35rem 0.45rem;
   background: transparent;
   color: inherit;
+  min-width: 0;
+}
+
+.secretForm textarea,
+.grantEditors textarea {
+  width: 100%;
+  resize: vertical;
 }
 
 .dangerButton {
   font-weight: 700;
 }
 
-.inlineForm {
+.inlineForm,
+.secretForm {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 8rem auto;
   gap: 0.55rem;
   align-items: end;
   border: 1px dashed rgba(128, 128, 128, 0.25);
@@ -184,10 +218,24 @@
   margin-bottom: 0.8rem;
 }
 
-.inlineForm label {
+.inlineForm {
+  grid-template-columns: minmax(0, 1fr) 8rem auto;
+}
+
+.secretForm {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.inlineForm label,
+.secretForm label,
+.grantEditors label {
   display: grid;
   gap: 0.3rem;
   font-size: 0.78rem;
+}
+
+.wideField {
+  grid-column: 1 / -1;
 }
 
 .meta span,
@@ -230,6 +278,23 @@
   padding: 0.55rem 0;
 }
 
+.grantRow {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.grantEditors {
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+}
+
+.grantEditors form {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+}
+
 .empty {
   margin: 0;
   opacity: 0.7;
@@ -238,6 +303,11 @@
 @media (max-width: 1100px) {
   .metrics,
   .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .secretForm,
+  .grantEditors {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -257,8 +327,11 @@
 
   .metrics,
   .grid,
-  .inlineForm {
-    grid-template-columns: 1fr;
+  .inlineForm,
+  .secretForm,
+  .grantEditors,
+  .grantRow {
+    grid-template-columns: 1fr !important;
   }
 
   .meta,
