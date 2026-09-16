@@ -83,6 +83,10 @@ class DirectMessage(Base):
             ondelete="CASCADE",
             name="fk_direct_message_org_conversation",
         ),
+        CheckConstraint(
+            "body_char_count > 0",
+            name="ck_direct_message_body_chars",
+        ),
         UniqueConstraint(
             "conversation_id",
             "idempotency_key",
