@@ -90,6 +90,12 @@ export type AgentWorkspaceRunInput = {
   native_channel_id?: string | null;
 };
 
+export type AgentWorkspaceAdvanceResult = {
+  run_id: string;
+  status: string;
+  final_output: string | null;
+};
+
 function apiBaseUrl(): string {
   const configured = process.env.BRAIN_API_BASE_URL?.trim();
   if (!configured) throw new Error("BRAIN_API_BASE_URL is required for the production frontend");
@@ -170,10 +176,10 @@ export function advanceAgentWorkspaceRun(
   organizationId: string,
   runId: string,
   objective: string,
-): Promise<unknown> {
+): Promise<AgentWorkspaceAdvanceResult> {
   return agentApiFetch(
     accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/agents/runs/${encodeURIComponent(runId)}/advance`,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/agent-workspace/runs/${encodeURIComponent(runId)}/advance`,
     { method: "POST", body: JSON.stringify({ objective }) },
   );
 }
