@@ -1,6 +1,7 @@
 import { BrainApiError } from "./brain-api";
 
 export type AdminMember = {
+  membership_id: string;
   user_id: string;
   email: string;
   display_name: string | null;
@@ -98,21 +99,23 @@ function apiBaseUrl(): string {
   return configured.replace(/\/$/, "");
 }
 
-export async function getAdminCenter(
+async function adminApiFetch<T>(
   accessToken: string,
-  organizationId: string,
-): Promise<AdminCenter> {
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
   if (!accessToken.trim()) throw new Error("A server-side WorkOS access token is required");
-  const response = await fetch(
-    `${apiBaseUrl()}/api/v1/organizations/${encodeURIComponent(organizationId)}/admin-center`,
-    {
-      cache: "no-store",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
+  if (!path.startsWith("/api/v1/")) throw new Error("Brain API path must be under /api/v1/");
+  const response = await fetch(`${apiBaseUrl()}${path}`, {
+    ...init,
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...init?.headers,
+      Authorization: `Bearer ${accessToken}`,
     },
-  );
+  });
   if (!response.ok) {
     let detail: unknown = null;
     try {
@@ -122,5 +125,128 @@ export async function getAdminCenter(
     }
     throw new BrainApiError(response.status, detail);
   }
-  return (await response.json()) as AdminCenter;
+  if (response.status === 204) return undefined as T;
+  return (await response.json()) as T;
+}
+
+export function getAdminCenter(accessToken: string, organizationId: string): Promise<AdminCenter> {
+  return adminApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/admin-center`,
+  );
+}
+
+export function inviteOrganizationMember(
+  accessToken: string,
+  organizationId: string,
+  email: string,
+  role: string,
+): Promise<unknown> {
+  return adminApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/memberships`,
+    { method: "POST", body: JSON.stringify({ user_email: email, role }) },
+  );
+}
+
+export function changeOrganizationMemberRole(
+  accessToken: string,
+  organizationId: string,
+  membershipId: string,
+  role: string,
+): Promise<unknown> {
+  return adminApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/memberships/${encodeURIComponent(membershipId)}/role`,
+    { method: "POST", body: JSON.stringify({ role }) },
+  );
+}
+
+export function removeOrganizationMember(
+  accessToken: string,
+  organizationId: string,
+  membershipId: string,
+): Promise<void> {
+  return adminApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/memberships/${encodeURIComponent(membershipId)}`,
+    { method: "DELETE" },
+  );
+}
+
+export function revokeIntegration(
+  accessToken: string,
+  organizationId: string,
+  integrationId: string,
+): Promise<unknown> {
+  return adminApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/integrations/${encodeURIComponent(integrationId)}/revoke`,
+    { method: "POST" },
+  );
+}
+
+export function setAIProviderEnabled(
+  accessToken: string,
+  organizationId: string,
+  providerId: string,
+  enabled: boolean,
+): Promise<unknown> {
+  return adminApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/ai/providers/${encodeURIComponent(providerId)}/status`,
+    { method: "POST", body: JSON.stringify({ enabled }) },
+  );
+}
+
+export function revokeAIProvider(
+  accessToken: string,
+  organizationId: string,
+  providerId: string,
+): Promise<unknown> {
+  return adminApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/ai/providers/${encodeURIComponent(providerId)}/revoke`,
+    { method: "POST" },
+  );
+}
+
+export function setAIModelEnabled(
+  accessToken: string,
+  organizationId: string,
+  modelId: string,
+  enabled: boolean,
+): Promise<unknown> {
+  return adminApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/ai/models/${encodeURIComponent(modelId)}/status`,
+    { method: "POST", body: JSON.stringify({ enabled }) },
+  );
+}
+
+export function setAPIGrantEnabled(
+  accessToken: string,
+  organizationId: string,
+  grantId: string,
+  enabled: boolean,
+  reason: string | null,
+): Promise<unknown> {
+  return adminApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/status`,
+    { method: "POST", body: JSON.stringify({ enabled, reason }) },
+  );
+}
+
+export function revokeAPIGrant(
+  accessToken: string,
+  organizationId: string,
+  grantId: string,
+  reason: string | null,
+): Promise<unknown> {
+  return adminApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/revoke`,
+    { method: "POST", body: JSON.stringify({ reason }) },
+  );
 }
