@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.data_governance import append_audit_event
 from app.direct_message_models import DirectConversation, DirectMessage
-from app.models import Membership, MembershipRole, User
+from app.models import Membership, User
 from app.permissions import Permission, role_has_permission
 
 MAX_DIRECT_MESSAGE_CHARS = 20_000
@@ -21,10 +21,6 @@ class DirectMessageError(ValueError):
         self.code = code[:128]
 
 
-class DirectMessageConflictError(DirectMessageError):
-    pass
-
-
 @dataclass(frozen=True, slots=True)
 class DirectConversationView:
     conversation: DirectConversation
@@ -32,7 +28,8 @@ class DirectConversationView:
 
 
 def _ordered_pair(first: uuid.UUID, second: uuid.UUID) -> tuple[uuid.UUID, uuid.UUID]:
-    return tuple(sorted((first, second), key=lambda value: value.int))  # type: ignore[return-value]
+    lower, upper = sorted((first, second), key=lambda value: value.int)
+    return lower, upper
 
 
 def _normalize_body(body: str) -> str:
@@ -204,17 +201,19 @@ def list_direct_messages(
         conversation_id=conversation_id,
         user_id=user_id,
     )
-    return list(
+    latest = list(
         db.scalars(
             select(DirectMessage)
             .where(
                 DirectMessage.organization_id == organization_id,
                 DirectMessage.conversation_id == conversation_id,
             )
-            .order_by(DirectMessage.created_at.asc(), DirectMessage.id.asc())
+            .order_by(DirectMessage.created_at.desc(), DirectMessage.id.desc())
             .limit(limit)
         )
     )
+    latest.reverse()
+    return latest
 
 
 def send_direct_message(
