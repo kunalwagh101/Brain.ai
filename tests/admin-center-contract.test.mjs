@@ -25,7 +25,7 @@ test("admin mutations use one same-origin route and browser code never handles b
   assert.match(panel, /"use client"/);
   assert.match(panel, /\/admin-center\/actions/);
   assert.match(panel, /credentials: "same-origin"/);
-  assert.doesNotMatch(panel, /Authorization|Bearer|accessToken|secret_ref|credentials\s*:/i);
+  assert.doesNotMatch(panel, /Authorization|Bearer|accessToken|secret_ref|api[_-]?key|refresh[_-]?token/i);
   assert.match(bff, /const ADMIN_ROLES = new Set\(\["owner", "admin"\]\)/);
   assert.match(bff, /parseAdminCenterAction/);
   assert.match(template, /withAuth\(\)/);
