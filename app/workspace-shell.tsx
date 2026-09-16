@@ -1,3 +1,5 @@
+import type { AdminCenter } from "./admin-center-api";
+import { AdminCenterPanel } from "./admin-center-panel";
 import type { AgentWorkspace } from "./agent-workspace-api";
 import { AgentWorkspacePanel } from "./agent-workspace-panel";
 import type {
@@ -83,6 +85,7 @@ export function WorkspaceShell({
   overview,
   runtimes,
   agentWorkspace,
+  adminCenter,
   signedInName,
   askBrainEndpoint,
   evidenceMutationBase,
@@ -108,6 +111,7 @@ export function WorkspaceShell({
   overview: ExecutiveOverview | null;
   runtimes: AIRuntimeOption[];
   agentWorkspace: AgentWorkspace;
+  adminCenter: AdminCenter | null;
   signedInName: string;
   askBrainEndpoint: string | null;
   evidenceMutationBase: string | null;
@@ -139,6 +143,7 @@ export function WorkspaceShell({
           <a href="#ask-brain" aria-label="Ask Brain">✦</a>
           <a href="#memory" aria-label="Decisions and blockers">◇</a>
           <a href="#files" aria-label="Files and evidence">▤</a>
+          {adminCenter ? <a href="#admin-center" aria-label="Admin and governance">⚙</a> : null}
         </nav>
         <div className={styles.railAvatar} title={signedInName}>{initials(signedInName)}</div>
       </aside>
@@ -183,6 +188,7 @@ export function WorkspaceShell({
             <a href="#agent-workspace"><span>⌘</span> Developer & agents</a>
             <a href="#memory"><span>◇</span> Decisions & blockers</a>
             <a href="#files"><span>▤</span> Files & evidence</a>
+            {adminCenter ? <a href="#admin-center"><span>⚙</span> Admin & governance</a> : null}
           </section>
 
           <section>
@@ -426,6 +432,12 @@ export function WorkspaceShell({
           />
         </section>
 
+        {adminCenter ? (
+          <section className={styles.panel} id="admin-center" aria-label="Admin and governance">
+            <AdminCenterPanel admin={adminCenter} />
+          </section>
+        ) : null}
+
         <section className={styles.panel} id="memory" aria-labelledby="memory-heading">
           <header className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Organisational memory</p><h2 id="memory-heading">Confirmed decisions & blockers</h2></div>
@@ -506,6 +518,15 @@ export function WorkspaceShell({
             <div><dt>Confirmed decisions</dt><dd>{decisions.length}</dd></div>
           </dl>
         </section>
+        {adminCenter ? (
+          <section>
+            <p className={styles.eyebrow}>Admin & governance</p>
+            <h2>Owner/Admin controls visible</h2>
+            <p>
+              {adminCenter.summary.member_count} member(s), {adminCenter.summary.integration_count} integration(s), {adminCenter.summary.ai_provider_count} AI provider(s) and {adminCenter.summary.active_api_grant_count} active API grant(s). Secret values are never serialized.
+            </p>
+          </section>
+        ) : null}
         <section>
           <p className={styles.eyebrow}>Developer & agents</p>
           <h2>{agentMutationBase ? "Governed actions connected" : "Permission-aware read model"}</h2>
