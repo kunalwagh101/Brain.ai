@@ -5,6 +5,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -25,6 +26,11 @@ class DirectConversation(Base):
             "participant_a_user_id",
             "participant_b_user_id",
             name="uq_direct_conversation_org_pair",
+        ),
+        UniqueConstraint(
+            "organization_id",
+            "id",
+            name="uq_direct_conversation_org_id",
         ),
         CheckConstraint(
             "participant_a_user_id <> participant_b_user_id",
@@ -71,6 +77,12 @@ class DirectConversation(Base):
 class DirectMessage(Base):
     __tablename__ = "direct_messages"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "conversation_id"],
+            ["direct_conversations.organization_id", "direct_conversations.id"],
+            ondelete="CASCADE",
+            name="fk_direct_message_org_conversation",
+        ),
         UniqueConstraint(
             "conversation_id",
             "idempotency_key",
@@ -85,12 +97,8 @@ class DirectMessage(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    organization_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
-    )
-    conversation_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("direct_conversations.id", ondelete="CASCADE"), nullable=False
-    )
+    organization_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    conversation_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
     author_user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
