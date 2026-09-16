@@ -126,7 +126,7 @@ export async function ProductionWorkspace({
 
   const selectedDirectConversation = requestedDirectMessageId
     ? directConversations.find((item) => item.id === requestedDirectMessageId) ?? null
-    : directConversations[0] ?? null;
+    : null;
   const invalidRequestedDirectMessage = Boolean(
     requestedDirectMessageId && !selectedDirectConversation,
   );
