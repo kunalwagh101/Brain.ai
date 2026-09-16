@@ -150,6 +150,35 @@ def _reactivate_current_pair(
     return conversation
 
 
+def _idempotent_message_for_epoch(
+    db: Session,
+    *,
+    conversation_id: uuid.UUID,
+    idempotency_key: str,
+    visible_from: datetime,
+) -> DirectMessage | None:
+    existing = db.scalar(
+        select(DirectMessage).where(
+            DirectMessage.conversation_id == conversation_id,
+            DirectMessage.idempotency_key == idempotency_key,
+        )
+    )
+    if existing is None:
+        return None
+    visible = db.scalar(
+        select(DirectMessage.id).where(
+            DirectMessage.id == existing.id,
+            DirectMessage.created_at >= visible_from,
+        )
+    )
+    if visible is None:
+        raise DirectMessageConflictError(
+            "idempotency_key_reused",
+            "Idempotency key belongs to an earlier private-message visibility epoch",
+        )
+    return existing
+
+
 def create_or_get_direct_conversation(
     db: Session,
     *,
@@ -336,19 +365,14 @@ def send_direct_message(
     normalized_body = _normalize_body(body)
     normalized_key = _normalize_idempotency_key(idempotency_key)
     if normalized_key is not None:
-        existing = db.scalar(
-            select(DirectMessage).where(
-                DirectMessage.conversation_id == conversation_id,
-                DirectMessage.idempotency_key == normalized_key,
-            )
+        existing = _idempotent_message_for_epoch(
+            db,
+            conversation_id=conversation_id,
+            idempotency_key=normalized_key,
+            visible_from=visible_from,
         )
         if existing is not None:
-            if existing.created_at >= visible_from:
-                return existing
-            raise DirectMessageConflictError(
-                "idempotency_key_reused",
-                "Idempotency key belongs to an earlier private-message visibility epoch",
-            )
+            return existing
 
     digest = hashlib.sha256(normalized_body.encode()).hexdigest()
     message = DirectMessage(
@@ -368,20 +392,15 @@ def send_direct_message(
         db.rollback()
         if normalized_key is None:
             raise
-        existing = db.scalar(
-            select(DirectMessage).where(
-                DirectMessage.conversation_id == conversation_id,
-                DirectMessage.idempotency_key == normalized_key,
-            )
+        existing = _idempotent_message_for_epoch(
+            db,
+            conversation_id=conversation_id,
+            idempotency_key=normalized_key,
+            visible_from=visible_from,
         )
         if existing is None:
             raise
-        if existing.created_at >= visible_from:
-            return existing
-        raise DirectMessageConflictError(
-            "idempotency_key_reused",
-            "Idempotency key belongs to an earlier private-message visibility epoch",
-        )
+        return existing
     db.refresh(message)
     return message
 
