@@ -111,11 +111,7 @@ function apiBaseUrl(): string {
   return configured.replace(/\/$/, "");
 }
 
-async function adminApiFetch<T>(
-  accessToken: string,
-  path: string,
-  init?: RequestInit,
-): Promise<T> {
+async function adminApiFetch<T>(accessToken: string, path: string, init?: RequestInit): Promise<T> {
   if (!accessToken.trim()) throw new Error("A server-side WorkOS access token is required");
   if (!path.startsWith("/api/v1/")) throw new Error("Brain API path must be under /api/v1/");
   const response = await fetch(`${apiBaseUrl()}${path}`, {
@@ -130,11 +126,7 @@ async function adminApiFetch<T>(
   });
   if (!response.ok) {
     let detail: unknown = null;
-    try {
-      detail = await response.json();
-    } catch {
-      detail = { error: "non_json_error_response" };
-    }
+    try { detail = await response.json(); } catch { detail = { error: "non_json_error_response" }; }
     throw new BrainApiError(response.status, detail);
   }
   if (response.status === 204) return undefined as T;
@@ -142,204 +134,90 @@ async function adminApiFetch<T>(
 }
 
 export function getAdminCenter(accessToken: string, organizationId: string): Promise<AdminCenter> {
-  return adminApiFetch(
-    accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/admin-center`,
-  );
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/admin-center`);
 }
 
-export function inviteOrganizationMember(
+export function inviteOrganizationMember(accessToken: string, organizationId: string, email: string, role: string): Promise<unknown> {
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/memberships`, { method: "POST", body: JSON.stringify({ user_email: email, role }) });
+}
+
+export function changeOrganizationMemberRole(accessToken: string, organizationId: string, membershipId: string, role: string): Promise<unknown> {
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/memberships/${encodeURIComponent(membershipId)}/role`, { method: "POST", body: JSON.stringify({ role }) });
+}
+
+export function removeOrganizationMember(accessToken: string, organizationId: string, membershipId: string): Promise<void> {
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/memberships/${encodeURIComponent(membershipId)}`, { method: "DELETE" });
+}
+
+export function revokeIntegration(accessToken: string, organizationId: string, integrationId: string): Promise<unknown> {
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/integrations/${encodeURIComponent(integrationId)}/revoke`, { method: "POST" });
+}
+
+export function createAIProvider(
   accessToken: string,
   organizationId: string,
-  email: string,
-  role: string,
+  input: { provider_key: string; display_name: string; adapter_kind: string; api_url: string; credentials: Record<string, string> },
 ): Promise<unknown> {
-  return adminApiFetch(
-    accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/memberships`,
-    { method: "POST", body: JSON.stringify({ user_email: email, role }) },
-  );
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/ai/providers`, { method: "POST", body: JSON.stringify(input) });
 }
 
-export function changeOrganizationMemberRole(
-  accessToken: string,
-  organizationId: string,
-  membershipId: string,
-  role: string,
-): Promise<unknown> {
-  return adminApiFetch(
-    accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/memberships/${encodeURIComponent(membershipId)}/role`,
-    { method: "POST", body: JSON.stringify({ role }) },
-  );
-}
-
-export function removeOrganizationMember(
-  accessToken: string,
-  organizationId: string,
-  membershipId: string,
-): Promise<void> {
-  return adminApiFetch(
-    accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/memberships/${encodeURIComponent(membershipId)}`,
-    { method: "DELETE" },
-  );
-}
-
-export function revokeIntegration(
-  accessToken: string,
-  organizationId: string,
-  integrationId: string,
-): Promise<unknown> {
-  return adminApiFetch(
-    accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/integrations/${encodeURIComponent(integrationId)}/revoke`,
-    { method: "POST" },
-  );
-}
-
-export function setAIProviderEnabled(
+export function createAIModel(
   accessToken: string,
   organizationId: string,
   providerId: string,
-  enabled: boolean,
+  input: { model_key: string; display_name: string; enabled: boolean; max_output_tokens: number | null },
 ): Promise<unknown> {
-  return adminApiFetch(
-    accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/ai/providers/${encodeURIComponent(providerId)}/status`,
-    { method: "POST", body: JSON.stringify({ enabled }) },
-  );
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/ai/providers/${encodeURIComponent(providerId)}/models`, { method: "POST", body: JSON.stringify(input) });
 }
 
-export function rotateAIProviderCredentials(
-  accessToken: string,
-  organizationId: string,
-  providerId: string,
-  credentials: Record<string, string>,
-): Promise<unknown> {
-  return adminApiFetch(
-    accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/ai/providers/${encodeURIComponent(providerId)}/rotate`,
-    { method: "POST", body: JSON.stringify({ credentials }) },
-  );
+export function setAIProviderEnabled(accessToken: string, organizationId: string, providerId: string, enabled: boolean): Promise<unknown> {
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/ai/providers/${encodeURIComponent(providerId)}/status`, { method: "POST", body: JSON.stringify({ enabled }) });
 }
 
-export function revokeAIProvider(
-  accessToken: string,
-  organizationId: string,
-  providerId: string,
-): Promise<unknown> {
-  return adminApiFetch(
-    accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/ai/providers/${encodeURIComponent(providerId)}/revoke`,
-    { method: "POST" },
-  );
+export function rotateAIProviderCredentials(accessToken: string, organizationId: string, providerId: string, credentials: Record<string, string>): Promise<unknown> {
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/ai/providers/${encodeURIComponent(providerId)}/rotate`, { method: "POST", body: JSON.stringify({ credentials }) });
 }
 
-export function setAIModelEnabled(
-  accessToken: string,
-  organizationId: string,
-  modelId: string,
-  enabled: boolean,
-): Promise<unknown> {
-  return adminApiFetch(
-    accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/ai/models/${encodeURIComponent(modelId)}/status`,
-    { method: "POST", body: JSON.stringify({ enabled }) },
-  );
+export function revokeAIProvider(accessToken: string, organizationId: string, providerId: string): Promise<unknown> {
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/ai/providers/${encodeURIComponent(providerId)}/revoke`, { method: "POST" });
 }
 
-export function createAPIGrant(
-  accessToken: string,
-  organizationId: string,
-  input: APIGrantCreateInput,
-): Promise<unknown> {
-  return adminApiFetch(
-    accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants`,
-    { method: "POST", body: JSON.stringify(input) },
-  );
+export function setAIModelEnabled(accessToken: string, organizationId: string, modelId: string, enabled: boolean): Promise<unknown> {
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/ai/models/${encodeURIComponent(modelId)}/status`, { method: "POST", body: JSON.stringify({ enabled }) });
 }
 
-export function changeAPIGrantOwner(
+export function createAPIService(
   accessToken: string,
   organizationId: string,
-  grantId: string,
-  ownerUserId: string,
-  reason: string | null,
+  input: { service_key: string; display_name: string; provider_name: string; base_url: string | null },
 ): Promise<unknown> {
-  return adminApiFetch(
-    accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/owner`,
-    { method: "POST", body: JSON.stringify({ owner_user_id: ownerUserId, reason }) },
-  );
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/services`, { method: "POST", body: JSON.stringify(input) });
 }
 
-export function changeAPIGrantScopes(
-  accessToken: string,
-  organizationId: string,
-  grantId: string,
-  scopes: string[],
-  reason: string | null,
-): Promise<unknown> {
-  return adminApiFetch(
-    accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/scopes`,
-    { method: "POST", body: JSON.stringify({ scopes, reason }) },
-  );
+export function createAPIGrant(accessToken: string, organizationId: string, input: APIGrantCreateInput): Promise<unknown> {
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants`, { method: "POST", body: JSON.stringify(input) });
 }
 
-export function changeAPIGrantEnvironment(
-  accessToken: string,
-  organizationId: string,
-  grantId: string,
-  environment: string,
-  reason: string | null,
-): Promise<unknown> {
-  return adminApiFetch(
-    accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/environment`,
-    { method: "POST", body: JSON.stringify({ environment, reason }) },
-  );
+export function changeAPIGrantOwner(accessToken: string, organizationId: string, grantId: string, ownerUserId: string, reason: string | null): Promise<unknown> {
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/owner`, { method: "POST", body: JSON.stringify({ owner_user_id: ownerUserId, reason }) });
 }
 
-export function rotateAPIGrantCredentials(
-  accessToken: string,
-  organizationId: string,
-  grantId: string,
-  credentials: Record<string, string>,
-  reason: string | null,
-): Promise<unknown> {
-  return adminApiFetch(
-    accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/rotate`,
-    { method: "POST", body: JSON.stringify({ credentials, reason }) },
-  );
+export function changeAPIGrantScopes(accessToken: string, organizationId: string, grantId: string, scopes: string[], reason: string | null): Promise<unknown> {
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/scopes`, { method: "POST", body: JSON.stringify({ scopes, reason }) });
 }
 
-export function setAPIGrantEnabled(
-  accessToken: string,
-  organizationId: string,
-  grantId: string,
-  enabled: boolean,
-  reason: string | null,
-): Promise<unknown> {
-  return adminApiFetch(
-    accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/status`,
-    { method: "POST", body: JSON.stringify({ enabled, reason }) },
-  );
+export function changeAPIGrantEnvironment(accessToken: string, organizationId: string, grantId: string, environment: string, reason: string | null): Promise<unknown> {
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/environment`, { method: "POST", body: JSON.stringify({ environment, reason }) });
 }
 
-export function revokeAPIGrant(
-  accessToken: string,
-  organizationId: string,
-  grantId: string,
-  reason: string | null,
-): Promise<unknown> {
-  return adminApiFetch(
-    accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/revoke`,
-    { method: "POST", body: JSON.stringify({ reason }) },
-  );
+export function rotateAPIGrantCredentials(accessToken: string, organizationId: string, grantId: string, credentials: Record<string, string>, reason: string | null): Promise<unknown> {
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/rotate`, { method: "POST", body: JSON.stringify({ credentials, reason }) });
+}
+
+export function setAPIGrantEnabled(accessToken: string, organizationId: string, grantId: string, enabled: boolean, reason: string | null): Promise<unknown> {
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/status`, { method: "POST", body: JSON.stringify({ enabled, reason }) });
+}
+
+export function revokeAPIGrant(accessToken: string, organizationId: string, grantId: string, reason: string | null): Promise<unknown> {
+  return adminApiFetch(accessToken, `/api/v1/organizations/${encodeURIComponent(organizationId)}/api-registry/grants/${encodeURIComponent(grantId)}/revoke`, { method: "POST", body: JSON.stringify({ reason }) });
 }
