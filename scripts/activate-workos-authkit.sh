@@ -79,6 +79,8 @@ mkdir -p \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/read' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/members' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/members/[userId]' \
+  'app/api/brain/organizations/[organizationId]/direct-messages' \
+  'app/api/brain/organizations/[organizationId]/direct-messages/[conversationId]/messages' \
   'app/api/brain/organizations/[organizationId]/agent-workspace/runs' \
   'app/api/brain/organizations/[organizationId]/agent-workspace/runs/[runId]/advance' \
   'app/api/brain/organizations/[organizationId]/agent-workspace/runs/[runId]/cancel' \
@@ -97,6 +99,8 @@ cp docs/workos-activation/app-api-brain-native-reaction-route.ts.template 'app/a
 cp docs/workos-activation/app-api-brain-native-read-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/read/route.ts'
 cp docs/workos-activation/app-api-brain-native-members-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/members/route.ts'
 cp docs/workos-activation/app-api-brain-native-member-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/members/[userId]/route.ts'
+cp docs/workos-activation/app-api-brain-direct-messages-route.ts.template 'app/api/brain/organizations/[organizationId]/direct-messages/route.ts'
+cp docs/workos-activation/app-api-brain-direct-message-route.ts.template 'app/api/brain/organizations/[organizationId]/direct-messages/[conversationId]/messages/route.ts'
 cp docs/workos-activation/app-api-brain-agent-workspace-runs-route.ts.template 'app/api/brain/organizations/[organizationId]/agent-workspace/runs/route.ts'
 cp docs/workos-activation/app-api-brain-agent-workspace-advance-route.ts.template 'app/api/brain/organizations/[organizationId]/agent-workspace/runs/[runId]/advance/route.ts'
 cp docs/workos-activation/app-api-brain-agent-workspace-cancel-route.ts.template 'app/api/brain/organizations/[organizationId]/agent-workspace/runs/[runId]/cancel/route.ts'
@@ -113,5 +117,6 @@ node --test tests/*.test.mjs
 echo "WorkOS source activation compiled and passed repository frontend gates."
 echo "This is not production UAT. Complete docs/WORKOS_FRONTEND_ACCEPTANCE.md before marking S-10.04 DONE."
 echo "Complete UAT/F-10.06.md before marking S-10.06.01 DONE or accepted."
+echo "Complete UAT/F-10.06.02.md before marking S-10.06.02 DONE or accepted."
 echo "Complete UAT/F-10.07.md before marking S-10.07.01 DONE or accepted."
 echo "Complete UAT/F-10.08.md before marking S-10.08.01 DONE or accepted."
