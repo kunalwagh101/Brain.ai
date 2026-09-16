@@ -19,7 +19,7 @@ function safeError(status: number): string {
   if (status === 401) return "Your session has expired. Sign in again.";
   if (status === 403) return "Direct messaging is not available for this account.";
   if (status === 404) return "That member or conversation is not available.";
-  if (status === 409) return "That direct conversation cannot be created.";
+  if (status === 409) return "That direct conversation cannot accept this message right now.";
   if (status === 413) return "The request is too large.";
   return "The direct-message action could not be completed.";
 }
@@ -145,7 +145,9 @@ export function DirectMessagePanel({
               <span className={styles.avatar}>{conversation.other_display_name.slice(0, 1).toUpperCase()}</span>
               <span>
                 <strong>{conversation.other_display_name}</strong>
-                <small>{conversation.other_email}</small>
+                <small>
+                  {conversation.can_send ? conversation.other_email : `${conversation.other_email} · unavailable`}
+                </small>
               </span>
             </a>
           )) : <p className={styles.empty}>No direct conversations yet.</p>}
@@ -168,7 +170,7 @@ export function DirectMessagePanel({
                   <small>{selectedConversation.other_email}</small>
                 </div>
               </div>
-              <span>1:1 DM</span>
+              <span>{selectedConversation.can_send ? "1:1 DM" : "History only"}</span>
             </header>
 
             <div className={styles.messages} aria-live="polite">
@@ -183,10 +185,14 @@ export function DirectMessagePanel({
                   </div>
                   <p>{message.body}</p>
                 </article>
-              )) : <p className={styles.empty}>No messages yet. Start the conversation when secure mutations are active.</p>}
+              )) : <p className={styles.empty}>No messages are visible in this direct conversation.</p>}
             </div>
 
-            {messageEndpoint ? (
+            {!selectedConversation.can_send ? (
+              <p className={styles.readOnly} role="status">
+                This member is not currently available for direct messages. Your visible history remains read-only.
+              </p>
+            ) : messageEndpoint ? (
               <form className={styles.composer} onSubmit={sendMessage}>
                 <label htmlFor="dm-message-body">Message {selectedConversation.other_display_name}</label>
                 <textarea
@@ -204,7 +210,9 @@ export function DirectMessagePanel({
                   </button>
                 </div>
               </form>
-            ) : null}
+            ) : (
+              <p className={styles.readOnly}>Secure authenticated message sending is not active yet.</p>
+            )}
           </>
         ) : (
           <div className={styles.blankState}>
