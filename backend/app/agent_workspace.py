@@ -1,3 +1,5 @@
+import hashlib
+import json
 import uuid
 from dataclasses import dataclass
 
@@ -7,7 +9,14 @@ from sqlalchemy.orm import Session
 
 from app.agent_models import AgentDefinition, AgentRun, AgentStep, AgentToolPolicy
 from app.agent_runtime import AgentRuntimeError, cancel_agent_run, create_agent_run
-from app.agent_tools import ToolRisk, tool_definition
+from app.agent_tools import (
+    AgentToolError,
+    ToolExecutionResult,
+    ToolRisk,
+    execute_tool,
+    normalize_tool_arguments,
+    tool_definition,
+)
 from app.agent_workspace_models import AgentRunContext
 from app.ai_gateway_models import (
     AIModelConfiguration,
@@ -18,8 +27,15 @@ from app.data_governance import DataGovernanceError, append_audit_event
 from app.models import MembershipRole
 from app.native_chat import get_visible_channel
 from app.native_chat_models import NativeChannel, NativeChannelStatus
-from app.work_graph import node_visible_to_user
-from app.work_graph_models import WorkGraphNode, WorkGraphNodeType
+from app.permissions import role_has_permission
+from app.work_graph import _get_or_create_edge, _get_or_create_node, node_visible_to_user
+from app.work_graph_models import (
+    WorkGraphEdgeSource,
+    WorkGraphEdgeType,
+    WorkGraphEvidenceState,
+    WorkGraphNode,
+    WorkGraphNodeType,
+)
 
 
 class AgentWorkspaceError(ValueError):
@@ -281,6 +297,84 @@ def list_agent_identities(
     return identities
 
 
+def execute_workspace_tool(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    user_id: uuid.UUID,
+    role: MembershipRole,
+    tool_name: str,
+    arguments: dict[str, object],
+    run_id: uuid.UUID,
+    project: WorkGraphNode | None,
+) -> ToolExecutionResult:
+    if tool_name != "work_graph.create_work_item":
+        return execute_tool(
+            db,
+            organization_id=organization_id,
+            user_id=user_id,
+            role=role,
+            tool_name=tool_name,
+            arguments=arguments,
+        )
+
+    definition = tool_definition(tool_name)
+    if definition is None or not role_has_permission(role, definition.required_permission):
+        raise AgentToolError("Current user is not permitted to execute this tool")
+    if project is None or project.organization_id != organization_id:
+        raise AgentToolError("Project context is required for workspace work-item creation")
+
+    normalized = normalize_tool_arguments(tool_name, arguments)
+    normalized_key = str(normalized["key"]).strip().lower()
+    node = _get_or_create_node(
+        db,
+        organization_id=organization_id,
+        node_type=WorkGraphNodeType.WORK_ITEM,
+        stable_key=f"agent-workspace:{run_id}:work_item:{normalized_key}",
+        display_name=str(normalized["display_name"]),
+        source_visibility=project.source_visibility,
+        source_acl=list(project.source_acl),
+        attributes={
+            "source": "agent_workspace",
+            "created_by_user_id": str(user_id),
+            "agent_run_id": str(run_id),
+            "project_node_id": str(project.id),
+        },
+    )
+    _get_or_create_edge(
+        db,
+        organization_id=organization_id,
+        source_node=project,
+        target_node=node,
+        edge_type=WorkGraphEdgeType.CONTAINS,
+        source_kind=WorkGraphEdgeSource.MANUAL,
+        evidence_state=WorkGraphEvidenceState.VERIFIED,
+        confidence=1.0,
+        provenance_key=f"agent-workspace:{run_id}:contains:{node.id}",
+        provenance={
+            "agent_run_id": str(run_id),
+            "project_node_id": str(project.id),
+            "actor_user_id": str(user_id),
+        },
+        created_by_user_id=user_id,
+    )
+    db.commit()
+
+    output_data = {
+        "node_id": str(node.id),
+        "node_type": node.node_type.value,
+        "stable_key": node.stable_key,
+        "display_name": node.display_name,
+        "project_node_id": str(project.id),
+    }
+    output = json.dumps(output_data, sort_keys=True, separators=(",", ":"))
+    return ToolExecutionResult(
+        ephemeral_output=output,
+        persisted_metadata=output_data,
+        output_sha256=hashlib.sha256(output.encode()).hexdigest(),
+    )
+
+
 def run_artifacts(db: Session, run: AgentRun) -> list[AgentArtifact]:
     steps = list(
         db.scalars(
@@ -308,6 +402,7 @@ def run_artifacts(db: Session, run: AgentRun) -> list[AgentArtifact]:
                 metadata={
                     "stable_key": step.result_metadata.get("stable_key"),
                     "node_type": step.result_metadata.get("node_type"),
+                    "project_node_id": step.result_metadata.get("project_node_id"),
                     "step_id": str(step.id),
                 },
             )
