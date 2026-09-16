@@ -196,7 +196,12 @@ export function AdminCenterPanel({ admin }: { admin: AdminCenter }) {
       return;
     }
     const expiresLocal = stringField(data, "expires_at");
-    const expiresAt = expiresLocal ? new Date(expiresLocal).toISOString() : null;
+    const expiresDate = expiresLocal ? new Date(expiresLocal) : null;
+    if (expiresDate && Number.isNaN(expiresDate.getTime())) {
+      setError("Expiry date is invalid.");
+      return;
+    }
+    const expiresAt = expiresDate ? expiresDate.toISOString() : null;
     const ok = await act(
       {
         action: "api_grant_create",
