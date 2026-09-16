@@ -1,3 +1,5 @@
+import type { AgentWorkspace } from "./agent-workspace-api";
+import { AgentWorkspacePanel } from "./agent-workspace-panel";
 import type {
   AIRuntimeOption,
   BrainOrganization,
@@ -80,6 +82,7 @@ export function WorkspaceShell({
   invalidRequestedChannel,
   overview,
   runtimes,
+  agentWorkspace,
   signedInName,
   askBrainEndpoint,
   evidenceMutationBase,
@@ -89,6 +92,7 @@ export function WorkspaceShell({
   nativeMemberEndpoint,
   nativeConversationEndpoint,
   canCreateNativeChannel,
+  agentMutationBase,
   signOutAction,
 }: {
   organization: BrainOrganization;
@@ -103,6 +107,7 @@ export function WorkspaceShell({
   invalidRequestedChannel: boolean;
   overview: ExecutiveOverview | null;
   runtimes: AIRuntimeOption[];
+  agentWorkspace: AgentWorkspace;
   signedInName: string;
   askBrainEndpoint: string | null;
   evidenceMutationBase: string | null;
@@ -112,6 +117,7 @@ export function WorkspaceShell({
   nativeMemberEndpoint: string | null;
   nativeConversationEndpoint: string | null;
   canCreateNativeChannel: boolean;
+  agentMutationBase: string | null;
   signOutAction?: (formData: FormData) => Promise<void>;
 }) {
   const projectById = new Map(projects.map((project) => [project.project_node_id, project]));
@@ -129,6 +135,7 @@ export function WorkspaceShell({
           <a className={styles.railActive} href="#home" aria-label="Home">⌂</a>
           <a href="#native-chat" aria-label="Brain channels">#</a>
           <a href="#projects" aria-label="Projects">▣</a>
+          <a href="#agent-workspace" aria-label="Developer and agent workspace">⌘</a>
           <a href="#ask-brain" aria-label="Ask Brain">✦</a>
           <a href="#memory" aria-label="Decisions and blockers">◇</a>
           <a href="#files" aria-label="Files and evidence">▤</a>
@@ -173,6 +180,7 @@ export function WorkspaceShell({
           <section>
             <div className={styles.groupTitle}><span>Workspace</span></div>
             <a className={styles.navActive} href="#home"><span>⌂</span> Home</a>
+            <a href="#agent-workspace"><span>⌘</span> Developer & agents</a>
             <a href="#memory"><span>◇</span> Decisions & blockers</a>
             <a href="#files"><span>▤</span> Files & evidence</a>
           </section>
@@ -409,6 +417,15 @@ export function WorkspaceShell({
           </div>
         </section>
 
+        <section className={styles.panel} id="agent-workspace" aria-label="Developer and agent workspace">
+          <AgentWorkspacePanel
+            workspace={agentWorkspace}
+            projects={projects}
+            channels={nativeChannels}
+            mutationBase={agentMutationBase}
+          />
+        </section>
+
         <section className={styles.panel} id="memory" aria-labelledby="memory-heading">
           <header className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Organisational memory</p><h2 id="memory-heading">Confirmed decisions & blockers</h2></div>
@@ -484,9 +501,19 @@ export function WorkspaceShell({
             <div><dt>Connected tracks</dt><dd>{navigation.tracks.length}</dd></div>
             <div><dt>Visible projects</dt><dd>{navigation.projects.length}</dd></div>
             <div><dt>Evidence sources</dt><dd>{evidenceSources.length}</dd></div>
+            <div><dt>Agent runs</dt><dd>{agentWorkspace.runs.length}</dd></div>
             <div><dt>Confirmed blockers</dt><dd>{blockers.length}</dd></div>
             <div><dt>Confirmed decisions</dt><dd>{decisions.length}</dd></div>
           </dl>
+        </section>
+        <section>
+          <p className={styles.eyebrow}>Developer & agents</p>
+          <h2>{agentMutationBase ? "Governed actions connected" : "Permission-aware read model"}</h2>
+          <p>
+            {agentMutationBase
+              ? `${agentWorkspace.agents.length} approved agent(s) can act only through their configured tool policies and approval gates.`
+              : "Agent/model/tool identity and run history are server-rendered; mutations stay disabled until the authenticated WorkOS BFF is active."}
+          </p>
         </section>
         <section>
           <p className={styles.eyebrow}>Native chat</p>
