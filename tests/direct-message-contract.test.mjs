@@ -33,6 +33,15 @@ test("explicit dm selection suppresses ambient default-channel context", () => {
   );
 });
 
+test("dm reads and writes require current native-messaging capability", () => {
+  const route = read("backend/app/routes/direct_messages.py");
+  assert.match(
+    route,
+    /_dm_access = require_organization_permission\(Permission\.NATIVE_CHAT_WRITE\)/,
+  );
+  assert.doesNotMatch(route, /Depends\(_read\)|Permission\.ORGANIZATION_READ/);
+});
+
 test("dm service does not project private content into company evidence/search", () => {
   const service = read("backend/app/direct_messages.py");
   assert.doesNotMatch(service, /RawEvent|CanonicalEvent|SearchDocument|project_canonical_event|upsert_search_document/);
