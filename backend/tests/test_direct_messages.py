@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
@@ -6,9 +7,17 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.data_governance import run_retention_once, set_retention_policy
+from app.data_governance_models import SecurityAuditEvent
 from app.direct_message_models import DirectConversation, DirectMessage
 from app.main import app
-from app.models import CanonicalEvent, Membership, MembershipRole, Organization, RawEvent, User
+from app.models import (
+    CanonicalEvent,
+    Membership,
+    MembershipRole,
+    Organization,
+    RawEvent,
+    User,
+)
 from app.search_models import SearchDocument
 
 
@@ -22,17 +31,57 @@ def _seed(db: Session):
     outsider = User(email="dm-outsider@example.com", display_name="Outsider")
     organization = Organization(name="DM Org", slug="dm-org")
     other_org = Organization(name="Other DM Org", slug="other-dm-org")
-    db.add_all([alice, bob, owner, admin, executive, guest, outsider, organization, other_org])
+    db.add_all(
+        [
+            alice,
+            bob,
+            owner,
+            admin,
+            executive,
+            guest,
+            outsider,
+            organization,
+            other_org,
+        ]
+    )
     db.flush()
     db.add_all(
         [
-            Membership(organization_id=organization.id, user_id=alice.id, role=MembershipRole.MEMBER),
-            Membership(organization_id=organization.id, user_id=bob.id, role=MembershipRole.MEMBER),
-            Membership(organization_id=organization.id, user_id=owner.id, role=MembershipRole.OWNER),
-            Membership(organization_id=organization.id, user_id=admin.id, role=MembershipRole.ADMIN),
-            Membership(organization_id=organization.id, user_id=executive.id, role=MembershipRole.EXECUTIVE),
-            Membership(organization_id=organization.id, user_id=guest.id, role=MembershipRole.GUEST),
-            Membership(organization_id=other_org.id, user_id=outsider.id, role=MembershipRole.OWNER),
+            Membership(
+                organization_id=organization.id,
+                user_id=alice.id,
+                role=MembershipRole.MEMBER,
+            ),
+            Membership(
+                organization_id=organization.id,
+                user_id=bob.id,
+                role=MembershipRole.MEMBER,
+            ),
+            Membership(
+                organization_id=organization.id,
+                user_id=owner.id,
+                role=MembershipRole.OWNER,
+            ),
+            Membership(
+                organization_id=organization.id,
+                user_id=admin.id,
+                role=MembershipRole.ADMIN,
+            ),
+            Membership(
+                organization_id=organization.id,
+                user_id=executive.id,
+                role=MembershipRole.EXECUTIVE,
+            ),
+            Membership(
+                organization_id=organization.id,
+                user_id=guest.id,
+                role=MembershipRole.GUEST,
+            ),
+            Membership(
+                organization_id=other_org.id,
+                user_id=outsider.id,
+                role=MembershipRole.OWNER,
+            ),
         ]
     )
     db.commit()
@@ -47,7 +96,12 @@ def _clear() -> None:
     app.dependency_overrides.pop(get_current_user, None)
 
 
-def _create_dm(client: TestClient, organization: Organization, sender: User, target: User):
+def _create_dm(
+    client: TestClient,
+    organization: Organization,
+    sender: User,
+    target: User,
+):
     _as(sender)
     try:
         response = client.post(
@@ -81,12 +135,14 @@ def test_direct_messages_are_participant_only_and_not_projected_to_company_memor
     _as(alice)
     try:
         first = client.post(
-            f"/api/v1/organizations/{organization.id}/direct-messages/{conversation_id}/messages",
+            f"/api/v1/organizations/{organization.id}/direct-messages/"
+            f"{conversation_id}/messages",
             json={"body": "Private design note"},
             headers={"Idempotency-Key": "dm-message-1"},
         )
         duplicate = client.post(
-            f"/api/v1/organizations/{organization.id}/direct-messages/{conversation_id}/messages",
+            f"/api/v1/organizations/{organization.id}/direct-messages/"
+            f"{conversation_id}/messages",
             json={"body": "Private design note"},
             headers={"Idempotency-Key": "dm-message-1"},
         )
@@ -100,7 +156,8 @@ def test_direct_messages_are_participant_only_and_not_projected_to_company_memor
     _as(bob)
     try:
         messages = client.get(
-            f"/api/v1/organizations/{organization.id}/direct-messages/{conversation_id}/messages"
+            f"/api/v1/organizations/{organization.id}/direct-messages/"
+            f"{conversation_id}/messages"
         )
     finally:
         _clear()
@@ -112,7 +169,8 @@ def test_direct_messages_are_participant_only_and_not_projected_to_company_memor
         _as(nonparticipant)
         try:
             hidden = client.get(
-                f"/api/v1/organizations/{organization.id}/direct-messages/{conversation_id}/messages"
+                f"/api/v1/organizations/{organization.id}/direct-messages/"
+                f"{conversation_id}/messages"
             )
             listed = client.get(
                 f"/api/v1/organizations/{organization.id}/direct-messages"
@@ -129,6 +187,15 @@ def test_direct_messages_are_participant_only_and_not_projected_to_company_memor
         "search": db_session.scalar(select(func.count(SearchDocument.id))) or 0,
     }
     assert after == before
+    dm_audit = db_session.scalar(
+        select(SecurityAuditEvent.id)
+        .where(
+            SecurityAuditEvent.organization_id == organization.id,
+            SecurityAuditEvent.event_type.like("direct_message.%"),
+        )
+        .limit(1)
+    )
+    assert dm_audit is None
 
 
 def test_direct_message_target_must_be_current_message_capable_member(
@@ -164,17 +231,19 @@ def test_private_message_retention_is_explicit_and_legal_hold_safe(
 ) -> None:
     organization, alice, bob, owner, _, _, _, _ = _seed(db_session)
     conversation = _create_dm(client, organization, alice, bob)
-    conversation_id = conversation["id"]
+    conversation_id = uuid.UUID(conversation["id"])
 
     _as(alice)
     try:
         old_response = client.post(
-            f"/api/v1/organizations/{organization.id}/direct-messages/{conversation_id}/messages",
+            f"/api/v1/organizations/{organization.id}/direct-messages/"
+            f"{conversation_id}/messages",
             json={"body": "Old private message"},
             headers={"Idempotency-Key": "dm-old"},
         )
         recent_response = client.post(
-            f"/api/v1/organizations/{organization.id}/direct-messages/{conversation_id}/messages",
+            f"/api/v1/organizations/{organization.id}/direct-messages/"
+            f"{conversation_id}/messages",
             json={"body": "Recent private message"},
             headers={"Idempotency-Key": "dm-recent"},
         )
@@ -183,11 +252,15 @@ def test_private_message_retention_is_explicit_and_legal_hold_safe(
     assert old_response.status_code == 201
     assert recent_response.status_code == 201
 
+    old_message_id = uuid.UUID(old_response.json()["id"])
+    recent_message_id = uuid.UUID(recent_response.json()["id"])
     now = datetime.now(UTC)
-    old_message = db_session.get(DirectMessage, old_response.json()["id"])
-    recent_message = db_session.get(DirectMessage, recent_response.json()["id"])
+    old_message = db_session.get(DirectMessage, old_message_id)
+    recent_message = db_session.get(DirectMessage, recent_message_id)
     stored_conversation = db_session.get(DirectConversation, conversation_id)
-    assert old_message is not None and recent_message is not None and stored_conversation is not None
+    assert old_message is not None
+    assert recent_message is not None
+    assert stored_conversation is not None
     old_message.created_at = now - timedelta(days=90)
     recent_message.created_at = now - timedelta(days=2)
     stored_conversation.updated_at = now - timedelta(days=2)
@@ -203,10 +276,14 @@ def test_private_message_retention_is_explicit_and_legal_hold_safe(
         private_message_days=None,
         legal_hold=False,
     )
-    no_policy_purge = run_retention_once(db_session, organization_id=organization.id, at=now)
+    no_policy_purge = run_retention_once(
+        db_session,
+        organization_id=organization.id,
+        at=now,
+    )
     assert no_policy_purge is not None
     assert no_policy_purge.private_messages_deleted == 0
-    assert db_session.get(DirectMessage, old_message.id) is not None
+    assert db_session.get(DirectMessage, old_message_id) is not None
 
     set_retention_policy(
         db_session,
@@ -218,10 +295,14 @@ def test_private_message_retention_is_explicit_and_legal_hold_safe(
         private_message_days=30,
         legal_hold=True,
     )
-    held = run_retention_once(db_session, organization_id=organization.id, at=now)
+    held = run_retention_once(
+        db_session,
+        organization_id=organization.id,
+        at=now,
+    )
     assert held is not None
     assert held.private_messages_deleted == 0
-    assert db_session.get(DirectMessage, old_message.id) is not None
+    assert db_session.get(DirectMessage, old_message_id) is not None
 
     set_retention_policy(
         db_session,
@@ -233,11 +314,15 @@ def test_private_message_retention_is_explicit_and_legal_hold_safe(
         private_message_days=30,
         legal_hold=False,
     )
-    purged = run_retention_once(db_session, organization_id=organization.id, at=now)
+    purged = run_retention_once(
+        db_session,
+        organization_id=organization.id,
+        at=now,
+    )
     assert purged is not None
     assert purged.private_message_days == 30
     assert purged.private_messages_deleted == 1
     db_session.expire_all()
-    assert db_session.get(DirectMessage, old_message.id) is None
-    assert db_session.get(DirectMessage, recent_message.id) is not None
+    assert db_session.get(DirectMessage, old_message_id) is None
+    assert db_session.get(DirectMessage, recent_message_id) is not None
     assert db_session.get(DirectConversation, conversation_id) is not None
