@@ -15,6 +15,8 @@ import type {
   WorkspaceNavigation,
 } from "./brain-api";
 import { AskBrainPanel } from "./ask-brain-panel";
+import type { DirectConversation, DirectMessage } from "./direct-message-api";
+import { DirectMessagePanel } from "./direct-message-panel";
 import { EvidenceWorkspace } from "./evidence-workspace";
 import { NativeChannelCreate } from "./native-channel-create";
 import { NativeChatPanel } from "./native-chat-panel";
@@ -82,6 +84,10 @@ export function WorkspaceShell({
   nativeMessages,
   selectedNativeMembers,
   invalidRequestedChannel,
+  directConversations,
+  selectedDirectConversation,
+  directMessages,
+  invalidRequestedDirectMessage,
   overview,
   runtimes,
   agentWorkspace,
@@ -95,6 +101,8 @@ export function WorkspaceShell({
   nativeMemberEndpoint,
   nativeConversationEndpoint,
   canCreateNativeChannel,
+  directMessageCreateEndpoint,
+  directMessageSendEndpoint,
   agentMutationBase,
   signOutAction,
 }: {
@@ -108,6 +116,10 @@ export function WorkspaceShell({
   nativeMessages: NativeMessage[];
   selectedNativeMembers: NativeChannelMember[];
   invalidRequestedChannel: boolean;
+  directConversations: DirectConversation[];
+  selectedDirectConversation: DirectConversation | null;
+  directMessages: DirectMessage[];
+  invalidRequestedDirectMessage: boolean;
   overview: ExecutiveOverview | null;
   runtimes: AIRuntimeOption[];
   agentWorkspace: AgentWorkspace;
@@ -121,6 +133,8 @@ export function WorkspaceShell({
   nativeMemberEndpoint: string | null;
   nativeConversationEndpoint: string | null;
   canCreateNativeChannel: boolean;
+  directMessageCreateEndpoint: string | null;
+  directMessageSendEndpoint: string | null;
   agentMutationBase: string | null;
   signOutAction?: (formData: FormData) => Promise<void>;
 }) {
@@ -128,6 +142,11 @@ export function WorkspaceShell({
   const blockers = uniqueMemory(projects.flatMap((project) => project.active_blockers));
   const decisions = uniqueMemory(projects.flatMap((project) => project.confirmed_decisions));
   const warningCount = overview?.budget_warnings.filter((item) => item.warning_active).length ?? 0;
+  const topbarTitle = selectedDirectConversation
+    ? selectedDirectConversation.other_display_name
+    : selectedNativeChannel
+      ? `# ${selectedNativeChannel.name}`
+      : "Brain workspace";
 
   return (
     <main className={styles.shell}>
@@ -138,6 +157,7 @@ export function WorkspaceShell({
         <nav className={styles.railNav} aria-label="Primary workspace shortcuts">
           <a className={styles.railActive} href="#home" aria-label="Home">⌂</a>
           <a href="#native-chat" aria-label="Brain channels">#</a>
+          <a href="#direct-messages" aria-label="Direct messages">↔</a>
           <a href="#projects" aria-label="Projects">▣</a>
           <a href="#agent-workspace" aria-label="Developer and agent workspace">⌘</a>
           <a href="#ask-brain" aria-label="Ask Brain">✦</a>
@@ -214,6 +234,22 @@ export function WorkspaceShell({
 
           <section>
             <div className={styles.groupTitle}>
+              <span>Direct messages</span><small>{directConversations.length}</small>
+            </div>
+            {directConversations.length ? directConversations.map((conversation) => (
+              <a
+                href={`?organizationId=${encodeURIComponent(organization.id)}&dmId=${encodeURIComponent(conversation.id)}#direct-messages`}
+                key={conversation.id}
+                aria-current={selectedDirectConversation?.id === conversation.id ? "page" : undefined}
+              >
+                <span>●</span>
+                <span className={styles.channelName}>{conversation.other_display_name}</span>
+              </a>
+            )) : <p className={styles.emptyNav}>No direct messages</p>}
+          </section>
+
+          <section>
+            <div className={styles.groupTitle}>
               <span>Connected tracks</span><small>{navigation.tracks.length}</small>
             </div>
             {navigation.tracks.length ? navigation.tracks.map((track) => (
@@ -260,8 +296,8 @@ export function WorkspaceShell({
       <section className={styles.mainSurface} id="brain-workspace-main">
         <header className={styles.topbar}>
           <div>
-            <p>{organization.name} / Brain channels</p>
-            <h1 id="home">{selectedNativeChannel ? `# ${selectedNativeChannel.name}` : "Brain channels"}</h1>
+            <p>{organization.name} / Brain</p>
+            <h1 id="home">{topbarTitle}</h1>
           </div>
           <div className={styles.topbarActions}>
             <form className={styles.mobileOrgForm} method="get">
@@ -305,13 +341,30 @@ export function WorkspaceShell({
           )}
         </section>
 
+        <section className={styles.panel} id="direct-messages" aria-label="Participant-only direct messages">
+          {invalidRequestedDirectMessage ? (
+            <div className={styles.roleNotice} role="alert">
+              <strong>Direct conversation unavailable.</strong>
+              <span>The requested conversation is not in your participant-scoped DM list.</span>
+            </div>
+          ) : null}
+          <DirectMessagePanel
+            organizationId={organization.id}
+            conversations={directConversations}
+            selectedConversation={selectedDirectConversation}
+            messages={directMessages}
+            createEndpoint={directMessageCreateEndpoint}
+            messageEndpoint={directMessageSendEndpoint}
+          />
+        </section>
+
         <section className={styles.welcomeCard}>
           <div>
             <p className={styles.eyebrow}>Brain workspace</p>
             <h2>Everything your role can see, in one operating surface.</h2>
             <p>
               Native Brain channels, connected tracks and projects share the same tenant and evidence
-              boundaries. Restricted names and messages are filtered by the backend before this page renders.
+              boundaries. Direct messages stay participant-only and outside organisation-wide intelligence.
             </p>
           </div>
           <div className={styles.summaryPills}>
@@ -517,6 +570,13 @@ export function WorkspaceShell({
             <div><dt>Confirmed blockers</dt><dd>{blockers.length}</dd></div>
             <div><dt>Confirmed decisions</dt><dd>{decisions.length}</dd></div>
           </dl>
+        </section>
+        <section>
+          <p className={styles.eyebrow}>Direct messages</p>
+          <h2>Participant-only by policy</h2>
+          <p>
+            {directConversations.length} private conversation(s) are visible to this signed-in participant. DM text is excluded from organisation-wide Search, Ask Brain, memory and executive surfaces.
+          </p>
         </section>
         {adminCenter ? (
           <section>
