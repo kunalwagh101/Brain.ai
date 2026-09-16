@@ -32,6 +32,7 @@ _REQUIRED_ADMIN_PERMISSIONS = (
 
 
 class AdminMemberRead(BaseModel):
+    membership_id: uuid.UUID
     user_id: uuid.UUID
     email: str
     display_name: str | None
@@ -159,6 +160,7 @@ def read_admin_center(
     )
     members = [
         AdminMemberRead(
+            membership_id=membership.id,
             user_id=membership.user_id,
             email=user.email,
             display_name=user.display_name,
