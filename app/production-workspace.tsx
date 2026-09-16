@@ -1,3 +1,4 @@
+import { getAgentWorkspace } from "./agent-workspace-api";
 import {
   getExecutiveOverview,
   listEvidenceSources,
@@ -14,6 +15,7 @@ import { WorkspaceShell } from "./workspace-shell";
 
 const EXECUTIVE_ROLES = new Set(["owner", "admin", "executive"]);
 const AI_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
+const AGENT_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
 const EVIDENCE_WRITE_ROLES = new Set(["owner", "admin", "manager", "member"]);
 const CHAT_WRITE_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
 
@@ -25,6 +27,7 @@ export async function ProductionWorkspace({
   enableAskBrainBff = false,
   enableEvidenceBff = false,
   enableNativeChatBff = false,
+  enableAgentWorkspaceBff = false,
   signOutAction,
 }: {
   accessToken: string;
@@ -34,6 +37,7 @@ export async function ProductionWorkspace({
   enableAskBrainBff?: boolean;
   enableEvidenceBff?: boolean;
   enableNativeChatBff?: boolean;
+  enableAgentWorkspaceBff?: boolean;
   signOutAction?: (formData: FormData) => Promise<void>;
 }) {
   const organizations = await listOrganizations(accessToken);
@@ -59,7 +63,16 @@ export async function ProductionWorkspace({
     );
   }
 
-  const [navigation, projects, evidenceSources, channelRows, unreadRows, overview, runtimes] = await Promise.all([
+  const [
+    navigation,
+    projects,
+    evidenceSources,
+    channelRows,
+    unreadRows,
+    overview,
+    runtimes,
+    agentWorkspace,
+  ] = await Promise.all([
     listWorkspaceNavigation(accessToken, organization.id),
     listProjectStatuses(accessToken, organization.id),
     listEvidenceSources(accessToken, organization.id),
@@ -71,6 +84,9 @@ export async function ProductionWorkspace({
     AI_ROLES.has(organization.role)
       ? listRuntimeOptions(accessToken, organization.id)
       : Promise.resolve([]),
+    AGENT_ROLES.has(organization.role)
+      ? getAgentWorkspace(accessToken, organization.id)
+      : Promise.resolve({ agents: [], runs: [] }),
   ]);
   const unreadByChannel = new Map(unreadRows.map((item) => [item.channel_id, item]));
   const nativeChannels = channelRows.map((channel) => ({
@@ -112,6 +128,9 @@ export async function ProductionWorkspace({
   const nativeConversationEndpoint = selectedChannel && enableNativeChatBff
     ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/native-channels/${encodeURIComponent(selectedChannel.id)}`
     : null;
+  const agentMutationBase = enableAgentWorkspaceBff && AGENT_ROLES.has(organization.role)
+    ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/agent-workspace`
+    : null;
 
   return (
     <WorkspaceShell
@@ -127,6 +146,7 @@ export async function ProductionWorkspace({
       invalidRequestedChannel={invalidRequestedChannel}
       overview={overview}
       runtimes={runtimes}
+      agentWorkspace={agentWorkspace}
       signedInName={signedInName}
       askBrainEndpoint={askBrainEndpoint}
       evidenceMutationBase={evidenceMutationBase}
@@ -136,6 +156,7 @@ export async function ProductionWorkspace({
       nativeMemberEndpoint={nativeMemberEndpoint}
       nativeConversationEndpoint={nativeConversationEndpoint}
       canCreateNativeChannel={canCreateNativeChannel}
+      agentMutationBase={agentMutationBase}
       signOutAction={signOutAction}
     />
   );
