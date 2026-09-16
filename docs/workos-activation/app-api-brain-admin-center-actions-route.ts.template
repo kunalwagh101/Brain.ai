@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { AdminCenterBffError, handleAdminCenterAction } from "../../../../../../admin-center-bff";
 import { BrainApiError } from "../../../../../../brain-api";
 
-const MAX_BODY_BYTES = 8 * 1024;
+// Large enough for bounded JSON credentials such as PEM/service-account material,
+// while still preventing an admin mutation route from becoming an unbounded body sink.
+const MAX_BODY_BYTES = 32 * 1024;
 const SAFE_UPSTREAM_STATUSES = new Set([400, 401, 403, 404, 409, 413, 415, 422, 429, 503]);
 
 function json(body: object, status: number) {
