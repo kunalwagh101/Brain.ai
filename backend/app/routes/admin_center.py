@@ -115,6 +115,7 @@ class AdminCenterRead(BaseModel):
     organization_id: uuid.UUID
     organization_name: str
     organization_slug: str
+    viewer_role: MembershipRole
     members: list[AdminMemberRead]
     integrations: list[AdminIntegrationRead]
     ai_providers: list[AdminAIProviderRead]
@@ -310,6 +311,7 @@ def read_admin_center(
         organization_id=organization.id,
         organization_name=organization.name,
         organization_slug=organization.slug,
+        viewer_role=authorization.role,
         members=members,
         integrations=integrations,
         ai_providers=ai_providers,
