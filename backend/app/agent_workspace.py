@@ -119,6 +119,57 @@ def resolve_workspace_context(
     return ResolvedWorkspaceContext(project=project, channel=channel)
 
 
+def _executable_agent_identity(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    agent_definition_id: uuid.UUID,
+) -> AgentIdentity:
+    definition = db.scalar(
+        select(AgentDefinition).where(
+            AgentDefinition.id == agent_definition_id,
+            AgentDefinition.organization_id == organization_id,
+            AgentDefinition.enabled.is_(True),
+        )
+    )
+    if definition is None:
+        raise AgentWorkspaceError("agent_unavailable", "Agent is unavailable")
+
+    provider = db.scalar(
+        select(AIProviderConfiguration).where(
+            AIProviderConfiguration.id == definition.provider_configuration_id,
+            AIProviderConfiguration.organization_id == organization_id,
+            AIProviderConfiguration.status == AIProviderStatus.ENABLED,
+        )
+    )
+    model = db.scalar(
+        select(AIModelConfiguration).where(
+            AIModelConfiguration.id == definition.model_configuration_id,
+            AIModelConfiguration.organization_id == organization_id,
+            AIModelConfiguration.enabled.is_(True),
+        )
+    )
+    if provider is None or model is None:
+        raise AgentWorkspaceError("agent_unavailable", "Agent is unavailable")
+
+    policies = tuple(
+        db.scalars(
+            select(AgentToolPolicy)
+            .where(
+                AgentToolPolicy.organization_id == organization_id,
+                AgentToolPolicy.agent_definition_id == definition.id,
+            )
+            .order_by(AgentToolPolicy.tool_name)
+        )
+    )
+    return AgentIdentity(
+        definition=definition,
+        provider=provider,
+        model=model,
+        policies=policies,
+    )
+
+
 def create_workspace_run(
     db: Session,
     *,
@@ -137,6 +188,11 @@ def create_workspace_run(
         role=role,
         project_node_id=project_node_id,
         native_channel_id=native_channel_id,
+    )
+    _executable_agent_identity(
+        db,
+        organization_id=organization_id,
+        agent_definition_id=agent_definition_id,
     )
 
     run = create_agent_run(
@@ -245,9 +301,9 @@ def list_agent_identities(
     *,
     organization_id: uuid.UUID,
 ) -> list[AgentIdentity]:
-    definitions = list(
+    definition_ids = list(
         db.scalars(
-            select(AgentDefinition)
+            select(AgentDefinition.id)
             .where(
                 AgentDefinition.organization_id == organization_id,
                 AgentDefinition.enabled.is_(True),
@@ -256,44 +312,17 @@ def list_agent_identities(
         )
     )
     identities: list[AgentIdentity] = []
-    for definition in definitions:
-        provider = db.scalar(
-            select(AIProviderConfiguration).where(
-                AIProviderConfiguration.id == definition.provider_configuration_id,
-                AIProviderConfiguration.organization_id == organization_id,
-            )
-        )
-        model = db.scalar(
-            select(AIModelConfiguration).where(
-                AIModelConfiguration.id == definition.model_configuration_id,
-                AIModelConfiguration.organization_id == organization_id,
-            )
-        )
-        if (
-            provider is None
-            or model is None
-            or provider.status != AIProviderStatus.ENABLED
-            or not model.enabled
-        ):
-            continue
-        policies = tuple(
-            db.scalars(
-                select(AgentToolPolicy)
-                .where(
-                    AgentToolPolicy.organization_id == organization_id,
-                    AgentToolPolicy.agent_definition_id == definition.id,
+    for definition_id in definition_ids:
+        try:
+            identities.append(
+                _executable_agent_identity(
+                    db,
+                    organization_id=organization_id,
+                    agent_definition_id=definition_id,
                 )
-                .order_by(AgentToolPolicy.tool_name)
             )
-        )
-        identities.append(
-            AgentIdentity(
-                definition=definition,
-                provider=provider,
-                model=model,
-                policies=policies,
-            )
-        )
+        except AgentWorkspaceError:
+            continue
     return identities
 
 
