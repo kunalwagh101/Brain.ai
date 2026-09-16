@@ -38,6 +38,7 @@ class DirectConversationRead(BaseModel):
     other_user_id: uuid.UUID
     other_display_name: str
     other_email: str
+    can_send: bool
     created_at: datetime
     updated_at: datetime
 
@@ -68,6 +69,7 @@ def _conversation_read(view: DirectConversationView) -> DirectConversationRead:
         other_user_id=view.other_user.id,
         other_display_name=view.other_user.display_name or view.other_user.email,
         other_email=view.other_user.email,
+        can_send=view.can_send,
         created_at=conversation.created_at,
         updated_at=conversation.updated_at,
     )
@@ -95,8 +97,14 @@ def _message_read(
 def _raise_dm_error(exc: DirectMessageError) -> None:
     if exc.code in {"conversation_not_found", "target_not_found", "target_not_available"}:
         code = status.HTTP_404_NOT_FOUND
-    elif exc.code == "self_dm_not_allowed":
+    elif exc.code in {
+        "self_dm_not_allowed",
+        "recipient_unavailable",
+        "idempotency_key_reused",
+    }:
         code = status.HTTP_409_CONFLICT
+    elif exc.code == "actor_not_available":
+        code = status.HTTP_403_FORBIDDEN
     else:
         code = status.HTTP_400_BAD_REQUEST
     raise HTTPException(status_code=code, detail=exc.code) from exc
