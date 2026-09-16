@@ -16,6 +16,7 @@ export type DirectMessage = {
   conversation_id: string;
   author_user_id: string;
   author_display_name: string;
+  is_mine: boolean;
   body: string;
   body_sha256: string;
   created_at: string;
