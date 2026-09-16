@@ -21,6 +21,18 @@ test("server validates requested dm against participant-scoped list before messa
   );
 });
 
+test("explicit dm selection suppresses ambient default-channel context", () => {
+  const production = read("app/production-workspace.tsx");
+  assert.match(
+    production,
+    /const selectedChannel = requestedDirectMessageId\s*\? null\s*:\s*requestedChannelId/,
+  );
+  assert.match(
+    production,
+    /!requestedDirectMessageId && requestedChannelId && !selectedChannel/,
+  );
+});
+
 test("dm service does not project private content into company evidence/search", () => {
   const service = read("backend/app/direct_messages.py");
   assert.doesNotMatch(service, /RawEvent|CanonicalEvent|SearchDocument|project_canonical_event|upsert_search_document/);
@@ -46,4 +58,15 @@ test("native dm privacy decision excludes organisation-wide AI/retrieval", () =>
   const questions = read("OPEN_QUESTIONS.md");
   assert.match(questions, /OQ-008 Brain-native direct-message privacy — RESOLVED 2026-09-16/);
   assert.match(questions, /excluded from organisation-wide Search, Ask Brain, Decision Memory, Project Command Centre and Executive Overview/);
+  assert.match(questions, /private_message_days/);
+  assert.match(questions, /Normal DM creation and sends do not create organisation-wide per-message\/per-conversation audit records/);
+});
+
+test("private dm retention is an independent governance class", () => {
+  const models = read("backend/app/data_governance_models.py");
+  const service = read("backend/app/data_governance.py");
+  assert.match(models, /private_message_days/);
+  assert.match(models, /private_messages_deleted/);
+  assert.match(service, /policy\.private_message_days/);
+  assert.match(service, /DirectMessage\.created_at/);
 });
