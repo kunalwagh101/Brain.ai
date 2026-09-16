@@ -7,7 +7,6 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.data_governance import append_audit_event
 from app.direct_message_models import DirectConversation, DirectMessage
 from app.models import Membership, User
 from app.permissions import Permission, role_has_permission
@@ -80,7 +79,6 @@ def create_or_get_direct_conversation(
     organization_id: uuid.UUID,
     actor_user_id: uuid.UUID,
     target_email: str,
-    request_id: str | None = None,
 ) -> DirectConversation:
     normalized_email = target_email.strip().lower()
     if not normalized_email or len(normalized_email) > 320:
@@ -136,22 +134,6 @@ def create_or_get_direct_conversation(
             raise
         return existing
     db.refresh(conversation)
-
-    append_audit_event(
-        db,
-        organization_id=organization_id,
-        event_key=f"direct_message.conversation.created:{conversation.id}",
-        event_type="direct_message.conversation.created",
-        outcome="succeeded",
-        actor_user_id=actor_user_id,
-        resource_type="direct_conversation",
-        resource_id=conversation.id,
-        request_id=request_id,
-        metadata={
-            "participant_a_user_id": participant_a,
-            "participant_b_user_id": participant_b,
-        },
-    )
     return conversation
 
 
@@ -224,7 +206,6 @@ def send_direct_message(
     author_user_id: uuid.UUID,
     body: str,
     idempotency_key: str | None,
-    request_id: str | None = None,
 ) -> DirectMessage:
     conversation = _participant_conversation(
         db,
@@ -272,23 +253,6 @@ def send_direct_message(
             raise
         return existing
     db.refresh(message)
-
-    append_audit_event(
-        db,
-        organization_id=organization_id,
-        event_key=f"direct_message.sent:{message.id}",
-        event_type="direct_message.sent",
-        outcome="succeeded",
-        actor_user_id=author_user_id,
-        resource_type="direct_conversation",
-        resource_id=conversation_id,
-        request_id=request_id,
-        metadata={
-            "message_id": message.id,
-            "body_sha256": message.body_sha256,
-            "body_char_count": message.body_char_count,
-        },
-    )
     return message
 
 
