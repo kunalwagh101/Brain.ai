@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -93,15 +93,10 @@ def _message_read(
     )
 
 
-def _request_id(request: Request) -> str | None:
-    value = request.headers.get("x-request-id")
-    return value[:128] if value else None
-
-
 def _raise_dm_error(exc: DirectMessageError) -> None:
     if exc.code in {"conversation_not_found", "target_not_found", "target_not_available"}:
         code = status.HTTP_404_NOT_FOUND
-    elif exc.code in {"self_dm_not_allowed"}:
+    elif exc.code == "self_dm_not_allowed":
         code = status.HTTP_409_CONFLICT
     else:
         code = status.HTTP_400_BAD_REQUEST
@@ -128,7 +123,6 @@ def list_conversations(
 def create_conversation(
     organization_id: uuid.UUID,
     payload: DirectConversationCreate,
-    request: Request,
     access: Annotated[AuthorizationContext, Depends(_write)],
     db: Annotated[Session, Depends(get_db)],
 ) -> DirectConversationRead:
@@ -138,7 +132,6 @@ def create_conversation(
             organization_id=organization_id,
             actor_user_id=access.user_id,
             target_email=payload.target_email,
-            request_id=_request_id(request),
         )
     except DirectMessageError as exc:
         _raise_dm_error(exc)
@@ -186,7 +179,6 @@ def post_message(
     organization_id: uuid.UUID,
     conversation_id: uuid.UUID,
     payload: DirectMessageCreate,
-    request: Request,
     access: Annotated[AuthorizationContext, Depends(_write)],
     db: Annotated[Session, Depends(get_db)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
@@ -199,7 +191,6 @@ def post_message(
             author_user_id=access.user_id,
             body=payload.body,
             idempotency_key=idempotency_key,
-            request_id=_request_id(request),
         )
     except DirectMessageError as exc:
         _raise_dm_error(exc)
