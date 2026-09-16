@@ -33,8 +33,8 @@ console.log(createHash("sha256").update(readFileSync("package-lock.json")).diges
 NODE
 )"
 
-echo "Installing official WorkOS AuthKit packages through npm..."
-npm install @workos-inc/authkit-nextjs @workos-inc/node
+echo "Installing the reviewed WorkOS AuthKit 4.x line and official WorkOS Node peer through npm..."
+npm install '@workos-inc/authkit-nextjs@^4' @workos-inc/node
 
 node --input-type=module <<'NODE'
 import { readFile } from "node:fs/promises";
@@ -48,6 +48,9 @@ for (const name of required) {
   const locked = lock.packages?.[`node_modules/${name}`];
   if (!locked?.version || !locked?.resolved || !locked?.integrity) {
     throw new Error(`${name} is not fully integrity-pinned in package-lock.json`);
+  }
+  if (name === "@workos-inc/authkit-nextjs" && !locked.version.startsWith("4.")) {
+    throw new Error(`Unexpected AuthKit major ${locked.version}; Brain has reviewed only the 4.x line.`);
   }
   console.log(`${name}: ${locked.version}`);
 }
