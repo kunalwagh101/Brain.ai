@@ -24,7 +24,7 @@ from app.ai_gateway_models import (
     AIProviderStatus,
 )
 from app.data_governance import DataGovernanceError, append_audit_event
-from app.models import MembershipRole
+from app.models import Membership, MembershipRole
 from app.native_chat import get_visible_channel
 from app.native_chat_models import NativeChannel, NativeChannelStatus
 from app.permissions import role_has_permission
@@ -405,6 +405,15 @@ def execute_workspace_tool(
 
 
 def run_artifacts(db: Session, run: AgentRun) -> list[AgentArtifact]:
+    membership = db.scalar(
+        select(Membership).where(
+            Membership.organization_id == run.organization_id,
+            Membership.user_id == run.requested_by_user_id,
+        )
+    )
+    if membership is None:
+        return []
+
     steps = list(
         db.scalars(
             select(AgentStep)
@@ -422,6 +431,24 @@ def run_artifacts(db: Session, run: AgentRun) -> list[AgentArtifact]:
         node_id = step.result_metadata.get("node_id")
         display_name = step.result_metadata.get("display_name")
         if not isinstance(node_id, str) or not isinstance(display_name, str):
+            continue
+        try:
+            parsed_node_id = uuid.UUID(node_id)
+        except ValueError:
+            continue
+        node = db.scalar(
+            select(WorkGraphNode).where(
+                WorkGraphNode.id == parsed_node_id,
+                WorkGraphNode.organization_id == run.organization_id,
+                WorkGraphNode.node_type == WorkGraphNodeType.WORK_ITEM,
+            )
+        )
+        if node is None or not node_visible_to_user(
+            db,
+            node,
+            user_id=run.requested_by_user_id,
+            role=membership.role,
+        ):
             continue
         artifacts.append(
             AgentArtifact(
