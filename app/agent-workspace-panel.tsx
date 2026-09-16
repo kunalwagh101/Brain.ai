@@ -134,6 +134,7 @@ export function AgentWorkspacePanel({
   const [channelId, setChannelId] = useState("");
   const [objective, setObjective] = useState("");
   const [resumeObjectives, setResumeObjectives] = useState<Record<string, string>>({});
+  const [finalOutputs, setFinalOutputs] = useState<Record<string, string>>({});
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -167,6 +168,7 @@ export function AgentWorkspacePanel({
         return;
       }
       const created = (await createdResponse.json()) as AgentWorkspaceRun;
+      setResumeObjectives((current) => ({ ...current, [created.id]: normalizedObjective }));
       const advanceResponse = await fetch(
         `${mutationBase}/runs/${encodeURIComponent(created.id)}/advance`,
         {
@@ -179,8 +181,20 @@ export function AgentWorkspacePanel({
       if (!advanceResponse.ok) {
         setNotice("The governed run was created, but its first planning step did not advance. Open the run and retry with the same objective.");
       } else {
+        const advancePayload = (await advanceResponse.json()) as {
+          run: AgentWorkspaceRun;
+          final_output: string | null;
+        };
+        if (advancePayload.final_output) {
+          setFinalOutputs((current) => ({
+            ...current,
+            [created.id]: advancePayload.final_output as string,
+          }));
+          setNotice("Agent run completed. The final answer is shown only in this browser session; Brain stores only its hash.");
+        } else {
+          setNotice("Agent run started. Review any proposed high-risk action before approving it.");
+        }
         setObjective("");
-        setNotice("Agent run started. Review any proposed high-risk action before approving it.");
       }
       router.refresh();
     } catch {
@@ -209,6 +223,14 @@ export function AgentWorkspacePanel({
       if (!response.ok) {
         setError(safeError(response.status));
         return;
+      }
+      const payload = (await response.json()) as {
+        run: AgentWorkspaceRun;
+        final_output: string | null;
+      };
+      if (payload.final_output) {
+        setFinalOutputs((current) => ({ ...current, [run.id]: payload.final_output as string }));
+        setNotice("Agent run completed. The final answer is available only in this browser session and is not persisted as plaintext.");
       }
       router.refresh();
     } catch {
@@ -346,6 +368,14 @@ export function AgentWorkspacePanel({
               <div><span>Channel</span><strong>{run.context.channel ? `# ${run.context.channel.name}` : "—"}</strong><small>{run.context.channel?.visibility ?? "No visible channel context"}</small></div>
               <div><span>Objective</span><strong>{run.objective_char_count.toLocaleString()} chars</strong><small>SHA-256 {run.objective_sha256.slice(0, 12)}…</small></div>
             </div>
+
+            {finalOutputs[run.id] ? (
+              <section className={styles.artifacts} aria-label="Ephemeral final answer">
+                <h4>Final answer · browser session only</h4>
+                <p>{finalOutputs[run.id]}</p>
+                <small>Brain persists the final-output SHA-256, not this plaintext answer.</small>
+              </section>
+            ) : null}
 
             {run.artifacts.length ? (
               <section className={styles.artifacts}>
