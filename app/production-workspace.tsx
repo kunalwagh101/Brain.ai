@@ -165,7 +165,11 @@ export async function ProductionWorkspace({
   const directMessageCreateEndpoint = enableDirectMessageBff && DM_ROLES.has(organization.role)
     ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/direct-messages`
     : null;
-  const directMessageSendEndpoint = selectedDirectConversation && directMessageCreateEndpoint
+  const directMessageSendEndpoint = (
+    selectedDirectConversation
+    && selectedDirectConversation.can_send
+    && directMessageCreateEndpoint
+  )
     ? `${directMessageCreateEndpoint}/${encodeURIComponent(selectedDirectConversation.id)}/messages`
     : null;
   const agentMutationBase = enableAgentWorkspaceBff && AGENT_ROLES.has(organization.role)
