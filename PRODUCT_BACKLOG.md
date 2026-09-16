@@ -249,10 +249,11 @@ Acceptance: Given a permitted root message, when a permitted writer replies, the
 Dependencies: S-10.01.01. Blocking risk: executable/backend and authenticated-browser acceptance depend on the existing CI runner and S-10.04 WorkOS activation; repository implementation alone cannot satisfy DONE. Size: L. Leading indicator: active channel participation and unread-to-read conversion. Business value: E-10. Priority: P1.  
 Tasks: T-10.06.01.a conversation schema/migration; T-10.06.01.b tenant-safe thread/mention/reaction/read services; T-10.06.01.c permission-aware APIs and same-origin BFF contracts; T-10.06.01.d focused Slack/Discord-style channel UI; T-10.06.01.e security/idempotency/accessibility tests; T-10.06.01.f docs/UAT/demo/rollback.
 
-**S-10.06.02 — Support permission-safe direct messages without turning Brain into employee surveillance**  
-As a user, I want private direct conversations with explicit participants, so that sensitive collaboration has a bounded home in Brain.  
-Acceptance: DM membership is explicit; non-participants including executives cannot read content merely because of role; search/Ask Brain inclusion follows the approved OQ-002 private-message policy; no unrestricted employer/private-message capture; deletion/retention behaviour is explicit and audited.  
-Dependencies: S-10.01.01, OQ-002. Size: L. Indicator: zero private-message leakage. Value: E-10. Priority: P1.
+**S-10.06.02 — Support participant-safe Brain-native direct messages without turning Brain into employee surveillance**  
+As a user, I want private one-to-one conversations with explicit participants, so that sensitive collaboration has a bounded home in Brain without silently becoming employer-wide intelligence.  
+Acceptance: only the two explicit participants can list/read a DM; Owner/Admin/Executive roles have no content override merely because of role; creation resolves an exact current same-organisation member and cannot accept arbitrary participant IDs; DM content is never projected into organisation-wide RawEvent/CanonicalEvent/Work Graph/SearchDocument or returned through organisation-wide Search/Ask Brain/Decision Memory/Project/Executive surfaces; normal DM sends do not create organisation-wide per-message/per-conversation audit records; browser mutations use authenticated same-origin BFF routes with no reusable bearer token; `private_message_days` is an explicit independent retention class where `NULL` means no automatic age purge, legal hold blocks purge, and retention-run accounting records only aggregate deletion counts; PostgreSQL tenant constraints and migration rollback/forward recovery are verified.  
+Dependencies: S-10.01.01, OQ-008. Blocking risk: authenticated browser acceptance depends on S-10.04 WorkOS activation; repository implementation alone cannot satisfy DONE. Size: L. Indicator: zero private-message leakage and correct explicit-retention behavior. Value: E-10. Priority: P1.  
+Tasks: T-10.06.02.a participant-scoped one-to-one schema/migrations; T-10.06.02.b tenant/participant-safe service and API; T-10.06.02.c company-intelligence exclusion and privacy regressions; T-10.06.02.d Slack-style DM navigation/panel; T-10.06.02.e same-origin WorkOS BFF contracts; T-10.06.02.f explicit private-message retention/legal-hold integration; T-10.06.02.g PostgreSQL/browser/accessibility UAT.
 
 #### F-10.07 Developer and agent workspace
 **S-10.07.01 — Run governed engineering/agent work from project and channel context**  
@@ -284,6 +285,7 @@ Dependencies: E-01, E-02, E-06. Size: L. Indicator: admin workflow completion ra
 | AI/API usage/cost visibility | S-06.02.01, S-10.03.01 |
 | Slack/Discord-style company workspace | S-10.02.01, S-10.03.01, S-10.06.01 |
 | Human communication | S-10.01.01, S-10.06.01, S-10.06.02 |
+| Participant-only private collaboration | S-10.06.02 |
 | Tenant/channel-scoped message threads | S-10.06.01 |
 | Exact-member mentions without identity guessing | S-10.06.01 |
 | Idempotent per-user message reactions | S-10.06.01 |
@@ -297,12 +299,12 @@ Dependencies: E-01, E-02, E-06. Size: L. Indicator: admin workflow completion ra
 | Citations / no unsupported claims | S-05.02.01, S-10.03.01 |
 | Data provenance | S-03.01.01, S-03.02.01, S-10.05.01 |
 | Identity resolution | S-03.03.01 |
-| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01 |
-| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01 |
+| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02 |
+| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02 |
 | Observability | S-09.01.01 |
-| Migrations/rollback/backup | S-09.03.01, S-10.06.01 |
+| Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02 |
 | Latency/cost benchmarks | S-09.04.01 |
-| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01 |
+| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02 |
 | CI and lie-detector verifier | S-09.03.01 |
 | Agile/Scrum/Kanban artifacts | S-09.03.01 |
 
