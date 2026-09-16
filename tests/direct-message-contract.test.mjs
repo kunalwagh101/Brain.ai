@@ -49,6 +49,33 @@ test("dm service does not project private content into company evidence/search",
   assert.match(service, /participant_b_user_id == user_id/);
 });
 
+test("dm visibility epochs use monotonic sequences rather than timestamps", () => {
+  const models = read("backend/app/direct_message_models.py");
+  const service = read("backend/app/direct_messages.py");
+  const migration = read("backend/migrations/versions/20260916_0024_direct_message_participant_epochs.py");
+
+  assert.match(models, /next_message_sequence/);
+  assert.match(models, /participant_a_visible_from_sequence/);
+  assert.match(models, /participant_b_visible_from_sequence/);
+  assert.match(models, /sequence: Mapped\[int\]/);
+  assert.match(service, /visible_from_sequence/);
+  assert.match(service, /conversation\.next_message_sequence = sequence \+ 1/);
+  assert.match(service, /\.with_for_update\(\)/);
+  assert.doesNotMatch(service, /participant_[ab]_visible_from(?!_sequence)/);
+  assert.match(migration, /ROW_NUMBER\(\) OVER/);
+  assert.match(migration, /uq_direct_message_conversation_sequence/);
+});
+
+test("history-only DM state is server controlled", () => {
+  const api = read("app/direct-message-api.ts");
+  const production = read("app/production-workspace.tsx");
+  const panel = read("app/direct-message-panel.tsx");
+
+  assert.match(api, /can_send: boolean/);
+  assert.match(production, /selectedDirectConversation\.can_send/);
+  assert.match(panel, /History only|history-only|no longer available/i);
+});
+
 test("dm WorkOS routes use server auth and are included in guarded activation", () => {
   const createRoute = read("docs/workos-activation/app-api-brain-direct-messages-route.ts.template");
   const sendRoute = read("docs/workos-activation/app-api-brain-direct-message-route.ts.template");
