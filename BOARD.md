@@ -27,7 +27,7 @@ BLOCKED | S-07.01.01 | F-07.01 | Evidence-backed project-status backend, determi
 BLOCKED | S-07.02.01 | F-07.02 | Permission-aware executive overview, AI spend/budget risk, API activity, provenance, tests/docs/UAT are staged; external dependency: production frontend UAT, after S-07.01.01 + S-06.02.01
 BLOCKED | S-08.01.01 | F-08.01 | Governed agent runtime is staged; external dependency: real tool/provider safety UAT after upstream dependency verification
 IN_REVIEW | S-09.01.01 | F-09.01 | Observability implementation/tests/docs/UAT are staged; executable passing verification remains outstanding
-IN_REVIEW | S-09.02.01 | F-09.02 | Audit/retention/deletion implementation/tests/docs/UAT are staged; executable PostgreSQL/Ruff/Pytest/Delivery Verifier evidence remains outstanding
+IN_REVIEW | S-09.02.01 | F-09.02 | Audit/retention/deletion implementation including explicit private-message retention is staged; executable PostgreSQL/Ruff/Pytest/Delivery Verifier evidence remains outstanding
 BLOCKED | S-09.03.01 | F-09.03 | Release/rollback/restore work plus a concrete Render staging Blueprint are staged; real deployment/recovery exercise and OQ-007 production topology remain unresolved
 BLOCKED | S-09.04.01 | F-09.04 | Performance/cost benchmark work is staged; external dependency: a real Ask Brain staging target and provider credentials
 IN_REVIEW | S-10.01.01 | F-10.01 | Native channel/message persistence, evidence projection, restricted memberships, API/BFF/UI and tests are implemented; executable CI, migration and authenticated browser UAT evidence remain pending
@@ -36,9 +36,9 @@ BLOCKED | S-10.03.01 | F-10.03 | Project/memory/company-pulse/evidence surfaces,
 BLOCKED | S-10.04.01 | F-10.04 | Official WorkOS Next.js 16 templates, guarded install/activation scripts and BFF security contract are staged; external dependency: real WorkOS configuration plus authenticated browser execution
 BLOCKED | S-10.05.01 | F-10.05 | Repository implementation is staged; external S-10.04 WorkOS activation plus executable backend/browser acceptance remain pending
 IN_REVIEW | S-10.06.01 | F-10.06 | Ruff, 299 backend tests and frontend build/tests pass locally; verifier was skipped by product-owner direction, and live PostgreSQL/WorkOS/browser UAT remain pending
-BLOCKED | S-10.06.02 | F-10.06 | Permission-safe DMs require S-10.01.01 plus explicit OQ-002 private-message policy
-BACKLOG | S-10.07.01 | F-10.07 | Developer/agent workspace over governed repo/agent contracts
-BACKLOG | S-10.08.01 | F-10.08 | Workspace admin UI for integrations, members, permissions and AI/API governance
+IN_PROGRESS | S-10.06.02 | F-10.06 | Participant-only Brain-native DMs, privacy-safe UI/BFF, migrations 0022/0023, explicit private-message retention and regression/UAT contracts are staged; current-commit Ruff/Pytest/PostgreSQL/frontend/WorkOS browser verification has not executed
+IN_REVIEW | S-10.07.01 | F-10.07 | Governed developer/agent workspace, project/channel context binding, approvals, context-aware tool execution, ephemeral final output and privacy/security contracts are implementation-staged; executable verification and authenticated browser UAT remain pending
+IN_PROGRESS | S-10.08.01 | F-10.08 | Owner/Admin governance center and first mutation layer for membership, integrations, AI provider/model and API grant lifecycle are implemented; credential-creation/rotation and executable/browser verification remain outstanding
 
 ## Current implementation train — S-02.04 / S-05.02 / S-04.02 / S-07.01 / S-07.02
 
@@ -124,7 +124,7 @@ Formal state: `BLOCKED`. Its S-07.01.01 and S-06.02.01 dependencies are not DONE
 
 The product owner clarified on 2026-09-11 that Brain's requested frontend is a Slack/Discord-style company workspace. The earlier single deferred native-chat story did not adequately represent that requirement. `PRODUCT_BACKLOG.md` separates the P0 workspace frontend from P1 native collaboration.
 
-The board WIP rule is now explicit in this train: S-10.02 and S-10.03 have their repository implementation staged but cannot advance through authenticated browser acceptance without S-10.04. They are therefore represented as `BLOCKED`, freeing the active implementation slot for S-10.05 rather than accumulating a third unfinished story.
+The board WIP rule remains binding. Repository-staged stories that are waiting on external/authenticated acceptance stay `BLOCKED` or `IN_REVIEW` rather than consuming implementation WIP. The two current implementation slots are `S-10.06.02` Brain-native DMs and `S-10.08.01` Workspace Administration.
 
 ### S-10.02.01 Workspace Shell and Navigation — BLOCKED
 
@@ -219,11 +219,62 @@ Repository-wide Ruff and all 299 backend tests also pass. The full frontend buil
 
 Formal state: `IN_REVIEW`. The session-open audit found that this story had been pulled without a dedicated Definition-of-Ready record while S-10.01 was still `IN_REVIEW`; that process drift is now recorded in `DEFINITION_OF_READY.md`. No accepted S-10.06.01 scope was silently removed. Final DONE remains blocked on a delivery-verifier PASS, real PostgreSQL upgrade/downgrade exercise, official S-10.04 WorkOS activation and the authenticated desktop/mobile/keyboard UAT in `UAT/F-10.06.md`.
 
+### S-10.06.02 Participant-safe Brain-native direct messages — IN_PROGRESS
+
+Staged now:
+
+- separate one-to-one `DirectConversation` / `DirectMessage` persistence rather than reusing restricted-channel administration semantics;
+- participant-only listing and reads with no Owner/Admin/Executive content override;
+- same-organisation exact-email creation, self/cross-tenant/read-only-target rejection and idempotent bounded sends;
+- no RawEvent/CanonicalEvent/Work Graph/SearchDocument projection, keeping DMs outside organisation-wide Search/Ask Brain/Decision Memory/Project/Executive surfaces;
+- no organisation-wide per-message/per-conversation DM audit records;
+- composite `(organization_id, conversation_id)` database foreign key;
+- migrations `20260916_0022` and `20260916_0023` for DMs plus independent `private_message_days` retention and retention-run accounting;
+- legal-hold-safe private-message purge through the existing scheduled governance runner;
+- Slack-style DM navigation/panel, exact-email new-DM flow, server-computed bubble ownership and explicit privacy messaging;
+- server-validated `dmId` selection and suppression of ambient default-channel context while a DM is active;
+- same-origin WorkOS BFF templates with bounded JSON, session/membership revalidation and cross-site rejection;
+- backend/frontend regression contracts and `UAT/F-10.06.02.md`.
+
+Formal state: `IN_PROGRESS`. The code/tests/docs are staged, but current-commit Ruff/Pytest/frontend execution, live PostgreSQL `0022/0023` upgrade/downgrade/re-upgrade and authenticated WorkOS multi-user browser UAT have not executed. No PASS/DONE claim exists.
+
+### S-10.07.01 Developer & Agent Workspace — IN_REVIEW
+
+Staged now:
+
+- permission-aware agent run context binding to visible project/channel scope;
+- requester-only workspace run read model with revoked-context redaction;
+- explicit agent/provider/model/tool/risk identity without provider-secret serialization;
+- server-controlled workspace start/advance/approval/cancel paths;
+- project-scoped high-risk work-item execution inheriting current project visibility/ACL and verified `CONTAINS` edge;
+- current context revalidation before planner/tool cycles and approvals;
+- final model output returned ephemerally to the live browser response while durable runtime stores only its hash;
+- produced artifacts re-filtered against current Work Graph visibility;
+- Developer & Agents panel inside the Brain workspace, plus same-origin WorkOS activation templates and security/source contracts;
+- `UAT/F-10.07.md`.
+
+Formal state: `IN_REVIEW`. Implementation is staged, but no new executable PASS, PostgreSQL/browser UAT or real provider/tool safety acceptance is claimed.
+
+### S-10.08.01 Workspace Administration — IN_PROGRESS
+
+Staged now:
+
+- Owner/Admin-only Admin Center aggregate with members, integrations, AI providers/models and API grants;
+- safe serialization excludes raw credentials, tokens and secret references;
+- member invitation, role change and removal with last-Owner protection and Owner/Admin authority separation;
+- membership removal also clears organisation resource grants and restricted-channel memberships to prevent dormant access revival;
+- integration revoke, AI provider/model lifecycle controls and API-grant enable/disable/revoke actions;
+- one typed same-origin admin BFF action boundary with bounded JSON, WorkOS session/membership validation and cross-site rejection;
+- workspace UI controls refresh from authoritative backend state rather than optimistic local authority;
+- backend/frontend security contracts plus `UAT/F-10.08.md`.
+
+Formal state: `IN_PROGRESS`. Credential creation/rotation plus API grant owner/scope/environment editing remain to be finished, and current mutation tests/browser UAT have not executed.
+
 ## Acceptance phase
 
 `S-05.01.01` stays `IN_REVIEW`. Acceptance execution has now started, but the latest branch-head GitHub runs for Backend CI, Delivery Verifier and Release Gate all failed before any workflow step executed; their job step lists were empty. This supplies no pytest/Ruff/verifier result and does not satisfy the gate. The required local and Render verification must still prove tenant isolation, current permission filtering, revocation, provenance and retrieval quality before dependent features can advance to accepted states.
 
-After S-05.01.01 obtains real passing execution evidence, run the dependent executable suites/migrations, real OpenAI/Terra compatibility and cache-aware exact-cost smoke, representative Ask Brain retrieval/RAG evaluation, human citation review, staging performance, decision-memory precision/UAT, project-status permission/revocation UAT, Executive Overview permission/cost/budget/API reconciliation UAT, and the official WorkOS authenticated frontend/manual paths including S-10.05 evidence lifecycle and S-10.06 conversation UAT.
+After S-05.01.01 obtains real passing execution evidence, run the dependent executable suites/migrations, real OpenAI/Terra compatibility and cache-aware exact-cost smoke, representative Ask Brain retrieval/RAG evaluation, human citation review, staging performance, decision-memory precision/UAT, project-status permission/revocation UAT, Executive Overview permission/cost/budget/API reconciliation UAT, and the official WorkOS authenticated frontend/manual paths including S-10.05 evidence lifecycle, S-10.06 conversation UAT, participant-safe DM UAT, S-10.07 agent-workspace UAT and S-10.08 admin-governance UAT.
 
 Production quality gates remain: retrieval recall >=90%, zero forbidden evidence exposure/grounding-contract failures, every exact generated claim-citation pair human reviewed, semantic citation correctness >=98%, Decision/Blocker precision >=90% on the agreed representative set, and Ask Brain p95 <10 seconds on the accepted staging runtime.
 
