@@ -58,6 +58,11 @@ def upgrade() -> None:
             "participant_b_user_id",
             name="uq_direct_conversation_org_pair",
         ),
+        sa.UniqueConstraint(
+            "organization_id",
+            "id",
+            name="uq_direct_conversation_org_id",
+        ),
     )
     op.create_index(
         "ix_direct_conversation_org_a_created",
@@ -93,7 +98,10 @@ def upgrade() -> None:
             ["organization_id"], ["organizations.id"], ondelete="CASCADE"
         ),
         sa.ForeignKeyConstraint(
-            ["conversation_id"], ["direct_conversations.id"], ondelete="CASCADE"
+            ["organization_id", "conversation_id"],
+            ["direct_conversations.organization_id", "direct_conversations.id"],
+            ondelete="CASCADE",
+            name="fk_direct_message_org_conversation",
         ),
         sa.ForeignKeyConstraint(
             ["author_user_id"], ["users.id"], ondelete="RESTRICT"
