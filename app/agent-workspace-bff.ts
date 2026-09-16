@@ -139,12 +139,20 @@ export async function handleAgentWorkspaceAdvance(
   organizationId: string,
   runId: string,
   value: unknown,
-): Promise<AgentWorkspaceRun> {
+): Promise<{ run: AgentWorkspaceRun; final_output: string | null }> {
   await requireAgentUser(accessToken, organizationId);
   requiredUuid(runId, "runId");
   const { objective } = parseAdvanceInput(value);
-  await advanceAgentWorkspaceRun(accessToken, organizationId, runId, objective);
-  return getAgentWorkspaceRun(accessToken, organizationId, runId);
+  const advance = await advanceAgentWorkspaceRun(
+    accessToken,
+    organizationId,
+    runId,
+    objective,
+  );
+  return {
+    run: await getAgentWorkspaceRun(accessToken, organizationId, runId),
+    final_output: advance.final_output,
+  };
 }
 
 export async function handleAgentWorkspaceApproval(
