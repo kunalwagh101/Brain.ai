@@ -146,8 +146,10 @@ function scopes(value: unknown): string[] {
 }
 
 function credentials(value: unknown): Record<string, string> {
-  const body = exactObject(value, new Set(Object.keys((value ?? {}) as object)), "credentials");
-  const entries = Object.entries(body);
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    invalid(400, "credentials must be an object");
+  }
+  const entries = Object.entries(value as Record<string, unknown>);
   if (entries.length < 1 || entries.length > 16) invalid(400, "credentials must contain 1-16 fields");
   const normalized: Record<string, string> = {};
   for (const [key, raw] of entries) {
@@ -196,30 +198,14 @@ export function parseAdminCenterAction(value: unknown): AdminCenterAction {
   );
   const action = requiredString(base.action, "action", 64);
 
-  if (action === "member_invite") {
-    return { action, email: email(base.email), role: role(base.role) };
-  }
-  if (action === "member_role") {
-    return { action, membership_id: uuid(base.membership_id, "membership_id"), role: role(base.role) };
-  }
-  if (action === "member_remove") {
-    return { action, membership_id: uuid(base.membership_id, "membership_id") };
-  }
-  if (action === "integration_revoke") {
-    return { action, integration_id: uuid(base.integration_id, "integration_id") };
-  }
-  if (action === "ai_provider_status") {
-    return { action, provider_id: uuid(base.provider_id, "provider_id"), enabled: bool(base.enabled, "enabled") };
-  }
-  if (action === "ai_provider_rotate") {
-    return { action, provider_id: uuid(base.provider_id, "provider_id"), credentials: credentials(base.credentials) };
-  }
-  if (action === "ai_provider_revoke") {
-    return { action, provider_id: uuid(base.provider_id, "provider_id") };
-  }
-  if (action === "ai_model_status") {
-    return { action, model_id: uuid(base.model_id, "model_id"), enabled: bool(base.enabled, "enabled") };
-  }
+  if (action === "member_invite") return { action, email: email(base.email), role: role(base.role) };
+  if (action === "member_role") return { action, membership_id: uuid(base.membership_id, "membership_id"), role: role(base.role) };
+  if (action === "member_remove") return { action, membership_id: uuid(base.membership_id, "membership_id") };
+  if (action === "integration_revoke") return { action, integration_id: uuid(base.integration_id, "integration_id") };
+  if (action === "ai_provider_status") return { action, provider_id: uuid(base.provider_id, "provider_id"), enabled: bool(base.enabled, "enabled") };
+  if (action === "ai_provider_rotate") return { action, provider_id: uuid(base.provider_id, "provider_id"), credentials: credentials(base.credentials) };
+  if (action === "ai_provider_revoke") return { action, provider_id: uuid(base.provider_id, "provider_id") };
+  if (action === "ai_model_status") return { action, model_id: uuid(base.model_id, "model_id"), enabled: bool(base.enabled, "enabled") };
   if (action === "api_grant_create") {
     return {
       action,
@@ -234,43 +220,13 @@ export function parseAdminCenterAction(value: unknown): AdminCenterAction {
     };
   }
   if (action === "api_grant_owner") {
-    return {
-      action,
-      grant_id: uuid(base.grant_id, "grant_id"),
-      owner_user_id: uuid(base.owner_user_id, "owner_user_id"),
-      reason: reason(base.reason),
-    };
+    return { action, grant_id: uuid(base.grant_id, "grant_id"), owner_user_id: uuid(base.owner_user_id, "owner_user_id"), reason: reason(base.reason) };
   }
-  if (action === "api_grant_scopes") {
-    return { action, grant_id: uuid(base.grant_id, "grant_id"), scopes: scopes(base.scopes), reason: reason(base.reason) };
-  }
-  if (action === "api_grant_environment") {
-    return {
-      action,
-      grant_id: uuid(base.grant_id, "grant_id"),
-      environment: environment(base.environment),
-      reason: reason(base.reason),
-    };
-  }
-  if (action === "api_grant_rotate") {
-    return {
-      action,
-      grant_id: uuid(base.grant_id, "grant_id"),
-      credentials: credentials(base.credentials),
-      reason: reason(base.reason),
-    };
-  }
-  if (action === "api_grant_status") {
-    return {
-      action,
-      grant_id: uuid(base.grant_id, "grant_id"),
-      enabled: bool(base.enabled, "enabled"),
-      reason: reason(base.reason),
-    };
-  }
-  if (action === "api_grant_revoke") {
-    return { action, grant_id: uuid(base.grant_id, "grant_id"), reason: reason(base.reason) };
-  }
+  if (action === "api_grant_scopes") return { action, grant_id: uuid(base.grant_id, "grant_id"), scopes: scopes(base.scopes), reason: reason(base.reason) };
+  if (action === "api_grant_environment") return { action, grant_id: uuid(base.grant_id, "grant_id"), environment: environment(base.environment), reason: reason(base.reason) };
+  if (action === "api_grant_rotate") return { action, grant_id: uuid(base.grant_id, "grant_id"), credentials: credentials(base.credentials), reason: reason(base.reason) };
+  if (action === "api_grant_status") return { action, grant_id: uuid(base.grant_id, "grant_id"), enabled: bool(base.enabled, "enabled"), reason: reason(base.reason) };
+  if (action === "api_grant_revoke") return { action, grant_id: uuid(base.grant_id, "grant_id"), reason: reason(base.reason) };
   invalid(400, "Unknown admin action");
 }
 
@@ -329,7 +285,16 @@ export async function handleAdminCenterAction(
       await setAIModelEnabled(accessToken, organizationId, action.model_id, action.enabled);
       return;
     case "api_grant_create":
-      await createAPIGrant(accessToken, organizationId, action);
+      await createAPIGrant(accessToken, organizationId, {
+        service_id: action.service_id,
+        grant_key: action.grant_key,
+        display_name: action.display_name,
+        owner_user_id: action.owner_user_id,
+        environment: action.environment,
+        scopes: action.scopes,
+        expires_at: action.expires_at,
+        credentials: action.credentials,
+      });
       return;
     case "api_grant_owner":
       await changeAPIGrantOwner(accessToken, organizationId, action.grant_id, action.owner_user_id, action.reason);
