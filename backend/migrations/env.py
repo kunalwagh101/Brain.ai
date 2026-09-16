@@ -5,6 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app import (
     agent_models,
+    agent_workspace_models,
     ai_gateway_models,
     ai_usage_models,
     api_registry_models,
@@ -24,6 +25,7 @@ from app.models import Base
 # references here makes Alembic autogenerate/check compare the complete application schema.
 _MODEL_MODULES = (
     agent_models,
+    agent_workspace_models,
     ai_gateway_models,
     ai_usage_models,
     api_registry_models,
