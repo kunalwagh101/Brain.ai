@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.direct_message_models import DirectConversation, DirectMessage
+from app.direct_message_models import DirectMessage
 from app.direct_messages import (
     DirectConversationView,
     DirectMessageError,
@@ -55,6 +55,7 @@ class DirectMessageRead(BaseModel):
     conversation_id: uuid.UUID
     author_user_id: uuid.UUID
     author_display_name: str
+    is_mine: bool
     body: str
     body_sha256: str
     created_at: datetime
@@ -73,13 +74,19 @@ def _conversation_read(view: DirectConversationView) -> DirectConversationRead:
     )
 
 
-def _message_read(db: Session, message: DirectMessage) -> DirectMessageRead:
+def _message_read(
+    db: Session,
+    message: DirectMessage,
+    *,
+    current_user_id: uuid.UUID,
+) -> DirectMessageRead:
     return DirectMessageRead(
         id=message.id,
         organization_id=message.organization_id,
         conversation_id=message.conversation_id,
         author_user_id=message.author_user_id,
         author_display_name=direct_message_author_name(db, message.author_user_id),
+        is_mine=message.author_user_id == current_user_id,
         body=message.body,
         body_sha256=message.body_sha256,
         created_at=message.created_at,
@@ -164,7 +171,10 @@ def read_messages(
         )
     except DirectMessageError as exc:
         _raise_dm_error(exc)
-    return [_message_read(db, message) for message in messages]
+    return [
+        _message_read(db, message, current_user_id=access.user_id)
+        for message in messages
+    ]
 
 
 @router.post(
@@ -193,4 +203,4 @@ def post_message(
         )
     except DirectMessageError as exc:
         _raise_dm_error(exc)
-    return _message_read(db, message)
+    return _message_read(db, message, current_user_id=access.user_id)
