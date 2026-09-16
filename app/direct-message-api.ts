@@ -6,6 +6,7 @@ export type DirectConversation = {
   other_user_id: string;
   other_display_name: string;
   other_email: string;
+  can_send: boolean;
   created_at: string;
   updated_at: string;
 };
