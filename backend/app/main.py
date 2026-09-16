@@ -10,6 +10,7 @@ from app.observability import (
     observe_http_request,
 )
 from app.routes.agent_workspace import router as agent_workspace_router
+from app.routes.agent_workspace_actions import router as agent_workspace_actions_router
 from app.routes.agents import router as agents_router
 from app.routes.ai_gateway import router as ai_gateway_router
 from app.routes.ai_usage import router as ai_usage_router
@@ -103,3 +104,4 @@ app.include_router(api_registry_usage_router, prefix=settings.api_prefix)
 app.include_router(data_governance_router, prefix=settings.api_prefix)
 app.include_router(agents_router, prefix=settings.api_prefix)
 app.include_router(agent_workspace_router, prefix=settings.api_prefix)
+app.include_router(agent_workspace_actions_router, prefix=settings.api_prefix)
