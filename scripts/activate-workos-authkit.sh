@@ -33,6 +33,11 @@ for (const name of ["@workos-inc/authkit-nextjs", "@workos-inc/node"]) {
   }
 }
 
+const authkitVersion = lock.packages?.["node_modules/@workos-inc/authkit-nextjs"]?.version;
+if (typeof authkitVersion !== "string" || !authkitVersion.startsWith("4.")) {
+  throw new Error("@workos-inc/authkit-nextjs must stay on the reviewed 4.x line before activation.");
+}
+
 const required = [
   "WORKOS_CLIENT_ID",
   "WORKOS_API_KEY",
@@ -46,15 +51,49 @@ for (const name of required) {
 if (process.env.WORKOS_COOKIE_PASSWORD.length < 32) {
   throw new Error("WORKOS_COOKIE_PASSWORD must be at least 32 characters.");
 }
-for (const name of ["NEXT_PUBLIC_WORKOS_REDIRECT_URI", "BRAIN_API_BASE_URL"]) {
-  const parsed = new URL(process.env[name]);
+
+const redirect = new URL(process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI);
+const brainApi = new URL(process.env.BRAIN_API_BASE_URL);
+for (const [name, parsed] of [
+  ["NEXT_PUBLIC_WORKOS_REDIRECT_URI", redirect],
+  ["BRAIN_API_BASE_URL", brainApi],
+]) {
   if (!["http:", "https:"].includes(parsed.protocol)) throw new Error(`${name} must be HTTP(S).`);
+  if (parsed.username || parsed.password || parsed.hash) {
+    throw new Error(`${name} must not contain embedded credentials or a URL fragment.`);
+  }
 }
-if (
-  process.env.NODE_ENV === "production"
-  && new URL(process.env.BRAIN_API_BASE_URL).protocol !== "https:"
-) {
-  throw new Error("Production BRAIN_API_BASE_URL must use HTTPS.");
+if (redirect.pathname !== "/auth/callback" || redirect.search) {
+  throw new Error("NEXT_PUBLIC_WORKOS_REDIRECT_URI must point exactly to /auth/callback with no query string.");
+}
+if (process.env.NODE_ENV === "production") {
+  if (redirect.protocol !== "https:") {
+    throw new Error("Production NEXT_PUBLIC_WORKOS_REDIRECT_URI must use HTTPS.");
+  }
+  if (brainApi.protocol !== "https:") {
+    throw new Error("Production BRAIN_API_BASE_URL must use HTTPS.");
+  }
+}
+
+const proxyTemplate = readFileSync("docs/workos-activation/proxy.ts.template", "utf8");
+for (const requiredSource of [
+  "authkitProxy",
+  '"/"',
+  '"/api/brain/:path*"',
+  '"/sign-in"',
+  '"/auth/callback"',
+]) {
+  if (!proxyTemplate.includes(requiredSource)) {
+    throw new Error(`WorkOS proxy template is missing required coverage: ${requiredSource}`);
+  }
+}
+const callbackTemplate = readFileSync("docs/workos-activation/app-auth-callback-route.ts.template", "utf8");
+if (!callbackTemplate.includes("handleAuth") || !callbackTemplate.includes('returnPathname: "/"')) {
+  throw new Error("WorkOS callback template no longer matches the reviewed AuthKit contract.");
+}
+const signInTemplate = readFileSync("docs/workos-activation/app-sign-in-route.ts.template", "utf8");
+if (!signInTemplate.includes("getSignInUrl") || !signInTemplate.includes("redirect(signInUrl)")) {
+  throw new Error("WorkOS sign-in template no longer matches the reviewed AuthKit contract.");
 }
 NODE
 
