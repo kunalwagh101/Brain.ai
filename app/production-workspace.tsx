@@ -111,10 +111,24 @@ export async function ProductionWorkspace({
     latest_message_id: unreadByChannel.get(channel.id)?.latest_message_id ?? null,
   }));
 
-  const selectedChannel = requestedChannelId
-    ? nativeChannels.find((item) => item.id === requestedChannelId) ?? null
-    : nativeChannels[0] ?? null;
-  const invalidRequestedChannel = Boolean(requestedChannelId && !selectedChannel);
+  const selectedDirectConversation = requestedDirectMessageId
+    ? directConversations.find((item) => item.id === requestedDirectMessageId) ?? null
+    : null;
+  const invalidRequestedDirectMessage = Boolean(
+    requestedDirectMessageId && !selectedDirectConversation,
+  );
+
+  // A DM is an explicit private surface. When dmId is present, do not also load a
+  // default channel into the primary workspace context. This prevents ambient
+  // channel context from being shown beside a private conversation.
+  const selectedChannel = requestedDirectMessageId
+    ? null
+    : requestedChannelId
+      ? nativeChannels.find((item) => item.id === requestedChannelId) ?? null
+      : nativeChannels[0] ?? null;
+  const invalidRequestedChannel = Boolean(
+    !requestedDirectMessageId && requestedChannelId && !selectedChannel,
+  );
   const [nativeMessages, selectedNativeMembers] = selectedChannel
     ? await Promise.all([
         listNativeMessages(accessToken, organization.id, selectedChannel.id),
@@ -124,12 +138,6 @@ export async function ProductionWorkspace({
       ])
     : [[], []];
 
-  const selectedDirectConversation = requestedDirectMessageId
-    ? directConversations.find((item) => item.id === requestedDirectMessageId) ?? null
-    : null;
-  const invalidRequestedDirectMessage = Boolean(
-    requestedDirectMessageId && !selectedDirectConversation,
-  );
   const directMessages = selectedDirectConversation
     ? await listDirectMessages(accessToken, organization.id, selectedDirectConversation.id)
     : [];
