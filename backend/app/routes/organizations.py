@@ -1,9 +1,10 @@
 import uuid
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -11,6 +12,7 @@ from app.auth import get_current_user
 from app.data_governance import DataGovernanceError, append_audit_event
 from app.database import get_db
 from app.models import Membership, MembershipRole, Organization, ResourceGrant, User
+from app.native_chat_models import NativeChannelMembership
 from app.permissions import AuthorizationContext, Permission, require_organization_permission
 from app.schemas import (
     MembershipCreate,
@@ -308,6 +310,25 @@ def delete_membership(
     )
     target_user_id = membership.user_id
     previous_role = membership.role
+    now = datetime.now(UTC)
+
+    # Membership removal must clear dormant authorization. Otherwise re-adding the same
+    # user could silently reactivate old restricted Work Graph or native-channel access.
+    db.execute(
+        delete(ResourceGrant).where(
+            ResourceGrant.organization_id == organization_id,
+            ResourceGrant.user_id == target_user_id,
+        )
+    )
+    db.execute(
+        update(NativeChannelMembership)
+        .where(
+            NativeChannelMembership.organization_id == organization_id,
+            NativeChannelMembership.user_id == target_user_id,
+            NativeChannelMembership.revoked_at.is_(None),
+        )
+        .values(revoked_at=now)
+    )
     db.delete(membership)
     try:
         append_audit_event(
@@ -322,6 +343,7 @@ def delete_membership(
             metadata={
                 "target_user_id": target_user_id,
                 "previous_role": previous_role.value,
+                "access_grants_cleared": True,
             },
         )
     except (DataGovernanceError, SQLAlchemyError) as exc:
