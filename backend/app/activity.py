@@ -2,7 +2,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -10,7 +10,7 @@ from app.activity_models import ActivityKind, ActivityNotification, ActivityReso
 from app.direct_message_models import DirectConversation, DirectMessage
 from app.models import Membership, User
 from app.native_chat_models import NativeChannel, NativeMessage
-from app.native_conversation_models import NativeMessageMention
+from app.native_conversation_models import NativeMessageMention, NativeMessageReaction
 from app.permissions import Permission, role_has_permission
 
 
@@ -167,6 +167,130 @@ def notify_direct_message_sent(db: Session, *, message: DirectMessage) -> None:
     )
 
 
+def _materialize_recent_activity(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> None:
+    mention_rows = db.execute(
+        select(NativeMessageMention, NativeMessage)
+        .join(NativeMessage, NativeMessage.id == NativeMessageMention.message_id)
+        .where(
+            NativeMessageMention.organization_id == organization_id,
+            NativeMessageMention.mentioned_user_id == user_id,
+        )
+        .order_by(NativeMessageMention.created_at.desc())
+        .limit(50)
+    ).all()
+    for mention, message in mention_rows:
+        emit_activity(
+            db,
+            organization_id=organization_id,
+            recipient_user_id=user_id,
+            actor_user_id=message.author_user_id,
+            kind=ActivityKind.MENTION,
+            resource_type=ActivityResourceType.NATIVE_MESSAGE,
+            resource_id=message.id,
+            context_id=message.channel_id,
+            dedupe_key=f"mention:{message.id}:{user_id}",
+        )
+
+    root_ids = select(NativeMessage.id).where(
+        NativeMessage.organization_id == organization_id,
+        NativeMessage.author_user_id == user_id,
+        NativeMessage.thread_root_id.is_(None),
+    )
+    replies = list(
+        db.scalars(
+            select(NativeMessage)
+            .where(
+                NativeMessage.organization_id == organization_id,
+                NativeMessage.thread_root_id.in_(root_ids),
+                or_(
+                    NativeMessage.author_user_id.is_(None),
+                    NativeMessage.author_user_id != user_id,
+                ),
+            )
+            .order_by(NativeMessage.created_at.desc())
+            .limit(50)
+        )
+    )
+    mentioned_message_ids = {message.id for _, message in mention_rows}
+    for message in replies:
+        if message.id in mentioned_message_ids:
+            continue
+        emit_activity(
+            db,
+            organization_id=organization_id,
+            recipient_user_id=user_id,
+            actor_user_id=message.author_user_id,
+            kind=ActivityKind.THREAD_REPLY,
+            resource_type=ActivityResourceType.NATIVE_MESSAGE,
+            resource_id=message.id,
+            context_id=message.channel_id,
+            dedupe_key=f"thread-reply:{message.id}:{user_id}",
+        )
+
+    reaction_rows = db.execute(
+        select(NativeMessageReaction, NativeMessage)
+        .join(NativeMessage, NativeMessage.id == NativeMessageReaction.message_id)
+        .where(
+            NativeMessageReaction.organization_id == organization_id,
+            NativeMessage.author_user_id == user_id,
+            NativeMessageReaction.user_id != user_id,
+        )
+        .order_by(NativeMessageReaction.created_at.desc())
+        .limit(50)
+    ).all()
+    for reaction, message in reaction_rows:
+        emit_activity(
+            db,
+            organization_id=organization_id,
+            recipient_user_id=user_id,
+            actor_user_id=reaction.user_id,
+            kind=ActivityKind.REACTION,
+            resource_type=ActivityResourceType.NATIVE_MESSAGE,
+            resource_id=message.id,
+            context_id=message.channel_id,
+            dedupe_key=(
+                f"reaction:{message.id}:{reaction.user_id}:{reaction.reaction}"
+            ),
+        )
+
+    conversation_ids = select(DirectConversation.id).where(
+        DirectConversation.organization_id == organization_id,
+        or_(
+            DirectConversation.participant_a_user_id == user_id,
+            DirectConversation.participant_b_user_id == user_id,
+        ),
+    )
+    direct_messages = list(
+        db.scalars(
+            select(DirectMessage)
+            .where(
+                DirectMessage.organization_id == organization_id,
+                DirectMessage.conversation_id.in_(conversation_ids),
+                DirectMessage.author_user_id != user_id,
+            )
+            .order_by(DirectMessage.created_at.desc())
+            .limit(50)
+        )
+    )
+    for message in direct_messages:
+        emit_activity(
+            db,
+            organization_id=organization_id,
+            recipient_user_id=user_id,
+            actor_user_id=message.author_user_id,
+            kind=ActivityKind.DIRECT_MESSAGE,
+            resource_type=ActivityResourceType.DIRECT_MESSAGE,
+            resource_id=message.id,
+            context_id=message.conversation_id,
+            dedupe_key=f"direct-message:{message.id}:{user_id}",
+        )
+
+
 def _actor_name(db: Session, actor_user_id: uuid.UUID | None) -> str | None:
     if actor_user_id is None:
         return None
@@ -294,6 +418,11 @@ def list_activity(
     limit: int,
     unread_only: bool = False,
 ) -> list[ActivityItem]:
+    _materialize_recent_activity(
+        db,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
     visible: list[ActivityItem] = []
     offset = 0
     chunk_size = min(max(limit * 2, 50), 200)
