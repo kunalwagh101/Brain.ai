@@ -6,12 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
-from app.activity import (
-    list_activity,
-    mark_activity_read,
-    mark_all_activity_read,
-    unread_activity_count,
-)
+from app.activity import list_activity, mark_activity_read, mark_all_activity_read
 from app.activity_inbox import (
     get_activity_preferences,
     kind_enabled,
@@ -21,7 +16,6 @@ from app.activity_inbox import (
     materialize_system_activity,
     precise_chat_href,
     preference_payload,
-    system_unread_count,
     update_activity_preferences,
 )
 from app.activity_models import ActivityKind
@@ -92,6 +86,18 @@ def _item(item, *, db: Session) -> ActivityItemRead:
     )
 
 
+def _deduplicate_channel_summaries(db: Session, chat_items, system_items):
+    precise_chat_links = [precise_chat_href(db, item).split("#", 1)[0] for item in chat_items]
+    result = []
+    for item in system_items:
+        if item.kind == ActivityKind.CHANNEL_ACTIVITY:
+            target = item.href.split("#", 1)[0]
+            if any(link == target or link.startswith(f"{target}&") for link in precise_chat_links):
+                continue
+        result.append(item)
+    return result
+
+
 @router.get("", response_model=ActivitySummaryRead)
 def read_activity(
     organization_id: uuid.UUID,
@@ -121,20 +127,25 @@ def read_activity(
         )
         if kind_enabled(preferences, item.kind)
     ]
-    system_items = list_system_activity(
+    system_items = _deduplicate_channel_summaries(
         db,
-        organization_id=organization_id,
-        user_id=authorization.user_id,
-        limit=limit,
-        unread_only=unread_only,
+        chat_items,
+        list_system_activity(
+            db,
+            organization_id=organization_id,
+            user_id=authorization.user_id,
+            limit=limit,
+            unread_only=unread_only,
+        ),
     )
     items = sorted(
         [*chat_items, *system_items],
         key=lambda item: (item.created_at, item.id.int),
         reverse=True,
     )[:limit]
-    chat_unread = sum(
-        1
+
+    unread_chat_items = [
+        item
         for item in list_activity(
             db,
             organization_id=organization_id,
@@ -144,14 +155,20 @@ def read_activity(
             materialize=False,
         )
         if kind_enabled(preferences, item.kind)
-    )
-    return ActivitySummaryRead(
-        unread_count=chat_unread
-        + system_unread_count(
+    ]
+    unread_system_items = _deduplicate_channel_summaries(
+        db,
+        unread_chat_items,
+        list_system_activity(
             db,
             organization_id=organization_id,
             user_id=authorization.user_id,
+            limit=500,
+            unread_only=True,
         ),
+    )
+    return ActivitySummaryRead(
+        unread_count=len(unread_chat_items) + len(unread_system_items),
         items=[_item(item, db=db) for item in items],
     )
 
