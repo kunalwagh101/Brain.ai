@@ -1,0 +1,303 @@
+import uuid
+from dataclasses import dataclass
+from datetime import UTC, datetime
+
+from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from app.activity_models import ActivityKind, ActivityNotification, ActivityResourceType
+from app.direct_message_models import DirectConversation, DirectMessage
+from app.models import Membership, User
+from app.native_chat_models import NativeChannel, NativeMessage
+from app.permissions import Permission, role_has_permission
+
+
+@dataclass(frozen=True, slots=True)
+class ActivityItem:
+    id: uuid.UUID
+    kind: ActivityKind
+    actor_display_name: str | None
+    label: str
+    context_label: str | None
+    href: str
+    read: bool
+    created_at: datetime
+
+
+def emit_activity(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    recipient_user_id: uuid.UUID,
+    actor_user_id: uuid.UUID | None,
+    kind: ActivityKind,
+    resource_type: ActivityResourceType,
+    resource_id: uuid.UUID,
+    context_id: uuid.UUID | None,
+    dedupe_key: str,
+) -> ActivityNotification | None:
+    if actor_user_id == recipient_user_id:
+        return None
+    normalized_key = " ".join(dedupe_key.strip().split())[:192]
+    if not normalized_key:
+        return None
+    existing = db.scalar(
+        select(ActivityNotification).where(
+            ActivityNotification.organization_id == organization_id,
+            ActivityNotification.recipient_user_id == recipient_user_id,
+            ActivityNotification.dedupe_key == normalized_key,
+        )
+    )
+    if existing is not None:
+        return existing
+    row = ActivityNotification(
+        organization_id=organization_id,
+        recipient_user_id=recipient_user_id,
+        actor_user_id=actor_user_id,
+        kind=kind,
+        resource_type=resource_type,
+        resource_id=resource_id,
+        context_id=context_id,
+        dedupe_key=normalized_key,
+    )
+    db.add(row)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return db.scalar(
+            select(ActivityNotification).where(
+                ActivityNotification.organization_id == organization_id,
+                ActivityNotification.recipient_user_id == recipient_user_id,
+                ActivityNotification.dedupe_key == normalized_key,
+            )
+        )
+    db.refresh(row)
+    return row
+
+
+def _actor_name(db: Session, actor_user_id: uuid.UUID | None) -> str | None:
+    if actor_user_id is None:
+        return None
+    actor = db.get(User, actor_user_id)
+    if actor is None:
+        return "Former Brain member"
+    return actor.display_name or actor.email
+
+
+def _channel_visible(
+    db: Session,
+    *,
+    channel: NativeChannel,
+    user_id: uuid.UUID,
+) -> bool:
+    from app.native_chat import can_read_channel
+
+    return can_read_channel(db, channel, user_id=user_id)
+
+
+def _native_item(
+    db: Session,
+    row: ActivityNotification,
+    *,
+    user_id: uuid.UUID,
+) -> ActivityItem | None:
+    message = db.get(NativeMessage, row.resource_id)
+    if message is None or message.organization_id != row.organization_id:
+        return None
+    channel = db.get(NativeChannel, message.channel_id)
+    if channel is None or not _channel_visible(db, channel=channel, user_id=user_id):
+        return None
+    actor = _actor_name(db, row.actor_user_id)
+    if row.kind == ActivityKind.MENTION:
+        label = f"{actor or 'Someone'} mentioned you"
+    elif row.kind == ActivityKind.THREAD_REPLY:
+        label = f"{actor or 'Someone'} replied in a thread"
+    elif row.kind == ActivityKind.REACTION:
+        label = f"{actor or 'Someone'} reacted to your message"
+    else:
+        return None
+    return ActivityItem(
+        id=row.id,
+        kind=row.kind,
+        actor_display_name=actor,
+        label=label,
+        context_label=f"#{channel.name}",
+        href=f"?channelId={channel.id}#native-chat",
+        read=row.read_at is not None,
+        created_at=row.created_at,
+    )
+
+
+def _dm_item(
+    db: Session,
+    row: ActivityNotification,
+    *,
+    user_id: uuid.UUID,
+) -> ActivityItem | None:
+    message = db.get(DirectMessage, row.resource_id)
+    if message is None or message.organization_id != row.organization_id:
+        return None
+    conversation = db.get(DirectConversation, message.conversation_id)
+    if conversation is None or conversation.organization_id != row.organization_id:
+        return None
+
+    if conversation.participant_a_user_id == user_id:
+        revoked_at = conversation.participant_a_revoked_at
+        visible_from = conversation.participant_a_visible_from_sequence
+        other_id = conversation.participant_b_user_id
+    elif conversation.participant_b_user_id == user_id:
+        revoked_at = conversation.participant_b_revoked_at
+        visible_from = conversation.participant_b_visible_from_sequence
+        other_id = conversation.participant_a_user_id
+    else:
+        return None
+    if revoked_at is not None or message.sequence < visible_from:
+        return None
+
+    membership = db.scalar(
+        select(Membership).where(
+            Membership.organization_id == row.organization_id,
+            Membership.user_id == user_id,
+        )
+    )
+    if membership is None or not role_has_permission(
+        membership.role,
+        Permission.NATIVE_CHAT_WRITE,
+    ):
+        return None
+
+    other = db.get(User, other_id)
+    actor = _actor_name(db, row.actor_user_id)
+    other_name = (other.display_name or other.email) if other is not None else "Former Brain member"
+    return ActivityItem(
+        id=row.id,
+        kind=row.kind,
+        actor_display_name=actor,
+        label=f"{actor or other_name} sent you a direct message",
+        context_label=other_name,
+        href=f"?dmId={conversation.id}#direct-messages",
+        read=row.read_at is not None,
+        created_at=row.created_at,
+    )
+
+
+def _visible_item(
+    db: Session,
+    row: ActivityNotification,
+    *,
+    user_id: uuid.UUID,
+) -> ActivityItem | None:
+    if row.resource_type == ActivityResourceType.NATIVE_MESSAGE:
+        return _native_item(db, row, user_id=user_id)
+    if row.resource_type == ActivityResourceType.DIRECT_MESSAGE:
+        return _dm_item(db, row, user_id=user_id)
+    return None
+
+
+def list_activity(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    user_id: uuid.UUID,
+    limit: int,
+    unread_only: bool = False,
+) -> list[ActivityItem]:
+    visible: list[ActivityItem] = []
+    offset = 0
+    chunk_size = min(max(limit * 2, 50), 200)
+    while len(visible) < limit:
+        query = (
+            select(ActivityNotification)
+            .where(
+                ActivityNotification.organization_id == organization_id,
+                ActivityNotification.recipient_user_id == user_id,
+            )
+            .order_by(ActivityNotification.created_at.desc(), ActivityNotification.id.desc())
+            .offset(offset)
+            .limit(chunk_size)
+        )
+        if unread_only:
+            query = query.where(ActivityNotification.read_at.is_(None))
+        rows = list(db.scalars(query))
+        if not rows:
+            break
+        offset += len(rows)
+        for row in rows:
+            item = _visible_item(db, row, user_id=user_id)
+            if item is not None:
+                visible.append(item)
+                if len(visible) >= limit:
+                    break
+        if len(rows) < chunk_size:
+            break
+    return visible
+
+
+def unread_activity_count(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> int:
+    return len(
+        list_activity(
+            db,
+            organization_id=organization_id,
+            user_id=user_id,
+            limit=500,
+            unread_only=True,
+        )
+    )
+
+
+def mark_activity_read(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    user_id: uuid.UUID,
+    notification_id: uuid.UUID,
+) -> None:
+    row = db.scalar(
+        select(ActivityNotification).where(
+            ActivityNotification.id == notification_id,
+            ActivityNotification.organization_id == organization_id,
+            ActivityNotification.recipient_user_id == user_id,
+        )
+    )
+    if row is None or _visible_item(db, row, user_id=user_id) is None:
+        return
+    if row.read_at is None:
+        row.read_at = datetime.now(UTC)
+        db.commit()
+
+
+def mark_all_activity_read(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> int:
+    visible = list_activity(
+        db,
+        organization_id=organization_id,
+        user_id=user_id,
+        limit=500,
+        unread_only=True,
+    )
+    ids = [item.id for item in visible]
+    if not ids:
+        return 0
+    result = db.execute(
+        update(ActivityNotification)
+        .where(
+            ActivityNotification.organization_id == organization_id,
+            ActivityNotification.recipient_user_id == user_id,
+            ActivityNotification.id.in_(ids),
+            ActivityNotification.read_at.is_(None),
+        )
+        .values(read_at=datetime.now(UTC))
+    )
+    db.commit()
+    return int(result.rowcount or 0)
