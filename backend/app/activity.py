@@ -183,7 +183,7 @@ def _materialize_recent_activity(
         .order_by(NativeMessageMention.created_at.desc())
         .limit(50)
     ).all()
-    for mention, message in mention_rows:
+    for _, message in mention_rows:
         emit_activity(
             db,
             organization_id=organization_id,
@@ -417,12 +417,14 @@ def list_activity(
     user_id: uuid.UUID,
     limit: int,
     unread_only: bool = False,
+    materialize: bool = True,
 ) -> list[ActivityItem]:
-    _materialize_recent_activity(
-        db,
-        organization_id=organization_id,
-        user_id=user_id,
-    )
+    if materialize:
+        _materialize_recent_activity(
+            db,
+            organization_id=organization_id,
+            user_id=user_id,
+        )
     visible: list[ActivityItem] = []
     offset = 0
     chunk_size = min(max(limit * 2, 50), 200)
@@ -459,16 +461,40 @@ def unread_activity_count(
     *,
     organization_id: uuid.UUID,
     user_id: uuid.UUID,
+    materialize: bool = True,
 ) -> int:
-    return len(
-        list_activity(
+    if materialize:
+        _materialize_recent_activity(
             db,
             organization_id=organization_id,
             user_id=user_id,
-            limit=500,
-            unread_only=True,
         )
-    )
+    count = 0
+    offset = 0
+    chunk_size = 200
+    while True:
+        rows = list(
+            db.scalars(
+                select(ActivityNotification)
+                .where(
+                    ActivityNotification.organization_id == organization_id,
+                    ActivityNotification.recipient_user_id == user_id,
+                    ActivityNotification.read_at.is_(None),
+                )
+                .order_by(ActivityNotification.created_at.desc(), ActivityNotification.id.desc())
+                .offset(offset)
+                .limit(chunk_size)
+            )
+        )
+        if not rows:
+            break
+        offset += len(rows)
+        count += sum(
+            1 for row in rows if _visible_item(db, row, user_id=user_id) is not None
+        )
+        if len(rows) < chunk_size:
+            break
+    return count
 
 
 def mark_activity_read(
@@ -498,12 +524,14 @@ def mark_all_activity_read(
     organization_id: uuid.UUID,
     user_id: uuid.UUID,
 ) -> int:
+    _materialize_recent_activity(db, organization_id=organization_id, user_id=user_id)
     visible = list_activity(
         db,
         organization_id=organization_id,
         user_id=user_id,
         limit=500,
         unread_only=True,
+        materialize=False,
     )
     ids = [item.id for item in visible]
     if not ids:
