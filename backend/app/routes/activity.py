@@ -63,6 +63,7 @@ def read_activity(
             db,
             organization_id=organization_id,
             user_id=authorization.user_id,
+            materialize=False,
         ),
         items=[
             ActivityItemRead(
@@ -80,21 +81,8 @@ def read_activity(
     )
 
 
-@router.post("/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT)
-def mark_one_read(
-    organization_id: uuid.UUID,
-    notification_id: uuid.UUID,
-    authorization: Annotated[AuthorizationContext, Depends(_read)],
-    db: Annotated[Session, Depends(get_db)],
-) -> None:
-    mark_activity_read(
-        db,
-        organization_id=organization_id,
-        user_id=authorization.user_id,
-        notification_id=notification_id,
-    )
-
-
+# Keep the static route before /{notification_id}/read so "read-all" can never
+# be interpreted as a UUID path parameter by Starlette/FastAPI route ordering.
 @router.post("/read-all", response_model=ActivityMutationRead)
 def mark_all_read(
     organization_id: uuid.UUID,
@@ -107,4 +95,19 @@ def mark_all_read(
             organization_id=organization_id,
             user_id=authorization.user_id,
         )
+    )
+
+
+@router.post("/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT)
+def mark_one_read(
+    organization_id: uuid.UUID,
+    notification_id: uuid.UUID,
+    authorization: Annotated[AuthorizationContext, Depends(_read)],
+    db: Annotated[Session, Depends(get_db)],
+) -> None:
+    mark_activity_read(
+        db,
+        organization_id=organization_id,
+        user_id=authorization.user_id,
+        notification_id=notification_id,
     )
