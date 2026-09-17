@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models import Base
@@ -13,13 +13,23 @@ class ActivityKind(StrEnum):
     THREAD_REPLY = "thread_reply"
     REACTION = "reaction"
     DIRECT_MESSAGE = "direct_message"
+    CHANNEL_ACTIVITY = "channel_activity"
     AGENT_APPROVAL = "agent_approval"
+    AGENT_COMPLETED = "agent_completed"
+    AGENT_FAILED = "agent_failed"
+    PROJECT_UPDATE = "project_update"
+    BLOCKER_UPDATE = "blocker_update"
+    INTEGRATION_FAILURE = "integration_failure"
 
 
 class ActivityResourceType(StrEnum):
     NATIVE_MESSAGE = "native_message"
     DIRECT_MESSAGE = "direct_message"
+    NATIVE_CHANNEL = "native_channel"
     AGENT_RUN = "agent_run"
+    PROJECT = "project"
+    BLOCKER = "blocker"
+    INTEGRATION = "integration"
 
 
 class ActivityNotification(Base):
@@ -79,4 +89,42 @@ class ActivityNotification(Base):
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class ActivityPreference(Base):
+    __tablename__ = "activity_preferences"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "user_id",
+            name="uq_activity_preference_org_user",
+        ),
+        Index(
+            "ix_activity_preference_org_user",
+            "organization_id",
+            "user_id",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    mentions: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    thread_replies: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    direct_messages: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    channel_activity: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    agent_approvals: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    agent_run_events: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    project_updates: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    integration_failures: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
