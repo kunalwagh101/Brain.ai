@@ -1,4 +1,9 @@
-import { markActivityRead, markAllActivityRead } from "./activity-api";
+import {
+  markActivityRead,
+  markAllActivityRead,
+  updateActivityPreferences,
+  type ActivityPreferences,
+} from "./activity-api";
 import {
   BrainMembershipError,
   requireBrainOrganizationMembership,
@@ -50,4 +55,32 @@ export async function handleMarkAllActivityRead(
 ): Promise<void> {
   await requireMembership(accessToken, organizationId);
   await markAllActivityRead(accessToken, organizationId);
+}
+
+export async function handleActivityPreferences(
+  accessToken: string,
+  organizationId: string,
+  values: Partial<ActivityPreferences>,
+): Promise<ActivityPreferences> {
+  await requireMembership(accessToken, organizationId);
+  const keys = Object.keys(values);
+  const allowed = new Set<keyof ActivityPreferences>([
+    "mentions",
+    "thread_replies",
+    "direct_messages",
+    "channel_activity",
+    "agent_approvals",
+    "agent_run_events",
+    "project_updates",
+    "integration_failures",
+  ]);
+  if (!keys.length || keys.length > allowed.size) {
+    throw new ActivityBffError(400, "At least one notification preference is required");
+  }
+  for (const key of keys) {
+    if (!allowed.has(key as keyof ActivityPreferences) || typeof values[key as keyof ActivityPreferences] !== "boolean") {
+      throw new ActivityBffError(400, "Notification preference payload is invalid");
+    }
+  }
+  return updateActivityPreferences(accessToken, organizationId, values);
 }
