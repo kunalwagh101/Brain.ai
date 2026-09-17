@@ -29,6 +29,7 @@ export default async function Home({
       enableEvidenceBff
       enableNativeChatBff
       enableDirectMessageBff
+      enableActivityBff
       enableAgentWorkspaceBff
       signOutAction={signOutAction}
     />
