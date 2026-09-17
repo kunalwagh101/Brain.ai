@@ -2,7 +2,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -10,6 +10,7 @@ from app.activity_models import ActivityKind, ActivityNotification, ActivityReso
 from app.direct_message_models import DirectConversation, DirectMessage
 from app.models import Membership, User
 from app.native_chat_models import NativeChannel, NativeMessage
+from app.native_conversation_models import NativeMessageMention
 from app.permissions import Permission, role_has_permission
 
 
@@ -77,6 +78,95 @@ def emit_activity(
     return row
 
 
+def notify_native_message_created(db: Session, *, message: NativeMessage) -> None:
+    mention_rows = list(
+        db.scalars(
+            select(NativeMessageMention).where(
+                NativeMessageMention.message_id == message.id
+            )
+        )
+    )
+    mentioned_user_ids = {row.mentioned_user_id for row in mention_rows}
+    for mentioned_user_id in mentioned_user_ids:
+        emit_activity(
+            db,
+            organization_id=message.organization_id,
+            recipient_user_id=mentioned_user_id,
+            actor_user_id=message.author_user_id,
+            kind=ActivityKind.MENTION,
+            resource_type=ActivityResourceType.NATIVE_MESSAGE,
+            resource_id=message.id,
+            context_id=message.channel_id,
+            dedupe_key=f"mention:{message.id}:{mentioned_user_id}",
+        )
+
+    if message.thread_root_id is None:
+        return
+    root = db.get(NativeMessage, message.thread_root_id)
+    if (
+        root is None
+        or root.author_user_id is None
+        or root.author_user_id in mentioned_user_ids
+    ):
+        return
+    emit_activity(
+        db,
+        organization_id=message.organization_id,
+        recipient_user_id=root.author_user_id,
+        actor_user_id=message.author_user_id,
+        kind=ActivityKind.THREAD_REPLY,
+        resource_type=ActivityResourceType.NATIVE_MESSAGE,
+        resource_id=message.id,
+        context_id=message.channel_id,
+        dedupe_key=f"thread-reply:{message.id}:{root.author_user_id}",
+    )
+
+
+def notify_reaction_added(
+    db: Session,
+    *,
+    message: NativeMessage,
+    actor_user_id: uuid.UUID,
+    reaction: str,
+) -> None:
+    if message.author_user_id is None:
+        return
+    emit_activity(
+        db,
+        organization_id=message.organization_id,
+        recipient_user_id=message.author_user_id,
+        actor_user_id=actor_user_id,
+        kind=ActivityKind.REACTION,
+        resource_type=ActivityResourceType.NATIVE_MESSAGE,
+        resource_id=message.id,
+        context_id=message.channel_id,
+        dedupe_key=f"reaction:{message.id}:{actor_user_id}:{reaction}",
+    )
+
+
+def notify_direct_message_sent(db: Session, *, message: DirectMessage) -> None:
+    conversation = db.get(DirectConversation, message.conversation_id)
+    if conversation is None:
+        return
+    if conversation.participant_a_user_id == message.author_user_id:
+        recipient_user_id = conversation.participant_b_user_id
+    elif conversation.participant_b_user_id == message.author_user_id:
+        recipient_user_id = conversation.participant_a_user_id
+    else:
+        return
+    emit_activity(
+        db,
+        organization_id=message.organization_id,
+        recipient_user_id=recipient_user_id,
+        actor_user_id=message.author_user_id,
+        kind=ActivityKind.DIRECT_MESSAGE,
+        resource_type=ActivityResourceType.DIRECT_MESSAGE,
+        resource_id=message.id,
+        context_id=conversation.id,
+        dedupe_key=f"direct-message:{message.id}:{recipient_user_id}",
+    )
+
+
 def _actor_name(db: Session, actor_user_id: uuid.UUID | None) -> str | None:
     if actor_user_id is None:
         return None
@@ -111,9 +201,9 @@ def _native_item(
         return None
     actor = _actor_name(db, row.actor_user_id)
     if row.kind == ActivityKind.MENTION:
-        label = f"{actor or 'Someone'} mentioned you"
+        label = f"{actor or 'An agent'} mentioned you"
     elif row.kind == ActivityKind.THREAD_REPLY:
-        label = f"{actor or 'Someone'} replied in a thread"
+        label = f"{actor or 'An agent'} replied in a thread"
     elif row.kind == ActivityKind.REACTION:
         label = f"{actor or 'Someone'} reacted to your message"
     else:
