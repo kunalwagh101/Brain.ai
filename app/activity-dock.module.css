@@ -1,0 +1,61 @@
+.dock {
+  position: fixed;
+  top: 0.85rem;
+  right: 0.9rem;
+  z-index: 80;
+}
+
+.dock > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 0.7rem;
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
+  list-style: none;
+  box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.12);
+  font-weight: 650;
+}
+
+.dock > summary::-webkit-details-marker {
+  display: none;
+}
+
+.dock > summary b {
+  min-width: 1.35rem;
+  padding: 0.08rem 0.32rem;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 0.72rem;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+.drawer {
+  width: min(32rem, calc(100vw - 1.5rem));
+  max-height: calc(100vh - 4.5rem);
+  overflow: auto;
+  margin-top: 0.5rem;
+  padding: 1rem;
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  border-radius: 0.9rem;
+  background: Canvas;
+  color: CanvasText;
+  box-shadow: 0 1rem 2.4rem rgba(0, 0, 0, 0.18);
+}
+
+@media (max-width: 720px) {
+  .dock {
+    top: auto;
+    right: 0.65rem;
+    bottom: 0.65rem;
+  }
+
+  .drawer {
+    width: calc(100vw - 1.3rem);
+    max-height: 70vh;
+  }
+}
