@@ -64,7 +64,19 @@ def read_activity(
             organization_id=organization_id,
             user_id=authorization.user_id,
         ),
-        items=[ActivityItemRead(**item.__dict__) for item in items],
+        items=[
+            ActivityItemRead(
+                id=item.id,
+                kind=item.kind,
+                actor_display_name=item.actor_display_name,
+                label=item.label,
+                context_label=item.context_label,
+                href=item.href,
+                read=item.read,
+                created_at=item.created_at,
+            )
+            for item in items
+        ],
     )
 
 
