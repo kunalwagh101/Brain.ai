@@ -1,6 +1,17 @@
 import { BrainApiError } from "./brain-api";
 
-export type ActivityKind = "mention" | "thread_reply" | "reaction" | "direct_message" | "agent_approval";
+export type ActivityKind =
+  | "mention"
+  | "thread_reply"
+  | "reaction"
+  | "direct_message"
+  | "channel_activity"
+  | "agent_approval"
+  | "agent_completed"
+  | "agent_failed"
+  | "project_update"
+  | "blocker_update"
+  | "integration_failure";
 
 export type ActivityItem = {
   id: string;
@@ -16,6 +27,17 @@ export type ActivityItem = {
 export type ActivitySummary = {
   unread_count: number;
   items: ActivityItem[];
+};
+
+export type ActivityPreferences = {
+  mentions: boolean;
+  thread_replies: boolean;
+  direct_messages: boolean;
+  channel_activity: boolean;
+  agent_approvals: boolean;
+  agent_run_events: boolean;
+  project_updates: boolean;
+  integration_failures: boolean;
 };
 
 function apiBaseUrl(): string {
@@ -60,6 +82,32 @@ export function getActivity(
   return activityFetch(
     accessToken,
     `/api/v1/organizations/${encodeURIComponent(organizationId)}/activity?limit=${limit}`,
+  );
+}
+
+export function getActivityPreferences(
+  accessToken: string,
+  organizationId: string,
+): Promise<ActivityPreferences> {
+  return activityFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/activity/preferences`,
+  );
+}
+
+export function updateActivityPreferences(
+  accessToken: string,
+  organizationId: string,
+  values: Partial<ActivityPreferences>,
+): Promise<ActivityPreferences> {
+  return activityFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/activity/preferences`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    },
   );
 }
 
