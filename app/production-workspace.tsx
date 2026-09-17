@@ -1,4 +1,5 @@
 import { getActivity } from "./activity-api";
+import { ActivityDock } from "./activity-dock";
 import { getAdminCenter } from "./admin-center-api";
 import { getAgentWorkspace } from "./agent-workspace-api";
 import {
@@ -123,9 +124,6 @@ export async function ProductionWorkspace({
     requestedDirectMessageId && !selectedDirectConversation,
   );
 
-  // A DM is an explicit private surface. When dmId is present, do not also load a
-  // default channel into the primary workspace context. This prevents ambient
-  // channel context from being shown beside a private conversation.
   const selectedChannel = requestedDirectMessageId
     ? null
     : requestedChannelId
@@ -185,40 +183,45 @@ export async function ProductionWorkspace({
     : null;
 
   return (
-    <WorkspaceShell
-      organization={organization}
-      organizations={organizations}
-      navigation={navigation}
-      projects={projects}
-      evidenceSources={evidenceSources}
-      nativeChannels={nativeChannels}
-      selectedNativeChannel={selectedChannel}
-      nativeMessages={nativeMessages}
-      selectedNativeMembers={selectedNativeMembers}
-      invalidRequestedChannel={invalidRequestedChannel}
-      directConversations={directConversations}
-      selectedDirectConversation={selectedDirectConversation}
-      directMessages={directMessages}
-      invalidRequestedDirectMessage={invalidRequestedDirectMessage}
-      activity={activity}
-      activityMutationBase={activityMutationBase}
-      overview={overview}
-      runtimes={runtimes}
-      agentWorkspace={agentWorkspace}
-      adminCenter={adminCenter}
-      signedInName={signedInName}
-      askBrainEndpoint={askBrainEndpoint}
-      evidenceMutationBase={evidenceMutationBase}
-      canUploadEvidence={canUploadEvidence}
-      nativeChatMutationBase={nativeChatMutationBase}
-      nativeMessageEndpoint={nativeMessageEndpoint}
-      nativeMemberEndpoint={nativeMemberEndpoint}
-      nativeConversationEndpoint={nativeConversationEndpoint}
-      canCreateNativeChannel={canCreateNativeChannel}
-      directMessageCreateEndpoint={directMessageCreateEndpoint}
-      directMessageSendEndpoint={directMessageSendEndpoint}
-      agentMutationBase={agentMutationBase}
-      signOutAction={signOutAction}
-    />
+    <>
+      <ActivityDock
+        activity={activity}
+        organizationId={organization.id}
+        mutationBase={activityMutationBase}
+      />
+      <WorkspaceShell
+        organization={organization}
+        organizations={organizations}
+        navigation={navigation}
+        projects={projects}
+        evidenceSources={evidenceSources}
+        nativeChannels={nativeChannels}
+        selectedNativeChannel={selectedChannel}
+        nativeMessages={nativeMessages}
+        selectedNativeMembers={selectedNativeMembers}
+        invalidRequestedChannel={invalidRequestedChannel}
+        directConversations={directConversations}
+        selectedDirectConversation={selectedDirectConversation}
+        directMessages={directMessages}
+        invalidRequestedDirectMessage={invalidRequestedDirectMessage}
+        overview={overview}
+        runtimes={runtimes}
+        agentWorkspace={agentWorkspace}
+        adminCenter={adminCenter}
+        signedInName={signedInName}
+        askBrainEndpoint={askBrainEndpoint}
+        evidenceMutationBase={evidenceMutationBase}
+        canUploadEvidence={canUploadEvidence}
+        nativeChatMutationBase={nativeChatMutationBase}
+        nativeMessageEndpoint={nativeMessageEndpoint}
+        nativeMemberEndpoint={nativeMemberEndpoint}
+        nativeConversationEndpoint={nativeConversationEndpoint}
+        canCreateNativeChannel={canCreateNativeChannel}
+        directMessageCreateEndpoint={directMessageCreateEndpoint}
+        directMessageSendEndpoint={directMessageSendEndpoint}
+        agentMutationBase={agentMutationBase}
+        signOutAction={signOutAction}
+      />
+    </>
   );
 }
