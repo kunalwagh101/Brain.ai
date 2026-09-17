@@ -1,3 +1,4 @@
+import { getActivity } from "./activity-api";
 import { getAdminCenter } from "./admin-center-api";
 import { getAgentWorkspace } from "./agent-workspace-api";
 import {
@@ -33,6 +34,7 @@ export async function ProductionWorkspace({
   enableEvidenceBff = false,
   enableNativeChatBff = false,
   enableDirectMessageBff = false,
+  enableActivityBff = false,
   enableAgentWorkspaceBff = false,
   signOutAction,
 }: {
@@ -45,6 +47,7 @@ export async function ProductionWorkspace({
   enableEvidenceBff?: boolean;
   enableNativeChatBff?: boolean;
   enableDirectMessageBff?: boolean;
+  enableActivityBff?: boolean;
   enableAgentWorkspaceBff?: boolean;
   signOutAction?: (formData: FormData) => Promise<void>;
 }) {
@@ -77,6 +80,7 @@ export async function ProductionWorkspace({
     evidenceSources,
     channelRows,
     unreadRows,
+    activity,
     overview,
     runtimes,
     agentWorkspace,
@@ -88,6 +92,7 @@ export async function ProductionWorkspace({
     listEvidenceSources(accessToken, organization.id),
     listNativeChannels(accessToken, organization.id),
     listNativeUnread(accessToken, organization.id),
+    getActivity(accessToken, organization.id),
     EXECUTIVE_ROLES.has(organization.role)
       ? getExecutiveOverview(accessToken, organization.id)
       : Promise.resolve(null),
@@ -172,6 +177,9 @@ export async function ProductionWorkspace({
   )
     ? `${directMessageCreateEndpoint}/${encodeURIComponent(selectedDirectConversation.id)}/messages`
     : null;
+  const activityMutationBase = enableActivityBff
+    ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/activity`
+    : null;
   const agentMutationBase = enableAgentWorkspaceBff && AGENT_ROLES.has(organization.role)
     ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/agent-workspace`
     : null;
@@ -192,6 +200,8 @@ export async function ProductionWorkspace({
       selectedDirectConversation={selectedDirectConversation}
       directMessages={directMessages}
       invalidRequestedDirectMessage={invalidRequestedDirectMessage}
+      activity={activity}
+      activityMutationBase={activityMutationBase}
       overview={overview}
       runtimes={runtimes}
       agentWorkspace={agentWorkspace}
