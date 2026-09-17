@@ -25,6 +25,13 @@ function icon(kind: string): string {
   return "•";
 }
 
+function activityTarget(href: string, organizationId: string): string {
+  const [pathAndQuery, fragment] = href.split("#", 2);
+  const separator = pathAndQuery.includes("?") ? "&" : "?";
+  const query = `${pathAndQuery}${separator}organizationId=${encodeURIComponent(organizationId)}`;
+  return fragment ? `${query}#${fragment}` : query;
+}
+
 export function ActivityPanel({
   activity,
   organizationId,
@@ -64,9 +71,7 @@ export function ActivityPanel({
     if (!read && mutationBase) {
       await post(`${mutationBase}/${encodeURIComponent(id)}/read`);
     }
-    window.location.assign(
-      `${href}${href.includes("?") ? "&" : "?"}organizationId=${encodeURIComponent(organizationId)}`,
-    );
+    window.location.assign(activityTarget(href, organizationId));
   }
 
   async function markAll() {
