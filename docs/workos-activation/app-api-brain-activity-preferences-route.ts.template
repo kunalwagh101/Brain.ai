@@ -1,9 +1,12 @@
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import { NextRequest, NextResponse } from "next/server";
-import { ActivityBffError, handleActivityPreferences } from "../../../../../../activity-bff";
-import { getActivityPreferences, type ActivityPreferences } from "../../../../../../activity-api";
+import {
+  ActivityBffError,
+  handleActivityPreferences,
+  handleGetActivityPreferences,
+} from "../../../../../../activity-bff";
+import type { ActivityPreferences } from "../../../../../../activity-api";
 import { BrainApiError } from "../../../../../../brain-api";
-import { requireBrainOrganizationMembership } from "../../../../../../brain-membership";
 
 const SAFE_UPSTREAM_STATUSES = new Set([400, 401, 403, 404, 409, 413, 415, 422, 429, 503]);
 const MAX_BODY_BYTES = 4096;
@@ -14,11 +17,24 @@ function json(body: object, status: number) {
 
 function requireSameOrigin(request: NextRequest) {
   const fetchSite = request.headers.get("sec-fetch-site")?.toLowerCase();
-  if (fetchSite === "cross-site") throw new ActivityBffError(403, "Cross-site activity mutation denied");
+  if (fetchSite === "cross-site") {
+    throw new ActivityBffError(403, "Cross-site activity mutation denied");
+  }
   const origin = request.headers.get("origin");
   if (origin && origin !== request.nextUrl.origin) {
     throw new ActivityBffError(403, "Cross-origin activity mutation denied");
   }
+}
+
+function safeError(error: unknown) {
+  if (error instanceof ActivityBffError) {
+    return json({ detail: "Invalid activity request" }, error.status);
+  }
+  if (error instanceof BrainApiError) {
+    const status = SAFE_UPSTREAM_STATUSES.has(error.status) ? error.status : 502;
+    return json({ detail: "Brain activity request failed safely" }, status);
+  }
+  return json({ detail: "Brain activity request failed safely" }, 500);
 }
 
 export async function GET(
@@ -26,17 +42,14 @@ export async function GET(
   context: { params: Promise<{ organizationId: string }> },
 ) {
   const auth = await withAuth();
-  if (!auth.user || !auth.accessToken) return json({ detail: "Authentication required" }, 401);
+  if (!auth.user || !auth.accessToken) {
+    return json({ detail: "Authentication required" }, 401);
+  }
   try {
     const { organizationId } = await context.params;
-    await requireBrainOrganizationMembership(auth.accessToken, organizationId);
-    return json(await getActivityPreferences(auth.accessToken, organizationId), 200);
+    return json(await handleGetActivityPreferences(auth.accessToken, organizationId), 200);
   } catch (error) {
-    if (error instanceof BrainApiError) {
-      const status = SAFE_UPSTREAM_STATUSES.has(error.status) ? error.status : 502;
-      return json({ detail: "Brain activity request failed safely" }, status);
-    }
-    return json({ detail: "Brain activity request failed safely" }, 500);
+    return safeError(error);
   }
 }
 
@@ -45,24 +58,38 @@ export async function PUT(
   context: { params: Promise<{ organizationId: string }> },
 ) {
   const auth = await withAuth();
-  if (!auth.user || !auth.accessToken) return json({ detail: "Authentication required" }, 401);
+  if (!auth.user || !auth.accessToken) {
+    return json({ detail: "Authentication required" }, 401);
+  }
   try {
     requireSameOrigin(request);
     const contentType = request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
-    if (contentType !== "application/json") throw new ActivityBffError(415, "JSON required");
+    if (contentType !== "application/json") {
+      throw new ActivityBffError(415, "JSON required");
+    }
     const raw = await request.text();
     if (new TextEncoder().encode(raw).byteLength > MAX_BODY_BYTES) {
       throw new ActivityBffError(413, "Preference payload is too large");
     }
-    const payload = JSON.parse(raw) as Partial<ActivityPreferences>;
-    const { organizationId } = await context.params;
-    return json(await handleActivityPreferences(auth.accessToken, organizationId, payload), 200);
-  } catch (error) {
-    if (error instanceof ActivityBffError) return json({ detail: "Invalid activity request" }, error.status);
-    if (error instanceof BrainApiError) {
-      const status = SAFE_UPSTREAM_STATUSES.has(error.status) ? error.status : 502;
-      return json({ detail: "Brain activity request failed safely" }, status);
+    let payload: unknown;
+    try {
+      payload = JSON.parse(raw);
+    } catch {
+      throw new ActivityBffError(400, "Preference payload is invalid JSON");
     }
-    return json({ detail: "Brain activity request failed safely" }, 500);
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new ActivityBffError(400, "Preference payload must be an object");
+    }
+    const { organizationId } = await context.params;
+    return json(
+      await handleActivityPreferences(
+        auth.accessToken,
+        organizationId,
+        payload as Partial<ActivityPreferences>,
+      ),
+      200,
+    );
+  } catch (error) {
+    return safeError(error);
   }
 }
