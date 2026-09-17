@@ -9,6 +9,7 @@ from app.observability import (
     metrics_response,
     observe_http_request,
 )
+from app.routes.activity import router as activity_router
 from app.routes.admin_center import router as admin_center_router
 from app.routes.agent_workspace import router as agent_workspace_router
 from app.routes.agent_workspace_actions import router as agent_workspace_actions_router
@@ -91,6 +92,7 @@ app.include_router(evidence_router, prefix=settings.api_prefix)
 app.include_router(native_chat_router, prefix=settings.api_prefix)
 app.include_router(native_conversation_router, prefix=settings.api_prefix)
 app.include_router(direct_messages_router, prefix=settings.api_prefix)
+app.include_router(activity_router, prefix=settings.api_prefix)
 app.include_router(slack_router, prefix=settings.api_prefix)
 app.include_router(github_router, prefix=settings.api_prefix)
 app.include_router(identities_router, prefix=settings.api_prefix)
