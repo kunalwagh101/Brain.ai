@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import type { ActivitySummary } from "./activity-api";
+import { useEffect, useState } from "react";
+import type { ActivityPreferences, ActivitySummary } from "./activity-api";
 import styles from "./activity-panel.module.css";
 
 function timeLabel(value: string): string {
@@ -21,7 +21,13 @@ function icon(kind: string): string {
   if (kind === "thread_reply") return "↩";
   if (kind === "reaction") return "☺";
   if (kind === "direct_message") return "✉";
-  if (kind === "agent_approval") return "✦";
+  if (kind === "channel_activity") return "#";
+  if (kind === "agent_approval") return "!";
+  if (kind === "agent_completed") return "✓";
+  if (kind === "agent_failed") return "×";
+  if (kind === "project_update") return "P";
+  if (kind === "blocker_update") return "B";
+  if (kind === "integration_failure") return "⚠";
   return "•";
 }
 
@@ -31,6 +37,17 @@ function activityTarget(href: string, organizationId: string): string {
   const query = `${pathAndQuery}${separator}organizationId=${encodeURIComponent(organizationId)}`;
   return fragment ? `${query}#${fragment}` : query;
 }
+
+const PREFERENCE_LABELS: Array<[keyof ActivityPreferences, string]> = [
+  ["mentions", "@mentions"],
+  ["thread_replies", "Thread replies"],
+  ["direct_messages", "Direct messages"],
+  ["channel_activity", "Unread channel activity"],
+  ["agent_approvals", "Agent approval requests"],
+  ["agent_run_events", "Agent completion and failure"],
+  ["project_updates", "Project and blocker updates"],
+  ["integration_failures", "Integration failures"],
+];
 
 export function ActivityPanel({
   activity,
@@ -44,6 +61,26 @@ export function ActivityPanel({
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [preferences, setPreferences] = useState<ActivityPreferences | null>(null);
+
+  useEffect(() => {
+    if (!mutationBase) return;
+    let active = true;
+    void fetch(`${mutationBase}/preferences`, { credentials: "same-origin", cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("preferences_unavailable");
+        return await response.json() as ActivityPreferences;
+      })
+      .then((value) => {
+        if (active) setPreferences(value);
+      })
+      .catch(() => {
+        if (active) setError("Notification preferences could not be loaded right now.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [mutationBase]);
 
   async function post(endpoint: string): Promise<boolean> {
     setError(null);
@@ -81,6 +118,27 @@ export function ActivityPanel({
     setBusyId(null);
   }
 
+  async function setPreference(key: keyof ActivityPreferences, value: boolean) {
+    if (!mutationBase || !preferences) return;
+    setError(null);
+    const next = { ...preferences, [key]: value };
+    setPreferences(next);
+    try {
+      const response = await fetch(`${mutationBase}/preferences`, {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value }),
+      });
+      if (!response.ok) throw new Error("preference_update_failed");
+      setPreferences(await response.json() as ActivityPreferences);
+      router.refresh();
+    } catch {
+      setPreferences(preferences);
+      setError("Notification preference could not be saved right now.");
+    }
+  }
+
   return (
     <section className={styles.activity} aria-labelledby="activity-heading">
       <header className={styles.header}>
@@ -88,8 +146,8 @@ export function ActivityPanel({
           <p className={styles.eyebrow}>Your attention queue</p>
           <h2 id="activity-heading">Activity</h2>
           <p>
-            Mentions, thread replies, reactions and direct messages you can still access.
-            Brain does not copy private message text into this inbox.
+            Mentions, replies, unread channels, agent work, project blockers and integration failures.
+            Brain links back to the source and does not copy private message text into this inbox.
           </p>
         </div>
         <div className={styles.headerActions}>
@@ -103,6 +161,27 @@ export function ActivityPanel({
           ) : null}
         </div>
       </header>
+
+      {mutationBase ? (
+        <details>
+          <summary>Notification preferences</summary>
+          {preferences ? (
+            <fieldset>
+              <legend>Show in Activity</legend>
+              {PREFERENCE_LABELS.map(([key, label]) => (
+                <label key={key}>
+                  <input
+                    type="checkbox"
+                    checked={preferences[key]}
+                    onChange={(event) => void setPreference(key, event.currentTarget.checked)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
+          ) : <p>Loading preferences…</p>}
+        </details>
+      ) : null}
 
       {error ? <p className={styles.error} role="alert">{error}</p> : null}
 
@@ -126,7 +205,7 @@ export function ActivityPanel({
         )) : (
           <div className={styles.empty}>
             <strong>You’re caught up.</strong>
-            <span>New mentions, replies, reactions and direct messages will appear here.</span>
+            <span>New activity requiring your attention will appear here.</span>
           </div>
         )}
       </div>
