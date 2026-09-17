@@ -1,4 +1,5 @@
 import {
+  getActivityPreferences,
   markActivityRead,
   markAllActivityRead,
   updateActivityPreferences,
@@ -57,12 +58,23 @@ export async function handleMarkAllActivityRead(
   await markAllActivityRead(accessToken, organizationId);
 }
 
+export async function handleGetActivityPreferences(
+  accessToken: string,
+  organizationId: string,
+): Promise<ActivityPreferences> {
+  await requireMembership(accessToken, organizationId);
+  return getActivityPreferences(accessToken, organizationId);
+}
+
 export async function handleActivityPreferences(
   accessToken: string,
   organizationId: string,
   values: Partial<ActivityPreferences>,
 ): Promise<ActivityPreferences> {
   await requireMembership(accessToken, organizationId);
+  if (!values || typeof values !== "object" || Array.isArray(values)) {
+    throw new ActivityBffError(400, "Notification preference payload is invalid");
+  }
   const keys = Object.keys(values);
   const allowed = new Set<keyof ActivityPreferences>([
     "mentions",
@@ -78,7 +90,8 @@ export async function handleActivityPreferences(
     throw new ActivityBffError(400, "At least one notification preference is required");
   }
   for (const key of keys) {
-    if (!allowed.has(key as keyof ActivityPreferences) || typeof values[key as keyof ActivityPreferences] !== "boolean") {
+    const typedKey = key as keyof ActivityPreferences;
+    if (!allowed.has(typedKey) || typeof values[typedKey] !== "boolean") {
       throw new ActivityBffError(400, "Notification preference payload is invalid");
     }
   }
