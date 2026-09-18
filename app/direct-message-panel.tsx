@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import type { DirectConversation, DirectMessage } from "./direct-message-api";
 import styles from "./direct-message-panel.module.css";
+import { useCollaborationPresence } from "./use-collaboration-presence";
 
 function timeLabel(value: string): string {
   const date = new Date(value);
@@ -31,6 +32,7 @@ export function DirectMessagePanel({
   messages,
   createEndpoint,
   messageEndpoint,
+  presenceEndpoint,
 }: {
   organizationId: string;
   conversations: DirectConversation[];
@@ -38,11 +40,24 @@ export function DirectMessagePanel({
   messages: DirectMessage[];
   createEndpoint: string | null;
   messageEndpoint: string | null;
+  presenceEndpoint: string | null;
 }) {
   const [targetEmail, setTargetEmail] = useState("");
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
+  const [composerFocused, setComposerFocused] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const presence = useCollaborationPresence(
+    presenceEndpoint,
+    Boolean(
+      selectedConversation?.can_send
+      && composerFocused
+      && body.trim()
+    ),
+  );
+  const otherOnline = presence.online_users.length > 0;
+  const typingName = presence.typing_users[0]?.display_name ?? null;
 
   async function createConversation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -170,7 +185,14 @@ export function DirectMessagePanel({
                   <small>{selectedConversation.other_email}</small>
                 </div>
               </div>
-              <span>{selectedConversation.can_send ? "1:1 DM" : "History only"}</span>
+              {selectedConversation.can_send && presenceEndpoint ? (
+                <span className={styles.presenceLabel} data-online={otherOnline || undefined}>
+                  <i aria-hidden="true" />
+                  {otherOnline ? "Online" : "Offline"} · 1:1 DM
+                </span>
+              ) : (
+                <span>{selectedConversation.can_send ? "1:1 DM" : "History only"}</span>
+              )}
             </header>
 
             <div className={styles.messages} aria-live="polite">
@@ -188,6 +210,12 @@ export function DirectMessagePanel({
               )) : <p className={styles.empty}>No messages are visible in this direct conversation.</p>}
             </div>
 
+            {typingName ? (
+              <p className={styles.typingStatus} aria-live="polite" role="status">
+                {typingName} is typing…
+              </p>
+            ) : null}
+
             {!selectedConversation.can_send ? (
               <p className={styles.readOnly} role="status">
                 This member is not currently available for direct messages. Your visible history remains read-only.
@@ -202,6 +230,8 @@ export function DirectMessagePanel({
                   rows={3}
                   placeholder={`Message ${selectedConversation.other_display_name}`}
                   onChange={(event) => setBody(event.target.value)}
+                  onFocus={() => setComposerFocused(true)}
+                  onBlur={() => setComposerFocused(false)}
                 />
                 <div>
                   <small>{body.length.toLocaleString()} / 20,000</small>
