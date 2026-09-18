@@ -69,6 +69,7 @@ class RetentionRunRead(BaseModel):
     derived_events_deleted: int
     audit_events_deleted: int
     private_messages_deleted: int
+    native_message_revisions_deleted: int
     error_code: str | None
     started_at: datetime
     completed_at: datetime | None
