@@ -41,6 +41,14 @@ IN_REVIEW | S-10.07.01 | F-10.07 | Governed developer/agent workspace, project/c
 IN_REVIEW | S-10.08.01 | F-10.08 | Owner/Admin governance center now covers member/integration lifecycle, AI provider/model bootstrap and credential rotation, API service/grant bootstrap, owner/scope/environment/credential lifecycle and safe same-origin WorkOS BFF contracts; executable/backend/browser verification remains outstanding
 IN_REVIEW | S-10.09.01 | F-10.09 | Unified personal Activity & Notifications inbox is implementation-staged across collaboration, agent, project/blocker and integration events with reference-only persistence, current-permission rechecks, exact deep links, personal read/unread state, preferences, same-origin BFF UI and migration-branch convergence; executable backend/frontend/verifier/PostgreSQL/WorkOS browser evidence remains outstanding
 IN_REVIEW | S-10.10.01 | F-10.10 | Opaque authorised live revision, same-origin WorkOS BFF, adaptive visible/hidden/offline refresh, selected-channel/DM/Activity invalidation and open-thread refresh are implementation-staged; executable frontend/verifier and authenticated two-user WorkOS timing/revocation UAT remain outstanding
+IN_PROGRESS | S-10.11.01 | F-10.11 | Keyboard-first local navigation plus debounced permission-aware keyword search pulled after readiness review; DM content remains excluded from organisation-wide search
+
+### S-10.11.01 Workspace Search & Quick Switcher — IN_PROGRESS
+
+Sprint goal: expose the existing permission-aware search contract as a fast keyboard-first workspace navigation surface without building another index or weakening DM privacy.
+
+Ready evidence is in `DEFINITION_OF_READY.md`; implementation and acceptance scope are in `docs/planning/increment-27.md` and `UAT/F-10.11.md`. WIP after pull: one `IN_PROGRESS` story.
+
 
 ### S-10.10.01 Live Workspace Updates — IN_REVIEW
 
