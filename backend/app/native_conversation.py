@@ -9,12 +9,15 @@ from sqlalchemy.orm import Session
 
 from app.data_governance import _audit_payload
 from app.data_governance_models import SecurityAuditEvent
-from app.models import User
+from app.models import CanonicalEvent, RawEvent, RawEventStatus, User
 from app.native_chat import (
     NativeChatConflictError,
     NativeChatError,
     can_read_channel,
     can_write_channel,
+    _grant_message_evidence,
+    _message_payload,
+    _source_visibility,
     get_visible_channel,
     normalize_message_body,
     sync_exact_mentions,
@@ -31,8 +34,10 @@ from app.native_conversation_models import (
     NativeMessageMention,
     NativeMessageReaction,
 )
-from app.search import _reset_embedding
+from app.search import project_search_document
 from app.search_models import SearchDocument
+from app.work_graph import create_manual_edge, project_canonical_event
+from app.work_graph_models import WorkGraphEdgeType
 
 ALLOWED_REACTIONS = ("👍", "❤️", "🎉", "👀", "✅")
 
@@ -125,6 +130,8 @@ def _snapshot_message_revision(
             body=message.body,
             body_sha256=message.body_sha256,
             body_char_count=message.body_char_count,
+            raw_event_id=message.raw_event_id,
+            canonical_event_id=message.canonical_event_id,
             changed_by_user_id=actor_user_id,
         )
     )
@@ -152,6 +159,124 @@ def _message_search_document(
             "Message search projection is unavailable",
         )
     return document
+
+
+def _project_lifecycle_revision(
+    db: Session,
+    *,
+    channel: NativeChannel,
+    message: NativeMessage,
+    actor_user_id: uuid.UUID,
+    event_type: str,
+    action: str,
+    occurred_at: datetime,
+    supersedes_canonical_event_id: uuid.UUID,
+) -> None:
+    previous_canonical = db.get(CanonicalEvent, supersedes_canonical_event_id)
+    if previous_canonical is None:
+        raise NativeChatConflictError(
+            "message_projection_unavailable",
+            "Message canonical evidence is unavailable",
+        )
+    if channel.work_graph_node_id is None:
+        raise NativeChatConflictError(
+            "channel_track_missing",
+            "Native channel is missing its Work Graph track",
+        )
+
+    visibility = _source_visibility(channel)
+    raw_payload = _message_payload(message, channel)
+    raw = RawEvent(
+        organization_id=message.organization_id,
+        integration_connection_id=previous_canonical.integration_connection_id,
+        provider="brain_native",
+        source_event_id=f"native-message:{message.id}:revision:{message.revision}",
+        source_event_type=event_type,
+        delivery_kind="native",
+        source_timestamp=occurred_at,
+        content_type="application/json",
+        payload_sha256=hashlib.sha256(raw_payload).hexdigest(),
+        raw_payload=raw_payload,
+        source_visibility=visibility,
+        source_acl=[],
+        processing_status=RawEventStatus.PROCESSED,
+        processing_attempts=0,
+        last_error_code=None,
+    )
+    db.add(raw)
+    db.flush()
+
+    canonical = CanonicalEvent(
+        organization_id=message.organization_id,
+        raw_event_id=raw.id,
+        integration_connection_id=previous_canonical.integration_connection_id,
+        resolved_user_id=message.author_user_id,
+        schema_version=1,
+        event_type=event_type,
+        action=action,
+        actor_type="brain_user",
+        actor_external_id=str(actor_user_id),
+        actor_display_name=None,
+        object_type="native_message",
+        object_external_id=str(message.id),
+        object_display_name=f"#{channel.name}",
+        source_provider="brain_native",
+        source_event_id=raw.source_event_id,
+        source_event_type=raw.source_event_type,
+        occurred_at=occurred_at,
+        source_visibility=visibility,
+        source_acl=[],
+        provenance={
+            "raw_event_id": str(raw.id),
+            "integration_connection_id": str(previous_canonical.integration_connection_id),
+            "payload_sha256": raw.payload_sha256,
+            "native_message_id": str(message.id),
+            "native_message_revision": message.revision,
+            "channel_id": str(channel.id),
+            "thread_root_id": (
+                str(message.thread_root_id) if message.thread_root_id else None
+            ),
+            "track_node_id": str(channel.work_graph_node_id),
+            "supersedes_canonical_event_id": str(supersedes_canonical_event_id),
+        },
+        event_metadata={
+            "text": message.body,
+            "channel_id": str(channel.id),
+            "thread_root_id": (
+                str(message.thread_root_id) if message.thread_root_id else None
+            ),
+            "channel_name": channel.name,
+            "track_node_id": str(channel.work_graph_node_id),
+            "actor_kind": message.actor_kind.value,
+            "native_message_revision": message.revision,
+            "edited_at": message.edited_at.isoformat() if message.edited_at else None,
+            "deleted_at": message.deleted_at.isoformat() if message.deleted_at else None,
+        },
+    )
+    db.add(canonical)
+    db.flush()
+
+    message.raw_event_id = raw.id
+    message.canonical_event_id = canonical.id
+
+    evidence_node = project_canonical_event(db, canonical, commit=False)
+    create_manual_edge(
+        db,
+        organization_id=message.organization_id,
+        source_node_id=channel.work_graph_node_id,
+        target_node_id=evidence_node.id,
+        edge_type=WorkGraphEdgeType.RELATED_TO,
+        actor_user_id=actor_user_id,
+        reason=f"Brain native message lifecycle revision {message.revision}",
+        commit=False,
+    )
+    project_search_document(db, canonical, commit=False)
+    _grant_message_evidence(
+        db,
+        channel=channel,
+        evidence_node_id=evidence_node.id,
+        commit=False,
+    )
 
 
 def _stage_lifecycle_audit(
