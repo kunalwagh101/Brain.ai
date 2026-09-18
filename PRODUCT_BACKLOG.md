@@ -281,6 +281,13 @@ Acceptance: Given an authenticated visible workspace, when currently authorised 
 Dependencies: S-10.06.01, S-10.06.02, S-10.09.01, S-10.04.01 server-session boundary. Blocking risk: final authenticated browser timing/security acceptance depends on official S-10.04 WorkOS activation, but repository implementation can reach IN_REVIEW without inventing a WebSocket infrastructure dependency. Size: M. Leading indicator: manual-refresh-free conversation update success and live refresh error rate. Business value: E-10. Priority: P1.  
 Tasks: T-10.10.01.a stable permission-aware live revision over existing server APIs; T-10.10.01.b same-origin WorkOS live-state BFF; T-10.10.01.c adaptive visible/hidden/offline polling with bounded backoff; T-10.10.01.d channel/thread/DM/Activity refresh integration; T-10.10.01.e security/no-token/no-content-leak tests; T-10.10.01.f docs/UAT/demo and measured browser timing acceptance.
 
+#### F-10.11 Workspace search and quick switcher
+**S-10.11.01 — Find and jump to authorised work from one keyboard-first workspace search**  
+As a Brain user, I want one fast search/switcher for channels, projects, people and searchable evidence, so that I can jump directly to the work I need without manually scanning the sidebar.  
+Acceptance: Given a visible workspace, when the user presses Ctrl+K or Cmd+K, then an accessible search dialog opens and keyboard focus moves into the query; Given an empty query, then currently authorised channels, projects/tracks and participant-visible DM counterparts are offered from already-loaded workspace data without a network request; Given a query of at least 2 characters, then Brain performs a debounced same-origin search using the existing permission-aware Search API in keyword mode and renders only currently authorised results; Given a Brain-native message result, when opened, then navigation targets the exact authorised channel/message context; Given an external/evidence result without a dedicated exact workspace surface, then the result shows source/provenance and routes to the closest existing governed workspace surface rather than inventing access; Given a DM counterpart name matches, then the switcher may navigate to that DM conversation, but DM message bodies are never included in organisation-wide search results; Given restricted source access is revoked, then the next search returns no restricted result even if an earlier dialog state had shown it; Given an invalid/empty/oversized query, then the browser and BFF reject or suppress it without widening access; Given the browser performs search, then no reusable WorkOS/FastAPI bearer token is exposed to client code; Given loading, empty, error and no-results states, then the dialog remains keyboard-operable and screen-reader labelled.  
+Dependencies: S-05.01.01 search contract, S-10.02.01 workspace navigation, S-10.06.01 native channels, S-10.06.02 participant-safe DMs, S-10.04.01 server-session boundary. Blocking risk: final authenticated browser acceptance depends on official S-10.04 WorkOS activation; existing S-05.01 executable acceptance is still outstanding, so repository implementation cannot be called DONE from source presence alone. Size: M. Leading indicator: successful search-to-open rate and median time-to-target. Business value: E-10. Priority: P1.  
+Tasks: T-10.11.01.a typed existing-search client contract; T-10.11.01.b membership-validated same-origin search BFF; T-10.11.01.c keyboard-first command/search dialog; T-10.11.01.d exact Brain-message and local navigation links; T-10.11.01.e privacy/revocation/token/accessibility source contracts; T-10.11.01.f docs/UAT/demo and browser acceptance.
+
 ## Requirements -> Backlog coverage
 
 | Requirement | Backlog IDs |
@@ -330,6 +337,9 @@ Tasks: T-10.10.01.a stable permission-aware live revision over existing server A
 | Notification deep links to exact source context | S-10.09.01 |
 | Automatic live workspace refresh | S-10.10.01 |
 | Live channel, thread, DM and Activity updates without browser bearer tokens | S-10.06.01, S-10.06.02, S-10.09.01, S-10.10.01 |
+| Keyboard-first workspace search and quick switcher | S-10.11.01 |
+| Permission-aware message/evidence search from the workspace | S-05.01.01, S-10.11.01 |
+| DM participant navigation without organisation-wide DM-content search | S-10.06.02, S-10.11.01 |
 | CI and lie-detector verifier | S-09.03.01 |
 | Agile/Scrum/Kanban artifacts | S-09.03.01 |
 
