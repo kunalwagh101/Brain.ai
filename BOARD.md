@@ -40,13 +40,26 @@ IN_REVIEW | S-10.06.02 | F-10.06 | Participant-only Brain-native DMs, sequence-b
 IN_REVIEW | S-10.07.01 | F-10.07 | Governed developer/agent workspace, project/channel context binding, approvals, context-aware tool execution, ephemeral final output and privacy/security contracts are implementation-staged; executable verification and authenticated browser UAT remain pending
 IN_REVIEW | S-10.08.01 | F-10.08 | Owner/Admin governance center now covers member/integration lifecycle, AI provider/model bootstrap and credential rotation, API service/grant bootstrap, owner/scope/environment/credential lifecycle and safe same-origin WorkOS BFF contracts; executable/backend/browser verification remains outstanding
 IN_REVIEW | S-10.09.01 | F-10.09 | Unified personal Activity & Notifications inbox is implementation-staged across collaboration, agent, project/blocker and integration events with reference-only persistence, current-permission rechecks, exact deep links, personal read/unread state, preferences, same-origin BFF UI and migration-branch convergence; executable backend/frontend/verifier/PostgreSQL/WorkOS browser evidence remains outstanding
-IN_PROGRESS | S-10.10.01 | F-10.10 | Live workspace revision/BFF/adaptive refresh vertical slice pulled after readiness review; no WebSocket/SSE/event-store expansion without measured need
+IN_REVIEW | S-10.10.01 | F-10.10 | Opaque authorised live revision, same-origin WorkOS BFF, adaptive visible/hidden/offline refresh, selected-channel/DM/Activity invalidation and open-thread refresh are implementation-staged; executable frontend/verifier and authenticated two-user WorkOS timing/revocation UAT remain outstanding
 
-### S-10.10.01 Live Workspace Updates — IN_PROGRESS
+### S-10.10.01 Live Workspace Updates — IN_REVIEW
 
 Sprint goal: make authorised channel, thread, DM, unread and Activity changes appear without manual browser reload while preserving the existing server-side permission boundary.
 
-Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-26.md` and `UAT/F-10.10.md`. WIP after pull: one `IN_PROGRESS` story.
+Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-26.md` and `UAT/F-10.10.md`.
+
+Implementation staged:
+
+- stable opaque Web-Crypto revision over already-authorised Activity/channel/unread/selected-message/DM structural state;
+- same-origin WorkOS live-state route with server-side membership/UUID validation;
+- 4-second visible checks, 30-second hidden checks, offline recovery and bounded exponential error backoff;
+- `router.refresh()` only on revision change;
+- selected-channel root/reaction/reply-count invalidation plus direct-message/Activity/unread refresh;
+- open threads re-fetch permitted replies through the existing same-origin route;
+- no WebSocket, SSE, Redis, broker, new persistent event store or browser bearer-token path;
+- source-contract tests, WorkOS activation wiring, UAT/demo/planning/changelog.
+
+Formal state: `IN_REVIEW`. No executable frontend/verifier PASS is claimed in this session yet. Official WorkOS activation and authenticated two-user <=5-second propagation, revocation, hidden/offline/backoff and accessibility UAT remain required before DONE.
 
 
 ### S-10.09.01 Activity & Notifications Inbox — IN_REVIEW
