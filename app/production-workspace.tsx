@@ -10,12 +10,14 @@ import {
   listNativeChannelMembers,
   listNativeChannels,
   listNativeMessages,
+  listNativePins,
   listNativeUnread,
   listOrganizations,
   listProjectStatuses,
   listRuntimeOptions,
   listWorkspaceNavigation,
   type NativeMessage,
+  type NativeMessagePin,
 } from "./brain-api";
 import { listDirectConversations, listDirectMessages } from "./direct-message-api";
 import { computeLiveRevision } from "./live-updates-api";
@@ -146,14 +148,15 @@ export async function ProductionWorkspace({
   const invalidRequestedChannel = Boolean(
     !requestedDirectMessageId && requestedChannelId && !selectedChannel,
   );
-  const [nativeMessageRows, selectedNativeMembers] = selectedChannel
+  const [nativeMessageRows, selectedNativeMembers, selectedNativePins] = selectedChannel
     ? await Promise.all([
         listNativeMessages(accessToken, organization.id, selectedChannel.id),
         selectedChannel.can_manage_members
           ? listNativeChannelMembers(accessToken, organization.id, selectedChannel.id)
           : Promise.resolve([]),
+        listNativePins(accessToken, organization.id, selectedChannel.id, 50),
       ])
-    : [[], []];
+    : [[], [], [] as NativeMessagePin[]];
 
   let requestedNativeMessage: NativeMessage | null = null;
   let nativeMessages = nativeMessageRows;
@@ -239,6 +242,7 @@ export async function ProductionWorkspace({
     channels: channelRows,
     unread: unreadRows,
     selectedChannelMessages: nativeMessages,
+    selectedChannelPins: selectedNativePins,
     directConversations,
     directMessages,
   });
@@ -293,6 +297,7 @@ export async function ProductionWorkspace({
         nativeChannels={nativeChannels}
         selectedNativeChannel={selectedChannel}
         nativeMessages={nativeMessages}
+        nativePins={selectedNativePins}
         requestedNativeMessage={requestedNativeMessage}
         selectedNativeMembers={selectedNativeMembers}
         invalidRequestedChannel={invalidRequestedChannel}
