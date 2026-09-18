@@ -126,6 +126,8 @@ mkdir -p \
   'app/api/brain/organizations/[organizationId]/activity/read-all' \
   'app/api/brain/organizations/[organizationId]/activity/preferences' \
   'app/api/brain/organizations/[organizationId]/live' \
+  'app/api/brain/organizations/[organizationId]/presence/heartbeat' \
+  'app/api/brain/organizations/[organizationId]/presence/[contextKind]/[contextId]' \
   'app/api/brain/organizations/[organizationId]/search' \
   'app/api/brain/organizations/[organizationId]/agent-workspace/runs' \
   'app/api/brain/organizations/[organizationId]/agent-workspace/runs/[runId]/advance' \
@@ -153,6 +155,8 @@ cp docs/workos-activation/app-api-brain-activity-read-route.ts.template 'app/api
 cp docs/workos-activation/app-api-brain-activity-read-all-route.ts.template 'app/api/brain/organizations/[organizationId]/activity/read-all/route.ts'
 cp docs/workos-activation/app-api-brain-activity-preferences-route.ts.template 'app/api/brain/organizations/[organizationId]/activity/preferences/route.ts'
 cp docs/workos-activation/app-api-brain-live-route.ts.template 'app/api/brain/organizations/[organizationId]/live/route.ts'
+cp docs/workos-activation/app-api-brain-presence-heartbeat-route.ts.template 'app/api/brain/organizations/[organizationId]/presence/heartbeat/route.ts'
+cp docs/workos-activation/app-api-brain-presence-context-route.ts.template 'app/api/brain/organizations/[organizationId]/presence/[contextKind]/[contextId]/route.ts'
 cp docs/workos-activation/app-api-brain-search-route.ts.template 'app/api/brain/organizations/[organizationId]/search/route.ts'
 cp docs/workos-activation/app-api-brain-agent-workspace-runs-route.ts.template 'app/api/brain/organizations/[organizationId]/agent-workspace/runs/route.ts'
 cp docs/workos-activation/app-api-brain-agent-workspace-advance-route.ts.template 'app/api/brain/organizations/[organizationId]/agent-workspace/runs/[runId]/advance/route.ts'
@@ -178,3 +182,4 @@ echo "Complete UAT/F-10.10.md before marking S-10.10.01 DONE or accepted."
 echo "Complete UAT/F-10.11.md before marking S-10.11.01 DONE or accepted."
 echo "Complete UAT/F-10.12.md before marking S-10.12.01 DONE or accepted."
 echo "Complete UAT/F-10.13.md before marking S-10.13.01 DONE or accepted."
+echo "Complete UAT/F-10.14.md before marking S-10.14.01 DONE or accepted."
