@@ -138,3 +138,44 @@ class NativeChannelReadState(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class NativeMessageAttachment(Base):
+    __tablename__ = "native_message_attachments"
+    __table_args__ = (
+        UniqueConstraint(
+            "message_id",
+            "evidence_source_id",
+            name="uq_native_message_attachment_message_source",
+        ),
+        Index(
+            "ix_native_message_attachment_org_channel_message",
+            "organization_id",
+            "channel_id",
+            "message_id",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "channel_id", "message_id"],
+            [
+                "native_messages.organization_id",
+                "native_messages.channel_id",
+                "native_messages.id",
+            ],
+            name="fk_native_message_attachment_message_scope",
+            ondelete="CASCADE",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    channel_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    message_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    evidence_source_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("evidence_sources.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
