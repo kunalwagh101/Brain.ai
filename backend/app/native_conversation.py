@@ -13,11 +13,11 @@ from app.models import CanonicalEvent, RawEvent, RawEventStatus, User
 from app.native_chat import (
     NativeChatConflictError,
     NativeChatError,
-    can_read_channel,
-    can_write_channel,
     _grant_message_evidence,
     _message_payload,
     _source_visibility,
+    can_read_channel,
+    can_write_channel,
     get_visible_channel,
     normalize_message_body,
     sync_exact_mentions,
@@ -399,6 +399,7 @@ def edit_message(
 
     db.refresh(message)
     return message
+
 
 def retract_message(
     db: Session,
