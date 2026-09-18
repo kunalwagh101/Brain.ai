@@ -43,6 +43,14 @@ IN_REVIEW | S-10.09.01 | F-10.09 | Unified personal Activity & Notifications inb
 IN_REVIEW | S-10.10.01 | F-10.10 | Opaque authorised live revision, same-origin WorkOS BFF, adaptive visible/hidden/offline refresh, selected-channel/DM/Activity invalidation and open-thread refresh are implementation-staged; executable frontend/verifier and authenticated two-user WorkOS timing/revocation UAT remain outstanding
 IN_REVIEW | S-10.11.01 | F-10.11 | Keyboard-first quick switcher, membership-validated same-origin keyword search, exact authorised Brain-message deep links, restricted-channel revoke regression and DM-content exclusion regression are implementation-staged; executable backend/frontend/verifier and authenticated WorkOS keyboard/privacy UAT remain outstanding
 IN_REVIEW | S-10.12.01 | F-10.12 | Author-only edit/retract, expected-revision conflicts, immutable RawEvent/CanonicalEvent lifecycle revisions, retired Search versions, tombstones, historical restricted-evidence access cleanup and governed revision retention are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
+IN_PROGRESS | S-10.13.01 | F-10.13 | Governed channel attachment slice pulled after readiness review; existing EvidenceSource ingestion is reused and restricted files must follow live channel membership
+
+### S-10.13.01 Governed Channel Attachments — IN_PROGRESS
+
+Sprint goal: connect the existing governed evidence pipeline to native channel/root/thread messages without introducing a second file store or static restricted-file ACL.
+
+Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-29.md` and `UAT/F-10.13.md`. WIP after pull: one `IN_PROGRESS` story.
+
 
 ### S-10.12.01 Author-safe Message Lifecycle — IN_REVIEW
 
