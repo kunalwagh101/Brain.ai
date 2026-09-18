@@ -9,7 +9,16 @@ from sqlalchemy.orm import Session
 
 from app.data_governance import _audit_payload
 from app.data_governance_models import SecurityAuditEvent
-from app.models import CanonicalEvent, RawEvent, RawEventStatus, User
+from app.evidence_ingestion import evidence_source_visible_to_user
+from app.evidence_models import EvidenceSource, EvidenceSourceStatus
+from app.models import (
+    CanonicalEvent,
+    IntegrationConnection,
+    IntegrationStatus,
+    RawEvent,
+    RawEventStatus,
+    User,
+)
 from app.native_chat import (
     NativeChatConflictError,
     NativeChatError,
@@ -31,6 +40,7 @@ from app.native_chat_models import (
 )
 from app.native_conversation_models import (
     NativeChannelReadState,
+    NativeMessageAttachment,
     NativeMessageMention,
     NativeMessageReaction,
 )
@@ -785,6 +795,59 @@ def mark_read(
             db.commit()
     db.refresh(state)
     return state
+
+
+def message_attachment_metadata(
+    db: Session,
+    *,
+    messages: list[NativeMessage],
+    user_id: uuid.UUID,
+) -> dict[uuid.UUID, list[dict[str, object]]]:
+    message_ids = [message.id for message in messages]
+    result: dict[uuid.UUID, list[dict[str, object]]] = {
+        message_id: [] for message_id in message_ids
+    }
+    if not message_ids:
+        return result
+
+    rows = db.execute(
+        select(NativeMessageAttachment, EvidenceSource, IntegrationConnection)
+        .join(
+            EvidenceSource,
+            EvidenceSource.id == NativeMessageAttachment.evidence_source_id,
+        )
+        .join(
+            IntegrationConnection,
+            IntegrationConnection.id == EvidenceSource.integration_connection_id,
+        )
+        .where(NativeMessageAttachment.message_id.in_(message_ids))
+        .order_by(
+            NativeMessageAttachment.created_at,
+            NativeMessageAttachment.id,
+        )
+    ).all()
+    for attachment, source, connection in rows:
+        if not evidence_source_visible_to_user(db, source, user_id):
+            continue
+        available = (
+            source.status == EvidenceSourceStatus.ACTIVE
+            and connection.status == IntegrationStatus.ACTIVE
+        )
+        result[attachment.message_id].append(
+            {
+                "source_id": source.id,
+                "title": source.title,
+                "filename": source.filename,
+                "kind": source.kind.value,
+                "media_type": source.media_type,
+                "byte_size": source.byte_size,
+                "status": source.status.value,
+                "retrieval_available": available,
+                "source_visibility": source.source_visibility.value,
+                "native_channel_id": source.native_channel_id,
+            }
+        )
+    return result
 
 
 def message_affordances(
