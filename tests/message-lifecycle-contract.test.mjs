@@ -96,3 +96,26 @@ test("human lifecycle service explicitly rejects agent-authored messages", () =>
   assert.match(service, /message\.actor_kind != NativeMessageActorKind\.USER/);
   assert.match(service, /message\.author_user_id != user_id/);
 });
+
+
+test("message edits append canonical evidence instead of rewriting provenance", () => {
+  const service = read("backend/app/native_conversation.py");
+  const search = read("backend/app/search.py");
+  const graph = read("backend/app/work_graph.py");
+  assert.match(service, /RawEvent\(/);
+  assert.match(service, /CanonicalEvent\(/);
+  assert.match(service, /supersedes_canonical_event_id/);
+  assert.match(service, /native-message:\$\{message\.id\}:revision:/);
+  assert.match(service, /project_canonical_event\(db, canonical, commit=False\)/);
+  assert.match(service, /project_search_document\(db, canonical, commit=False\)/);
+  assert.match(service, /create_manual_edge\([\s\S]*commit=False/);
+  assert.match(search, /event\.source_provider in \{"slack", "brain_native"\}/);
+  assert.match(search, /native_revision/);
+  assert.match(graph, /commit: bool = True/);
+});
+
+test("restricted channel evidence scope includes historical revisions", () => {
+  const chat = read("backend/app/native_chat.py");
+  assert.match(chat, /NativeMessageRevision\.canonical_event_id/);
+  assert.match(chat, /canonical_ids = current_ids \| revision_ids/);
+});
