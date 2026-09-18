@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type {
+  NativeAttachment,
   NativeChannel,
   NativeChannelMember,
   NativeMessage,
@@ -10,6 +11,14 @@ import type {
 import styles from "./native-chat-panel.module.css";
 
 const ALLOWED_REACTIONS = ["👍", "❤️", "🎉", "👀", "✅"] as const;
+const MAX_ATTACHMENTS_PER_MESSAGE = 5;
+const MAX_ATTACHMENT_FILE_BYTES = 10_000_000;
+const ATTACHMENT_ACCEPT = [
+  ".txt", ".md", ".csv", ".json", ".vtt", ".srt", ".pdf", ".docx",
+  "text/plain", "text/markdown", "text/csv", "application/json",
+  "text/vtt", "application/x-subrip", "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+].join(",");
 const EXACT_EMAIL_MENTION =
   /(^|[^A-Za-z0-9._%+\-])@([A-Za-z0-9.!#$%&'*+/=?^_`{|}~\-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63})/gi;
 
@@ -22,6 +31,33 @@ function formatTime(value: string): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function formatBytes(value: number): string {
+  if (value < 1_000) return `${value} B`;
+  if (value < 1_000_000) return `${(value / 1_000).toFixed(1)} KB`;
+  return `${(value / 1_000_000).toFixed(1)} MB`;
+}
+
+function attachmentKind(file: File): "document" | "transcript" {
+  const lower = file.name.toLowerCase();
+  return lower.endsWith(".vtt") || lower.endsWith(".srt")
+    ? "transcript"
+    : "document";
+}
+
+function safeAttachmentError(status: number): string {
+  if (status === 400 || status === 415 || status === 422) {
+    return "That file type or upload request was not accepted.";
+  }
+  if (status === 401) return "Your session is no longer authenticated.";
+  if (status === 403 || status === 404) {
+    return "This channel is no longer writable by your account.";
+  }
+  if (status === 409) return "That upload conflicts with an existing retry key.";
+  if (status === 413) return "Each attachment must be 10 MB or smaller.";
+  if (status === 429) return "File uploads are temporarily rate limited.";
+  return "The attachment could not be uploaded safely.";
 }
 
 function initials(value: string): string {
@@ -262,6 +298,37 @@ function MessageCard({
           <p className={styles.body}>{messageBody(message)}</p>
         )}
 
+        {!deleted && message.attachments.length ? (
+          <div className={styles.attachments} aria-label="Message attachments">
+            {message.attachments.map((attachment) => (
+              <a
+                aria-disabled={!attachment.retrieval_available}
+                data-unavailable={!attachment.retrieval_available || undefined}
+                href={attachment.retrieval_available ? "#files" : undefined}
+                key={attachment.source_id}
+                onClick={(event) => {
+                  if (!attachment.retrieval_available) event.preventDefault();
+                }}
+              >
+                <span aria-hidden="true">📎</span>
+                <span>
+                  <strong>{attachment.title || attachment.filename}</strong>
+                  <small>
+                    {attachment.filename} · {attachment.kind} · {formatBytes(attachment.byte_size)}
+                  </small>
+                </span>
+                <em>
+                  {attachment.retrieval_available
+                    ? "Governed evidence"
+                    : attachment.status === "deleted"
+                      ? "Deleted"
+                      : "Unavailable"}
+                </em>
+              </a>
+            ))}
+          </div>
+        ) : null}
+
         {!editing ? (
           <div className={styles.messageActions} aria-label="Message actions">
             {!deleted ? ALLOWED_REACTIONS.map((reaction) => {
@@ -379,10 +446,13 @@ export function NativeChatPanel({
   const handledDeepLink = useRef<string | null>(null);
   const [rootMessages, setRootMessages] = useState(messages);
   const [body, setBody] = useState("");
+  const [attachments, setAttachments] = useState<NativeAttachment[]>([]);
   const [threadRoot, setThreadRoot] = useState<NativeMessage | null>(null);
   const [threadReplies, setThreadReplies] = useState<NativeMessage[]>([]);
   const [threadBody, setThreadBody] = useState("");
+  const [threadAttachments, setThreadAttachments] = useState<NativeAttachment[]>([]);
   const [threadLoading, setThreadLoading] = useState(false);
+  const [uploadingTarget, setUploadingTarget] = useState<"channel" | "thread" | null>(null);
   const [reactionWorking, setReactionWorking] = useState<string | null>(null);
   const [status, setStatus] = useState<
     | { kind: "idle" }
@@ -520,10 +590,86 @@ export function NativeChatPanel({
     return () => controller.abort();
   }, [channel.latest_message_id, channel.unread_count, conversationEndpoint, router]);
 
+  async function uploadAttachments(
+    files: File[],
+    target: "channel" | "thread",
+  ) {
+    if (!conversationEndpoint || !channel.can_post || !files.length) return;
+    const current = target === "channel" ? attachments : threadAttachments;
+    const remaining = MAX_ATTACHMENTS_PER_MESSAGE - current.length;
+    if (files.length > remaining) {
+      setStatus({
+        kind: "error",
+        text: `A message can contain at most ${MAX_ATTACHMENTS_PER_MESSAGE} attachments.`,
+      });
+      return;
+    }
+    const oversized = files.find((file) => file.size > MAX_ATTACHMENT_FILE_BYTES);
+    if (oversized) {
+      setStatus({
+        kind: "error",
+        text: `${oversized.name} is larger than 10 MB.`,
+      });
+      return;
+    }
+
+    setUploadingTarget(target);
+    setStatus({
+      kind: "working",
+      text: files.length === 1 ? "Uploading governed file…" : "Uploading governed files…",
+    });
+    const uploaded: NativeAttachment[] = [];
+    try {
+      for (const file of files) {
+        const form = new FormData();
+        form.set("file", file);
+        form.set("kind", attachmentKind(file));
+        form.set("title", file.name);
+        const response = await fetch(`${conversationEndpoint}/attachments/uploads`, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Idempotency-Key": `native-attachment:${crypto.randomUUID()}` },
+          body: form,
+        });
+        if (!response.ok) {
+          setStatus({ kind: "error", text: safeAttachmentError(response.status) });
+          return;
+        }
+        uploaded.push(await response.json() as NativeAttachment);
+      }
+      const merge = (items: NativeAttachment[]) => [
+        ...items,
+        ...uploaded.filter(
+          (item) => !items.some((existing) => existing.source_id === item.source_id),
+        ),
+      ];
+      if (target === "channel") setAttachments(merge);
+      else setThreadAttachments(merge);
+      setStatus({ kind: "idle" });
+    } catch {
+      if (uploaded.length) {
+        const merge = (items: NativeAttachment[]) => [
+          ...items,
+          ...uploaded.filter(
+            (item) => !items.some((existing) => existing.source_id === item.source_id),
+          ),
+        ];
+        if (target === "channel") setAttachments(merge);
+        else setThreadAttachments(merge);
+      }
+      setStatus({
+        kind: "error",
+        text: "The file upload could not reach the secure Brain route. Successful uploads were kept for retry.",
+      });
+    } finally {
+      setUploadingTarget(null);
+    }
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalized = body.trim();
-    if (!mutationEndpoint || !channel.can_post || !normalized) return;
+    if (!mutationEndpoint || !channel.can_post || (!normalized && !attachments.length)) return;
     if (normalized.length > 20_000) {
       setStatus({ kind: "error", text: "Messages are limited to 20,000 characters." });
       return;
@@ -538,17 +684,24 @@ export function NativeChatPanel({
           "Content-Type": "application/json",
           "Idempotency-Key": crypto.randomUUID(),
         },
-        body: JSON.stringify({ body: normalized }),
+        body: JSON.stringify({
+          body: normalized,
+          attachment_source_ids: attachments.map((item) => item.source_id),
+        }),
       });
       if (!response.ok) {
         setStatus({ kind: "error", text: safeMessageError(response.status) });
         return;
       }
       setBody("");
+      setAttachments([]);
       setStatus({ kind: "idle" });
       router.refresh();
     } catch {
-      setStatus({ kind: "error", text: "The message could not reach the secure Brain route." });
+      setStatus({
+        kind: "error",
+        text: "The message send failed. Uploaded files were kept so you can retry without re-uploading.",
+      });
     }
   }
 
@@ -581,7 +734,12 @@ export function NativeChatPanel({
   async function submitReply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalized = threadBody.trim();
-    if (!conversationEndpoint || !threadRoot || !channel.can_post || !normalized) return;
+    if (
+      !conversationEndpoint
+      || !threadRoot
+      || !channel.can_post
+      || (!normalized && !threadAttachments.length)
+    ) return;
     setStatus({ kind: "working", text: "Sending reply…" });
     try {
       const response = await fetch(
@@ -593,7 +751,10 @@ export function NativeChatPanel({
             "Content-Type": "application/json",
             "Idempotency-Key": crypto.randomUUID(),
           },
-          body: JSON.stringify({ body: normalized }),
+          body: JSON.stringify({
+            body: normalized,
+            attachment_source_ids: threadAttachments.map((item) => item.source_id),
+          }),
         },
       );
       if (!response.ok) {
@@ -611,9 +772,13 @@ export function NativeChatPanel({
         ? { ...current, reply_count: current.reply_count + 1 }
         : current);
       setThreadBody("");
+      setThreadAttachments([]);
       setStatus({ kind: "idle" });
     } catch {
-      setStatus({ kind: "error", text: "The reply could not reach the secure Brain route." });
+      setStatus({
+        kind: "error",
+        text: "The reply send failed. Uploaded files were kept so you can retry without re-uploading.",
+      });
     }
   }
 
@@ -810,13 +975,48 @@ export function NativeChatPanel({
                   maxLength={20_000}
                   placeholder={`Message #${channel.name}`}
                   rows={3}
-                  required
                 />
                 <p className={styles.composerHint}>Mention a permitted member using their exact @email.</p>
-                <div>
-                  <span>{body.length.toLocaleString()} / 20,000</span>
-                  <button disabled={status.kind === "working" || !body.trim()} type="submit">
-                    {status.kind === "working" ? "Sending…" : "Send"}
+                {attachments.length ? (
+                  <div className={styles.pendingAttachments} aria-label="Files ready to send">
+                    {attachments.map((attachment) => (
+                      <span key={attachment.source_id}>
+                        <span aria-hidden="true">📎</span>
+                        <span>{attachment.filename}</span>
+                        <small>{formatBytes(attachment.byte_size)} · governed</small>
+                      </span>
+                    ))}
+                    <p>Uploads are already saved in Brain and will be reused if sending fails.</p>
+                  </div>
+                ) : null}
+                <div className={styles.composerFooter}>
+                  <label className={styles.attachButton}>
+                    <span>Attach files</span>
+                    <input
+                      accept={ATTACHMENT_ACCEPT}
+                      disabled={
+                        uploadingTarget !== null
+                        || attachments.length >= MAX_ATTACHMENTS_PER_MESSAGE
+                      }
+                      multiple
+                      onChange={(event) => {
+                        const files = Array.from(event.currentTarget.files ?? []);
+                        event.currentTarget.value = "";
+                        void uploadAttachments(files, "channel");
+                      }}
+                      type="file"
+                    />
+                  </label>
+                  <span>{body.length.toLocaleString()} / 20,000 · {attachments.length}/5 files</span>
+                  <button
+                    disabled={
+                      status.kind === "working"
+                      || uploadingTarget !== null
+                      || (!body.trim() && !attachments.length)
+                    }
+                    type="submit"
+                  >
+                    {status.kind === "working" ? "Working…" : "Send"}
                   </button>
                 </div>
               </form>
@@ -882,12 +1082,49 @@ export function NativeChatPanel({
                   maxLength={20_000}
                   placeholder="Reply…"
                   rows={3}
-                  required
                 />
-                <div>
-                  <span>{threadBody.length.toLocaleString()} / 20,000</span>
-                  <button disabled={status.kind === "working" || !threadBody.trim()} type="submit">
-                    {status.kind === "working" ? "Sending…" : "Reply"}
+                {threadAttachments.length ? (
+                  <div className={styles.pendingAttachments} aria-label="Thread files ready to send">
+                    {threadAttachments.map((attachment) => (
+                      <span key={attachment.source_id}>
+                        <span aria-hidden="true">📎</span>
+                        <span>{attachment.filename}</span>
+                        <small>{formatBytes(attachment.byte_size)} · governed</small>
+                      </span>
+                    ))}
+                    <p>Uploads are already saved in Brain and will be reused if sending fails.</p>
+                  </div>
+                ) : null}
+                <div className={styles.composerFooter}>
+                  <label className={styles.attachButton}>
+                    <span>Attach files</span>
+                    <input
+                      accept={ATTACHMENT_ACCEPT}
+                      disabled={
+                        uploadingTarget !== null
+                        || threadAttachments.length >= MAX_ATTACHMENTS_PER_MESSAGE
+                      }
+                      multiple
+                      onChange={(event) => {
+                        const files = Array.from(event.currentTarget.files ?? []);
+                        event.currentTarget.value = "";
+                        void uploadAttachments(files, "thread");
+                      }}
+                      type="file"
+                    />
+                  </label>
+                  <span>
+                    {threadBody.length.toLocaleString()} / 20,000 · {threadAttachments.length}/5 files
+                  </span>
+                  <button
+                    disabled={
+                      status.kind === "working"
+                      || uploadingTarget !== null
+                      || (!threadBody.trim() && !threadAttachments.length)
+                    }
+                    type="submit"
+                  >
+                    {status.kind === "working" ? "Working…" : "Reply"}
                   </button>
                 </div>
               </form>
