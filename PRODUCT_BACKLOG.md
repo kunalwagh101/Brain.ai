@@ -295,6 +295,13 @@ Acceptance: Given a current human-authored Brain message or thread reply, when i
 Dependencies: S-10.06.01 conversation UX, S-10.09.01 Activity, S-10.10.01 live refresh, S-10.11.01 exact message navigation, S-10.04.01 server-session boundary. Blocking risk: repository implementation can reach IN_REVIEW, but DONE still requires executable backend/migration/frontend/verifier evidence plus authenticated WorkOS multi-user browser UAT. Size: L. Leading indicator: successful author correction/retraction rate with zero unauthorised mutation or stale-overwrite events. Business value: E-10. Priority: P1.  
 Tasks: T-10.12.01.a lifecycle/revision schema and migration; T-10.12.01.b optimistic-concurrency edit/retract service; T-10.12.01.c Search/mention/Activity/unread consistency; T-10.12.01.d permission-aware API and same-origin BFF; T-10.12.01.e accessible edit/retract UI and live refresh; T-10.12.01.f security/concurrency/migration/frontend tests; T-10.12.01.g docs/UAT/demo/rollback evidence.
 
+#### F-10.13 Governed channel attachments
+**S-10.13.01 — Attach governed files to Brain channel messages without creating a second file store**  
+As a Brain channel participant, I want to upload and attach governed documents/transcripts directly in a channel or thread, so that files shared during collaboration immediately enter Brain's permission-aware evidence, Search and Ask Brain workflow.  
+Acceptance: Given a current channel writer, when a supported file <=10 MB is uploaded from the channel composer, then Brain reuses the existing evidence ingestion pipeline and creates exactly one governed EvidenceSource rather than a parallel attachment blob; Given an organisation-visible channel, when a file is uploaded, then the source is organisation-visible; Given a restricted channel, when a file is uploaded, then the source is channel-scoped and direct Evidence reads, Search and Work Graph access follow current channel membership, including later grant/revocation; Given an uploaded channel-scoped source, when a message/root/reply is sent with that source ID, then the relation is tenant/channel validated, deduplicated and returned as bounded attachment metadata; Given a user attaches an existing EvidenceSource, then only an active organisation-visible source or a source already scoped to that exact channel is accepted; Given a message has one or more attachments, then an empty text body is allowed, while a message with neither text nor attachments is rejected; Given a message is retracted, then normal conversation reads return no attachment cards, but the EvidenceSource remains governed/searchable according to its own evidence lifecycle until separately deleted; Given an EvidenceSource is deleted/revoked, then existing message attachment reads show an unavailable/deleted state without exposing removed content; Given a restricted member is added or removed after upload, then evidence metadata visibility and Work Graph/Search grants change with live channel access and no historical file content remains reachable through stale grants; Given the composer uploads files, then at most 5 supported files are accepted per message, each uses a bounded same-origin WorkOS multipart route and no reusable bearer token reaches browser code; Given a partial browser failure after evidence upload but before message send, then the uploaded source remains a valid governed channel file and the UI preserves its source ID for retry rather than silently re-uploading or losing data; Given migration rollback, then attachment relations/channel-scope metadata can be removed without deleting the underlying evidence sources.  
+Dependencies: S-10.05.01 governed evidence/files, S-10.06.01 conversation UX, S-10.10.01 live refresh, S-10.12.01 message lifecycle, S-10.04.01 server-session boundary. Blocking risk: repository implementation can reach IN_REVIEW, but DONE still requires executable PostgreSQL/migration/backend/frontend/verifier evidence and authenticated WorkOS multi-user browser UAT. Size: L. Leading indicator: successful channel-file upload-to-message rate and attachment-to-search retrieval rate with zero restricted-file leakage. Business value: E-10. Priority: P1.  
+Tasks: T-10.13.01.a evidence channel-scope + message-attachment schema/migration; T-10.13.01.b channel-aware evidence visibility and live grant propagation; T-10.13.01.c attachment upload/link/read services; T-10.13.01.d typed API and same-origin WorkOS BFF; T-10.13.01.e accessible composer/upload/attachment cards with retry-safe state; T-10.13.01.f tenant/revocation/deletion/partial-failure/security tests; T-10.13.01.g docs/UAT/demo/rollback evidence.
+
 ## Requirements -> Backlog coverage
 
 | Requirement | Backlog IDs |
@@ -332,7 +339,7 @@ Tasks: T-10.12.01.a lifecycle/revision schema and migration; T-10.12.01.b optimi
 | Observability | S-09.01.01 |
 | Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01 |
 | Latency/cost benchmarks | S-09.04.01 |
-| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01 |
+| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01 |
 | Workspace administration and governance UI | S-10.08.01 |
 | Personal Activity & Notifications inbox | S-10.09.01 |
 | @mentions and thread-reply notifications | S-10.06.01, S-10.09.01 |
@@ -346,6 +353,9 @@ Tasks: T-10.12.01.a lifecycle/revision schema and migration; T-10.12.01.b optimi
 | Live channel, thread, DM and Activity updates without browser bearer tokens | S-10.06.01, S-10.06.02, S-10.09.01, S-10.10.01 |
 | Keyboard-first workspace search and quick switcher | S-10.11.01 |
 | Author-owned channel message edit/retract lifecycle | S-10.12.01 |
+| Governed channel file attachments | S-10.05.01, S-10.13.01 |
+| Restricted attachment access follows live channel membership | S-10.01.01, S-10.13.01 |
+| File-only channel messages with bounded attachment count | S-10.06.01, S-10.13.01 |
 | Immutable message revision history with optimistic concurrency | S-10.12.01 |
 | Retracted content removed from current Search/Activity/unread surfaces | S-10.09.01, S-10.12.01 |
 | Permission-aware message/evidence search from the workspace | S-05.01.01, S-10.11.01 |
@@ -368,3 +378,5 @@ Orphan requirements: **0**.
 - Organisation-wide Brain-native DM-content search: prohibited by the resolved participant-only DM privacy boundary; only visible counterpart metadata may be used for local navigation.
 - Admin/moderator editing or hard-deleting another user's Brain-native channel message: not part of S-10.12; moderation policy requires an explicit new story and evidence-retention decision.
 - Editing/retracting Brain-native direct messages or agent-authored messages: separate privacy/authority rules; not silently included in S-10.12.
+- Arbitrary image/video/audio attachments and OCR/media previews: S-10.13 reuses the currently supported governed evidence types; unsupported binary/media ingestion needs an explicit storage/scanning/preview story.
+- Brain-native DM attachments: participant-private storage/search rules differ from organisation/channel evidence and are not silently included in S-10.13.
