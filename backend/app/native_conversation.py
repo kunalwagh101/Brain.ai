@@ -42,6 +42,7 @@ from app.native_conversation_models import (
     NativeChannelReadState,
     NativeMessageAttachment,
     NativeMessageMention,
+    NativeMessagePin,
     NativeMessageReaction,
 )
 from app.search import project_search_document
@@ -471,6 +472,11 @@ def retract_message(
                 NativeMessageReaction.message_id == message.id
             )
         )
+        db.execute(
+            delete(NativeMessagePin).where(
+                NativeMessagePin.message_id == message.id
+            )
+        )
         _stage_lifecycle_audit(
             db,
             message=message,
@@ -519,6 +525,135 @@ def list_thread_replies(
         )
     )
     return root, replies
+
+
+def list_message_pins(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    user_id: uuid.UUID,
+    limit: int,
+) -> list[tuple[NativeMessagePin, NativeMessage]]:
+    channel = get_visible_channel(
+        db,
+        organization_id=organization_id,
+        channel_id=channel_id,
+        user_id=user_id,
+    )
+    if channel is None or not can_read_channel(db, channel, user_id=user_id):
+        raise NativeChatError("channel_not_found", "Channel not found")
+
+    return list(
+        db.execute(
+            select(NativeMessagePin, NativeMessage)
+            .join(
+                NativeMessage,
+                and_(
+                    NativeMessage.organization_id == NativeMessagePin.organization_id,
+                    NativeMessage.channel_id == NativeMessagePin.channel_id,
+                    NativeMessage.id == NativeMessagePin.message_id,
+                ),
+            )
+            .where(
+                NativeMessagePin.organization_id == organization_id,
+                NativeMessagePin.channel_id == channel_id,
+                NativeMessage.deleted_at.is_(None),
+            )
+            .order_by(
+                NativeMessagePin.created_at.desc(),
+                NativeMessagePin.id.desc(),
+            )
+            .limit(limit)
+        ).all()
+    )
+
+
+def pin_message(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    message_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> NativeMessagePin:
+    channel, message = visible_message(
+        db,
+        organization_id=organization_id,
+        channel_id=channel_id,
+        message_id=message_id,
+        user_id=user_id,
+    )
+    if message.deleted_at is not None or not can_write_channel(
+        db,
+        channel,
+        user_id=user_id,
+    ):
+        raise NativeChatError("message_not_found", "Message not found")
+
+    existing = db.scalar(
+        select(NativeMessagePin).where(
+            NativeMessagePin.organization_id == organization_id,
+            NativeMessagePin.channel_id == channel_id,
+            NativeMessagePin.message_id == message_id,
+        )
+    )
+    if existing is not None:
+        return existing
+
+    row = NativeMessagePin(
+        organization_id=organization_id,
+        channel_id=channel_id,
+        message_id=message_id,
+        pinned_by_user_id=user_id,
+    )
+    db.add(row)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing = db.scalar(
+            select(NativeMessagePin).where(
+                NativeMessagePin.organization_id == organization_id,
+                NativeMessagePin.channel_id == channel_id,
+                NativeMessagePin.message_id == message_id,
+            )
+        )
+        if existing is None:
+            raise
+        return existing
+    db.refresh(row)
+    return row
+
+
+def unpin_message(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    message_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> None:
+    channel, _ = visible_message(
+        db,
+        organization_id=organization_id,
+        channel_id=channel_id,
+        message_id=message_id,
+        user_id=user_id,
+    )
+    if not can_write_channel(db, channel, user_id=user_id):
+        raise NativeChatError("message_not_found", "Message not found")
+
+    row = db.scalar(
+        select(NativeMessagePin).where(
+            NativeMessagePin.organization_id == organization_id,
+            NativeMessagePin.channel_id == channel_id,
+            NativeMessagePin.message_id == message_id,
+        )
+    )
+    if row is not None:
+        db.delete(row)
+        db.commit()
 
 
 def add_reaction(
