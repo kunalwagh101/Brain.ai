@@ -461,6 +461,7 @@ def _grant_restricted_chunk(
     organization_id: uuid.UUID,
     grants: dict[uuid.UUID, ResourceAccessLevel],
     work_graph_node_id: uuid.UUID,
+    granted_by_user_id: uuid.UUID,
 ) -> None:
     resource_id = str(work_graph_node_id)
     for user_id, access in grants.items():
@@ -480,7 +481,7 @@ def _grant_restricted_chunk(
                     resource_id=resource_id,
                     user_id=user_id,
                     access=access,
-                    created_by_user_id=user_id,
+                    created_by_user_id=granted_by_user_id,
                 )
             )
         else:
@@ -633,6 +634,7 @@ def ingest_evidence(
                     organization_id=organization_id,
                     grants=effective_restricted_grants,
                     work_graph_node_id=node_id,
+                    granted_by_user_id=actor_user_id,
                 )
         source.chunk_count = len(chunks)
         source.extracted_char_count = len(extracted)
