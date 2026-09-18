@@ -648,6 +648,9 @@ def _message_payload(
         "agent_run_id": str(message.agent_run_id) if message.agent_run_id else None,
         "text": message.body,
         "body_sha256": message.body_sha256,
+        "revision": message.revision,
+        "edited_at": message.edited_at.isoformat() if message.edited_at else None,
+        "deleted_at": message.deleted_at.isoformat() if message.deleted_at else None,
     }
     return json.dumps(
         payload,
@@ -661,6 +664,7 @@ def _grant_message_evidence(
     *,
     channel: NativeChannel,
     evidence_node_id: uuid.UUID,
+    commit: bool = True,
 ) -> None:
     if channel.visibility != NativeChannelVisibility.RESTRICTED:
         return
@@ -682,7 +686,10 @@ def _grant_message_evidence(
             access=membership.access,
             granted_by_user_id=membership.granted_by_user_id,
         )
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
 
 
 def _project_message(
