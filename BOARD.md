@@ -42,13 +42,27 @@ IN_REVIEW | S-10.08.01 | F-10.08 | Owner/Admin governance center now covers memb
 IN_REVIEW | S-10.09.01 | F-10.09 | Unified personal Activity & Notifications inbox is implementation-staged across collaboration, agent, project/blocker and integration events with reference-only persistence, current-permission rechecks, exact deep links, personal read/unread state, preferences, same-origin BFF UI and migration-branch convergence; executable backend/frontend/verifier/PostgreSQL/WorkOS browser evidence remains outstanding
 IN_REVIEW | S-10.10.01 | F-10.10 | Opaque authorised live revision, same-origin WorkOS BFF, adaptive visible/hidden/offline refresh, selected-channel/DM/Activity invalidation and open-thread refresh are implementation-staged; executable frontend/verifier and authenticated two-user WorkOS timing/revocation UAT remain outstanding
 IN_REVIEW | S-10.11.01 | F-10.11 | Keyboard-first quick switcher, membership-validated same-origin keyword search, exact authorised Brain-message deep links, restricted-channel revoke regression and DM-content exclusion regression are implementation-staged; executable backend/frontend/verifier and authenticated WorkOS keyboard/privacy UAT remain outstanding
-IN_PROGRESS | S-10.12.01 | F-10.12 | Author-only native-channel edit/retract lifecycle pulled after readiness review; immutable revision history, optimistic concurrency and current Search/Activity/unread consistency are in scope
+IN_REVIEW | S-10.12.01 | F-10.12 | Author-only edit/retract, expected-revision conflicts, immutable RawEvent/CanonicalEvent lifecycle revisions, retired Search versions, tombstones, historical restricted-evidence access cleanup and governed revision retention are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 
-### S-10.12.01 Author-safe Message Lifecycle — IN_PROGRESS
+### S-10.12.01 Author-safe Message Lifecycle — IN_REVIEW
 
 Sprint goal: let a current human author edit or retract their own Brain-native channel message without rewriting immutable evidence, widening permissions or breaking thread continuity.
 
-Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-28.md` and `UAT/F-10.12.md`. WIP after pull: one `IN_PROGRESS` story.
+Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-28.md` and `UAT/F-10.12.md`.
+
+Implementation staged:
+
+- only the original current human author with current channel write access can edit/retract;
+- optimistic expected-revision conflicts prevent stale overwrite;
+- prior revisions retain body/hash plus prior RawEvent/CanonicalEvent links;
+- every accepted edit/retraction appends a new immutable native RawEvent + CanonicalEvent revision;
+- prior SearchDocument versions are retired; edited search content resolves to the new canonical revision;
+- retraction returns a content-free tombstone, removes current Search/mention/reaction/unread/Activity visibility and preserves existing thread replies;
+- restricted-channel evidence scope includes historical canonical revisions for access changes;
+- revision plaintext obeys derived-content retention and legal hold;
+- same-origin WorkOS BFF/UI, live invalidation, migrations 0028/0029, tests/UAT/demo/traceability are staged.
+
+Execution truth: latest Backend CI, Delivery Verifier and Release Gate jobs again ended with `steps: null`; local checkout was also unavailable because the execution environment could not resolve github.com. No executable PASS is claimed. WIP after review move: zero `IN_PROGRESS` stories.
 
 
 ### S-10.11.01 Workspace Search & Quick Switcher — IN_REVIEW
