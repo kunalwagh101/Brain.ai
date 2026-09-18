@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Increment 30 — Ephemeral Presence & Typing
+
+- Added short-lived collaboration presence leases with one row per organisation/user and no durable last-seen event history.
+- Added exact-context typing leases for either a native channel or participant-only 1:1 DM, enforced by scoped foreign keys and an exactly-one-context database check.
+- Presence renews for 75 seconds; typing renews for 8 seconds. Polling ignores expired rows without writing, while normal heartbeat/typing writes opportunistically purge stale leases.
+- Restricted-channel presence and typing recheck current membership; revoked users disappear without waiting for lease cleanup.
+- DM presence/typing remains participant-only. Owner/Admin role alone cannot observe another pair's private collaboration state.
+- Normal presence/typing API traffic deliberately bypasses organisation-wide authorization/audit event persistence so the feature cannot become behavioural history by accident.
+- Added a small bounded FastAPI surface plus same-origin WorkOS heartbeat/context/typing routes; browser code receives no reusable bearer token.
+- Added a visible-tab 30-second heartbeat and shared 3-second presence/typing hook; typing is emitted only for focused non-empty composers and is best-effort cleared on stop/hide/unmount.
+- Added channel online counts, accessible typing status, and participant-only DM Online/Offline + typing indicators without exposing exact last-seen timestamps.
+- Added migration `20260919_0031`, expiry/concurrency/revocation/guest/no-audit backend regressions, frontend privacy contracts, UAT, demo and traceability.
+
+Verification is not claimed as passed. `S-10.14.01` remains `IN_REVIEW` pending executable PostgreSQL migration round-trip, Ruff/Pytest, frontend lint/build/source contracts, delivery verifier and authenticated WorkOS two-user timing/privacy UAT.
+
+
+
 ### Increment 29 — Governed Channel Attachments
 
 - Connected native channel/root/thread messages to the existing governed EvidenceSource ingestion pipeline instead of introducing another file store.
