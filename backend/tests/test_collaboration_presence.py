@@ -309,6 +309,9 @@ def test_expired_and_cleared_typing_never_appear(
     expired = _context(client, organization, owner, "channel", channel["id"])
     assert expired.status_code == 200
     assert expired.json()["typing_users"] == []
+    assert db_session.get(CollaborationTypingLease, lease.id) is not None
+
+    assert _heartbeat(client, organization, owner).status_code == 200
     assert db_session.get(CollaborationTypingLease, lease.id) is None
 
     assert _typing(
