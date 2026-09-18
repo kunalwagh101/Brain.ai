@@ -62,6 +62,7 @@ from app.native_conversation import (
     unpin_message,
     visible_message,
 )
+from app.native_conversation_models import NativeMessagePin
 from app.permissions import AuthorizationContext, Permission, require_organization_permission
 
 router = APIRouter(
@@ -300,7 +301,7 @@ def _message_reads(
 
 def _pin_reads(
     db: Session,
-    rows: list[tuple[object, NativeMessage]],
+    rows: list[tuple[NativeMessagePin, NativeMessage]],
     user_id: uuid.UUID,
 ) -> list[PinnedMessageRead]:
     if not rows:
