@@ -175,3 +175,30 @@ Rollback: remove the live client/BFF/template integration. Existing channel/DM/A
 Leading indicators: authorised state change detected <=5 seconds in visible-tab UAT; unnecessary refreshes on identical revision = 0; browser bearer-token exposure = 0; revoked-source stale rendering after next check = 0.
 
 Done boundary: repository implementation may move to `IN_REVIEW` after source-contract tests/docs are staged. `DONE` still requires executable frontend gates/verifier plus official WorkOS authenticated multi-user browser timing, revoke, offline/backoff and accessibility UAT.
+
+
+## Increment 27 readiness record — S-10.11.01
+
+Decision: `READY` for repository implementation on 2026-09-18, then eligible to pull under the board WIP limit.
+
+Problem and baseline: the workspace visually labels Ask Brain with a `⌘K` affordance, but there is no actual global search/quick-switcher interaction. Users must scan channels/projects/DMs manually, and permission-aware Search is not exposed as a fast workspace navigation primitive. Baseline keyboard search-to-open capability is 0.
+
+AI decision: no new AI is needed. Existing permission-aware keyword search is the correct baseline for fast deterministic navigation. Hybrid/embedding search remains available to Ask Brain and explicit retrieval flows, but a command palette should not depend on embedding-provider latency or availability.
+
+Architecture decision: reuse S-05.01 SearchDocument and current source authorization. Use already-loaded workspace navigation for instant local channel/project/track/DM-person matching. For content/evidence queries >=2 characters, use a same-origin WorkOS BFF that calls the existing FastAPI `/search?mode=keyword` endpoint server-side. Do not build a second index.
+
+Privacy boundary: Brain-native channel messages are already projected to permission-aware SearchDocument through the native-chat evidence path. Direct-message bodies are deliberately excluded from organisation-wide Search/Ask Brain and remain excluded here. Only DM counterpart metadata already visible to the participant may be locally matched for navigation.
+
+Dependencies: S-05.01.01 provides the search contract but remains `IN_REVIEW` pending executable acceptance. S-10.02.01, S-10.06.01 and S-10.06.02 provide workspace navigation/channel/DM contracts. S-10.04 remains the external authenticated-browser gate.
+
+Open questions: none that changes this slice. Fuzzy people-directory search, message-edit search semantics and participant-scoped AI over DMs are separate future scope and must not be silently absorbed.
+
+Security boundary: all remote search executes server-side with the current WorkOS token and existing Brain authorization. Client code never receives a reusable bearer token. BFF input is bounded and normalised. Restricted/revoked evidence is filtered by the existing live authorization predicate on every search request.
+
+Performance boundary: local navigation filtering is immediate. Remote keyword search is debounced at 250 ms, requires >=2 characters, is capped at 12 results and may be cancelled when the query changes. No search request is issued for an empty query.
+
+Rollback: remove the client dialog/BFF/template wiring. SearchDocument and existing retrieval behaviour are unchanged.
+
+Leading indicators: keyboard-open works; median search-to-target time falls; unauthorised result exposure = 0; organisation-wide DM-content search results = 0; browser bearer-token exposure = 0.
+
+Done boundary: repository implementation may move to `IN_REVIEW` after source contracts/docs are staged. `DONE` requires executable frontend/search/verifier evidence plus official WorkOS authenticated browser UAT for keyboard, revocation, private-source isolation and exact Brain-message navigation.
