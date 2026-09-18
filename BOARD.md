@@ -44,13 +44,30 @@ IN_REVIEW | S-10.10.01 | F-10.10 | Opaque authorised live revision, same-origin 
 IN_REVIEW | S-10.11.01 | F-10.11 | Keyboard-first quick switcher, membership-validated same-origin keyword search, exact authorised Brain-message deep links, restricted-channel revoke regression and DM-content exclusion regression are implementation-staged; executable backend/frontend/verifier and authenticated WorkOS keyboard/privacy UAT remain outstanding
 IN_REVIEW | S-10.12.01 | F-10.12 | Author-only edit/retract, expected-revision conflicts, immutable RawEvent/CanonicalEvent lifecycle revisions, retired Search versions, tombstones, historical restricted-evidence access cleanup and governed revision retention are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.13.01 | F-10.13 | Governed EvidenceSource channel uploads, live restricted membership, tenant-scoped attachment relations, file-only messages, bounded WorkOS multipart UI, retry-safe composer and deletion/retraction independence are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
-IN_PROGRESS | S-10.14.01 | F-10.14 | Ephemeral channel/DM presence and typing slice pulled after Ready review; no durable last-seen/history, current permissions remain authoritative
+IN_REVIEW | S-10.14.01 | F-10.14 | Ephemeral 75s presence + 8s typing leases, read-only authorised polling, restricted-channel/participant-only DM privacy, audit-free traffic, same-origin WorkOS BFF and focused-composer UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 
-### S-10.14.01 Ephemeral Presence & Typing — IN_PROGRESS
+### S-10.14.01 Ephemeral Presence & Typing — IN_REVIEW
 
 Sprint goal: make native channels and participant-only DMs feel live by exposing only current authorised online/typing state through expiring leases, without creating employee activity history or a new realtime infrastructure dependency.
 
-Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-30.md` and `UAT/F-10.14.md`. WIP after pull: one `IN_PROGRESS` story.
+Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-30.md` and `UAT/F-10.14.md`.
+
+Implementation staged:
+
+- one short-lived presence row per organisation/user; no durable last-seen or append-only activity history;
+- one exact channel-or-DM typing lease per user/context with database-level scoped foreign keys;
+- 75-second presence and 8-second typing expiry;
+- current restricted-channel visibility/write membership is rechecked on every context read/write;
+- 1:1 DM presence/typing is participant-only with no Owner/Admin role override;
+- presence polling is read-only, batched for restricted channels and sleeps while hidden/offline;
+- heartbeat/typing writes opportunistically purge expired leases;
+- normal presence/typing traffic deliberately creates no organisation-wide SecurityAuditEvent history;
+- same-origin WorkOS heartbeat/context/typing BFF routes expose no reusable browser bearer token;
+- visible-tab heartbeat runs every 30 seconds; typing refresh is throttled to 3 seconds and requires focused non-empty composer input;
+- channel online count/accessibility typing status and participant-only DM Online/Offline + typing UI are staged;
+- migration `20260919_0031`, focused backend regressions, frontend privacy contracts, UAT/demo/changelog/retro/traceability are staged.
+
+Formal state: `IN_REVIEW`. No executable PostgreSQL/Ruff/Pytest/frontend/verifier/WorkOS browser PASS is claimed. WIP after review move: zero `IN_PROGRESS` stories.
 
 ### S-10.13.01 Governed Channel Attachments — IN_REVIEW
 
