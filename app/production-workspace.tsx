@@ -15,6 +15,7 @@ import {
   listProjectStatuses,
   listRuntimeOptions,
   listWorkspaceNavigation,
+  type NativeMessage,
 } from "./brain-api";
 import { listDirectConversations, listDirectMessages } from "./direct-message-api";
 import { computeLiveRevision } from "./live-updates-api";
@@ -151,7 +152,7 @@ export async function ProductionWorkspace({
       ])
     : [[], []];
 
-  let requestedNativeMessage = null;
+  let requestedNativeMessage: NativeMessage | null = null;
   let nativeMessages = nativeMessageRows;
   if (selectedChannel && requestedMessageId) {
     try {
