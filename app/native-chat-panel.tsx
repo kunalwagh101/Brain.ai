@@ -955,6 +955,7 @@ export function NativeChatPanel({
 
   async function openPinned(pin: NativeMessagePin) {
     const message = pin.message;
+    setPinsOpen(false);
     if (!message.thread_root_id) {
       setThreadRoot(null);
       setThreadReplies([]);
@@ -1200,7 +1201,11 @@ export function NativeChatPanel({
                     </p>
                   </div>
                   <div>
-                    <button onClick={() => void openPinned(pin)} type="button">
+                    <button
+                      disabled={Boolean(pin.message.thread_root_id && !conversationEndpoint)}
+                      onClick={() => void openPinned(pin)}
+                      type="button"
+                    >
                       {pin.message.thread_root_id ? "Open thread" : "Open message"}
                     </button>
                     {channel.can_post && conversationEndpoint ? (
