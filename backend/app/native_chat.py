@@ -1060,6 +1060,7 @@ def post_user_message(
             or root.organization_id != organization_id
             or root.channel_id != channel_id
             or root.thread_root_id is not None
+            or root.deleted_at is not None
         ):
             raise NativeChatError("thread_root_not_found", "Thread root not found")
     normalized_body = normalize_message_body(body)
