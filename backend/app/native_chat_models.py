@@ -45,6 +45,11 @@ class NativeMessageProjectionStatus(StrEnum):
     FAILED = "failed"
 
 
+class NativeMessageRevisionAction(StrEnum):
+    EDIT = "edit"
+    RETRACT = "retract"
+
+
 class NativeChannel(Base):
     __tablename__ = "native_channels"
     __table_args__ = (
@@ -193,6 +198,7 @@ class NativeMessage(Base):
             ondelete="CASCADE",
         ),
         CheckConstraint("body_char_count > 0", name="ck_native_message_body_chars"),
+        CheckConstraint("revision >= 1", name="ck_native_message_revision_positive"),
         CheckConstraint(
             "(actor_kind = 'user' AND author_user_id IS NOT NULL AND agent_run_id IS NULL) OR "
             "(actor_kind = 'agent' AND author_user_id IS NULL AND agent_run_id IS NOT NULL)",
@@ -233,6 +239,11 @@ class NativeMessage(Base):
     body: Mapped[str] = mapped_column(Text, nullable=False)
     body_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     body_char_count: Mapped[int] = mapped_column(nullable=False)
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default="1", nullable=False
+    )
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
     raw_event_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("raw_events.id", ondelete="SET NULL"), nullable=True
@@ -251,6 +262,59 @@ class NativeMessage(Base):
         nullable=False,
     )
     last_error_code: Mapped[str | None] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class NativeMessageRevision(Base):
+    __tablename__ = "native_message_revisions"
+    __table_args__ = (
+        UniqueConstraint(
+            "message_id",
+            "revision",
+            name="uq_native_message_revision_message_revision",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "channel_id", "message_id"],
+            [
+                "native_messages.organization_id",
+                "native_messages.channel_id",
+                "native_messages.id",
+            ],
+            name="fk_native_message_revision_message_scope",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("revision >= 1", name="ck_native_message_revision_snapshot_positive"),
+        CheckConstraint("body_char_count > 0", name="ck_native_message_revision_body_chars"),
+        Index(
+            "ix_native_message_revision_org_message_created",
+            "organization_id",
+            "message_id",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    channel_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    message_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    action: Mapped[NativeMessageRevisionAction] = mapped_column(
+        Enum(
+            NativeMessageRevisionAction,
+            native_enum=False,
+            length=16,
+            values_callable=_enum_values,
+        ),
+        nullable=False,
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    body_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    body_char_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    changed_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
