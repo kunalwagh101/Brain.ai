@@ -115,7 +115,11 @@ function MessageCard({
   onReaction: (message: NativeMessage, reaction: string) => void;
 }) {
   return (
-    <article className={styles.message} data-agent={message.actor_kind === "agent" || undefined}>
+    <article
+      className={styles.message}
+      data-agent={message.actor_kind === "agent" || undefined}
+      id={`message-${message.id}`}
+    >
       <span className={styles.avatar} data-agent={message.actor_kind === "agent" || undefined}>
         {message.actor_kind === "agent" ? "AI" : initials(message.actor_display_name)}
       </span>
@@ -179,6 +183,7 @@ function MessageCard({
 export function NativeChatPanel({
   channel,
   messages,
+  requestedMessage,
   members,
   mutationEndpoint,
   memberEndpoint,
@@ -186,6 +191,7 @@ export function NativeChatPanel({
 }: {
   channel: NativeChannel;
   messages: NativeMessage[];
+  requestedMessage: NativeMessage | null;
   members: NativeChannelMember[];
   mutationEndpoint: string | null;
   memberEndpoint: string | null;
@@ -193,6 +199,7 @@ export function NativeChatPanel({
 }) {
   const router = useRouter();
   const threadHeading = useRef<HTMLHeadingElement>(null);
+  const handledDeepLink = useRef<string | null>(null);
   const [rootMessages, setRootMessages] = useState(messages);
   const [body, setBody] = useState("");
   const [threadRoot, setThreadRoot] = useState<NativeMessage | null>(null);
@@ -216,6 +223,50 @@ export function NativeChatPanel({
       return messages.find((message) => message.id === current.id) ?? current;
     });
   }, [messages]);
+
+  useEffect(() => {
+    if (!requestedMessage || handledDeepLink.current === requestedMessage.id) return;
+
+    if (!requestedMessage.thread_root_id) {
+      handledDeepLink.current = requestedMessage.id;
+      requestAnimationFrame(() => {
+        document.getElementById(`message-${requestedMessage.id}`)?.scrollIntoView({
+          block: "center",
+        });
+      });
+      return;
+    }
+
+    if (!conversationEndpoint) return;
+    const root = rootMessages.find((message) => message.id === requestedMessage.thread_root_id);
+    if (!root) return;
+
+    handledDeepLink.current = requestedMessage.id;
+    const controller = new AbortController();
+    setThreadRoot(root);
+    setThreadLoading(true);
+    void fetch(
+      `${conversationEndpoint}/messages/${encodeURIComponent(root.id)}/replies`,
+      { credentials: "same-origin", cache: "no-store", signal: controller.signal },
+    )
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`thread_deep_link_${response.status}`);
+        setThreadReplies(await response.json() as NativeMessage[]);
+        requestAnimationFrame(() => {
+          document.getElementById(`message-${requestedMessage.id}`)?.scrollIntoView({
+            block: "center",
+          });
+        });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setStatus({ kind: "error", text: "The linked thread is no longer available." });
+        }
+      })
+      .finally(() => setThreadLoading(false));
+
+    return () => controller.abort();
+  }, [conversationEndpoint, requestedMessage, rootMessages]);
 
   useEffect(() => {
     if (!threadRootId) return;
