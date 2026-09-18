@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import { getActivity, type ActivitySummary } from "./activity-api";
 import {
   listNativeChannels,
@@ -34,7 +32,7 @@ function byId<T extends { id: string }>(rows: T[]): T[] {
   return [...rows].sort((left, right) => left.id.localeCompare(right.id));
 }
 
-export function computeLiveRevision(input: LiveRevisionInput): string {
+export async function computeLiveRevision(input: LiveRevisionInput): Promise<string> {
   const payload = {
     activity: byId(input.activity.items).map((item) => [
       item.id,
@@ -78,7 +76,9 @@ export function computeLiveRevision(input: LiveRevisionInput): string {
     ]),
   };
 
-  return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 export async function getLiveWorkspaceState(
@@ -111,7 +111,7 @@ export async function getLiveWorkspaceState(
   ]);
 
   return {
-    revision: computeLiveRevision({
+    revision: await computeLiveRevision({
       activity,
       channels,
       unread,
