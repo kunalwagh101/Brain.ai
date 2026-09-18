@@ -274,6 +274,13 @@ Acceptance: Given a current organisation member, when Activity is opened, then e
 Dependencies: S-10.06.01, S-10.06.02, S-10.07.01, S-10.08.01, S-08.01.01, S-07.01.01. Blocking risk: repository implementation can reach IN_REVIEW, but DONE still requires executable backend/frontend/verifier evidence, PostgreSQL migration round-trip and authenticated S-10.04 WorkOS multi-user browser UAT. Size: L. Leading indicator: unread-to-source-open conversion and notification action completion. Business value: E-10. Priority: P1.  
 Tasks: T-10.09.01.a reference-only notification/preference schema and migration convergence; T-10.09.01.b permission-rechecking materialisation for collaboration/agent/project/integration events; T-10.09.01.c read/unread and preference APIs with idempotency/concurrency safety; T-10.09.01.d exact deep-link contract and same-origin WorkOS BFF routes; T-10.09.01.e responsive accessible Activity dock/panel; T-10.09.01.f security/privacy/idempotency/migration/frontend tests; T-10.09.01.g docs/UAT/demo/rollback evidence.
 
+#### F-10.10 Live workspace updates
+**S-10.10.01 — Refresh active conversations and Activity without manual reload**  
+As a Brain user, I want active channels, direct messages, unread badges and Activity to update automatically, so that collaboration feels live instead of requiring repeated manual refreshes.  
+Acceptance: Given an authenticated visible workspace, when currently authorised channel/message/reaction/reply/DM/Activity state changes, then the browser detects the new authorised state within 5 seconds while the tab is visible and refreshes the server-rendered workspace without exposing a reusable backend token; Given the tab is hidden, offline or the live check fails, then checks back off to a bounded slower interval and recover automatically without a refresh storm; Given a restricted channel or DM is revoked, when the next live check runs, then the refreshed workspace removes the inaccessible source rather than keeping stale content; Given a selected channel reaction or reply-count changes, when the live revision changes, then the channel surface refreshes; Given a thread is open, when its permitted replies change, then the thread re-fetches through the existing same-origin conversation route without client bearer-token access; Given the live state endpoint is called, then it returns only an opaque revision and safe counters, never message bodies, DM text, credentials, agent arguments/results or private evidence excerpts; Given the same source state is polled repeatedly, then the opaque revision remains stable and no unnecessary router refresh is triggered; Given the current user loses organisation membership, then the same-origin live route fails closed and no cross-tenant or stale state is returned.  
+Dependencies: S-10.06.01, S-10.06.02, S-10.09.01, S-10.04.01 server-session boundary. Blocking risk: final authenticated browser timing/security acceptance depends on official S-10.04 WorkOS activation, but repository implementation can reach IN_REVIEW without inventing a WebSocket infrastructure dependency. Size: M. Leading indicator: manual-refresh-free conversation update success and live refresh error rate. Business value: E-10. Priority: P1.  
+Tasks: T-10.10.01.a stable permission-aware live revision over existing server APIs; T-10.10.01.b same-origin WorkOS live-state BFF; T-10.10.01.c adaptive visible/hidden/offline polling with bounded backoff; T-10.10.01.d channel/thread/DM/Activity refresh integration; T-10.10.01.e security/no-token/no-content-leak tests; T-10.10.01.f docs/UAT/demo and measured browser timing acceptance.
+
 ## Requirements -> Backlog coverage
 
 | Requirement | Backlog IDs |
@@ -321,6 +328,8 @@ Tasks: T-10.09.01.a reference-only notification/preference schema and migration 
 | Integration failure notifications | S-02.01.01, S-10.08.01, S-10.09.01 |
 | Notification read/unread state and preferences | S-10.09.01 |
 | Notification deep links to exact source context | S-10.09.01 |
+| Automatic live workspace refresh | S-10.10.01 |
+| Live channel, thread, DM and Activity updates without browser bearer tokens | S-10.06.01, S-10.06.02, S-10.09.01, S-10.10.01 |
 | CI and lie-detector verifier | S-09.03.01 |
 | Agile/Scrum/Kanban artifacts | S-09.03.01 |
 
