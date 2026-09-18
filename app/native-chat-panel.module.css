@@ -203,6 +203,22 @@
   font-size: 10px;
 }
 
+.editedMarker {
+  color: #7f8998;
+  font-size: 10px;
+  font-style: italic;
+}
+
+.message[data-deleted="true"] {
+  opacity: .78;
+}
+
+.tombstone {
+  margin: 5px 0 0;
+  color: #7f8998;
+  font-style: italic;
+}
+
 .projection[data-status="failed"] {
   border-color: #6a3f45;
   color: #e6949c;
@@ -276,6 +292,89 @@
 .messageActions button:disabled {
   opacity: .45;
   cursor: default;
+}
+
+.editForm {
+  display: grid;
+  gap: 7px;
+  margin-top: 6px;
+}
+
+.editForm label {
+  color: #8f99a7;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.editForm textarea {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  border: 1px solid #353c49;
+  border-radius: 8px;
+  background: #11161e;
+  color: #edf0f5;
+  padding: 9px;
+  font: inherit;
+  line-height: 1.45;
+}
+
+.editForm textarea:focus-visible {
+  border-color: #776bf7;
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+}
+
+.editForm > div,
+.retractConfirm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.editForm > div > span {
+  margin-right: auto;
+  color: #747e8d;
+  font-size: 10px;
+}
+
+.editForm button,
+.retractConfirm button {
+  min-height: 30px;
+  border: 1px solid #3a4250;
+  border-radius: 7px;
+  background: #181d26;
+  color: #c2c9d3;
+  padding: 4px 9px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.editForm button:focus-visible,
+.retractConfirm button:focus-visible {
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+}
+
+.retractConfirm {
+  margin-top: 8px;
+  padding: 8px 9px;
+  border: 1px solid #55373d;
+  border-radius: 8px;
+  background: #1a1215;
+}
+
+.retractConfirm span {
+  flex: 1 1 240px;
+  color: #d6b3b7;
+  font-size: 11px;
+}
+
+.lifecycleError {
+  margin: 7px 0 0;
+  color: #ef9aa2;
+  font-size: 11px;
 }
 
 .threadButton {
