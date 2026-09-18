@@ -218,7 +218,7 @@ export function NativeChatPanel({
   }, [messages]);
 
   useEffect(() => {
-    if (!threadRoot) return;
+    if (!threadRootId) return;
     threadHeading.current?.focus();
   }, [threadRootId]);
 
