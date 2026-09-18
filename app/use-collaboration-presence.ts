@@ -11,11 +11,18 @@ export type CollaborationPresenceUser = {
 };
 
 export type CollaborationPresenceState = {
+  loaded: boolean;
+  online_users: CollaborationPresenceUser[];
+  typing_users: CollaborationPresenceUser[];
+};
+
+type CollaborationPresencePayload = {
   online_users: CollaborationPresenceUser[];
   typing_users: CollaborationPresenceUser[];
 };
 
 const EMPTY_STATE: CollaborationPresenceState = {
+  loaded: false,
   online_users: [],
   typing_users: [],
 };
@@ -72,12 +79,12 @@ export function useCollaborationPresence(
           schedule(5_000);
           return;
         }
-        const next = await response.json() as CollaborationPresenceState;
+        const next = await response.json() as CollaborationPresencePayload;
         if (!Array.isArray(next.online_users) || !Array.isArray(next.typing_users)) {
           schedule(5_000);
           return;
         }
-        setState(next);
+        setState({ loaded: true, ...next });
         schedule();
       } catch {
         if (requestController.signal.aborted || stopped) return;
