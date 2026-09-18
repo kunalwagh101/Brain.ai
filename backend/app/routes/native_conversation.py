@@ -456,6 +456,7 @@ def _send(
         idempotency_key=idempotency_key,
         thread_root_id=thread_root_id,
         request_id=request_id,
+        attachment_source_ids=attachment_source_ids,
     )
     return message
 
