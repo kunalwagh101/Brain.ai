@@ -2,12 +2,14 @@ import {
   createNativeChannel,
   editNativeMessage,
   inviteNativeChannelMember,
+  listNativePins,
   listNativeReplies,
   markNativeChannelRead,
   retractNativeMessage,
   revokeNativeChannelMember,
   sendNativeMessage,
   sendNativeReply,
+  setNativePin,
   setNativeReaction,
   uploadNativeChannelAttachment,
   type NativeAttachment,
@@ -16,6 +18,7 @@ import {
   type NativeChannelMember,
   type NativeChannelUnread,
   type NativeMessage,
+  type NativeMessagePin,
   type NativeReaction,
 } from "./brain-api";
 import {
@@ -383,6 +386,36 @@ export async function handleNativeMemberRevokeBff(
     organizationId,
     channelId,
     userId,
+  );
+}
+
+
+export async function handleNativePinsListBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+): Promise<NativeMessagePin[]> {
+  await requireChatReader(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  return listNativePins(accessToken, organizationId, channelId, 50);
+}
+
+export async function handleNativePinBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  messageId: string,
+  active: boolean,
+): Promise<NativeMessagePin | void> {
+  await requireChatWriter(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  normalizedUuid(messageId, "messageId");
+  return setNativePin(
+    accessToken,
+    organizationId,
+    channelId,
+    messageId,
+    active,
   );
 }
 
