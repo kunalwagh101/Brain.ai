@@ -256,6 +256,15 @@ def _assert_typing_allowed(
     context_kind: CollaborationContextKind,
     context_id: uuid.UUID,
 ) -> None:
+    if not _chat_capable_member(
+        db,
+        organization_id=organization_id,
+        user_id=user_id,
+    ):
+        raise CollaborationPresenceError(
+            "presence_not_available",
+            "Presence is not available for this account",
+        )
     if context_kind == CollaborationContextKind.CHANNEL:
         channel = get_visible_channel(
             db,
@@ -590,6 +599,15 @@ def get_context_presence(
     context_id: uuid.UUID,
     at: datetime | None = None,
 ) -> CollaborationContextView:
+    if not _chat_capable_member(
+        db,
+        organization_id=organization_id,
+        user_id=current_user_id,
+    ):
+        raise CollaborationPresenceError(
+            "presence_not_available",
+            "Presence is not available for this account",
+        )
     current = _now(at)
     _purge_expired(db, organization_id=organization_id, at=current)
     db.commit()
