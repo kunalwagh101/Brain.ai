@@ -1,12 +1,12 @@
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import { NextRequest, NextResponse } from "next/server";
-import { BrainApiError } from "../../../../../../../../brain-api";
+import { BrainApiError } from "../../../../../../../brain-api";
 import {
   CollaborationPresenceBffError,
   handlePresenceContext,
   handleTypingState,
-} from "../../../../../../../../collaboration-presence-bff";
-import { rejectCrossSiteMutation } from "../../../../../../../../native-chat-route";
+} from "../../../../../../../collaboration-presence-bff";
+import { rejectCrossSiteMutation } from "../../../../../../../native-chat-route";
 
 const SAFE_UPSTREAM_STATUSES = new Set([400, 401, 403, 404, 409, 422, 429, 503]);
 
