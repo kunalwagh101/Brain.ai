@@ -113,6 +113,7 @@ mkdir -p \
   'app/api/brain/organizations/[organizationId]/evidence/[sourceId]' \
   'app/api/brain/organizations/[organizationId]/native-channels' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages' \
+  'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/attachments/uploads' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[rootMessageId]/replies' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/reaction' \
@@ -139,6 +140,7 @@ cp docs/workos-activation/app-api-brain-evidence-upload-route.ts.template 'app/a
 cp docs/workos-activation/app-api-brain-evidence-delete-route.ts.template 'app/api/brain/organizations/[organizationId]/evidence/[sourceId]/route.ts'
 cp docs/workos-activation/app-api-brain-native-channels-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/route.ts'
 cp docs/workos-activation/app-api-brain-native-messages-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/route.ts'
+cp docs/workos-activation/app-api-brain-native-attachment-upload-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/attachments/uploads/route.ts'
 cp docs/workos-activation/app-api-brain-native-replies-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[rootMessageId]/replies/route.ts'
 cp docs/workos-activation/app-api-brain-native-message-lifecycle-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/route.ts'
 cp docs/workos-activation/app-api-brain-native-reaction-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/reaction/route.ts'
@@ -175,3 +177,4 @@ echo "Complete UAT/F-10.09.md before marking S-10.09.01 DONE or accepted."
 echo "Complete UAT/F-10.10.md before marking S-10.10.01 DONE or accepted."
 echo "Complete UAT/F-10.11.md before marking S-10.11.01 DONE or accepted."
 echo "Complete UAT/F-10.12.md before marking S-10.12.01 DONE or accepted."
+echo "Complete UAT/F-10.13.md before marking S-10.13.01 DONE or accepted."
