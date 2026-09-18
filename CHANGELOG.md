@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Increment 27 — Workspace Search & Quick Switcher
+
+- Added a keyboard-first Ctrl+K/Cmd+K workspace search dialog with instant local switching across currently visible Brain channels, projects, tracks and participant-visible DM counterparts.
+- Reused the existing S-05.01 SearchDocument/RBAC path for remote message/evidence search in deterministic keyword mode; no second search engine or index was introduced.
+- Added a same-origin WorkOS search BFF with current membership validation, 2–120 character query bounds, a 12-result cap, safe errors and bounded 280-character result excerpts.
+- Added exact Brain-native message navigation through a new permission-aware single-message read; deep links now load/authorise the target, open its thread when required and address individual message cards.
+- Added restricted-channel search/revocation regression coverage and an executable negative proving Brain-native DM bodies never enter organisation-wide search.
+- Kept DM counterpart metadata locally navigable for participants while preserving the resolved no-employer-wide-DM-search boundary.
+- Added WorkOS activation wiring, frontend source contracts, UAT, planning and demo artifacts.
+
+Verification is not yet claimed. `S-10.11.01` remains `IN_REVIEW` until backend/frontend/verifier execution and authenticated WorkOS keyboard/revocation/private-source UAT pass.
+
+
 ### Increment 26 — Live workspace updates
 
 - Added an opaque server-side live revision built from already-authorised Activity, visible channel/access metadata, unread cursors, selected-channel message/reply/reaction affordances and participant-visible DM state.
