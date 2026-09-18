@@ -13,7 +13,11 @@ from app.collaboration_presence_models import (
 )
 from app.direct_message_models import DirectConversation
 from app.models import Membership, User
-from app.native_chat import can_read_channel, can_write_channel, get_visible_channel
+from app.native_chat import can_write_channel, get_visible_channel
+from app.native_chat_models import (
+    NativeChannelMembership,
+    NativeChannelVisibility,
+)
 from app.permissions import Permission, role_has_permission
 
 PRESENCE_TTL_SECONDS = 75
@@ -460,8 +464,28 @@ def _typing_users_for_channel(
             "context_not_found",
             "Collaboration context not found",
         )
+    writable_user_ids: set[uuid.UUID] | None = None
+    if channel.visibility == NativeChannelVisibility.RESTRICTED:
+        writable_user_ids = set(
+            db.scalars(
+                select(NativeChannelMembership.user_id).where(
+                    NativeChannelMembership.organization_id == organization_id,
+                    NativeChannelMembership.channel_id == channel_id,
+                    NativeChannelMembership.revoked_at.is_(None),
+                    NativeChannelMembership.access == "write",
+                )
+            )
+        )
     rows = db.execute(
-        select(CollaborationTypingLease, User)
+        select(CollaborationTypingLease, Membership, User)
+        .join(
+            Membership,
+            and_(
+                Membership.organization_id
+                == CollaborationTypingLease.organization_id,
+                Membership.user_id == CollaborationTypingLease.user_id,
+            ),
+        )
         .join(User, User.id == CollaborationTypingLease.user_id)
         .where(
             CollaborationTypingLease.organization_id == organization_id,
@@ -472,11 +496,19 @@ def _typing_users_for_channel(
             User.status == "active",
         )
     ).all()
-    return [
-        CollaborationUserView(user_id=user.id, display_name=_display_name(user))
-        for lease, user in rows
-        if can_write_channel(db, channel, user_id=lease.user_id)
-    ]
+    result: list[CollaborationUserView] = []
+    for lease, membership, user in rows:
+        if not role_has_permission(membership.role, Permission.NATIVE_CHAT_WRITE):
+            continue
+        if writable_user_ids is not None and lease.user_id not in writable_user_ids:
+            continue
+        result.append(
+            CollaborationUserView(
+                user_id=user.id,
+                display_name=_display_name(user),
+            )
+        )
+    return result
 
 
 def _channel_context(
@@ -499,6 +531,18 @@ def _channel_context(
             "Collaboration context not found",
         )
 
+    readable_user_ids: set[uuid.UUID] | None = None
+    if channel.visibility == NativeChannelVisibility.RESTRICTED:
+        readable_user_ids = set(
+            db.scalars(
+                select(NativeChannelMembership.user_id).where(
+                    NativeChannelMembership.organization_id == organization_id,
+                    NativeChannelMembership.channel_id == channel_id,
+                    NativeChannelMembership.revoked_at.is_(None),
+                )
+            )
+        )
+
     online: list[CollaborationUserView] = []
     for lease, membership, user in _active_presence_users(
         db,
@@ -507,13 +551,14 @@ def _channel_context(
     ):
         if not role_has_permission(membership.role, Permission.NATIVE_CHAT_WRITE):
             continue
-        if can_read_channel(db, channel, user_id=lease.user_id):
-            online.append(
-                CollaborationUserView(
-                    user_id=user.id,
-                    display_name=_display_name(user),
-                )
+        if readable_user_ids is not None and lease.user_id not in readable_user_ids:
+            continue
+        online.append(
+            CollaborationUserView(
+                user_id=user.id,
+                display_name=_display_name(user),
             )
+        )
     online.sort(key=lambda item: (item.display_name.casefold(), item.user_id.hex))
     typing = _typing_users_for_channel(
         db,
@@ -609,8 +654,6 @@ def get_context_presence(
             "Presence is not available for this account",
         )
     current = _now(at)
-    _purge_expired(db, organization_id=organization_id, at=current)
-    db.commit()
     if context_kind == CollaborationContextKind.CHANNEL:
         return _channel_context(
             db,
