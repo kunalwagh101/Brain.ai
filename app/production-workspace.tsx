@@ -20,6 +20,7 @@ import {
 import { listDirectConversations, listDirectMessages } from "./direct-message-api";
 import { computeLiveRevision } from "./live-updates-api";
 import { LiveWorkspaceRefresh } from "./live-workspace-refresh";
+import { PresenceHeartbeat } from "./presence-heartbeat";
 import { WorkspaceShell } from "./workspace-shell";
 
 const ADMIN_ROLES = new Set(["owner", "admin"]);
@@ -45,6 +46,7 @@ export async function ProductionWorkspace({
   enableAgentWorkspaceBff = false,
   enableLiveUpdatesBff = false,
   enableWorkspaceSearchBff = false,
+  enableCollaborationPresenceBff = false,
   signOutAction,
 }: {
   accessToken: string;
@@ -61,6 +63,7 @@ export async function ProductionWorkspace({
   enableAgentWorkspaceBff?: boolean;
   enableLiveUpdatesBff?: boolean;
   enableWorkspaceSearchBff?: boolean;
+  enableCollaborationPresenceBff?: boolean;
   signOutAction?: (formData: FormData) => Promise<void>;
 }) {
   const organizations = await listOrganizations(accessToken);
@@ -249,6 +252,21 @@ export async function ProductionWorkspace({
   const workspaceSearchEndpoint = enableWorkspaceSearchBff
     ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/search`
     : null;
+  const presenceMutationBase = (
+    enableCollaborationPresenceBff
+    && CHAT_WRITE_ROLES.has(organization.role)
+  )
+    ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/presence`
+    : null;
+  const presenceHeartbeatEndpoint = presenceMutationBase
+    ? `${presenceMutationBase}/heartbeat`
+    : null;
+  const channelPresenceEndpoint = selectedChannel && presenceMutationBase
+    ? `${presenceMutationBase}/channel/${encodeURIComponent(selectedChannel.id)}`
+    : null;
+  const directMessagePresenceEndpoint = selectedDirectConversation && presenceMutationBase
+    ? `${presenceMutationBase}/dm/${encodeURIComponent(selectedDirectConversation.id)}`
+    : null;
 
   return (
     <>
@@ -262,6 +280,9 @@ export async function ProductionWorkspace({
           endpoint={liveUpdatesEndpoint}
           initialRevision={liveRevision}
         />
+      ) : null}
+      {presenceHeartbeatEndpoint ? (
+        <PresenceHeartbeat endpoint={presenceHeartbeatEndpoint} />
       ) : null}
       <WorkspaceShell
         organization={organization}
@@ -291,9 +312,11 @@ export async function ProductionWorkspace({
         nativeMessageEndpoint={nativeMessageEndpoint}
         nativeMemberEndpoint={nativeMemberEndpoint}
         nativeConversationEndpoint={nativeConversationEndpoint}
+        channelPresenceEndpoint={channelPresenceEndpoint}
         canCreateNativeChannel={canCreateNativeChannel}
         directMessageCreateEndpoint={directMessageCreateEndpoint}
         directMessageSendEndpoint={directMessageSendEndpoint}
+        directMessagePresenceEndpoint={directMessagePresenceEndpoint}
         agentMutationBase={agentMutationBase}
         workspaceSearchEndpoint={workspaceSearchEndpoint}
         signOutAction={signOutAction}
