@@ -60,6 +60,9 @@ export async function computeLiveRevision(input: LiveRevisionInput): Promise<str
       message.created_at,
       message.projection_status,
       message.reply_count,
+      message.revision,
+      message.edited_at,
+      message.deleted_at,
       [...message.reactions]
         .sort((left, right) => left.reaction.localeCompare(right.reaction))
         .map((reaction) => [reaction.reaction, reaction.count, reaction.reacted_by_me]),
