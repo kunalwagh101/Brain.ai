@@ -148,3 +148,30 @@ Rollback: search projection and embeddings are derived/rebuildable. Migration do
 Leading indicators: unauthorised retrieval failures = 0; synthetic retrieval evaluation >=90% recall target; real-provider recall and p95 latency recorded in UAT before production acceptance.
 
 Current verification note: the project owner explicitly deferred local pytest and Render execution verification on 2026-09-10. This is a deferred acceptance gate, not a passing result; S-05.01.01 remains `IN_REVIEW` until evidence is captured.
+
+
+## Increment 26 readiness record — S-10.10.01
+
+Decision: `READY` for repository implementation on 2026-09-18, then eligible to pull under the board WIP limit.
+
+Problem and baseline: Brain's production workspace already has permission-aware server reads plus secure same-origin mutations, but collaboration changes are visible only after a mutation-triggered or manual `router.refresh()`. A second user posting, replying, reacting or sending a DM does not reliably appear in an already-open browser session without manual refresh. Baseline automatic cross-user refresh success is therefore 0%.
+
+AI decision: AI is not needed. This is deterministic delivery/state invalidation. An LLM or agent would add latency, cost and security risk without improving correctness.
+
+Architecture decision: do not add WebSockets, Redis, a message broker or a second event store before measured need. Reuse the existing permission-aware FastAPI reads behind the WorkOS server-session BFF. The browser receives only an opaque stable revision plus safe counters, polls adaptively while visible, slows while hidden/offline, and calls `router.refresh()` only when the revision changes. This keeps current server-side authorization as the source of truth and leaves the browser contract replaceable by SSE/WebSockets later without changing product semantics.
+
+Dependencies: S-10.06.01 conversation contracts, S-10.06.02 participant-only DM contracts and S-10.09.01 Activity contracts are implementation-staged in `IN_REVIEW`. S-10.04 remains externally blocked on real WorkOS activation; that blocks final authenticated browser acceptance, not repository implementation shape.
+
+Data/contracts known: current visible channel list, per-channel unread state, selected channel root-message affordances, participant-visible DM conversation/message state and the permission-filtered Activity summary. No new persistent data or migration is required.
+
+Open questions: none that changes the repository implementation shape. The 5-second visible-tab target is an engineering UX/SLO target for this slice, not a legal/business policy. WebSocket/SSE adoption is explicitly deferred until measured polling load or sub-second product requirements justify it.
+
+Security boundary: browser calls only same-origin WorkOS routes; reusable FastAPI/WorkOS bearer tokens stay server-side; live responses expose no message/DM bodies or secrets; every underlying read reuses current tenant/resource/participant authorization; membership loss or source revocation fails closed on the next check.
+
+Reliability/cost boundary: visible tabs poll at a bounded 4-second base interval; hidden tabs slow to 30 seconds; failures back off exponentially up to 30 seconds; offline state pauses aggressive checks; identical revisions do not refresh the React server tree. No new dependency or long-lived server connection is introduced.
+
+Rollback: remove the live client/BFF/template integration. Existing channel/DM/Activity state is unchanged because the feature persists no business data.
+
+Leading indicators: authorised state change detected <=5 seconds in visible-tab UAT; unnecessary refreshes on identical revision = 0; browser bearer-token exposure = 0; revoked-source stale rendering after next check = 0.
+
+Done boundary: repository implementation may move to `IN_REVIEW` after source-contract tests/docs are staged. `DONE` still requires executable frontend gates/verifier plus official WorkOS authenticated multi-user browser timing, revoke, offline/backoff and accessibility UAT.
