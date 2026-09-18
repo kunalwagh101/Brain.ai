@@ -52,6 +52,7 @@ class EvidenceSourceRead(BaseModel):
     id: uuid.UUID
     organization_id: uuid.UUID
     integration_connection_id: uuid.UUID
+    native_channel_id: uuid.UUID | None
     kind: EvidenceKind
     title: str
     filename: str
@@ -119,6 +120,7 @@ def _read_source(
         id=source.id,
         organization_id=source.organization_id,
         integration_connection_id=source.integration_connection_id,
+        native_channel_id=source.native_channel_id,
         kind=source.kind,
         title=source.title,
         filename=source.filename,
