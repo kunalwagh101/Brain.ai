@@ -407,3 +407,49 @@ def test_cross_tenant_message_ids_never_resolve(
     assert replies.status_code == 404
     assert reaction.status_code == 404
     assert read.status_code == 404
+
+
+def test_single_message_read_respects_current_channel_access(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, _ = _seed(db_session, "deep-link")
+    channel = _channel(client, organization, owner, visibility="restricted")
+
+    _as(owner)
+    invite = client.post(
+        f"/api/v1/organizations/{organization.id}/native-channels/{channel['id']}/members",
+        json={"email": member.email, "access": "read"},
+    )
+    assert invite.status_code == 201
+
+    message = _root(
+        client,
+        organization,
+        channel["id"],
+        owner,
+        "Exact deep-link target.",
+        "deep-link-target",
+    )
+    assert message.status_code == 201
+    message_id = message.json()["id"]
+    endpoint = (
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/messages/{message_id}"
+    )
+
+    _as(member)
+    visible = client.get(endpoint)
+    assert visible.status_code == 200
+    assert visible.json()["id"] == message_id
+
+    _as(owner)
+    revoked = client.delete(
+        f"/api/v1/organizations/{organization.id}/native-channels/"
+        f"{channel['id']}/members/{member.id}"
+    )
+    assert revoked.status_code == 204
+
+    _as(member)
+    hidden = client.get(endpoint)
+    assert hidden.status_code == 404
