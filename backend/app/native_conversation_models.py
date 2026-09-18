@@ -183,3 +183,41 @@ class NativeMessageAttachment(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class NativeMessagePin(Base):
+    __tablename__ = "native_message_pins"
+    __table_args__ = (
+        UniqueConstraint(
+            "channel_id",
+            "message_id",
+            name="uq_native_message_pin_channel_message",
+        ),
+        Index(
+            "ix_native_message_pin_org_channel_created",
+            "organization_id",
+            "channel_id",
+            "created_at",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "channel_id", "message_id"],
+            [
+                "native_messages.organization_id",
+                "native_messages.channel_id",
+                "native_messages.id",
+            ],
+            name="fk_native_message_pin_message_scope",
+            ondelete="CASCADE",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    channel_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    message_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    pinned_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
