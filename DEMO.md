@@ -319,3 +319,43 @@ Expected engineering evidence:
 - WorkOS activation installs the search route and preserves the `messageId` page context.
 
 Final demo: use two authenticated users. Search a restricted-channel sentinel as an authorised member, open the exact message, then revoke access and prove the same search no longer returns it. Search a unique DM-body sentinel and prove it never appears remotely. Exercise Ctrl+K/Cmd+K, Escape, focus, mobile layout and screen reader labelling. Follow `UAT/F-10.11.md`.
+
+
+## Increment 28 — Author-safe Message Lifecycle
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.12.01 is `IN_REVIEW`, not DONE.
+
+Commands from the repository root:
+
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_message_lifecycle.py tests/test_native_chat.py tests/test_native_conversation.py tests/test_data_governance.py
+alembic heads
+alembic upgrade head
+alembic downgrade 20260918_0027
+alembic upgrade head
+cd ..
+npm run lint
+npm run build
+node --test tests/message-lifecycle-contract.test.mjs
+node --test tests/*.test.mjs
+python scripts/verify_board.py
+```
+
+Expected evidence:
+
+- only the original current human author with current channel write access can edit/retract;
+- stale `expected_revision` returns conflict and never overwrites a newer edit;
+- every accepted lifecycle mutation snapshots the prior body/hash/evidence IDs and appends a new immutable native RawEvent + CanonicalEvent revision;
+- edited Search results cite the new canonical revision while prior SearchDocument versions are retired;
+- retraction produces a body/hash/mention/reaction-free API tombstone and all SearchDocument versions remain non-searchable;
+- mention reconciliation removes old mentions and materialises valid new mentions without duplicate current Activity;
+- retracted messages do not contribute to unread/channel Activity and cannot receive new reactions/replies/edits;
+- existing replies below a retracted root remain readable;
+- restricted-channel membership removal clears Work Graph grants for both current and historical revision evidence nodes;
+- revision plaintext obeys `derived_content_days` and legal hold;
+- browser mutations are same-origin, bounded and do not expose reusable bearer tokens;
+- S-10.10 live revision changes on edit/retract metadata without hashing or exposing message plaintext.
+
+Final browser demo: with two authenticated users, post/edit/search a unique sentinel, prove the result opens the new canonical-backed current message, trigger a stale edit conflict, retract it, prove Search/Activity/unread no longer surface content, verify existing thread replies remain, then remove a restricted member and confirm no historical revision evidence remains visible. Follow `UAT/F-10.12.md`.
