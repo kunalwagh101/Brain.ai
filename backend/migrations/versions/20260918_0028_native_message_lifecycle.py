@@ -45,6 +45,8 @@ def upgrade() -> None:
         sa.Column("body", sa.Text(), nullable=False),
         sa.Column("body_sha256", sa.String(length=64), nullable=False),
         sa.Column("body_char_count", sa.Integer(), nullable=False),
+        sa.Column("raw_event_id", sa.Uuid(), nullable=True),
+        sa.Column("canonical_event_id", sa.Uuid(), nullable=True),
         sa.Column("changed_by_user_id", sa.Uuid(), nullable=False),
         sa.Column(
             "created_at",
@@ -63,6 +65,16 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "action IN ('edit', 'retract')",
             name="ck_native_message_revision_action",
+        ),
+        sa.ForeignKeyConstraint(
+            ["raw_event_id"],
+            ["raw_events.id"],
+            ondelete="SET NULL",
+        ),
+        sa.ForeignKeyConstraint(
+            ["canonical_event_id"],
+            ["canonical_events.id"],
+            ondelete="SET NULL",
         ),
         sa.ForeignKeyConstraint(
             ["changed_by_user_id"],
