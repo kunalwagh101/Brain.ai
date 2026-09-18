@@ -13,20 +13,14 @@ from app.collaboration_presence import (
     set_typing,
     clear_typing,
 )
+from app.auth import get_current_user
 from app.database import get_db
-from app.permissions import (
-    AuthorizationContext,
-    Permission,
-    require_organization_permission,
-)
+from app.models import User
 
 router = APIRouter(
     prefix="/organizations/{organization_id}/collaboration-presence",
     tags=["collaboration-presence"],
 )
-_access = require_organization_permission(Permission.NATIVE_CHAT_WRITE)
-
-
 class CollaborationUserRead(BaseModel):
     user_id: uuid.UUID
     display_name: str
@@ -54,14 +48,14 @@ def _raise_presence_error(exc: CollaborationPresenceError) -> None:
 @router.post("/heartbeat", response_model=PresenceHeartbeatRead)
 def presence_heartbeat(
     organization_id: uuid.UUID,
-    access: Annotated[AuthorizationContext, Depends(_access)],
+    current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ) -> PresenceHeartbeatRead:
     try:
         heartbeat_presence(
             db,
             organization_id=organization_id,
-            user_id=access.user_id,
+            user_id=current_user.id,
         )
     except CollaborationPresenceError as exc:
         _raise_presence_error(exc)
@@ -76,14 +70,14 @@ def read_context_presence(
     organization_id: uuid.UUID,
     context_kind: CollaborationContextKind,
     context_id: uuid.UUID,
-    access: Annotated[AuthorizationContext, Depends(_access)],
+    current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ) -> CollaborationContextRead:
     try:
         view = get_context_presence(
             db,
             organization_id=organization_id,
-            current_user_id=access.user_id,
+            current_user_id=current_user.id,
             context_kind=context_kind,
             context_id=context_id,
         )
@@ -115,14 +109,14 @@ def refresh_typing(
     organization_id: uuid.UUID,
     context_kind: CollaborationContextKind,
     context_id: uuid.UUID,
-    access: Annotated[AuthorizationContext, Depends(_access)],
+    current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ) -> Response:
     try:
         set_typing(
             db,
             organization_id=organization_id,
-            user_id=access.user_id,
+            user_id=current_user.id,
             context_kind=context_kind,
             context_id=context_id,
         )
@@ -139,13 +133,13 @@ def stop_typing(
     organization_id: uuid.UUID,
     context_kind: CollaborationContextKind,
     context_id: uuid.UUID,
-    access: Annotated[AuthorizationContext, Depends(_access)],
+    current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ) -> Response:
     clear_typing(
         db,
         organization_id=organization_id,
-        user_id=access.user_id,
+        user_id=current_user.id,
         context_kind=context_kind,
         context_id=context_id,
     )
