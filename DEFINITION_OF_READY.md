@@ -233,3 +233,32 @@ Rollback: downgrade removes message lifecycle columns and revision rows only. Or
 Leading indicators: unauthorised lifecycle mutation = 0; stale edit overwrite = 0; retracted content in current Search/Activity/unread = 0; revision/audit hash coverage = 100%.
 
 Done boundary: repository implementation may reach `IN_REVIEW`. `DONE` requires migration forward/downgrade/re-forward evidence, focused concurrency/security tests, frontend build/source contracts, verifier, and authenticated multi-user WorkOS browser UAT.
+
+
+## Increment 29 readiness record — S-10.13.01
+
+Decision: `READY` for repository implementation on 2026-09-18, then eligible to pull under the board WIP limit.
+
+Problem and baseline: Brain already has governed evidence upload/browse/Search and native channel messaging, but the two workflows are disconnected. Users cannot share a governed file directly inside the conversation where the work is happening.
+
+AI decision: AI is not needed. This is deterministic file ingestion, authorization, relational linking and UX work. Existing Search/Ask Brain consumes the resulting evidence automatically.
+
+Architecture decision: reuse `EvidenceSource` and the existing generic evidence ingestion pipeline. Add nullable native-channel scope to evidence plus an append-only message-to-evidence relation. Do not create a second attachment blob/table containing file bytes. Evidence bytes remain stored only in the existing governed EvidenceSource.
+
+Visibility decision: organisation-channel uploads use organisation evidence visibility. Restricted-channel uploads are marked restricted and carry a native channel ID. Direct Evidence visibility rechecks current native-channel membership. Search/Work Graph continue using ResourceGrant; channel membership add/remove extends the existing channel evidence-node grant scope to attachment evidence nodes. A frozen source ACL is not trusted as the live restricted-channel authorization source.
+
+Message decision: up to five attachment source IDs may be linked to a root/reply. The source must be ACTIVE, same organisation, and either organisation-visible or scoped to the exact selected native channel. File-only messages are allowed; empty-without-attachments remains invalid. Duplicate source IDs are rejected/deduplicated deterministically.
+
+Lifecycle decision: message retraction hides attachment cards from conversation output but does not delete EvidenceSource. Deleting evidence uses the existing audited evidence lifecycle; attachment cards for a now-deleted source expose only safe unavailable metadata, never removed content. Message edits do not silently add/remove attachments in this slice.
+
+Failure decision: upload and message-send remain two explicit operations because existing evidence ingestion owns its own committed lifecycle. If upload succeeds and message send fails, Brain preserves the uploaded channel-scoped source and client source ID for retry; it never rolls back or reuploads a valid governed source behind the user's back.
+
+Open questions: none that changes this slice. Arbitrary binary/media preview, DM attachments, per-attachment removal and drag/drop pasteboard UX are explicit later features.
+
+Security/privacy boundary: backend revalidates organisation, current channel write access and source/channel scope; browser uses bounded same-origin WorkOS routes; no reusable token, raw extracted text or file bytes are returned inside normal message JSON.
+
+Rollback: migration removes message-attachment relations and native-channel scope metadata only. Underlying EvidenceSource rows/content remain governed and are not deleted by downgrade.
+
+Leading indicators: restricted-file leakage = 0; duplicate attachment relations = 0; successful upload-to-message-link rate; attachment evidence appears in authorised Search/Ask Brain.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires PostgreSQL migration round-trip, focused backend tests, frontend lint/build/source contracts, verifier and authenticated WorkOS multi-user channel upload/revocation/deletion/retry UAT.
