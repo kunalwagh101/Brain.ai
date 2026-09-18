@@ -291,3 +291,34 @@ Open questions: none changes this repository slice. Durable last-seen timestamps
 Leading indicators: visible online/typing state appears/disappears within lease targets; unauthorised presence/typing exposure = 0; typing network calls remain throttled rather than per-keystroke; durable history rows = 0.
 
 Done boundary: repository implementation may reach `IN_REVIEW`. `DONE` requires PostgreSQL migration round-trip, focused expiry/concurrency/revocation tests, frontend lint/build/source contracts, verifier and authenticated two-user WorkOS browser timing/privacy UAT.
+
+
+## Increment 31 readiness record — S-10.15.01
+
+Decision: `READY` for repository implementation on 2026-09-19; board WIP is zero before pull.
+
+Problem and baseline: Brain now supports live channel/thread collaboration, search, message lifecycle, governed files and presence, but important channel context still disappears into chronology unless users remember what to search for.
+
+AI decision: AI is not needed. Pinning is deterministic reference, authorization and UI state.
+
+Architecture decision: add one lightweight `NativeMessagePin` reference table keyed by organisation/channel/message. It stores only who pinned and when. It never copies message body, attachments, evidence excerpts or revision history. Pin reads materialise through the existing permission-aware `NativeMessage` read model.
+
+Permission decision: current channel readers may list pins. Current channel writers may pin/unpin any visible non-retracted message in that exact channel, including agent-authored messages and thread replies. Pinning is channel metadata, not message authorship mutation. Organisation role alone never widens restricted-channel access.
+
+Lifecycle decision: edits preserve the pin because the message identity is stable. Retraction deletes the active pin inside the same message lifecycle transaction before commit. No pin survives as a pointer to a tombstone.
+
+Concurrency/idempotency: unique channel/message constraint makes pin retries/concurrent writes converge to one row. Unpin is idempotent.
+
+UI decision: the channel header gets a bounded Pins control/panel. Pinned rows show pin metadata plus the existing safe message representation. Root pins can be read directly; reply pins reopen their existing root thread using current message/thread APIs. No new search/index/deep-link subsystem is introduced.
+
+Live-update decision: selected-channel live revision includes only ordered pin identifiers/timestamps (structural metadata), never message plaintext. This lets remote pin/unpin/retract refresh the channel.
+
+Audit decision: pin/unpin is ordinary collaboration metadata, not a security/governance mutation, so no new SecurityAuditEvent stream is created. Existing message lifecycle/security controls remain unchanged.
+
+Migration/rollback: migration `20260919_0032` adds/drops only pin references. Downgrade never deletes messages, evidence, attachments, revisions or audits.
+
+Open questions: none changes this slice. Personal save-for-later/starred items, arbitrary channel bookmarks, custom pin permission roles and pin notifications are explicit later scope.
+
+Leading indicators: duplicate pin rows = 0; inaccessible pin leakage = 0; successful pin-list/open rate.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires PostgreSQL migration round-trip, focused backend pin/idempotency/revoke/retract tests, frontend lint/build/source contracts, verifier and authenticated WorkOS multi-user pin/revoke/retract/thread UAT.
