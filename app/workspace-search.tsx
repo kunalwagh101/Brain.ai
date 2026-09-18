@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -98,19 +99,19 @@ export function WorkspaceSearch({
       .slice(0, 8);
   }, [localItems, query]);
 
-  function open() {
+  const open = useCallback(() => {
     const dialog = dialogRef.current;
     if (!dialog || dialog.open) return;
     dialog.showModal();
     requestAnimationFrame(() => inputRef.current?.focus());
-  }
+  }, []);
 
-  function close() {
+  const close = useCallback(() => {
     dialogRef.current?.close();
     setQuery("");
     setRemote([]);
     setState("idle");
-  }
+  }, []);
 
   useEffect(() => {
     function keydown(event: KeyboardEvent) {
@@ -121,7 +122,7 @@ export function WorkspaceSearch({
     }
     window.addEventListener("keydown", keydown);
     return () => window.removeEventListener("keydown", keydown);
-  }, []);
+  }, [open]);
 
   useEffect(() => {
     const normalized = query.trim();
