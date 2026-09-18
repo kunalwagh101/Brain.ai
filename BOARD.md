@@ -39,6 +39,23 @@ IN_REVIEW | S-10.06.01 | F-10.06 | Ruff, 299 backend tests and frontend build/te
 IN_REVIEW | S-10.06.02 | F-10.06 | Participant-only Brain-native DMs, sequence-based revocable visibility epochs, privacy-safe UI/BFF, migrations 0022/0023/0024, explicit private-message retention and regression/UAT contracts are implementation-staged; current-commit Ruff/Pytest/PostgreSQL/frontend/WorkOS browser verification has not executed
 IN_REVIEW | S-10.07.01 | F-10.07 | Governed developer/agent workspace, project/channel context binding, approvals, context-aware tool execution, ephemeral final output and privacy/security contracts are implementation-staged; executable verification and authenticated browser UAT remain pending
 IN_REVIEW | S-10.08.01 | F-10.08 | Owner/Admin governance center now covers member/integration lifecycle, AI provider/model bootstrap and credential rotation, API service/grant bootstrap, owner/scope/environment/credential lifecycle and safe same-origin WorkOS BFF contracts; executable/backend/browser verification remains outstanding
+IN_REVIEW | S-10.09.01 | F-10.09 | Unified personal Activity & Notifications inbox is implementation-staged across collaboration, agent, project/blocker and integration events with reference-only persistence, current-permission rechecks, exact deep links, personal read/unread state, preferences, same-origin BFF UI and migration-branch convergence; executable backend/frontend/verifier/PostgreSQL/WorkOS browser evidence remains outstanding
+
+### S-10.09.01 Activity & Notifications Inbox — IN_REVIEW
+
+Implementation staged:
+
+- one personal permission-aware attention queue for mentions, thread replies, unread channel activity, agent approvals, agent completion/failure, project/blocker changes and integration failures;
+- reference-only `ActivityNotification` rows: no copied message/DM body, secret, tool argument/result or private evidence excerpt;
+- current source permission is rechecked at read time, so restricted-channel/DM/project/agent/integration revocation immediately hides stale references and removes them from unread counts;
+- exact source links carry channel/message/thread, DM conversation/message, agent run/step, project/blocker or integration identifiers;
+- personal mark-one/mark-all read state plus per-user category preferences;
+- concurrency-safe first-read creation of the unique Activity preference row;
+- same-origin WorkOS mutation templates and a responsive, keyboard-labelled Activity dock/panel;
+- migration branch convergence through `20260918_0026` followed by inbox extension `20260918_0027`;
+- backend, frontend source-contract and manual UAT coverage in `backend/tests/test_activity.py`, `backend/tests/test_activity_inbox.py`, `tests/activity-contract.test.mjs` and `UAT/F-10.09.md`.
+
+Formal state: `IN_REVIEW`. Latest GitHub Actions for the branch head still fail before any job step executes, so no Ruff/Pytest/verifier/migration PASS can be claimed. Final DONE also requires real PostgreSQL upgrade/downgrade/forward recovery plus official S-10.04 WorkOS authenticated multi-user desktop/mobile/keyboard UAT.
 
 ## Current implementation train — S-02.04 / S-05.02 / S-04.02 / S-07.01 / S-07.02
 
