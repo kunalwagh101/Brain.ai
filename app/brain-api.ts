@@ -138,6 +138,14 @@ export type NativeChannelCreateInput = {
   visibility: "organization" | "restricted";
 };
 
+export type NativeMessagePin = {
+  pin_id: string;
+  pinned_at: string;
+  pinned_by_user_id: string;
+  pinned_by_display_name: string;
+  message: NativeMessage;
+};
+
 export type NativeMessageCreateInput = {
   body: string;
   attachment_source_ids: string[];
@@ -520,6 +528,19 @@ export function listNativeChannels(
   );
 }
 
+export function listNativePins(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  limit = 50,
+): Promise<NativeMessagePin[]> {
+  const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 100);
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/pins?limit=${boundedLimit}`,
+  );
+}
+
 export function listNativeMessages(
   accessToken: string,
   organizationId: string,
@@ -708,6 +729,20 @@ export function retractNativeMessage(
       method: "DELETE",
       body: JSON.stringify({ expected_revision: expectedRevision }),
     },
+  );
+}
+
+export function setNativePin(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  messageId: string,
+  active: boolean,
+): Promise<NativeMessagePin | void> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/pin`,
+    { method: active ? "PUT" : "DELETE" },
   );
 }
 
