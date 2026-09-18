@@ -288,6 +288,13 @@ Acceptance: Given a visible workspace, when the user presses Ctrl+K or Cmd+K, th
 Dependencies: S-05.01.01 search contract, S-10.02.01 workspace navigation, S-10.06.01 native channels, S-10.06.02 participant-safe DMs, S-10.04.01 server-session boundary. Blocking risk: final authenticated browser acceptance depends on official S-10.04 WorkOS activation; existing S-05.01 executable acceptance is still outstanding, so repository implementation cannot be called DONE from source presence alone. Size: M. Leading indicator: successful search-to-open rate and median time-to-target. Business value: E-10. Priority: P1.  
 Tasks: T-10.11.01.a typed existing-search client contract; T-10.11.01.b membership-validated same-origin search BFF; T-10.11.01.c keyboard-first command/search dialog; T-10.11.01.d exact Brain-message and local navigation links; T-10.11.01.e privacy/revocation/token/accessibility source contracts; T-10.11.01.f docs/UAT/demo and browser acceptance.
 
+#### F-10.12 Message lifecycle
+**S-10.12.01 — Let authors edit or retract their own Brain-channel messages without rewriting history**  
+As a Brain channel participant, I want to correct or retract my own message, so that everyday collaboration is usable while Brain preserves trustworthy evidence and audit history.  
+Acceptance: Given a current human-authored Brain message or thread reply, when its original author with current channel write access edits it, then the current conversation body, hash, character count, edited timestamp, mentions and searchable projection update atomically while an immutable prior revision is retained; Given two edits race, when the supplied expected revision is stale, then the later request fails with conflict instead of overwriting unseen changes; Given any non-author, owner/admin/executive, guest, revoked member or cross-tenant actor, when edit/retract is attempted, then the mutation fails closed without revealing whether hidden content exists; Given an agent-authored message, when a human attempts edit/retract, then the mutation is denied; Given the author retracts a message, then normal conversation reads return a tombstone with no body/hash/mentions/reactions, organisation-wide Search/Ask Brain no longer receives its current content, and the message no longer contributes to unread counts; Given a retracted thread root has existing replies, then the tombstone remains addressable so the existing reply history is not cascade-destroyed, but no new reply/reaction/edit may be added to the retracted message; Given an edit removes a mention, then that mention relationship no longer materialises or remains visible in Activity; Given an edit adds a valid authorised mention, then the existing mention/Activity pipeline can materialise it without duplicate rows; Given edit or retract succeeds, then a content-free security audit event records actor, message/channel IDs, revision transition and body hashes but never plaintext body; Given browser mutation, then it uses same-origin WorkOS BFF routes with bounded JSON and no reusable bearer token; Given migration rollback, then revision/lifecycle columns and tables can be removed without deleting the original raw/canonical evidence.  
+Dependencies: S-10.06.01 conversation UX, S-10.09.01 Activity, S-10.10.01 live refresh, S-10.11.01 exact message navigation, S-10.04.01 server-session boundary. Blocking risk: repository implementation can reach IN_REVIEW, but DONE still requires executable backend/migration/frontend/verifier evidence plus authenticated WorkOS multi-user browser UAT. Size: L. Leading indicator: successful author correction/retraction rate with zero unauthorised mutation or stale-overwrite events. Business value: E-10. Priority: P1.  
+Tasks: T-10.12.01.a lifecycle/revision schema and migration; T-10.12.01.b optimistic-concurrency edit/retract service; T-10.12.01.c Search/mention/Activity/unread consistency; T-10.12.01.d permission-aware API and same-origin BFF; T-10.12.01.e accessible edit/retract UI and live refresh; T-10.12.01.f security/concurrency/migration/frontend tests; T-10.12.01.g docs/UAT/demo/rollback evidence.
+
 ## Requirements -> Backlog coverage
 
 | Requirement | Backlog IDs |
@@ -320,10 +327,10 @@ Tasks: T-10.11.01.a typed existing-search client contract; T-10.11.01.b membersh
 | Citations / no unsupported claims | S-05.02.01, S-10.03.01 |
 | Data provenance | S-03.01.01, S-03.02.01, S-10.05.01 |
 | Identity resolution | S-03.03.01 |
-| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01 |
-| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02, S-10.09.01 |
+| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01 |
+| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01 |
 | Observability | S-09.01.01 |
-| Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02, S-10.09.01 |
+| Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01 |
 | Latency/cost benchmarks | S-09.04.01 |
 | Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01 |
 | Workspace administration and governance UI | S-10.08.01 |
@@ -338,6 +345,9 @@ Tasks: T-10.11.01.a typed existing-search client contract; T-10.11.01.b membersh
 | Automatic live workspace refresh | S-10.10.01 |
 | Live channel, thread, DM and Activity updates without browser bearer tokens | S-10.06.01, S-10.06.02, S-10.09.01, S-10.10.01 |
 | Keyboard-first workspace search and quick switcher | S-10.11.01 |
+| Author-owned channel message edit/retract lifecycle | S-10.12.01 |
+| Immutable message revision history with optimistic concurrency | S-10.12.01 |
+| Retracted content removed from current Search/Activity/unread surfaces | S-10.09.01, S-10.12.01 |
 | Permission-aware message/evidence search from the workspace | S-05.01.01, S-10.11.01 |
 | DM participant navigation without organisation-wide DM-content search | S-10.06.02, S-10.11.01 |
 | CI and lie-detector verifier | S-09.03.01 |
@@ -356,3 +366,5 @@ Orphan requirements: **0**.
 - Secret employee surveillance or unrestricted private-message capture: prohibited by product/security boundary.
 - Employee productivity/worth scoring: explicitly rejected; project/system evidence only.
 - Organisation-wide Brain-native DM-content search: prohibited by the resolved participant-only DM privacy boundary; only visible counterpart metadata may be used for local navigation.
+- Admin/moderator editing or hard-deleting another user's Brain-native channel message: not part of S-10.12; moderation policy requires an explicit new story and evidence-retention decision.
+- Editing/retracting Brain-native direct messages or agent-authored messages: separate privacy/authority rules; not silently included in S-10.12.
