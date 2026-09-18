@@ -36,6 +36,11 @@ from app.models import (
     ResourceAccessLevel,
     ResourceGrant,
 )
+from app.native_chat_models import (
+    NativeChannel,
+    NativeChannelMembership,
+    NativeChannelVisibility,
+)
 from app.raw_events import persist_raw_event
 from app.search_models import SearchDocument, SearchEmbeddingStatus
 from app.security_audit import audit_authorization_decision
@@ -316,6 +321,9 @@ def _chunk_payload(
         "text": chunk.text,
         "uploaded_by_user_id": str(actor_user_id),
         "occurred_at": source.occurred_at.isoformat() if source.occurred_at else None,
+        "native_channel_id": (
+            str(source.native_channel_id) if source.native_channel_id else None
+        ),
     }
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
 
@@ -346,6 +354,9 @@ def _canonical_chunk(
             "chunk_count": chunk_count,
             "filename": source.filename,
             "media_type": source.media_type,
+            "native_channel_id": (
+                str(source.native_channel_id) if source.native_channel_id else None
+            ),
         }
         existing = CanonicalEvent(
             organization_id=source.organization_id,
@@ -408,7 +419,9 @@ def _upsert_search_chunk(
             source_provider=GENERIC_EVIDENCE_PROVIDER,
             source_visibility=source.source_visibility.value,
             source_acl=list(source.source_acl),
-            channel_id=None,
+            channel_id=(
+                str(source.native_channel_id) if source.native_channel_id else None
+            ),
             repository_id=None,
             object_type=source.kind.value,
             object_external_id=str(source.id),
@@ -424,6 +437,9 @@ def _upsert_search_chunk(
         document.work_graph_node_id = work_graph_node_id
         document.source_visibility = source.source_visibility.value
         document.source_acl = list(source.source_acl)
+        document.channel_id = (
+            str(source.native_channel_id) if source.native_channel_id else None
+        )
         document.title = source.title
         document.content = chunk.text
         document.provenance = provenance
@@ -443,30 +459,32 @@ def _grant_restricted_chunk(
     db: Session,
     *,
     organization_id: uuid.UUID,
-    actor_user_id: uuid.UUID,
+    grants: dict[uuid.UUID, ResourceAccessLevel],
     work_graph_node_id: uuid.UUID,
 ) -> None:
     resource_id = str(work_graph_node_id)
-    existing = db.scalar(
-        select(ResourceGrant.id).where(
-            ResourceGrant.organization_id == organization_id,
-            ResourceGrant.resource_type == "work_graph.node",
-            ResourceGrant.resource_id == resource_id,
-            ResourceGrant.user_id == actor_user_id,
-            ResourceGrant.access == ResourceAccessLevel.WRITE,
-        )
-    )
-    if existing is None:
-        db.add(
-            ResourceGrant(
-                organization_id=organization_id,
-                resource_type="work_graph.node",
-                resource_id=resource_id,
-                user_id=actor_user_id,
-                access=ResourceAccessLevel.WRITE,
-                created_by_user_id=actor_user_id,
+    for user_id, access in grants.items():
+        existing = db.scalar(
+            select(ResourceGrant).where(
+                ResourceGrant.organization_id == organization_id,
+                ResourceGrant.resource_type == "work_graph.node",
+                ResourceGrant.resource_id == resource_id,
+                ResourceGrant.user_id == user_id,
             )
         )
+        if existing is None:
+            db.add(
+                ResourceGrant(
+                    organization_id=organization_id,
+                    resource_type="work_graph.node",
+                    resource_id=resource_id,
+                    user_id=user_id,
+                    access=access,
+                    created_by_user_id=user_id,
+                )
+            )
+        else:
+            existing.access = access
 
 
 def ingest_evidence(
@@ -483,6 +501,8 @@ def ingest_evidence(
     occurred_at: datetime | None,
     idempotency_key: str | None,
     request_id: str | None = None,
+    native_channel_id: uuid.UUID | None = None,
+    restricted_grants: dict[uuid.UUID, ResourceAccessLevel] | None = None,
 ) -> EvidenceSource:
     if not content:
         raise EvidenceIngestionError("empty_upload", "Evidence upload must not be empty")
@@ -515,10 +535,21 @@ def ingest_evidence(
     )
     chunks = chunk_evidence_text(extracted)
     connection = _generic_connection(db, organization_id, actor_user_id)
-    source_acl = [str(actor_user_id)] if visibility == EvidenceVisibility.RESTRICTED else []
+    if visibility == EvidenceVisibility.RESTRICTED and native_channel_id is None:
+        source_acl = [str(actor_user_id)]
+        effective_restricted_grants = {
+            actor_user_id: ResourceAccessLevel.WRITE,
+        }
+    elif visibility == EvidenceVisibility.RESTRICTED:
+        source_acl = []
+        effective_restricted_grants = dict(restricted_grants or {})
+    else:
+        source_acl = []
+        effective_restricted_grants = {}
     source = EvidenceSource(
         organization_id=organization_id,
         integration_connection_id=connection.id,
+        native_channel_id=native_channel_id,
         kind=kind,
         title=normalized_title,
         filename=safe_filename,
@@ -600,7 +631,7 @@ def ingest_evidence(
                 _grant_restricted_chunk(
                     db,
                     organization_id=organization_id,
-                    actor_user_id=actor_user_id,
+                    grants=effective_restricted_grants,
                     work_graph_node_id=node_id,
                 )
         source.chunk_count = len(chunks)
@@ -640,11 +671,36 @@ def ingest_evidence(
         raise
 
 
-def evidence_source_visible_to_user(source: EvidenceSource, user_id: uuid.UUID) -> bool:
-    return (
-        source.source_visibility == EvidenceVisibility.ORGANIZATION
-        or str(user_id) in source.source_acl
-    )
+def evidence_source_visible_to_user(
+    db: Session,
+    source: EvidenceSource,
+    user_id: uuid.UUID,
+) -> bool:
+    if source.source_visibility == EvidenceVisibility.ORGANIZATION:
+        return True
+    if source.native_channel_id is not None:
+        channel = db.scalar(
+            select(NativeChannel).where(
+                NativeChannel.id == source.native_channel_id,
+                NativeChannel.organization_id == source.organization_id,
+            )
+        )
+        if channel is None:
+            return False
+        if channel.visibility == NativeChannelVisibility.ORGANIZATION:
+            return True
+        return (
+            db.scalar(
+                select(NativeChannelMembership.id).where(
+                    NativeChannelMembership.organization_id == source.organization_id,
+                    NativeChannelMembership.channel_id == channel.id,
+                    NativeChannelMembership.user_id == user_id,
+                    NativeChannelMembership.revoked_at.is_(None),
+                )
+            )
+            is not None
+        )
+    return str(user_id) in source.source_acl
 
 
 def get_visible_evidence_source(
@@ -660,7 +716,7 @@ def get_visible_evidence_source(
             EvidenceSource.organization_id == organization_id,
         )
     )
-    if source is None or not evidence_source_visible_to_user(source, user_id):
+    if source is None or not evidence_source_visible_to_user(db, source, user_id):
         return None
     return source
 
@@ -681,7 +737,7 @@ def list_visible_evidence_sources(
             query.order_by(EvidenceSource.created_at.desc(), EvidenceSource.id.desc()).limit(limit)
         )
     )
-    return [row for row in rows if evidence_source_visible_to_user(row, user_id)]
+    return [row for row in rows if evidence_source_visible_to_user(db, row, user_id)]
 
 
 def delete_evidence_source(
