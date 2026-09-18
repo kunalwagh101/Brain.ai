@@ -7,6 +7,7 @@ import type {
   NativeChannel,
   NativeChannelMember,
   NativeMessage,
+  NativeMessagePin,
 } from "./brain-api";
 import styles from "./native-chat-panel.module.css";
 import {
@@ -165,16 +166,22 @@ function MessageCard({
   canPost,
   reactionWorking,
   lifecycleEndpoint,
+  pinned,
+  pinWorking,
   onThread,
   onReaction,
+  onPin,
   onLifecycleChange,
 }: {
   message: NativeMessage;
   canPost: boolean;
   reactionWorking: string | null;
   lifecycleEndpoint: string | null;
+  pinned: boolean;
+  pinWorking: string | null;
   onThread?: (message: NativeMessage) => void;
   onReaction: (message: NativeMessage, reaction: string) => void;
+  onPin?: (message: NativeMessage, active: boolean) => void;
   onLifecycleChange: (message: NativeMessage) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -368,6 +375,18 @@ function MessageCard({
                   : "Reply in thread"}
               </button>
             ) : null}
+            {!deleted && onPin ? (
+              <button
+                aria-label={pinned ? "Unpin message" : "Pin message"}
+                aria-pressed={pinned}
+                data-active={pinned || undefined}
+                disabled={!canPost || pinWorking === message.id}
+                onClick={() => onPin(message, !pinned)}
+                type="button"
+              >
+                {pinWorking === message.id ? "Working…" : pinned ? "Unpin" : "Pin"}
+              </button>
+            ) : null}
             {canEdit ? (
               <button
                 onClick={() => {
@@ -439,6 +458,7 @@ function MessageCard({
 export function NativeChatPanel({
   channel,
   messages,
+  pins,
   requestedMessage,
   members,
   mutationEndpoint,
@@ -448,6 +468,7 @@ export function NativeChatPanel({
 }: {
   channel: NativeChannel;
   messages: NativeMessage[];
+  pins: NativeMessagePin[];
   requestedMessage: NativeMessage | null;
   members: NativeChannelMember[];
   mutationEndpoint: string | null;
@@ -462,6 +483,9 @@ export function NativeChatPanel({
   const messageRetryKey = useRef<string | null>(null);
   const threadRetryKey = useRef<{ rootId: string; key: string } | null>(null);
   const [rootMessages, setRootMessages] = useState(messages);
+  const [pinRows, setPinRows] = useState(pins);
+  const [pinsOpen, setPinsOpen] = useState(false);
+  const [pinWorking, setPinWorking] = useState<string | null>(null);
   const [body, setBody] = useState("");
   const [attachments, setAttachments] = useState<NativeAttachment[]>([]);
   const [threadRoot, setThreadRoot] = useState<NativeMessage | null>(null);
@@ -506,6 +530,7 @@ export function NativeChatPanel({
     setThreadAttachmentRootId(null);
     setComposerFocused(false);
     setThreadFocused(false);
+    setPinsOpen(false);
     messageRetryKey.current = null;
     threadRetryKey.current = null;
   }, [channel.id]);
@@ -517,6 +542,11 @@ export function NativeChatPanel({
       return messages.find((message) => message.id === current.id) ?? current;
     });
   }, [messages]);
+
+  useEffect(() => {
+    setPinRows(pins);
+  }, [pins]);
+
 
   useEffect(() => {
     if (!requestedMessage || handledDeepLink.current === requestedMessage.id) return;
@@ -545,7 +575,17 @@ export function NativeChatPanel({
     )
       .then(async (response) => {
         if (!response.ok) throw new Error(`thread_deep_link_${response.status}`);
-        setThreadReplies(await response.json() as NativeMessage[]);
+        const replies = await response.json() as NativeMessage[];
+      setThreadReplies(replies);
+      if (focusMessageId) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            document.getElementById(`message-${focusMessageId}`)?.scrollIntoView({
+              block: "center",
+            });
+          });
+        });
+      }
         requestAnimationFrame(() => {
           document.getElementById(`message-${requestedMessage.id}`)?.scrollIntoView({
             block: "center",
@@ -778,7 +818,7 @@ export function NativeChatPanel({
     }
   }
 
-  async function openThread(message: NativeMessage) {
+  async function openThread(message: NativeMessage, focusMessageId?: string) {
     if (uploadingTarget === "thread" && threadRoot?.id !== message.id) {
       setStatus({
         kind: "error",
@@ -881,6 +921,80 @@ export function NativeChatPanel({
     }
   }
 
+  async function togglePin(message: NativeMessage, active: boolean) {
+    if (!conversationEndpoint || !channel.can_post || message.deleted_at) return;
+    setPinWorking(message.id);
+    setStatus({ kind: "idle" });
+    try {
+      const response = await fetch(
+        `${conversationEndpoint}/messages/${encodeURIComponent(message.id)}/pin`,
+        {
+          method: active ? "PUT" : "DELETE",
+          credentials: "same-origin",
+        },
+      );
+      if (!response.ok) {
+        setStatus({ kind: "error", text: safeMessageError(response.status) });
+        return;
+      }
+      if (active) {
+        const pin = await response.json() as NativeMessagePin;
+        setPinRows((items) => [
+          pin,
+          ...items.filter((item) => item.message.id !== message.id),
+        ]);
+      } else {
+        setPinRows((items) => items.filter((item) => item.message.id !== message.id));
+      }
+    } catch {
+      setStatus({ kind: "error", text: "The pin change could not reach the secure Brain route." });
+    } finally {
+      setPinWorking(null);
+    }
+  }
+
+  async function openPinned(pin: NativeMessagePin) {
+    const message = pin.message;
+    if (!message.thread_root_id) {
+      setThreadRoot(null);
+      setThreadReplies([]);
+      setRootMessages((items) => items.some((item) => item.id === message.id)
+        ? items
+        : [message, ...items]);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          document.getElementById(`message-${message.id}`)?.scrollIntoView({
+            block: "center",
+          });
+        });
+      });
+      return;
+    }
+
+    if (!conversationEndpoint) return;
+    let root = rootMessages.find((item) => item.id === message.thread_root_id) ?? null;
+    if (!root) {
+      try {
+        const response = await fetch(
+          `${conversationEndpoint}/messages/${encodeURIComponent(message.thread_root_id)}`,
+          { credentials: "same-origin", cache: "no-store" },
+        );
+        if (!response.ok) {
+          setStatus({ kind: "error", text: safeMessageError(response.status) });
+          return;
+        }
+        root = await response.json() as NativeMessage;
+        setRootMessages((items) => items.some((item) => item.id === root?.id)
+          ? items
+          : root ? [root, ...items] : items);
+      } catch {
+        setStatus({ kind: "error", text: "The pinned thread could not be opened safely." });
+        return;
+      }
+    }
+    if (root) await openThread(root, message.id);
+  }
+
   async function toggleReaction(message: NativeMessage, reaction: string) {
     if (!conversationEndpoint || !channel.can_post) return;
     const current = message.reactions.find((item) => item.reaction === reaction);
@@ -919,6 +1033,13 @@ export function NativeChatPanel({
   }
 
   function applyLifecycleMessage(updated: NativeMessage) {
+    if (updated.deleted_at) {
+      setPinRows((items) => items.filter((item) => item.message.id !== updated.id));
+    } else {
+      setPinRows((items) => items.map((item) => item.message.id === updated.id
+        ? { ...item, message: updated }
+        : item));
+    }
     setRootMessages((items) => items.map((item) => item.id === updated.id ? updated : item));
     setThreadReplies((items) => items.map((item) => item.id === updated.id ? updated : item));
     setThreadRoot((item) => item?.id === updated.id ? updated : item);
@@ -993,6 +1114,14 @@ export function NativeChatPanel({
             <span>{presence.online_users.length} online</span>
           ) : null}
           <span>{channel.status}</span>
+          <button
+            aria-expanded={pinsOpen}
+            className={styles.pinsButton}
+            onClick={() => setPinsOpen((value) => !value)}
+            type="button"
+          >
+            Pins {pinRows.length ? `(${pinRows.length})` : ""}
+          </button>
         </div>
       </header>
 
@@ -1044,6 +1173,55 @@ export function NativeChatPanel({
         </details>
       ) : null}
 
+      {pinsOpen ? (
+        <section className={styles.pinsPanel} aria-labelledby="channel-pins-heading">
+          <header>
+            <div>
+              <p className={styles.eyebrow}>Channel context</p>
+              <h3 id="channel-pins-heading">Pinned messages</h3>
+            </div>
+            <span>{pinRows.length}</span>
+          </header>
+          {pinRows.length ? (
+            <div className={styles.pinList}>
+              {pinRows.map((pin) => (
+                <article key={pin.pin_id}>
+                  <div>
+                    <strong>{pin.message.actor_display_name}</strong>
+                    <small>
+                      Pinned by {pin.pinned_by_display_name} · {formatTime(pin.pinned_at)}
+                    </small>
+                    <p>
+                      {pin.message.body
+                        ? pin.message.body
+                        : pin.message.attachments.length
+                          ? "Attachment-only message"
+                          : "Message"}
+                    </p>
+                  </div>
+                  <div>
+                    <button onClick={() => void openPinned(pin)} type="button">
+                      {pin.message.thread_root_id ? "Open thread" : "Open message"}
+                    </button>
+                    {channel.can_post && conversationEndpoint ? (
+                      <button
+                        disabled={pinWorking === pin.message.id}
+                        onClick={() => void togglePin(pin.message, false)}
+                        type="button"
+                      >
+                        {pinWorking === pin.message.id ? "Working…" : "Unpin"}
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.pinsEmpty}>No pinned messages in this channel yet.</p>
+          )}
+        </section>
+      ) : null}
+
       <div className={styles.conversation} data-thread-open={Boolean(threadRoot) || undefined}>
         <div className={styles.channelPane}>
           <div className={styles.feed} role="log" aria-live="polite" aria-label={`${channel.name} messages`}>
@@ -1054,7 +1232,10 @@ export function NativeChatPanel({
                 lifecycleEndpoint={conversationEndpoint}
                 message={message}
                 onLifecycleChange={applyLifecycleMessage}
+                onPin={channel.can_post ? togglePin : undefined}
                 onReaction={toggleReaction}
+                pinned={pinRows.some((pin) => pin.message.id === message.id)}
+                pinWorking={pinWorking}
                 onThread={openThread}
                 reactionWorking={reactionWorking}
               />
@@ -1176,7 +1357,10 @@ export function NativeChatPanel({
                 lifecycleEndpoint={conversationEndpoint}
                 message={threadRoot}
                 onLifecycleChange={applyLifecycleMessage}
+                onPin={channel.can_post ? togglePin : undefined}
                 onReaction={toggleReaction}
+                pinned={pinRows.some((pin) => pin.message.id === threadRoot.id)}
+                pinWorking={pinWorking}
                 reactionWorking={reactionWorking}
               />
               <div className={styles.replyDivider}>
@@ -1190,7 +1374,10 @@ export function NativeChatPanel({
                   lifecycleEndpoint={conversationEndpoint}
                   message={reply}
                   onLifecycleChange={applyLifecycleMessage}
+                  onPin={channel.can_post ? togglePin : undefined}
                   onReaction={toggleReaction}
+                  pinned={pinRows.some((pin) => pin.message.id === reply.id)}
+                  pinWorking={pinWorking}
                   reactionWorking={reactionWorking}
                 />
               )) : null}
