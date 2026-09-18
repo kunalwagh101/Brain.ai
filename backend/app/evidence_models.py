@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     LargeBinary,
     String,
@@ -45,6 +46,17 @@ class EvidenceSource(Base):
             "idempotency_key",
             name="uq_evidence_source_org_idempotency",
         ),
+        UniqueConstraint(
+            "organization_id",
+            "id",
+            name="uq_evidence_source_org_id",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "native_channel_id"],
+            ["native_channels.organization_id", "native_channels.id"],
+            name="fk_evidence_source_native_channel_scope",
+            ondelete="RESTRICT",
+        ),
         CheckConstraint("byte_size >= 1", name="ck_evidence_source_positive_bytes"),
         CheckConstraint("chunk_count >= 0", name="ck_evidence_source_chunk_count"),
         CheckConstraint(
@@ -72,7 +84,8 @@ class EvidenceSource(Base):
         ForeignKey("integration_connections.id", ondelete="CASCADE"), nullable=False
     )
     native_channel_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("native_channels.id", ondelete="SET NULL"), index=True, nullable=True
+        index=True,
+        nullable=True,
     )
     kind: Mapped[EvidenceKind] = mapped_column(
         Enum(EvidenceKind, native_enum=False, length=16), nullable=False
