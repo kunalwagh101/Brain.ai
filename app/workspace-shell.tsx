@@ -10,6 +10,7 @@ import type {
   NativeChannel,
   NativeChannelMember,
   NativeMessage,
+  NativeMessagePin,
   ProjectMemory,
   ProjectStatus,
   WorkspaceNavigation,
@@ -83,6 +84,7 @@ export function WorkspaceShell({
   nativeChannels,
   selectedNativeChannel,
   nativeMessages,
+  nativePins,
   requestedNativeMessage,
   selectedNativeMembers,
   invalidRequestedChannel,
@@ -119,6 +121,7 @@ export function WorkspaceShell({
   nativeChannels: NativeChannel[];
   selectedNativeChannel: NativeChannel | null;
   nativeMessages: NativeMessage[];
+  nativePins: NativeMessagePin[];
   requestedNativeMessage: NativeMessage | null;
   selectedNativeMembers: NativeChannelMember[];
   invalidRequestedChannel: boolean;
@@ -339,6 +342,7 @@ export function WorkspaceShell({
               channel={selectedNativeChannel}
               key={`${selectedNativeChannel.id}:${selectedNativeChannel.latest_message_id ?? "empty"}`}
               messages={nativeMessages}
+              pins={nativePins}
               requestedMessage={requestedNativeMessage}
               members={selectedNativeMembers}
               mutationEndpoint={nativeMessageEndpoint}
