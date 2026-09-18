@@ -24,6 +24,7 @@ export type EvidenceSource = {
   id: string;
   organization_id: string;
   integration_connection_id: string;
+  native_channel_id: string | null;
   kind: "document" | "transcript";
   title: string;
   filename: string;
@@ -86,6 +87,19 @@ export type NativeReaction = {
   reacted_by_me: boolean;
 };
 
+export type NativeAttachment = {
+  source_id: string;
+  title: string;
+  filename: string;
+  kind: "document" | "transcript";
+  media_type: string;
+  byte_size: number;
+  status: "processing" | "active" | "failed" | "deleted";
+  retrieval_available: boolean;
+  source_visibility: "organization" | "restricted";
+  native_channel_id: string | null;
+};
+
 export type NativeChannelUnread = {
   channel_id: string;
   unread_count: number;
@@ -110,6 +124,7 @@ export type NativeMessage = {
   reply_count: number;
   mentions: NativeMention[];
   reactions: NativeReaction[];
+  attachments: NativeAttachment[];
   revision: number;
   edited_at: string | null;
   deleted_at: string | null;
@@ -125,6 +140,7 @@ export type NativeChannelCreateInput = {
 
 export type NativeMessageCreateInput = {
   body: string;
+  attachment_source_ids: string[];
 };
 
 export type WorkspaceSearchResult = {
@@ -598,6 +614,28 @@ export function revokeNativeChannelMember(
     accessToken,
     `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-channels/${encodeURIComponent(channelId)}/members/${encodeURIComponent(userId)}`,
     { method: "DELETE" },
+  );
+}
+
+export function uploadNativeChannelAttachment(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  body: Uint8Array,
+  contentType: string,
+  idempotencyKey: string,
+): Promise<NativeAttachment> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/attachments/uploads`,
+    {
+      method: "POST",
+      body,
+      headers: {
+        "Content-Type": contentType,
+        "Idempotency-Key": idempotencyKey,
+      },
+    },
   );
 }
 
