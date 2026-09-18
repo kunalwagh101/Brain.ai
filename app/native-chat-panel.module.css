@@ -550,6 +550,14 @@
   font-size: 10px;
 }
 
+.typingStatus {
+  margin: 0;
+  padding: 5px 16px 0;
+  color: #9e97f2;
+  font-size: 10px;
+  min-height: 18px;
+}
+
 .pendingAttachments {
   display: grid;
   gap: 6px;
