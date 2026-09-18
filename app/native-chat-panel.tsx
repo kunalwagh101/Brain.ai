@@ -291,11 +291,12 @@ export function NativeChatPanel({
         return;
       }
       controller?.abort();
-      controller = new AbortController();
+      const requestController = new AbortController();
+      controller = requestController;
       try {
         const response = await fetch(
           `${conversationEndpoint}/messages/${encodeURIComponent(threadRootId)}/replies`,
-          { credentials: "same-origin", cache: "no-store", signal: controller.signal },
+          { credentials: "same-origin", cache: "no-store", signal: requestController.signal },
         );
         if (response.status === 403 || response.status === 404) {
           setThreadRoot(null);
@@ -307,7 +308,7 @@ export function NativeChatPanel({
           setThreadReplies(await response.json() as NativeMessage[]);
         }
       } catch {
-        if (controller.signal.aborted || stopped) return;
+        if (requestController.signal.aborted || stopped) return;
       }
       schedule(4_000);
     }
