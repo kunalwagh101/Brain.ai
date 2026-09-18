@@ -18,6 +18,7 @@ from app.data_governance_models import (
     SecurityAuditEvent,
 )
 from app.direct_message_models import DirectConversation, DirectMessage
+from app.native_chat_models import NativeMessageRevision
 from app.models import (
     CanonicalEvent,
     IntegrationConnection,
@@ -789,6 +790,37 @@ def _stage_derived_tombstones(
         )
 
 
+def _purge_native_message_revisions(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    cutoff: datetime,
+    limit: int,
+) -> int:
+    query = (
+        select(NativeMessageRevision.id)
+        .where(
+            NativeMessageRevision.organization_id == organization_id,
+            NativeMessageRevision.created_at < cutoff,
+        )
+        .order_by(
+            NativeMessageRevision.created_at,
+            NativeMessageRevision.id,
+        )
+        .limit(limit)
+    )
+    revision_ids = list(db.scalars(_skip_locked(query, db)))
+    if not revision_ids:
+        return 0
+    result = db.execute(
+        delete(NativeMessageRevision).where(
+            NativeMessageRevision.organization_id == organization_id,
+            NativeMessageRevision.id.in_(revision_ids),
+        )
+    )
+    return _deleted_count(result.rowcount, len(revision_ids))
+
+
 def _purge_private_messages(
     db: Session,
     *,
@@ -965,6 +997,12 @@ def run_retention_once(
                     result.rowcount,
                     len(derived_ids),
                 )
+            run.native_message_revisions_deleted = _purge_native_message_revisions(
+                db,
+                organization_id=organization_id,
+                cutoff=derived_cutoff,
+                limit=limit,
+            )
 
         if policy.private_message_days is not None:
             private_cutoff = _retention_cutoff(policy.private_message_days, now)
@@ -1020,6 +1058,9 @@ def run_retention_once(
                 "derived_events_deleted": run.derived_events_deleted,
                 "audit_events_deleted": run.audit_events_deleted,
                 "private_messages_deleted": run.private_messages_deleted,
+                "native_message_revisions_deleted": (
+                    run.native_message_revisions_deleted
+                ),
             },
         )
         db.refresh(run)
