@@ -606,6 +606,7 @@ def pin_message(
         channel_id=channel_id,
         message_id=message_id,
         pinned_by_user_id=user_id,
+        created_at=datetime.now(UTC),
     )
     db.add(row)
     try:
