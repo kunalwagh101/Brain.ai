@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Increment 29 — Governed Channel Attachments
+
+- Connected native channel/root/thread messages to the existing governed EvidenceSource ingestion pipeline instead of introducing another file store.
+- Added nullable native-channel evidence scope plus lightweight message-to-evidence references; file bytes/extracted text remain only in the existing evidence system.
+- Added migration `20260918_0030` with organisation-scoped composite foreign keys for channel evidence and message attachments, max-compatible zero-length message body state for file-only messages, and an explicit unsafe-downgrade guard.
+- Restricted channel attachments now use live channel membership for direct Evidence visibility and extend/remove Work Graph/Search grants through the existing channel evidence scope.
+- Bound evidence-upload idempotency to visibility + native-channel scope so one key cannot replay a file into a different access context.
+- Added max-five attachment validation, same-tenant/exact-channel checks, duplicate source de-duplication, active-source checks, and idempotent message retry mismatch protection.
+- Added bounded <=10 MB same-origin WorkOS multipart upload for existing supported document/transcript types.
+- Added safe attachment cards and separate root/thread composer state, including file-only messages, partial-upload preservation, payload-bound send retry idempotency and in-flight navigation race guards.
+- Message retraction hides attachment cards without deleting governed evidence; separate evidence deletion leaves only safe unavailable/deleted attachment metadata.
+- Extended S-10.10 live revision with attachment source ID/status/availability only so evidence lifecycle changes refresh the channel without exposing file names/content.
+- Added backend restricted-member/tenant/channel/deletion/idempotency regressions, frontend source contracts, UAT, demo and traceability artifacts.
+
+Verification is not claimed as passed. `S-10.13.01` remains `IN_REVIEW` pending executable PostgreSQL migration round-trip, Ruff/Pytest, frontend lint/build/source contracts, delivery verifier and authenticated WorkOS multi-user browser UAT.
+
+
+
 ### Increment 28 — Author-safe Message Lifecycle
 
 - Added original-author-only edit and retract controls for Brain-native channel messages and thread replies; organisation role alone never grants content override.
