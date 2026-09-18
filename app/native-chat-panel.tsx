@@ -207,11 +207,74 @@ export function NativeChatPanel({
   >({ kind: "idle" });
   const [memberError, setMemberError] = useState<string | null>(null);
   const [memberWorking, setMemberWorking] = useState(false);
+  const threadRootId = threadRoot?.id ?? null;
+
+  useEffect(() => {
+    setRootMessages(messages);
+    setThreadRoot((current) => {
+      if (!current) return current;
+      return messages.find((message) => message.id === current.id) ?? current;
+    });
+  }, [messages]);
 
   useEffect(() => {
     if (!threadRoot) return;
     threadHeading.current?.focus();
-  }, [threadRoot]);
+  }, [threadRootId]);
+
+  useEffect(() => {
+    if (!conversationEndpoint || !threadRootId) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let controller: AbortController | null = null;
+
+    const schedule = (delay: number) => {
+      if (timer) clearTimeout(timer);
+      if (!stopped) timer = setTimeout(() => void refreshReplies(), delay);
+    };
+
+    async function refreshReplies() {
+      if (stopped) return;
+      if (document.visibilityState !== "visible" || !navigator.onLine) {
+        schedule(15_000);
+        return;
+      }
+      controller?.abort();
+      controller = new AbortController();
+      try {
+        const response = await fetch(
+          `${conversationEndpoint}/messages/${encodeURIComponent(threadRootId)}/replies`,
+          { credentials: "same-origin", cache: "no-store", signal: controller.signal },
+        );
+        if (response.status === 403 || response.status === 404) {
+          setThreadRoot(null);
+          setThreadReplies([]);
+          router.refresh();
+          return;
+        }
+        if (response.ok) {
+          setThreadReplies(await response.json() as NativeMessage[]);
+        }
+      } catch {
+        if (controller.signal.aborted || stopped) return;
+      }
+      schedule(4_000);
+    }
+
+    const wake = () => {
+      if (document.visibilityState === "visible" && navigator.onLine) schedule(250);
+    };
+    document.addEventListener("visibilitychange", wake);
+    window.addEventListener("online", wake);
+    schedule(4_000);
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      controller?.abort();
+      document.removeEventListener("visibilitychange", wake);
+      window.removeEventListener("online", wake);
+    };
+  }, [conversationEndpoint, router, threadRootId]);
 
   useEffect(() => {
     if (!conversationEndpoint || !channel.latest_message_id || !channel.unread_count) return;
