@@ -257,7 +257,7 @@ Open questions: none that changes this slice. Arbitrary binary/media preview, DM
 
 Security/privacy boundary: backend revalidates organisation, current channel write access and source/channel scope; browser uses bounded same-origin WorkOS routes; no reusable token, raw extracted text or file bytes are returned inside normal message JSON.
 
-Rollback: migration removes message-attachment relations and native-channel scope metadata only. Underlying EvidenceSource rows/content remain governed and are not deleted by downgrade.
+Rollback: migration removes message-attachment relations and native-channel scope metadata only; underlying EvidenceSource rows/content are never deleted by downgrade. Because pre-S-10.13 message constraints forbid zero-length bodies, downgrade explicitly refuses to run while attachment-only messages or revisions exist. Operators must export/migrate those rows first rather than silently corrupting data.
 
 Leading indicators: restricted-file leakage = 0; duplicate attachment relations = 0; successful upload-to-message-link rate; attachment evidence appears in authorised Search/Ask Brain.
 
