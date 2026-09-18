@@ -102,9 +102,11 @@ export function WorkspaceShell({
   nativeMessageEndpoint,
   nativeMemberEndpoint,
   nativeConversationEndpoint,
+  channelPresenceEndpoint,
   canCreateNativeChannel,
   directMessageCreateEndpoint,
   directMessageSendEndpoint,
+  directMessagePresenceEndpoint,
   agentMutationBase,
   workspaceSearchEndpoint,
   signOutAction,
@@ -136,9 +138,11 @@ export function WorkspaceShell({
   nativeMessageEndpoint: string | null;
   nativeMemberEndpoint: string | null;
   nativeConversationEndpoint: string | null;
+  channelPresenceEndpoint: string | null;
   canCreateNativeChannel: boolean;
   directMessageCreateEndpoint: string | null;
   directMessageSendEndpoint: string | null;
+  directMessagePresenceEndpoint: string | null;
   agentMutationBase: string | null;
   workspaceSearchEndpoint: string | null;
   signOutAction?: (formData: FormData) => Promise<void>;
@@ -340,6 +344,7 @@ export function WorkspaceShell({
               mutationEndpoint={nativeMessageEndpoint}
               memberEndpoint={nativeMemberEndpoint}
               conversationEndpoint={nativeConversationEndpoint}
+              presenceEndpoint={channelPresenceEndpoint}
             />
           ) : (
             <div className={styles.emptyState}>
@@ -364,6 +369,7 @@ export function WorkspaceShell({
             messages={directMessages}
             createEndpoint={directMessageCreateEndpoint}
             messageEndpoint={directMessageSendEndpoint}
+            presenceEndpoint={directMessagePresenceEndpoint}
           />
         </section>
 
