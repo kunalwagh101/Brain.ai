@@ -320,12 +320,12 @@ Tasks: T-10.11.01.a typed existing-search client contract; T-10.11.01.b membersh
 | Citations / no unsupported claims | S-05.02.01, S-10.03.01 |
 | Data provenance | S-03.01.01, S-03.02.01, S-10.05.01 |
 | Identity resolution | S-03.03.01 |
-| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01 |
+| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01 |
 | Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02, S-10.09.01 |
 | Observability | S-09.01.01 |
 | Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02, S-10.09.01 |
 | Latency/cost benchmarks | S-09.04.01 |
-| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02, S-10.09.01 |
+| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01 |
 | Workspace administration and governance UI | S-10.08.01 |
 | Personal Activity & Notifications inbox | S-10.09.01 |
 | @mentions and thread-reply notifications | S-10.06.01, S-10.09.01 |
@@ -355,3 +355,4 @@ Orphan requirements: **0**.
 - Secret storage in Brain DB: prohibited; secrets manager/reference model only.
 - Secret employee surveillance or unrestricted private-message capture: prohibited by product/security boundary.
 - Employee productivity/worth scoring: explicitly rejected; project/system evidence only.
+- Organisation-wide Brain-native DM-content search: prohibited by the resolved participant-only DM privacy boundary; only visible counterpart metadata may be used for local navigation.
