@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 
 from app.agent_models import AgentRun
 from app.data_governance import append_audit_event
+from app.evidence_ingestion import evidence_source_visible_to_user
+from app.evidence_models import EvidenceSource, EvidenceSourceStatus, EvidenceVisibility
 from app.models import (
     CanonicalEvent,
     IntegrationConnection,
@@ -33,11 +35,11 @@ from app.native_chat_models import (
     NativeMessageProjectionStatus,
     NativeMessageRevision,
 )
-from app.native_conversation_models import NativeMessageMention
+from app.native_conversation_models import NativeMessageAttachment, NativeMessageMention
 from app.permissions import Permission, role_has_permission
 from app.raw_events import persist_raw_event
 from app.search import project_search_document
-from app.search_models import SearchEmbeddingStatus
+from app.search_models import SearchDocument, SearchEmbeddingStatus
 from app.work_graph import create_manual_edge, project_canonical_event
 from app.work_graph_models import WorkGraphEdgeType, WorkGraphNode, WorkGraphNodeType
 
@@ -101,9 +103,9 @@ def _normalize_description(value: str | None) -> str | None:
     return description or None
 
 
-def normalize_message_body(value: str) -> str:
+def normalize_message_body(value: str, *, allow_empty: bool = False) -> str:
     body = value.replace("\r\n", "\n").replace("\r", "\n").strip()
-    if not body:
+    if not body and not allow_empty:
         raise NativeChatError("empty_message", "Message must not be empty")
     if len(body) > MAX_MESSAGE_CHARS:
         raise NativeChatError(
@@ -315,16 +317,28 @@ def _channel_evidence_node_ids(
         )
     )
     canonical_ids = current_ids | revision_ids
-    if not canonical_ids:
-        return []
-    return list(
-        db.scalars(
-            select(WorkGraphNode.id).where(
-                WorkGraphNode.organization_id == channel.organization_id,
-                WorkGraphNode.canonical_event_id.in_(canonical_ids),
+    node_ids = set()
+    if canonical_ids:
+        node_ids.update(
+            db.scalars(
+                select(WorkGraphNode.id).where(
+                    WorkGraphNode.organization_id == channel.organization_id,
+                    WorkGraphNode.canonical_event_id.in_(canonical_ids),
+                )
             )
         )
+    node_ids.update(
+        node_id
+        for node_id in db.scalars(
+            select(SearchDocument.work_graph_node_id).where(
+                SearchDocument.organization_id == channel.organization_id,
+                SearchDocument.channel_id == str(channel.id),
+                SearchDocument.work_graph_node_id.is_not(None),
+            )
+        )
+        if node_id is not None
     )
+    return list(node_ids)
 
 
 def _grant_channel_history(
@@ -1054,6 +1068,84 @@ def _create_message_row(
     return message
 
 
+def _validated_message_attachments(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    channel: NativeChannel,
+    user_id: uuid.UUID,
+    source_ids: list[uuid.UUID],
+) -> list[EvidenceSource]:
+    unique_ids = list(dict.fromkeys(source_ids))
+    if len(unique_ids) > 5:
+        raise NativeChatError(
+            "too_many_attachments",
+            "A message can contain at most five attachments",
+        )
+    if not unique_ids:
+        return []
+    sources = list(
+        db.scalars(
+            select(EvidenceSource).where(
+                EvidenceSource.organization_id == organization_id,
+                EvidenceSource.id.in_(unique_ids),
+            )
+        )
+    )
+    by_id = {source.id: source for source in sources}
+    if set(by_id) != set(unique_ids):
+        raise NativeChatError("attachment_not_found", "Attachment source not found")
+
+    ordered = [by_id[source_id] for source_id in unique_ids]
+    for source in ordered:
+        if source.status != EvidenceSourceStatus.ACTIVE:
+            raise NativeChatError("attachment_not_found", "Attachment source not found")
+        if source.source_visibility == EvidenceVisibility.ORGANIZATION:
+            continue
+        if (
+            source.native_channel_id != channel.id
+            or not evidence_source_visible_to_user(db, source, user_id)
+        ):
+            raise NativeChatError("attachment_not_found", "Attachment source not found")
+    return ordered
+
+
+def _sync_message_attachments(
+    db: Session,
+    *,
+    message: NativeMessage,
+    sources: list[EvidenceSource],
+    actor_user_id: uuid.UUID,
+) -> None:
+    requested_ids = {source.id for source in sources}
+    existing_rows = list(
+        db.scalars(
+            select(NativeMessageAttachment).where(
+                NativeMessageAttachment.message_id == message.id
+            )
+        )
+    )
+    existing_ids = {row.evidence_source_id for row in existing_rows}
+    if existing_ids and existing_ids != requested_ids:
+        raise NativeChatConflictError(
+            "idempotency_attachment_mismatch",
+            "Idempotent message replay used a different attachment set",
+        )
+    if existing_ids == requested_ids:
+        return
+    for source in sources:
+        db.add(
+            NativeMessageAttachment(
+                organization_id=message.organization_id,
+                channel_id=message.channel_id,
+                message_id=message.id,
+                evidence_source_id=source.id,
+                created_by_user_id=actor_user_id,
+            )
+        )
+    db.commit()
+
+
 def post_user_message(
     db: Session,
     *,
@@ -1064,6 +1156,7 @@ def post_user_message(
     idempotency_key: str | None,
     thread_root_id: uuid.UUID | None = None,
     request_id: str | None = None,
+    attachment_source_ids: list[uuid.UUID] | None = None,
 ) -> NativeMessage:
     channel = get_visible_channel(
         db,
@@ -1087,7 +1180,16 @@ def post_user_message(
             or root.deleted_at is not None
         ):
             raise NativeChatError("thread_root_not_found", "Thread root not found")
-    normalized_body = normalize_message_body(body)
+    sources = _validated_message_attachments(
+        db,
+        organization_id=organization_id,
+        channel=channel,
+        user_id=actor_user_id,
+        source_ids=attachment_source_ids or [],
+    )
+    normalized_body = normalize_message_body(body, allow_empty=bool(sources))
+    if not normalized_body and not sources:
+        raise NativeChatError("empty_message", "Message must not be empty")
     message = _create_message_row(
         db,
         organization_id=organization_id,
@@ -1120,6 +1222,12 @@ def post_user_message(
                 db.commit()
             raise
 
+    _sync_message_attachments(
+        db,
+        message=message,
+        sources=sources,
+        actor_user_id=actor_user_id,
+    )
     append_audit_event(
         db,
         organization_id=organization_id,
@@ -1136,6 +1244,7 @@ def post_user_message(
             "native_message_id": str(message.id),
             "projection_status": message.projection_status.value,
             "body_sha256": message.body_sha256,
+            "attachment_count": len(sources),
         },
     )
     sync_exact_mentions(db, channel=channel, message=message)
