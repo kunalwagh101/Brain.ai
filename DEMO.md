@@ -441,3 +441,43 @@ Expected engineering evidence:
 - migration `20260919_0031` adds/removes only ephemeral lease tables.
 
 Final browser demo: use two authenticated users. Show online presence in an organisation channel, hide one tab and prove expiry, show typing appear/disappear without per-keystroke requests, grant/revoke a restricted-channel member and prove current permission filtering, then open a 1:1 DM and prove only its two participants can observe online/typing state. Inspect network/database fields to confirm no draft content or last-seen history. Follow `UAT/F-10.14.md`.
+
+
+## Increment 31 — Shared Channel Message Pins
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.15.01 is `IN_REVIEW`, not DONE.
+
+Commands from the repository root:
+
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_channel_pins.py tests/test_native_conversation.py tests/test_message_lifecycle.py
+alembic heads
+alembic upgrade head
+alembic downgrade 20260919_0031
+alembic upgrade head
+cd ..
+npm run lint
+npm run build
+node --test tests/channel-pins-contract.test.mjs
+node --test tests/live-updates-contract.test.mjs
+node --test tests/*.test.mjs
+python scripts/verify_board.py
+```
+
+Expected engineering evidence:
+
+- pin persistence contains only organisation/channel/message reference, pinner ID and timestamp;
+- repeated/concurrent pin requests converge to one row;
+- readers can list current-channel pins; read-only/revoked/guest/cross-tenant/cross-channel mutations fail closed;
+- thread replies can be pinned and reopen their existing root thread;
+- agent-authored visible messages can be pinned without changing human edit/retract authority;
+- editing a pinned message preserves the same pin and shows current message content;
+- retracting a pinned message removes its pin before the lifecycle transaction commits;
+- pin list is newest-pin-first and materialises through the existing safe message read model;
+- S-10.10 live revision hashes pin ID/message ID/timestamp only, never message body or attachments;
+- browser pin/list/unpin uses same-origin WorkOS routes with no reusable bearer token;
+- migration `20260919_0032` adds/removes only the pin-reference table.
+
+Final browser demo: use two authenticated users in an organisation and restricted channel. Pin roots and replies, retry a pin, edit a pinned message, pin a visible agent message, revoke a restricted member, remotely pin/unpin and observe live refresh, retract a pinned human message and confirm it disappears from Pins, then open an older root and a pinned reply from the Pins panel. Follow `UAT/F-10.15.md`.
