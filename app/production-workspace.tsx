@@ -3,7 +3,9 @@ import { ActivityDock } from "./activity-dock";
 import { getAdminCenter } from "./admin-center-api";
 import { getAgentWorkspace } from "./agent-workspace-api";
 import {
+  BrainApiError,
   getExecutiveOverview,
+  getNativeMessage,
   listEvidenceSources,
   listNativeChannelMembers,
   listNativeChannels,
@@ -33,6 +35,7 @@ export async function ProductionWorkspace({
   requestedOrganizationId,
   requestedChannelId,
   requestedDirectMessageId,
+  requestedMessageId,
   enableAskBrainBff = false,
   enableEvidenceBff = false,
   enableNativeChatBff = false,
@@ -40,6 +43,7 @@ export async function ProductionWorkspace({
   enableActivityBff = false,
   enableAgentWorkspaceBff = false,
   enableLiveUpdatesBff = false,
+  enableWorkspaceSearchBff = false,
   signOutAction,
 }: {
   accessToken: string;
@@ -47,6 +51,7 @@ export async function ProductionWorkspace({
   requestedOrganizationId?: string | null;
   requestedChannelId?: string | null;
   requestedDirectMessageId?: string | null;
+  requestedMessageId?: string | null;
   enableAskBrainBff?: boolean;
   enableEvidenceBff?: boolean;
   enableNativeChatBff?: boolean;
@@ -54,6 +59,7 @@ export async function ProductionWorkspace({
   enableActivityBff?: boolean;
   enableAgentWorkspaceBff?: boolean;
   enableLiveUpdatesBff?: boolean;
+  enableWorkspaceSearchBff?: boolean;
   signOutAction?: (formData: FormData) => Promise<void>;
 }) {
   const organizations = await listOrganizations(accessToken);
@@ -136,7 +142,7 @@ export async function ProductionWorkspace({
   const invalidRequestedChannel = Boolean(
     !requestedDirectMessageId && requestedChannelId && !selectedChannel,
   );
-  const [nativeMessages, selectedNativeMembers] = selectedChannel
+  const [nativeMessageRows, selectedNativeMembers] = selectedChannel
     ? await Promise.all([
         listNativeMessages(accessToken, organization.id, selectedChannel.id),
         selectedChannel.can_manage_members
@@ -144,6 +150,45 @@ export async function ProductionWorkspace({
           : Promise.resolve([]),
       ])
     : [[], []];
+
+  let requestedNativeMessage = null;
+  let nativeMessages = nativeMessageRows;
+  if (selectedChannel && requestedMessageId) {
+    try {
+      requestedNativeMessage = await getNativeMessage(
+        accessToken,
+        organization.id,
+        selectedChannel.id,
+        requestedMessageId,
+      );
+    } catch (error) {
+      if (!(error instanceof BrainApiError) || ![404, 422].includes(error.status)) {
+        throw error;
+      }
+    }
+
+    if (requestedNativeMessage) {
+      const rootId = requestedNativeMessage.thread_root_id ?? requestedNativeMessage.id;
+      let rootMessage = nativeMessageRows.find((message) => message.id === rootId) ?? null;
+      if (!rootMessage) {
+        try {
+          rootMessage = await getNativeMessage(
+            accessToken,
+            organization.id,
+            selectedChannel.id,
+            rootId,
+          );
+        } catch (error) {
+          if (!(error instanceof BrainApiError) || ![404, 422].includes(error.status)) {
+            throw error;
+          }
+        }
+      }
+      if (rootMessage && !nativeMessageRows.some((message) => message.id === rootMessage.id)) {
+        nativeMessages = [rootMessage, ...nativeMessageRows];
+      }
+    }
+  }
 
   const directMessages = selectedDirectConversation
     ? await listDirectMessages(accessToken, organization.id, selectedDirectConversation.id)
@@ -200,6 +245,9 @@ export async function ProductionWorkspace({
   const liveUpdatesEndpoint = enableLiveUpdatesBff
     ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/live${liveQuery ? `?${liveQuery}` : ""}`
     : null;
+  const workspaceSearchEndpoint = enableWorkspaceSearchBff
+    ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/search`
+    : null;
 
   return (
     <>
@@ -223,6 +271,7 @@ export async function ProductionWorkspace({
         nativeChannels={nativeChannels}
         selectedNativeChannel={selectedChannel}
         nativeMessages={nativeMessages}
+        requestedNativeMessage={requestedNativeMessage}
         selectedNativeMembers={selectedNativeMembers}
         invalidRequestedChannel={invalidRequestedChannel}
         directConversations={directConversations}
@@ -245,6 +294,7 @@ export async function ProductionWorkspace({
         directMessageCreateEndpoint={directMessageCreateEndpoint}
         directMessageSendEndpoint={directMessageSendEndpoint}
         agentMutationBase={agentMutationBase}
+        workspaceSearchEndpoint={workspaceSearchEndpoint}
         signOutAction={signOutAction}
       />
     </>
