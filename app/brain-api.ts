@@ -122,6 +122,27 @@ export type NativeMessageCreateInput = {
   body: string;
 };
 
+export type WorkspaceSearchResult = {
+  document_id: string;
+  canonical_event_id: string;
+  source_provider: string;
+  source_event_id: string | null;
+  object_type: string;
+  object_external_id: string;
+  title: string;
+  content: string;
+  occurred_at: string | null;
+  score: number;
+  provenance: Record<string, unknown>;
+};
+
+export type WorkspaceSearchResponse = {
+  query: string;
+  mode: "keyword" | "hybrid";
+  semantic_status: string;
+  results: WorkspaceSearchResult[];
+};
+
 export type AIRuntimeOption = {
   provider_configuration_id: string;
   provider_key: string;
@@ -643,6 +664,24 @@ export function markNativeChannelRead(
       method: "POST",
       body: JSON.stringify({ through_message_id: throughMessageId }),
     },
+  );
+}
+
+export function searchWorkspaceDocuments(
+  accessToken: string,
+  organizationId: string,
+  query: string,
+  limit = 12,
+): Promise<WorkspaceSearchResponse> {
+  const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 12);
+  const params = new URLSearchParams({
+    q: query,
+    mode: "keyword",
+    limit: String(boundedLimit),
+  });
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/search?${params.toString()}`,
   );
 }
 
