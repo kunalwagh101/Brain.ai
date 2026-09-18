@@ -2,7 +2,7 @@
 
 Story: `S-10.09.01`
 
-Status: `IN_PROGRESS`
+Status: `IN_REVIEW`
 
 ## Outcome
 
@@ -34,7 +34,7 @@ No privileged-role override is introduced for DMs.
 
 ## Materialization strategy
 
-The first slice materializes recent notifications idempotently when Activity is read from authoritative collaboration tables. This avoids coupling four mature message mutation transactions to a new notification write path. Dedupe keys make repeated reads safe.
+Activity materializes recent notifications idempotently from authoritative collaboration, agent, project/blocker and integration state. This avoids coupling mature mutation transactions to a second notification write path. Dedupe keys make repeated reads safe, and default preference creation recovers from the unique-row race on concurrent first reads.
 
 A background projector/event-driven path may replace or augment this later without changing the persisted notification contract.
 
@@ -44,7 +44,7 @@ A background projector/event-driven path may replace or augment this later witho
 - no copied message previews;
 - no organisation-wide notification feed;
 - no notification-based permission bypass;
-- `agent_approval` is reserved in the schema but not accepted until its agent-run/approval access contract is implemented;
+- agent approval, completion/failure, project/blocker and integration-failure events are now included through current-permission rechecking;
 - Activity is a personal attention queue, not employee-monitoring telemetry.
 
 ## Acceptance
@@ -52,3 +52,14 @@ A background projector/event-driven path may replace or augment this later witho
 See `UAT/F-10.09.md` and `backend/tests/test_activity.py`.
 
 No DONE/PASS claim is valid until focused backend/frontend tests, PostgreSQL migration round-trip, official WorkOS activation and authenticated multi-user browser UAT execute successfully.
+
+
+## Retrospective — 2026-09-18
+
+No accepted S-10.09.01 requirement was cut. The implementation reuses existing collaboration, agent, project and integration sources instead of introducing an event bus or a second content store.
+
+The main hidden complexity was migration convergence: workspace notifications and Activity had both used revision number `0025`. The permanent fix preserves both immutable parent migrations, merges them at `20260918_0026`, and applies the unified inbox extension at `20260918_0027`.
+
+Static review also found a first-read race in default Activity preference creation. The code now catches the unique-constraint collision and re-reads the winner, matching the inbox's idempotent materialisation model.
+
+The story remains `IN_REVIEW` because current GitHub-hosted jobs fail before step execution and real PostgreSQL/WorkOS/browser acceptance has not run. Repository presence is not converted into a PASS.
