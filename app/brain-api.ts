@@ -501,6 +501,18 @@ export function listNativeUnread(
   );
 }
 
+export function getNativeMessage(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  messageId: string,
+): Promise<NativeMessage> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}`,
+  );
+}
+
 export function listNativeReplies(
   accessToken: string,
   organizationId: string,
