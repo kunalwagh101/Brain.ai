@@ -1,8 +1,10 @@
 import {
   createNativeChannel,
+  editNativeMessage,
   inviteNativeChannelMember,
   listNativeReplies,
   markNativeChannelRead,
+  retractNativeMessage,
   revokeNativeChannelMember,
   sendNativeMessage,
   sendNativeReply,
@@ -133,6 +135,48 @@ export function parseNativeMessageInput(value: unknown): { body: string } {
   return { body: requiredText(body.body, "body", 20_000) };
 }
 
+export function parseNativeMessageEditInput(value: unknown): {
+  body: string;
+  expected_revision: number;
+} {
+  const body = exactObject(
+    value,
+    new Set(["body", "expected_revision"]),
+    "native message edit request",
+  );
+  const expectedRevision = body.expected_revision;
+  if (
+    typeof expectedRevision !== "number"
+    || !Number.isInteger(expectedRevision)
+    || expectedRevision < 1
+  ) {
+    invalid(400, "expected_revision must be a positive integer");
+  }
+  return {
+    body: requiredText(body.body, "body", 20_000),
+    expected_revision: expectedRevision,
+  };
+}
+
+export function parseNativeMessageRetractInput(value: unknown): {
+  expected_revision: number;
+} {
+  const body = exactObject(
+    value,
+    new Set(["expected_revision"]),
+    "native message retract request",
+  );
+  const expectedRevision = body.expected_revision;
+  if (
+    typeof expectedRevision !== "number"
+    || !Number.isInteger(expectedRevision)
+    || expectedRevision < 1
+  ) {
+    invalid(400, "expected_revision must be a positive integer");
+  }
+  return { expected_revision: expectedRevision };
+}
+
 export function parseNativeMemberInvite(value: unknown): {
   email: string;
   access: "read" | "write";
@@ -200,6 +244,47 @@ export async function handleNativeMessageCreateBff(
     channelId,
     parseNativeMessageInput(body),
     normalizeIdempotencyKey(idempotencyKey),
+  );
+}
+
+export async function handleNativeMessageEditBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  messageId: string,
+  body: unknown,
+): Promise<NativeMessage> {
+  await requireChatWriter(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  normalizedUuid(messageId, "messageId");
+  const input = parseNativeMessageEditInput(body);
+  return editNativeMessage(
+    accessToken,
+    organizationId,
+    channelId,
+    messageId,
+    input.body,
+    input.expected_revision,
+  );
+}
+
+export async function handleNativeMessageRetractBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  messageId: string,
+  body: unknown,
+): Promise<NativeMessage> {
+  await requireChatWriter(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  normalizedUuid(messageId, "messageId");
+  const input = parseNativeMessageRetractInput(body);
+  return retractNativeMessage(
+    accessToken,
+    organizationId,
+    channelId,
+    messageId,
+    input.expected_revision,
   );
 }
 
