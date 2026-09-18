@@ -44,6 +44,13 @@ IN_REVIEW | S-10.10.01 | F-10.10 | Opaque authorised live revision, same-origin 
 IN_REVIEW | S-10.11.01 | F-10.11 | Keyboard-first quick switcher, membership-validated same-origin keyword search, exact authorised Brain-message deep links, restricted-channel revoke regression and DM-content exclusion regression are implementation-staged; executable backend/frontend/verifier and authenticated WorkOS keyboard/privacy UAT remain outstanding
 IN_REVIEW | S-10.12.01 | F-10.12 | Author-only edit/retract, expected-revision conflicts, immutable RawEvent/CanonicalEvent lifecycle revisions, retired Search versions, tombstones, historical restricted-evidence access cleanup and governed revision retention are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.13.01 | F-10.13 | Governed EvidenceSource channel uploads, live restricted membership, tenant-scoped attachment relations, file-only messages, bounded WorkOS multipart UI, retry-safe composer and deletion/retraction independence are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
+IN_PROGRESS | S-10.14.01 | F-10.14 | Ephemeral channel/DM presence and typing slice pulled after Ready review; no durable last-seen/history, current permissions remain authoritative
+
+### S-10.14.01 Ephemeral Presence & Typing — IN_PROGRESS
+
+Sprint goal: make native channels and participant-only DMs feel live by exposing only current authorised online/typing state through expiring leases, without creating employee activity history or a new realtime infrastructure dependency.
+
+Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-30.md` and `UAT/F-10.14.md`. WIP after pull: one `IN_PROGRESS` story.
 
 ### S-10.13.01 Governed Channel Attachments — IN_REVIEW
 
