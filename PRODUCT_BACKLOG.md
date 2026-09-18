@@ -302,6 +302,13 @@ Acceptance: Given a current channel writer, when a supported file <=10 MB is upl
 Dependencies: S-10.05.01 governed evidence/files, S-10.06.01 conversation UX, S-10.10.01 live refresh, S-10.12.01 message lifecycle, S-10.04.01 server-session boundary. Blocking risk: repository implementation can reach IN_REVIEW, but DONE still requires executable PostgreSQL/migration/backend/frontend/verifier evidence and authenticated WorkOS multi-user browser UAT. Size: L. Leading indicator: successful channel-file upload-to-message rate and attachment-to-search retrieval rate with zero restricted-file leakage. Business value: E-10. Priority: P1.  
 Tasks: T-10.13.01.a evidence channel-scope + message-attachment schema/migration; T-10.13.01.b channel-aware evidence visibility and live grant propagation; T-10.13.01.c attachment upload/link/read services; T-10.13.01.d typed API and same-origin WorkOS BFF; T-10.13.01.e accessible composer/upload/attachment cards with retry-safe state; T-10.13.01.f tenant/revocation/deletion/partial-failure/security tests; T-10.13.01.g docs/UAT/demo/rollback evidence.
 
+#### F-10.14 Ephemeral presence and typing
+**S-10.14.01 — Show current online and typing state without creating employee activity history**  
+As a Brain collaborator, I want to see when currently authorised teammates are online or actively typing in the channel/DM I am using, so that Brain conversations feel live and I can avoid talking over people or waiting blindly.  
+Acceptance: Given a current active organisation member with native-chat access and a visible browser tab, when Brain sends a presence heartbeat, then a short-lived presence lease marks that user online for at most 75 seconds unless renewed; Given the tab becomes hidden/offline, then no new heartbeat is sent and the lease naturally expires without creating a durable last-seen record; Given a current channel reader, when presence is read for that channel, then only active organisation members who can currently read that exact channel are returned, and a restricted-channel revoke removes the user from the next response; Given a current participant opens a 1:1 Brain-native DM, when presence is read, then only the other currently authorised participant's online state may be returned and owner/admin role alone grants no private-DM presence visibility; Given a current channel writer or DM participant types non-empty text, then Brain creates/refreshes a typing lease that expires within 8 seconds unless renewed; Given typing stops, the input is cleared, a message is sent, the selected context changes, the tab hides or the component unmounts, then the client clears the typing lease best-effort and server expiry remains the correctness fallback; Given a typing-state read, then the current user is excluded and only users who still have current access to the exact channel/DM context are returned; Given typing requests repeat while text changes, then the browser throttles refreshes so it does not send one request per keystroke; Given any presence/typing API response or persistence row, then no message body, draft text, keystrokes, cursor position, exact last-seen history, IP address, user agent, secret, token or private evidence is stored or returned; Given expired leases exist, then reads/writes opportunistically purge them and expired rows never count as online/typing; Given concurrent heartbeats/typing updates, then one unique lease per user/context is refreshed idempotently rather than duplicated; Given browser presence/typing mutation, then it uses bounded same-origin WorkOS BFF routes with current membership/context validation and no reusable bearer token in client code; Given migration rollback, then only ephemeral lease rows/tables are removed and no message, DM, evidence or audit data is changed.  
+Dependencies: S-10.06.01 native channels, S-10.06.02 participant-only DMs, S-10.10.01 live collaboration baseline, S-10.04.01 server-session boundary. Blocking risk: repository implementation can reach IN_REVIEW; DONE still requires executable PostgreSQL/backend/frontend/verifier evidence plus authenticated two-user WorkOS timing/revocation UAT. Size: M. Leading indicator: authorised online/typing state appears/disappears within the lease target with zero unauthorised presence exposure and no per-keystroke request flood. Business value: E-10. Priority: P1.  
+Tasks: T-10.14.01.a ephemeral presence/typing schema + migration; T-10.14.01.b permission-aware lease service for channel + DM contexts; T-10.14.01.c bounded API and same-origin WorkOS BFF; T-10.14.01.d visible-tab heartbeat + throttled typing client; T-10.14.01.e channel/DM online and typing UI; T-10.14.01.f expiry/concurrency/revocation/privacy/frontend tests; T-10.14.01.g docs/UAT/demo/rollback evidence.
+
 ## Requirements -> Backlog coverage
 
 | Requirement | Backlog IDs |
@@ -319,8 +326,8 @@ Tasks: T-10.13.01.a evidence channel-scope + message-attachment schema/migration
 | AI/API access visibility | S-06.03.01, S-10.08.01 |
 | AI/API usage/cost visibility | S-06.02.01, S-10.03.01 |
 | Slack/Discord-style company workspace | S-10.02.01, S-10.03.01, S-10.06.01 |
-| Human communication | S-10.01.01, S-10.06.01, S-10.06.02 |
-| Participant-only private collaboration | S-10.06.02 |
+| Human communication | S-10.01.01, S-10.06.01, S-10.06.02, S-10.14.01 |
+| Participant-only private collaboration | S-10.06.02, S-10.14.01 |
 | Tenant/channel-scoped message threads | S-10.06.01 |
 | Exact-member mentions without identity guessing | S-10.06.01 |
 | Idempotent per-user message reactions | S-10.06.01 |
@@ -334,12 +341,12 @@ Tasks: T-10.13.01.a evidence channel-scope + message-attachment schema/migration
 | Citations / no unsupported claims | S-05.02.01, S-10.03.01 |
 | Data provenance | S-03.01.01, S-03.02.01, S-10.05.01, S-10.13.01 |
 | Identity resolution | S-03.03.01 |
-| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01 |
-| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01 |
+| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01, S-10.14.01 |
+| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01, S-10.14.01 |
 | Observability | S-09.01.01 |
-| Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01 |
+| Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01, S-10.14.01 |
 | Latency/cost benchmarks | S-09.04.01 |
-| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01 |
+| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01, S-10.14.01 |
 | Workspace administration and governance UI | S-10.08.01 |
 | Personal Activity & Notifications inbox | S-10.09.01 |
 | @mentions and thread-reply notifications | S-10.06.01, S-10.09.01 |
@@ -354,6 +361,7 @@ Tasks: T-10.13.01.a evidence channel-scope + message-attachment schema/migration
 | Keyboard-first workspace search and quick switcher | S-10.11.01 |
 | Author-owned channel message edit/retract lifecycle | S-10.12.01 |
 | Governed channel file attachments | S-10.05.01, S-10.13.01 |
+| Ephemeral online presence and typing indicators | S-10.14.01 |
 | Restricted attachment access follows live channel membership | S-10.01.01, S-10.13.01 |
 | File-only channel messages with bounded attachment count | S-10.06.01, S-10.13.01 |
 | Immutable message revision history with optimistic concurrency | S-10.12.01 |
