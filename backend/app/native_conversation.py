@@ -1,10 +1,14 @@
+import hashlib
 import uuid
 from collections import defaultdict
+from datetime import UTC, datetime
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.data_governance import _audit_payload
+from app.data_governance_models import SecurityAuditEvent
 from app.models import User
 from app.native_chat import (
     NativeChatConflictError,
@@ -12,13 +16,23 @@ from app.native_chat import (
     can_read_channel,
     can_write_channel,
     get_visible_channel,
+    normalize_message_body,
+    sync_exact_mentions,
 )
-from app.native_chat_models import NativeChannel, NativeMessage
+from app.native_chat_models import (
+    NativeChannel,
+    NativeMessage,
+    NativeMessageActorKind,
+    NativeMessageRevision,
+    NativeMessageRevisionAction,
+)
 from app.native_conversation_models import (
     NativeChannelReadState,
     NativeMessageMention,
     NativeMessageReaction,
 )
+from app.search import _reset_embedding
+from app.search_models import SearchDocument
 
 ALLOWED_REACTIONS = ("👍", "❤️", "🎉", "👀", "✅")
 def visible_message(
@@ -44,6 +58,270 @@ def visible_message(
     ):
         raise NativeChatError("message_not_found", "Message not found")
     return channel, message
+
+
+def _mutable_author_message(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    message_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> tuple[NativeChannel, NativeMessage]:
+    channel = get_visible_channel(
+        db,
+        organization_id=organization_id,
+        channel_id=channel_id,
+        user_id=user_id,
+    )
+    if channel is None or not can_write_channel(db, channel, user_id=user_id):
+        raise NativeChatError("message_not_found", "Message not found")
+
+    statement = select(NativeMessage).where(
+        NativeMessage.id == message_id,
+        NativeMessage.organization_id == organization_id,
+        NativeMessage.channel_id == channel_id,
+    )
+    if db.bind is not None and db.bind.dialect.name == "postgresql":
+        statement = statement.with_for_update()
+    message = db.scalar(statement)
+    if (
+        message is None
+        or message.actor_kind != NativeMessageActorKind.USER
+        or message.author_user_id != user_id
+        or message.deleted_at is not None
+    ):
+        raise NativeChatError("message_not_found", "Message not found")
+    return channel, message
+
+
+def _require_expected_revision(
+    message: NativeMessage,
+    expected_revision: int,
+) -> None:
+    if expected_revision < 1 or message.revision != expected_revision:
+        raise NativeChatConflictError(
+            "message_revision_conflict",
+            "Message changed since it was loaded",
+        )
+
+
+def _snapshot_message_revision(
+    db: Session,
+    *,
+    message: NativeMessage,
+    actor_user_id: uuid.UUID,
+    action: NativeMessageRevisionAction,
+) -> None:
+    db.add(
+        NativeMessageRevision(
+            organization_id=message.organization_id,
+            channel_id=message.channel_id,
+            message_id=message.id,
+            revision=message.revision,
+            action=action,
+            body=message.body,
+            body_sha256=message.body_sha256,
+            body_char_count=message.body_char_count,
+            changed_by_user_id=actor_user_id,
+        )
+    )
+
+
+def _message_search_document(
+    db: Session,
+    *,
+    message: NativeMessage,
+) -> SearchDocument:
+    if message.canonical_event_id is None:
+        raise NativeChatConflictError(
+            "message_projection_unavailable",
+            "Message search projection is unavailable",
+        )
+    document = db.scalar(
+        select(SearchDocument).where(
+            SearchDocument.organization_id == message.organization_id,
+            SearchDocument.canonical_event_id == message.canonical_event_id,
+        )
+    )
+    if document is None:
+        raise NativeChatConflictError(
+            "message_projection_unavailable",
+            "Message search projection is unavailable",
+        )
+    return document
+
+
+def _stage_lifecycle_audit(
+    db: Session,
+    *,
+    message: NativeMessage,
+    actor_user_id: uuid.UUID,
+    event_type: str,
+    previous_revision: int,
+    previous_body_sha256: str,
+    request_id: str | None,
+) -> None:
+    event_key = f"{event_type}:{message.id}:{message.revision}"
+    payload, digest = _audit_payload(
+        organization_id=message.organization_id,
+        event_key=event_key,
+        event_type=event_type,
+        outcome="succeeded",
+        actor_user_id=actor_user_id,
+        resource_type="native_message",
+        resource_id=message.id,
+        request_id=request_id,
+        metadata={
+            "channel_id": str(message.channel_id),
+            "previous_revision": previous_revision,
+            "current_revision": message.revision,
+            "previous_body_sha256": previous_body_sha256,
+            "current_body_sha256": message.body_sha256,
+        },
+    )
+    db.add(
+        SecurityAuditEvent(
+            organization_id=message.organization_id,
+            event_key=str(payload["event_key"]),
+            event_type=str(payload["event_type"]),
+            outcome=str(payload["outcome"]),
+            actor_user_id=actor_user_id,
+            resource_type=payload["resource_type"],
+            resource_id=payload["resource_id"],
+            request_id=payload["request_id"],
+            metadata_json=payload["metadata"],
+            payload_sha256=digest,
+        )
+    )
+
+
+def edit_message(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    message_id: uuid.UUID,
+    user_id: uuid.UUID,
+    body: str,
+    expected_revision: int,
+    request_id: str | None = None,
+) -> NativeMessage:
+    channel, message = _mutable_author_message(
+        db,
+        organization_id=organization_id,
+        channel_id=channel_id,
+        message_id=message_id,
+        user_id=user_id,
+    )
+    _require_expected_revision(message, expected_revision)
+    normalized_body = normalize_message_body(body)
+    next_sha256 = hashlib.sha256(normalized_body.encode()).hexdigest()
+    if next_sha256 == message.body_sha256:
+        return message
+
+    document = _message_search_document(db, message=message)
+    previous_revision = message.revision
+    previous_sha256 = message.body_sha256
+    _snapshot_message_revision(
+        db,
+        message=message,
+        actor_user_id=user_id,
+        action=NativeMessageRevisionAction.EDIT,
+    )
+
+    now = datetime.now(UTC)
+    message.body = normalized_body
+    message.body_sha256 = next_sha256
+    message.body_char_count = len(normalized_body)
+    message.revision += 1
+    message.edited_at = now
+
+    document.content = normalized_body
+    document.is_deleted = False
+    document.provenance = {
+        **document.provenance,
+        "native_message_revision": message.revision,
+        "native_message_edited_at": now.isoformat(),
+    }
+    _reset_embedding(document)
+    sync_exact_mentions(db, channel=channel, message=message, commit=False)
+    _stage_lifecycle_audit(
+        db,
+        message=message,
+        actor_user_id=user_id,
+        event_type="native_chat.message.edited",
+        previous_revision=previous_revision,
+        previous_body_sha256=previous_sha256,
+        request_id=request_id,
+    )
+    db.commit()
+    db.refresh(message)
+    return message
+
+
+def retract_message(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    message_id: uuid.UUID,
+    user_id: uuid.UUID,
+    expected_revision: int,
+    request_id: str | None = None,
+) -> NativeMessage:
+    _, message = _mutable_author_message(
+        db,
+        organization_id=organization_id,
+        channel_id=channel_id,
+        message_id=message_id,
+        user_id=user_id,
+    )
+    _require_expected_revision(message, expected_revision)
+    document = _message_search_document(db, message=message)
+    previous_revision = message.revision
+    previous_sha256 = message.body_sha256
+    _snapshot_message_revision(
+        db,
+        message=message,
+        actor_user_id=user_id,
+        action=NativeMessageRevisionAction.RETRACT,
+    )
+
+    now = datetime.now(UTC)
+    message.revision += 1
+    message.deleted_at = now
+
+    document.content = ""
+    document.is_deleted = True
+    document.provenance = {
+        **document.provenance,
+        "native_message_revision": message.revision,
+        "native_message_deleted_at": now.isoformat(),
+    }
+    _reset_embedding(document)
+    db.execute(
+        delete(NativeMessageMention).where(
+            NativeMessageMention.message_id == message.id
+        )
+    )
+    db.execute(
+        delete(NativeMessageReaction).where(
+            NativeMessageReaction.message_id == message.id
+        )
+    )
+    _stage_lifecycle_audit(
+        db,
+        message=message,
+        actor_user_id=user_id,
+        event_type="native_chat.message.retracted",
+        previous_revision=previous_revision,
+        previous_body_sha256=previous_sha256,
+        request_id=request_id,
+    )
+    db.commit()
+    db.refresh(message)
+    return message
 
 
 def list_thread_replies(
