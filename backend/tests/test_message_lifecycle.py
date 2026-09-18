@@ -1,5 +1,6 @@
 import json
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.activity import list_activity
 from app.activity_models import ActivityKind
 from app.auth import get_current_user
+from app.data_governance import run_retention_once, set_retention_policy
 from app.data_governance_models import SecurityAuditEvent
 from app.main import app
 from app.models import Membership, MembershipRole, Organization, User
@@ -511,3 +513,79 @@ def test_retraction_hides_content_search_activity_and_unread_but_preserves_threa
     )
     assert audit is not None
     assert sentinel not in json.dumps(audit.metadata_json, sort_keys=True)
+
+
+def test_message_revision_history_obeys_derived_retention_and_legal_hold(
+    db_session: Session,
+    client,
+) -> None:
+    organization, author, _, _, _, _, _ = _seed(db_session, "retention")
+    channel = _channel(client, organization, author)
+    created = _message(
+        client,
+        organization,
+        channel["id"],
+        author,
+        "Original revision retained under policy.",
+        "lifecycle-retention",
+    )
+    edited = _edit(
+        client,
+        organization,
+        channel["id"],
+        created["id"],
+        author,
+        "Current revision remains visible.",
+        1,
+    )
+    assert edited.status_code == 200
+
+    revision = db_session.scalar(
+        select(NativeMessageRevision).where(
+            NativeMessageRevision.message_id == uuid.UUID(created["id"])
+        )
+    )
+    assert revision is not None
+    now = datetime.now(UTC)
+    revision.created_at = now - timedelta(days=3)
+    db_session.commit()
+
+    set_retention_policy(
+        db_session,
+        organization_id=organization.id,
+        actor_user_id=author.id,
+        raw_event_days=None,
+        derived_content_days=1,
+        audit_event_days=None,
+        private_message_days=None,
+        legal_hold=True,
+    )
+    held_run = run_retention_once(
+        db_session,
+        organization_id=organization.id,
+        at=now,
+        actor_user_id=author.id,
+    )
+    assert held_run is not None
+    assert held_run.native_message_revisions_deleted == 0
+    assert db_session.get(NativeMessageRevision, revision.id) is not None
+
+    set_retention_policy(
+        db_session,
+        organization_id=organization.id,
+        actor_user_id=author.id,
+        raw_event_days=None,
+        derived_content_days=1,
+        audit_event_days=None,
+        private_message_days=None,
+        legal_hold=False,
+    )
+    purge_run = run_retention_once(
+        db_session,
+        organization_id=organization.id,
+        at=now,
+        actor_user_id=author.id,
+    )
+    assert purge_run is not None
+    assert purge_run.native_message_revisions_deleted == 1
+    assert db_session.get(NativeMessageRevision, revision.id) is None
