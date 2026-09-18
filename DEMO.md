@@ -259,3 +259,31 @@ Expected engineering evidence:
 - responsive/keyboard Activity UI passes the source-contract test.
 
 For final product acceptance, activate official S-10.04 WorkOS, run authenticated Owner/Admin/Member multi-user browser UAT from `UAT/F-10.09.md`, exercise restricted-channel and DM revocation, integration failure/recovery, agent approval transitions and preference persistence, and inspect network/browser storage for token/content leakage. Do not call S-10.09.01 DONE until those checks plus the delivery verifier pass.
+
+
+## Increment 26 — Live workspace updates
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.10.01 is `IN_REVIEW`, not DONE.
+
+Commands from the repository root:
+
+```bash
+npm run lint
+npm run build
+node --test tests/live-updates-contract.test.mjs
+node --test tests/*.test.mjs
+python scripts/verify_board.py
+```
+
+Expected repository evidence:
+
+- the browser live client uses same-origin requests only and contains no bearer-token/browser-storage path;
+- visible-tab interval is 4 seconds, hidden-tab interval is 30 seconds, and failures back off to a 30-second ceiling;
+- identical server revisions do not trigger `router.refresh()`;
+- the live BFF revalidates Brain organisation membership and UUID conversation context;
+- the server-side revision excludes message/DM bodies, source excerpts and secrets;
+- selected channel message/reply/reaction state, unread state, direct conversations/messages and Activity contribute to the structural revision;
+- open threads refresh through the existing same-origin replies route;
+- WorkOS activation installs the live route and enables `ProductionWorkspace` live refresh.
+
+Final demo requires official WorkOS activation and two authenticated users. Show a second user's channel message, thread reply, reaction and DM appearing within five seconds without manual reload; show unchanged state causing no refresh storm; hide the tab and inspect slower checks; go offline/reconnect; then revoke restricted-channel and DM access and prove stale content disappears on the next revision. Follow `UAT/F-10.10.md`.
