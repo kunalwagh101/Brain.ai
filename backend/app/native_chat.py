@@ -1201,6 +1201,12 @@ def post_user_message(
         body=normalized_body,
         idempotency_key=idempotency_key,
     )
+    _sync_message_attachments(
+        db,
+        message=message,
+        sources=sources,
+        actor_user_id=actor_user_id,
+    )
     if message.projection_status != NativeMessageProjectionStatus.READY:
         try:
             message = _project_message(
@@ -1221,13 +1227,6 @@ def post_user_message(
                 )[:128]
                 db.commit()
             raise
-
-    _sync_message_attachments(
-        db,
-        message=message,
-        sources=sources,
-        actor_user_id=actor_user_id,
-    )
     append_audit_event(
         db,
         organization_id=organization_id,
