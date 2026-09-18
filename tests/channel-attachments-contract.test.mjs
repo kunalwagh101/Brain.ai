@@ -13,6 +13,8 @@ test("channel attachments reuse governed evidence instead of a second blob store
   assert.match(models, /native_channel_id/);
   assert.match(relations, /class NativeMessageAttachment\(Base\)/);
   assert.match(relations, /evidence_source_id/);
+  assert.match(relations, /fk_native_message_attachment_evidence_scope/);
+  assert.match(models, /fk_evidence_source_native_channel_scope/);
   assert.doesNotMatch(relations, /LargeBinary|raw_content|file_bytes/);
   assert.match(migration, /down_revision: str \| None = "20260918_0029"/);
   assert.match(migration, /native_message_attachments/);
@@ -51,6 +53,9 @@ test("browser upload and send flow is same-origin, bounded and retry-safe", () =
   assert.match(panel, /attachment_source_ids/);
   assert.match(panel, /Successful uploads were kept for retry/);
   assert.match(panel, /Uploaded files were kept so you can retry without re-uploading/);
+  assert.match(panel, /messageRetryKey/);
+  assert.match(panel, /threadRetryKey/);
+  assert.match(panel, /activeChannelIdRef/);
   assert.doesNotMatch(panel, /Authorization|Bearer|accessToken|localStorage|sessionStorage|indexedDB/i);
   assert.match(bff, /MAX_NATIVE_ATTACHMENT_MULTIPART_BYTES = 10_500_000/);
   assert.match(bff, /multipart\/form-data/);
@@ -77,4 +82,14 @@ test("WorkOS activation installs attachment route and UAT gate", () => {
   assert.match(activation, /app-api-brain-native-attachment-upload-route\.ts\.template/);
   assert.match(activation, /attachments\/uploads\/route\.ts/);
   assert.match(activation, /UAT\/F-10\.13\.md/);
+});
+
+test("attachment rollback refuses unsafe zero-body downgrade", () => {
+  const migration = read("backend/migrations/versions/20260918_0030_channel_attachments.py");
+  assert.match(migration, /body_char_count = 0/);
+  assert.match(
+    migration,
+    /Cannot downgrade channel attachments while attachment-only messages exist/,
+  );
+  assert.match(migration, /Evidence sources are not deleted automatically/);
 });
