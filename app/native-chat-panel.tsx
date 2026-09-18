@@ -444,6 +444,8 @@ export function NativeChatPanel({
   const router = useRouter();
   const threadHeading = useRef<HTMLHeadingElement>(null);
   const handledDeepLink = useRef<string | null>(null);
+  const messageRetryKey = useRef<string | null>(null);
+  const threadRetryKey = useRef<{ rootId: string; key: string } | null>(null);
   const [rootMessages, setRootMessages] = useState(messages);
   const [body, setBody] = useState("");
   const [attachments, setAttachments] = useState<NativeAttachment[]>([]);
@@ -472,6 +474,8 @@ export function NativeChatPanel({
     setThreadBody("");
     setThreadAttachments([]);
     setThreadAttachmentRootId(null);
+    messageRetryKey.current = null;
+    threadRetryKey.current = null;
   }, [channel.id]);
 
   useEffect(() => {
@@ -614,9 +618,13 @@ export function NativeChatPanel({
     ];
     if (target === "channel") {
       setAttachments(merge);
+      messageRetryKey.current = null;
     } else {
       setThreadAttachments(merge);
-      if (threadRoot) setThreadAttachmentRootId(threadRoot.id);
+      if (threadRoot) {
+        setThreadAttachmentRootId(threadRoot.id);
+        threadRetryKey.current = null;
+      }
     }
   }
 
@@ -691,6 +699,8 @@ export function NativeChatPanel({
       return;
     }
 
+    const retryKey = messageRetryKey.current ?? crypto.randomUUID();
+    messageRetryKey.current = retryKey;
     setStatus({ kind: "working", text: "Sending message…" });
     try {
       const response = await fetch(mutationEndpoint, {
@@ -698,7 +708,7 @@ export function NativeChatPanel({
         credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
-          "Idempotency-Key": crypto.randomUUID(),
+          "Idempotency-Key": retryKey,
         },
         body: JSON.stringify({
           body: normalized,
@@ -711,6 +721,7 @@ export function NativeChatPanel({
       }
       setBody("");
       setAttachments([]);
+      messageRetryKey.current = null;
       setStatus({ kind: "idle" });
       router.refresh();
     } catch {
@@ -725,6 +736,9 @@ export function NativeChatPanel({
     if (threadAttachmentRootId && threadAttachmentRootId !== message.id) {
       setThreadAttachments([]);
       setThreadAttachmentRootId(null);
+    }
+    if (threadRetryKey.current?.rootId !== message.id) {
+      threadRetryKey.current = null;
     }
     setThreadRoot(message);
     setThreadReplies([]);
@@ -763,6 +777,10 @@ export function NativeChatPanel({
         && !(threadAttachmentRootId === threadRoot.id && threadAttachments.length)
       )
     ) return;
+    const retryKey = threadRetryKey.current?.rootId === threadRoot.id
+      ? threadRetryKey.current.key
+      : crypto.randomUUID();
+    threadRetryKey.current = { rootId: threadRoot.id, key: retryKey };
     setStatus({ kind: "working", text: "Sending reply…" });
     try {
       const response = await fetch(
@@ -772,7 +790,7 @@ export function NativeChatPanel({
           credentials: "same-origin",
           headers: {
             "Content-Type": "application/json",
-            "Idempotency-Key": crypto.randomUUID(),
+            "Idempotency-Key": retryKey,
           },
           body: JSON.stringify({
             body: normalized,
@@ -799,6 +817,7 @@ export function NativeChatPanel({
       setThreadBody("");
       setThreadAttachments([]);
       setThreadAttachmentRootId(null);
+      threadRetryKey.current = null;
       setStatus({ kind: "idle" });
     } catch {
       setStatus({
@@ -997,7 +1016,10 @@ export function NativeChatPanel({
                 <textarea
                   id="native-message-body"
                   value={body}
-                  onChange={(event) => setBody(event.target.value)}
+                  onChange={(event) => {
+                    setBody(event.target.value);
+                    messageRetryKey.current = null;
+                  }}
                   maxLength={20_000}
                   placeholder={`Message #${channel.name}`}
                   rows={3}
@@ -1104,7 +1126,10 @@ export function NativeChatPanel({
                 <textarea
                   id="native-thread-body"
                   value={threadBody}
-                  onChange={(event) => setThreadBody(event.target.value)}
+                  onChange={(event) => {
+                    setThreadBody(event.target.value);
+                    threadRetryKey.current = null;
+                  }}
                   maxLength={20_000}
                   placeholder="Reply…"
                   rows={3}
