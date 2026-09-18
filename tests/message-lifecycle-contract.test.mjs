@@ -19,7 +19,7 @@ test("message lifecycle schema is revisioned and append-only", () => {
   assert.match(models, /NativeMessageRevisionAction/);
   assert.match(migration, /down_revision: str \| None = "20260918_0027"/);
   assert.match(migration, /native_message_revisions/);
-  assert.match(retentionMigration, /down_revision: str \\| None = "20260918_0028"/);
+  assert.match(retentionMigration, /down_revision: str \| None = "20260918_0028"/);
   assert.match(retentionMigration, /native_message_revisions_deleted/);
 });
 
