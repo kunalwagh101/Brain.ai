@@ -117,7 +117,7 @@ def _github_text(raw: RawEvent, payload: dict[str, object]) -> str:
 
 def _searchable_content(event: CanonicalEvent, raw: RawEvent) -> tuple[str, str]:
     title = (event.object_display_name or event.event_type or "").strip()[:1024]
-    if event.source_provider == "slack":
+    if event.source_provider in {"slack", "brain_native"}:
         content = _text((event.event_metadata or {}).get("text")) or ""
     elif event.source_provider == "github":
         content = _github_text(raw, _payload(raw))
@@ -155,7 +155,12 @@ def _hide_deleted_object_versions(db: Session, event: CanonicalEvent) -> None:
         _reset_embedding(document)
 
 
-def project_search_document(db: Session, event: CanonicalEvent) -> SearchDocument:
+def project_search_document(
+    db: Session,
+    event: CanonicalEvent,
+    *,
+    commit: bool = True,
+) -> SearchDocument:
     existing = db.scalar(
         select(SearchDocument).where(SearchDocument.canonical_event_id == event.id)
     )
@@ -171,8 +176,12 @@ def project_search_document(db: Session, event: CanonicalEvent) -> SearchDocumen
     )
     title, content = _searchable_content(event, raw)
     deleted = event.action == "deleted" or event.event_type.endswith(".deleted")
+    native_revision = (
+        event.source_provider == "brain_native"
+        and event.action in {"updated", "deleted"}
+    )
 
-    if deleted:
+    if deleted or native_revision:
         _hide_deleted_object_versions(db, event)
 
     if existing is None:
@@ -219,8 +228,11 @@ def project_search_document(db: Session, event: CanonicalEvent) -> SearchDocumen
         if changed and not deleted:
             _reset_embedding(existing)
 
-    db.commit()
-    db.refresh(existing)
+    if commit:
+        db.commit()
+        db.refresh(existing)
+    else:
+        db.flush()
     return existing
 
 
