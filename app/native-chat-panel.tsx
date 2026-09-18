@@ -696,11 +696,11 @@ export function NativeChatPanel({
         && (target === "channel" || threadRoot?.id === uploadThreadId)
       ) {
         keepUploadedAttachments(uploaded, target);
+        setStatus({
+          kind: "error",
+          text: "The file upload could not reach the secure Brain route. Successful uploads were kept for retry.",
+        });
       }
-      setStatus({
-        kind: "error",
-        text: "The file upload could not reach the secure Brain route. Successful uploads were kept for retry.",
-      });
     } finally {
       setUploadingTarget(null);
     }
