@@ -330,14 +330,14 @@ Tasks: T-10.13.01.a evidence channel-scope + message-attachment schema/migration
 | Focused responsive Slack/Discord-style channel surface | S-10.02.01, S-10.06.01 |
 | AI tracks/agents | S-08.01.01, S-10.01.01, S-10.07.01 |
 | Permission-aware company memory | S-01.03.01, S-05.01.01 |
-| RAG/search | S-05.01.01, S-05.02.01 |
+| RAG/search | S-05.01.01, S-05.02.01, S-10.13.01 |
 | Citations / no unsupported claims | S-05.02.01, S-10.03.01 |
-| Data provenance | S-03.01.01, S-03.02.01, S-10.05.01 |
+| Data provenance | S-03.01.01, S-03.02.01, S-10.05.01, S-10.13.01 |
 | Identity resolution | S-03.03.01 |
-| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01 |
-| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01 |
+| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01 |
+| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01 |
 | Observability | S-09.01.01 |
-| Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01 |
+| Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01 |
 | Latency/cost benchmarks | S-09.04.01 |
 | Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01 |
 | Workspace administration and governance UI | S-10.08.01 |
