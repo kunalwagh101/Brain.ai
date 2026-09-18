@@ -287,3 +287,35 @@ Expected repository evidence:
 - WorkOS activation installs the live route and enables `ProductionWorkspace` live refresh.
 
 Final demo requires official WorkOS activation and two authenticated users. Show a second user's channel message, thread reply, reaction and DM appearing within five seconds without manual reload; show unchanged state causing no refresh storm; hide the tab and inspect slower checks; go offline/reconnect; then revoke restricted-channel and DM access and prove stale content disappears on the next revision. Follow `UAT/F-10.10.md`.
+
+
+## Increment 27 — Workspace Search & Quick Switcher
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.11.01 is `IN_REVIEW`, not DONE.
+
+Commands from the repository root:
+
+```bash
+cd backend
+pytest -q tests/test_workspace_search.py tests/test_native_conversation.py
+cd ..
+npm run lint
+npm run build
+node --test tests/workspace-search-contract.test.mjs
+node --test tests/*.test.mjs
+python scripts/verify_board.py
+```
+
+Expected engineering evidence:
+
+- Ctrl+K/Cmd+K opens the keyboard-first search dialog;
+- empty/local search operates over already-authorised channels, projects, tracks and visible DM counterparts without a remote request;
+- >=2-character content search is debounced 250 ms and uses the same-origin WorkOS route;
+- the BFF normalises queries to 2–120 characters, requests keyword mode with at most 12 results and bounds excerpts to 280 characters;
+- a restricted Brain-native message is searchable while access exists and disappears after channel revocation;
+- a unique DM-body sentinel produces zero organisation-wide search results;
+- Brain-native results carry exact channel/message deep links and the single-message backend read rechecks current channel access;
+- no browser bearer-token/storage credential path exists;
+- WorkOS activation installs the search route and preserves the `messageId` page context.
+
+Final demo: use two authenticated users. Search a restricted-channel sentinel as an authorised member, open the exact message, then revoke access and prove the same search no longer returns it. Search a unique DM-body sentinel and prove it never appears remotely. Exercise Ctrl+K/Cmd+K, Escape, focus, mobile layout and screen reader labelling. Follow `UAT/F-10.11.md`.
