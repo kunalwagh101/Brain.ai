@@ -1,0 +1,64 @@
+import { withAuth } from "@workos-inc/authkit-nextjs";
+import { NextRequest } from "next/server";
+import {
+  handleNativeMessageEditBff,
+  handleNativeMessageRetractBff,
+} from "../../../../../../../../../native-chat-bff";
+import {
+  nativeChatJson,
+  nativeChatRouteError,
+  readNativeChatJson,
+  rejectCrossSiteMutation,
+} from "../../../../../../../../../native-chat-route";
+
+type Params = Promise<{
+  organizationId: string;
+  channelId: string;
+  messageId: string;
+}>;
+
+export async function PATCH(request: NextRequest, context: { params: Params }) {
+  const crossSite = rejectCrossSiteMutation(request);
+  if (crossSite) return crossSite;
+  const auth = await withAuth();
+  if (!auth.user || !auth.accessToken) {
+    return nativeChatJson({ detail: "Authentication required" }, 401);
+  }
+  try {
+    const { organizationId, channelId, messageId } = await context.params;
+    const body = await readNativeChatJson(request, 24 * 1024);
+    const result = await handleNativeMessageEditBff(
+      auth.accessToken,
+      organizationId,
+      channelId,
+      messageId,
+      body,
+    );
+    return nativeChatJson(result, 200);
+  } catch (error) {
+    return nativeChatRouteError(error, "Native message edit");
+  }
+}
+
+export async function DELETE(request: NextRequest, context: { params: Params }) {
+  const crossSite = rejectCrossSiteMutation(request);
+  if (crossSite) return crossSite;
+  const auth = await withAuth();
+  if (!auth.user || !auth.accessToken) {
+    return nativeChatJson({ detail: "Authentication required" }, 401);
+  }
+  try {
+    const { organizationId, channelId, messageId } = await context.params;
+    const body = await readNativeChatJson(request, 2 * 1024);
+    const result = await handleNativeMessageRetractBff(
+      auth.accessToken,
+      organizationId,
+      channelId,
+      messageId,
+      body,
+    );
+    return nativeChatJson(result, 200);
+  } catch (error) {
+    return nativeChatRouteError(error, "Native message retract");
+  }
+}
