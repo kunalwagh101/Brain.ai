@@ -122,6 +122,9 @@ class NativeMessageRead(BaseModel):
     projection_status: NativeMessageProjectionStatus
     canonical_event_id: uuid.UUID | None
     created_at: datetime
+    revision: int
+    edited_at: datetime | None
+    deleted_at: datetime | None
 
 
 def _request_id(request: Request) -> str | None:
@@ -277,11 +280,14 @@ def _message_reads(db: Session, messages: list[NativeMessage]) -> list[NativeMes
                 author_user_id=message.author_user_id,
                 agent_run_id=message.agent_run_id,
                 actor_display_name=actor_label,
-                body=message.body,
-                body_sha256=message.body_sha256,
+                body="" if message.deleted_at is not None else message.body,
+                body_sha256="" if message.deleted_at is not None else message.body_sha256,
                 projection_status=message.projection_status,
                 canonical_event_id=message.canonical_event_id,
                 created_at=message.created_at,
+                revision=message.revision,
+                edited_at=message.edited_at,
+                deleted_at=message.deleted_at,
             )
         )
     return result
