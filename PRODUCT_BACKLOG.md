@@ -267,6 +267,13 @@ As an owner/admin, I want setup and governance surfaces inside Brain, so that th
 Acceptance: role-gated UI covers membership visibility, Slack/GitHub/evidence integration state, resource grants where supported, approved AI runtimes, budget/API-governance status and revocation flows; secrets are never displayed; unavailable capabilities fail closed rather than presenting fake controls.  
 Dependencies: E-01, E-02, E-06. Size: L. Indicator: admin workflow completion rate. Value: E-10. Priority: P1.
 
+#### F-10.09 Activity & Notifications
+**S-10.09.01 — Give each user one permission-aware Activity & Notifications inbox**  
+As a Brain user, I want one personal attention queue for collaboration, agent, project and integration events, so that I can see what needs my attention and jump back to the exact authorised source without searching across the workspace.  
+Acceptance: Given a current organisation member, when Activity is opened, then exact @mentions, thread replies, unread channel activity, agent approval requests, agent completion/failure events, visible project/blocker updates and authorised integration failures are returned with personal read/unread state; Given an item references channel, DM, project, blocker, agent run/step or integration state, when source permission or visibility is revoked, then the item disappears immediately and contributes nothing to unread count; Given a persisted item, when it is opened, then its link targets the exact source context rather than a generic page; Given mark-one or mark-all is used, then only the authenticated recipient's currently visible items are changed; Given notification preferences are updated, then only reviewed boolean categories are accepted and disabled categories are suppressed without deleting the underlying product object; Given any Activity API/UI response, then no copied DM/message body, provider secret, API credential, agent arguments/results or private evidence excerpt is exposed; Given the frontend mutates Activity, then it uses authenticated same-origin WorkOS BFF routes and no reusable bearer token is exposed to browser code; Given concurrent first reads create default preferences, then the unique per-organisation/user preference row remains idempotent and the request recovers safely from a uniqueness race; Given Alembic migration history, then the existing notification branches converge to one head before the Activity inbox extension is applied and upgrade/downgrade/forward recovery is testable.  
+Dependencies: S-10.06.01, S-10.06.02, S-10.07.01, S-10.08.01, S-08.01.01, S-07.01.01. Blocking risk: repository implementation can reach IN_REVIEW, but DONE still requires executable backend/frontend/verifier evidence, PostgreSQL migration round-trip and authenticated S-10.04 WorkOS multi-user browser UAT. Size: L. Leading indicator: unread-to-source-open conversion and notification action completion. Business value: E-10. Priority: P1.  
+Tasks: T-10.09.01.a reference-only notification/preference schema and migration convergence; T-10.09.01.b permission-rechecking materialisation for collaboration/agent/project/integration events; T-10.09.01.c read/unread and preference APIs with idempotency/concurrency safety; T-10.09.01.d exact deep-link contract and same-origin WorkOS BFF routes; T-10.09.01.e responsive accessible Activity dock/panel; T-10.09.01.f security/privacy/idempotency/migration/frontend tests; T-10.09.01.g docs/UAT/demo/rollback evidence.
+
 ## Requirements -> Backlog coverage
 
 | Requirement | Backlog IDs |
@@ -299,12 +306,21 @@ Dependencies: E-01, E-02, E-06. Size: L. Indicator: admin workflow completion ra
 | Citations / no unsupported claims | S-05.02.01, S-10.03.01 |
 | Data provenance | S-03.01.01, S-03.02.01, S-10.05.01 |
 | Identity resolution | S-03.03.01 |
-| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02 |
-| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02 |
+| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01 |
+| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02, S-10.09.01 |
 | Observability | S-09.01.01 |
-| Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02 |
+| Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02, S-10.09.01 |
 | Latency/cost benchmarks | S-09.04.01 |
-| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02 |
+| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02, S-10.09.01 |
+| Workspace administration and governance UI | S-10.08.01 |
+| Personal Activity & Notifications inbox | S-10.09.01 |
+| @mentions and thread-reply notifications | S-10.06.01, S-10.09.01 |
+| Unread channel activity in one attention queue | S-10.06.01, S-10.09.01 |
+| Agent approval/completion/failure notifications | S-08.01.01, S-10.07.01, S-10.09.01 |
+| Project and blocker update notifications | S-07.01.01, S-04.02.01, S-10.09.01 |
+| Integration failure notifications | S-02.01.01, S-10.08.01, S-10.09.01 |
+| Notification read/unread state and preferences | S-10.09.01 |
+| Notification deep links to exact source context | S-10.09.01 |
 | CI and lie-detector verifier | S-09.03.01 |
 | Agile/Scrum/Kanban artifacts | S-09.03.01 |
 
