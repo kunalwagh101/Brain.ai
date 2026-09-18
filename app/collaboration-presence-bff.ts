@@ -1,11 +1,9 @@
 import { BrainApiError } from "./brain-api";
 import {
   BrainMembershipError,
-  requireBrainOrganizationMembership,
   requireUuid,
 } from "./brain-membership";
 
-const PRESENCE_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
 const CONTEXT_KINDS = new Set(["channel", "dm"]);
 
 export class CollaborationPresenceBffError extends Error {
@@ -28,20 +26,10 @@ function apiBaseUrl(): string {
   return configured.replace(/\/$/, "");
 }
 
-async function requirePresenceMembership(
-  accessToken: string,
-  organizationId: string,
-): Promise<void> {
+function normalizeOrganizationId(value: string): string {
   try {
-    const organization = await requireBrainOrganizationMembership(accessToken, organizationId);
-    if (!PRESENCE_ROLES.has(organization.role)) {
-      throw new CollaborationPresenceBffError(
-        403,
-        "Collaboration presence is unavailable for this role",
-      );
-    }
+    return requireUuid(value, "organizationId");
   } catch (error) {
-    if (error instanceof CollaborationPresenceBffError) throw error;
     if (error instanceof BrainMembershipError) {
       throw new CollaborationPresenceBffError(error.status, error.message);
     }
@@ -97,10 +85,10 @@ export async function handlePresenceHeartbeat(
   accessToken: string,
   organizationId: string,
 ): Promise<unknown> {
-  await requirePresenceMembership(accessToken, organizationId);
+  const organization = normalizeOrganizationId(organizationId);
   return forward(
     accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/collaboration-presence/heartbeat`,
+    `/api/v1/organizations/${encodeURIComponent(organization)}/collaboration-presence/heartbeat`,
     "POST",
   );
 }
@@ -111,12 +99,12 @@ export async function handlePresenceContext(
   contextKind: string,
   contextId: string,
 ): Promise<unknown> {
-  await requirePresenceMembership(accessToken, organizationId);
+  const organization = normalizeOrganizationId(organizationId);
   const kind = normalizeContextKind(contextKind);
   const id = normalizeContextId(contextId);
   return forward(
     accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/collaboration-presence/${kind}/${encodeURIComponent(id)}`,
+    `/api/v1/organizations/${encodeURIComponent(organization)}/collaboration-presence/${kind}/${encodeURIComponent(id)}`,
     "GET",
   );
 }
@@ -128,12 +116,12 @@ export async function handleTypingState(
   contextId: string,
   active: boolean,
 ): Promise<void> {
-  await requirePresenceMembership(accessToken, organizationId);
+  const organization = normalizeOrganizationId(organizationId);
   const kind = normalizeContextKind(contextKind);
   const id = normalizeContextId(contextId);
   return forward(
     accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/collaboration-presence/${kind}/${encodeURIComponent(id)}/typing`,
+    `/api/v1/organizations/${encodeURIComponent(organization)}/collaboration-presence/${kind}/${encodeURIComponent(id)}/typing`,
     active ? "PUT" : "DELETE",
   );
 }
