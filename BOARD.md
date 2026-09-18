@@ -40,6 +40,14 @@ IN_REVIEW | S-10.06.02 | F-10.06 | Participant-only Brain-native DMs, sequence-b
 IN_REVIEW | S-10.07.01 | F-10.07 | Governed developer/agent workspace, project/channel context binding, approvals, context-aware tool execution, ephemeral final output and privacy/security contracts are implementation-staged; executable verification and authenticated browser UAT remain pending
 IN_REVIEW | S-10.08.01 | F-10.08 | Owner/Admin governance center now covers member/integration lifecycle, AI provider/model bootstrap and credential rotation, API service/grant bootstrap, owner/scope/environment/credential lifecycle and safe same-origin WorkOS BFF contracts; executable/backend/browser verification remains outstanding
 IN_REVIEW | S-10.09.01 | F-10.09 | Unified personal Activity & Notifications inbox is implementation-staged across collaboration, agent, project/blocker and integration events with reference-only persistence, current-permission rechecks, exact deep links, personal read/unread state, preferences, same-origin BFF UI and migration-branch convergence; executable backend/frontend/verifier/PostgreSQL/WorkOS browser evidence remains outstanding
+IN_PROGRESS | S-10.10.01 | F-10.10 | Live workspace revision/BFF/adaptive refresh vertical slice pulled after readiness review; no WebSocket/SSE/event-store expansion without measured need
+
+### S-10.10.01 Live Workspace Updates — IN_PROGRESS
+
+Sprint goal: make authorised channel, thread, DM, unread and Activity changes appear without manual browser reload while preserving the existing server-side permission boundary.
+
+Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-26.md` and `UAT/F-10.10.md`. WIP after pull: one `IN_PROGRESS` story.
+
 
 ### S-10.09.01 Activity & Notifications Inbox — IN_REVIEW
 
