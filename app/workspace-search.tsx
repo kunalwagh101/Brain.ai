@@ -11,8 +11,20 @@ import type {
   WorkspaceNavigationNode,
 } from "./brain-api";
 import type { DirectConversation } from "./direct-message-api";
-import type { WorkspaceSearchPayload } from "./workspace-search-bff";
 import styles from "./workspace-search.module.css";
+
+type WorkspaceSearchPayload = {
+  query: string;
+  items: Array<{
+    id: string;
+    title: string;
+    excerpt: string;
+    source: string;
+    object_type: string;
+    href: string;
+    occurred_at: string | null;
+  }>;
+};
 
 type LocalItem = {
   id: string;
@@ -157,7 +169,7 @@ export function WorkspaceSearch({
       <button className={styles.trigger} onClick={open} type="button">
         <span aria-hidden="true">⌕</span>
         <span>Search Brain</span>
-        <kbd>⌘K</kbd>
+        <kbd>Ctrl/⌘ K</kbd>
       </button>
 
       <dialog
