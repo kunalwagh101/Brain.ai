@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Increment 26 — Live workspace updates
+
+- Added an opaque server-side live revision built from already-authorised Activity, visible channel/access metadata, unread cursors, selected-channel message/reply/reaction affordances and participant-visible DM state.
+- Added a same-origin WorkOS live-state BFF that revalidates Brain organisation membership and UUID conversation context while keeping reusable access tokens server-side.
+- Added adaptive client checks: 4 seconds on visible tabs, 30 seconds while hidden, offline-aware recovery and exponential failure backoff capped at 30 seconds.
+- The React server tree refreshes only when the stable revision changes, avoiding repeated reloads against identical source state.
+- Open threads independently re-fetch permitted replies through the existing same-origin conversation route so reply/reaction changes can appear without manual reload.
+- Reused the existing permission/source APIs instead of adding WebSockets, SSE, Redis, a broker or a second realtime event store before measured need.
+- Added source-contract tests, WorkOS activation wiring, planning, UAT and demo evidence contracts.
+
+Verification is not yet claimed. `S-10.10.01` is `IN_REVIEW` until frontend/verifier execution and authenticated two-user WorkOS timing/revocation/offline/accessibility UAT pass.
+
+
 ### Increment 25 — Activity & Notifications Inbox
 
 - Added one personal permission-aware Activity inbox for exact mentions, thread replies, reactions, Brain-native direct messages, unread channel activity, agent approval requests, agent completion/failure events, visible project/blocker updates and authorised integration failures.
