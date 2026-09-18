@@ -4,7 +4,12 @@ import { ProductionWorkspace } from "./production-workspace";
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ organizationId?: string; channelId?: string; dmId?: string }>;
+  searchParams: Promise<{
+    organizationId?: string;
+    channelId?: string;
+    dmId?: string;
+    messageId?: string;
+  }>;
 }) {
   const { user, accessToken } = await withAuth({ ensureSignedIn: true });
   const params = await searchParams;
@@ -25,6 +30,7 @@ export default async function Home({
       requestedOrganizationId={params.organizationId ?? null}
       requestedChannelId={params.channelId ?? null}
       requestedDirectMessageId={params.dmId ?? null}
+      requestedMessageId={params.messageId ?? null}
       enableAskBrainBff
       enableEvidenceBff
       enableNativeChatBff
@@ -32,6 +38,7 @@ export default async function Home({
       enableActivityBff
       enableAgentWorkspaceBff
       enableLiveUpdatesBff
+      enableWorkspaceSearchBff
       signOutAction={signOutAction}
     />
   );
