@@ -185,7 +185,7 @@ export function DirectMessagePanel({
                   <small>{selectedConversation.other_email}</small>
                 </div>
               </div>
-              {selectedConversation.can_send && presenceEndpoint ? (
+              {selectedConversation.can_send && presenceEndpoint && presence.loaded ? (
                 <span className={styles.presenceLabel} data-online={otherOnline || undefined}>
                   <i aria-hidden="true" />
                   {otherOnline ? "Online" : "Offline"} · 1:1 DM
