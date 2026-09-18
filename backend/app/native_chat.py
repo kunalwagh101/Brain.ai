@@ -100,7 +100,7 @@ def _normalize_description(value: str | None) -> str | None:
     return description or None
 
 
-def _normalize_message(value: str) -> str:
+def normalize_message_body(value: str) -> str:
     body = value.replace("\r\n", "\n").replace("\r", "\n").strip()
     if not body:
         raise NativeChatError("empty_message", "Message must not be empty")
@@ -875,21 +875,29 @@ def sync_exact_mentions(
     *,
     channel: NativeChannel,
     message: NativeMessage,
+    commit: bool = True,
 ) -> list[NativeMessageMention]:
     emails = {item.casefold() for item in _MENTION_EMAIL_RE.findall(message.body)}
-    if not emails:
-        return []
-    users = list(
-        db.scalars(
-            select(User)
-            .join(Membership, Membership.user_id == User.id)
-            .where(
-                Membership.organization_id == channel.organization_id,
-                User.status == "active",
-                func.lower(User.email).in_(emails),
+    users = (
+        list(
+            db.scalars(
+                select(User)
+                .join(Membership, Membership.user_id == User.id)
+                .where(
+                    Membership.organization_id == channel.organization_id,
+                    User.status == "active",
+                    func.lower(User.email).in_(emails),
+                )
             )
         )
+        if emails
+        else []
     )
+    desired_user_ids = {
+        user.id
+        for user in users
+        if can_read_channel(db, channel, user_id=user.id)
+    }
     existing = {
         row.mentioned_user_id: row
         for row in db.scalars(
@@ -898,22 +906,31 @@ def sync_exact_mentions(
             )
         )
     }
+
+    for user_id, row in existing.items():
+        if user_id not in desired_user_ids:
+            db.delete(row)
+
     for user in users:
-        if user.id in existing or not can_read_channel(db, channel, user_id=user.id):
+        if user.id not in desired_user_ids or user.id in existing:
             continue
-        row = NativeMessageMention(
-            organization_id=channel.organization_id,
-            channel_id=channel.id,
-            message_id=message.id,
-            mentioned_user_id=user.id,
+        db.add(
+            NativeMessageMention(
+                organization_id=channel.organization_id,
+                channel_id=channel.id,
+                message_id=message.id,
+                mentioned_user_id=user.id,
+            )
         )
-        db.add(row)
-        existing[user.id] = row
-    expected_user_ids = set(existing)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
+
+    if commit:
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+    else:
+        db.flush()
+
     rows = list(
         db.scalars(
             select(NativeMessageMention)
@@ -921,13 +938,13 @@ def sync_exact_mentions(
             .order_by(NativeMessageMention.created_at, NativeMessageMention.id)
         )
     )
-    if expected_user_ids - {row.mentioned_user_id for row in rows}:
+    actual_user_ids = {row.mentioned_user_id for row in rows}
+    if actual_user_ids != desired_user_ids:
         raise NativeChatConflictError(
             "mention_sync_failed",
             "Message mentions could not be saved",
         )
     return rows
-
 
 def _create_message_row(
     db: Session,
@@ -1045,7 +1062,7 @@ def post_user_message(
             or root.thread_root_id is not None
         ):
             raise NativeChatError("thread_root_not_found", "Thread root not found")
-    normalized_body = _normalize_message(body)
+    normalized_body = normalize_message_body(body)
     message = _create_message_row(
         db,
         organization_id=organization_id,
@@ -1129,7 +1146,7 @@ def post_agent_message(
         user_id=run.requested_by_user_id,
     ):
         raise NativeChatError("channel_not_found", "Channel not found")
-    normalized_body = _normalize_message(body)
+    normalized_body = normalize_message_body(body)
     message = _create_message_row(
         db,
         organization_id=organization_id,
