@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Increment 25 — Activity & Notifications Inbox
+
+- Added one personal permission-aware Activity inbox for exact mentions, thread replies, reactions, Brain-native direct messages, unread channel activity, agent approval requests, agent completion/failure events, visible project/blocker updates and authorised integration failures.
+- Kept Activity persistence reference-only: notifications store identifiers/read state rather than copied message bodies, DM text, private evidence excerpts, provider/API credentials or agent tool arguments/results.
+- Re-check current source permissions and state when Activity is read, so restricted-channel/DM/project/agent/integration revocation or recovery removes stale items and unread counts immediately.
+- Added exact source deep links for channel/message/thread, DM conversation/message, agent run/step, project/blocker and integration context.
+- Added personal mark-one/mark-all read state plus explicit per-user notification preferences.
+- Hardened default preference creation against concurrent first-read uniqueness races by recovering the winning organisation/user preference row after an integrity collision.
+- Preserved both existing notification migration parents and converged them with graph-only merge revision `20260918_0026`; the unified inbox extension follows at `20260918_0027`.
+- Added responsive Activity dock/panel, same-origin WorkOS BFF contracts, backend/privacy/security tests, frontend source-contract tests, UAT and inspectable demo commands.
+
+Verification is not yet claimed. `S-10.09.01` is `IN_REVIEW`: current GitHub-hosted jobs have been failing before repository steps execute, and the required PostgreSQL migration round-trip plus official WorkOS authenticated multi-user browser/accessibility UAT have not yet produced passing evidence.
+
 ### Increment 24 — Slack/Discord-quality Brain conversations
 
 - Made the selected Brain channel the primary workspace surface with unread badges, responsive thread context, visible agent identity, resolved mention highlighting, reaction controls, empty/error states and keyboard-visible controls.
