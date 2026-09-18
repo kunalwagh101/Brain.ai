@@ -20,13 +20,18 @@ def upgrade() -> None:
         "evidence_sources",
         sa.Column("native_channel_id", sa.Uuid(), nullable=True),
     )
+    op.create_unique_constraint(
+        "uq_evidence_source_org_id",
+        "evidence_sources",
+        ["organization_id", "id"],
+    )
     op.create_foreign_key(
-        "fk_evidence_source_native_channel",
+        "fk_evidence_source_native_channel_scope",
         "evidence_sources",
         "native_channels",
-        ["native_channel_id"],
-        ["id"],
-        ondelete="SET NULL",
+        ["organization_id", "native_channel_id"],
+        ["organization_id", "id"],
+        ondelete="RESTRICT",
     )
     op.create_index(
         "ix_evidence_sources_native_channel_id",
@@ -81,8 +86,9 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
-            ["evidence_source_id"],
-            ["evidence_sources.id"],
+            ["organization_id", "evidence_source_id"],
+            ["evidence_sources.organization_id", "evidence_sources.id"],
+            name="fk_native_message_attachment_evidence_scope",
             ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
@@ -157,8 +163,13 @@ def downgrade() -> None:
         table_name="evidence_sources",
     )
     op.drop_constraint(
-        "fk_evidence_source_native_channel",
+        "fk_evidence_source_native_channel_scope",
         "evidence_sources",
         type_="foreignkey",
+    )
+    op.drop_constraint(
+        "uq_evidence_source_org_id",
+        "evidence_sources",
+        type_="unique",
     )
     op.drop_column("evidence_sources", "native_channel_id")
