@@ -12,7 +12,7 @@ from app.collaboration_presence_models import (
     CollaborationTypingLease,
 )
 from app.direct_message_models import DirectConversation
-from app.models import Membership, User
+from app.models import Membership, ResourceAccessLevel, User
 from app.native_chat import can_write_channel, get_visible_channel
 from app.native_chat_models import (
     NativeChannelMembership,
@@ -472,7 +472,7 @@ def _typing_users_for_channel(
                     NativeChannelMembership.organization_id == organization_id,
                     NativeChannelMembership.channel_id == channel_id,
                     NativeChannelMembership.revoked_at.is_(None),
-                    NativeChannelMembership.access == "write",
+                    NativeChannelMembership.access == ResourceAccessLevel.WRITE,
                 )
             )
         )
