@@ -63,6 +63,13 @@ export async function computeLiveRevision(input: LiveRevisionInput): Promise<str
       message.revision,
       message.edited_at,
       message.deleted_at,
+      [...message.attachments]
+        .sort((left, right) => left.source_id.localeCompare(right.source_id))
+        .map((attachment) => [
+          attachment.source_id,
+          attachment.status,
+          attachment.retrieval_available,
+        ]),
       [...message.reactions]
         .sort((left, right) => left.reaction.localeCompare(right.reaction))
         .map((reaction) => [reaction.reaction, reaction.count, reaction.reacted_by_me]),
