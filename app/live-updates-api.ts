@@ -2,10 +2,12 @@ import { getActivity, type ActivitySummary } from "./activity-api";
 import {
   listNativeChannels,
   listNativeMessages,
+  listNativePins,
   listNativeUnread,
   type NativeChannel,
   type NativeChannelUnread,
   type NativeMessage,
+  type NativeMessagePin,
 } from "./brain-api";
 import {
   listDirectConversations,
@@ -24,6 +26,7 @@ type LiveRevisionInput = {
   channels: NativeChannel[];
   unread: NativeChannelUnread[];
   selectedChannelMessages: NativeMessage[];
+  selectedChannelPins: NativeMessagePin[];
   directConversations: DirectConversation[];
   directMessages: DirectMessage[];
 };
@@ -54,6 +57,13 @@ export async function computeLiveRevision(input: LiveRevisionInput): Promise<str
         item.unread_count,
         item.latest_message_id,
         item.last_read_at,
+      ]),
+    selectedChannelPins: [...input.selectedChannelPins]
+      .sort((left, right) => left.pin_id.localeCompare(right.pin_id))
+      .map((pin) => [
+        pin.pin_id,
+        pin.message.id,
+        pin.pinned_at,
       ]),
     selectedChannelMessages: byId(input.selectedChannelMessages).map((message) => [
       message.id,
@@ -111,9 +121,12 @@ export async function getLiveWorkspaceState(
     ? directConversations.find((conversation) => conversation.id === selectedDirectMessageId) ?? null
     : null;
 
-  const [selectedChannelMessages, directMessages] = await Promise.all([
+  const [selectedChannelMessages, selectedChannelPins, directMessages] = await Promise.all([
     readableChannel
       ? listNativeMessages(accessToken, organizationId, readableChannel.id, 100)
+      : Promise.resolve([]),
+    readableChannel
+      ? listNativePins(accessToken, organizationId, readableChannel.id, 50)
       : Promise.resolve([]),
     readableDirectConversation
       ? listDirectMessages(accessToken, organizationId, readableDirectConversation.id)
@@ -126,6 +139,7 @@ export async function getLiveWorkspaceState(
       channels,
       unread,
       selectedChannelMessages,
+      selectedChannelPins,
       directConversations,
       directMessages,
     }),
