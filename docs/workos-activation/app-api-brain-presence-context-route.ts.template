@@ -1,0 +1,100 @@
+import { withAuth } from "@workos-inc/authkit-nextjs";
+import { NextRequest, NextResponse } from "next/server";
+import { BrainApiError } from "../../../../../../../../brain-api";
+import {
+  CollaborationPresenceBffError,
+  handlePresenceContext,
+  handleTypingState,
+} from "../../../../../../../../collaboration-presence-bff";
+import { rejectCrossSiteMutation } from "../../../../../../../../native-chat-route";
+
+const SAFE_UPSTREAM_STATUSES = new Set([400, 401, 403, 404, 409, 422, 429, 503]);
+
+function json(body: object, status: number) {
+  return NextResponse.json(body, {
+    status,
+    headers: {
+      "Cache-Control": "no-store, private",
+      "Vary": "Cookie",
+    },
+  });
+}
+
+type Params = Promise<{
+  organizationId: string;
+  contextKind: string;
+  contextId: string;
+}>;
+
+export async function GET(_request: NextRequest, context: { params: Params }) {
+  const auth = await withAuth();
+  if (!auth.user || !auth.accessToken) {
+    return json({ detail: "Authentication required" }, 401);
+  }
+  try {
+    const { organizationId, contextKind, contextId } = await context.params;
+    const result = await handlePresenceContext(
+      auth.accessToken,
+      organizationId,
+      contextKind,
+      contextId,
+    );
+    return json(result as object, 200);
+  } catch (error) {
+    if (error instanceof CollaborationPresenceBffError) {
+      return json({ detail: "Presence request was not accepted" }, error.status);
+    }
+    if (error instanceof BrainApiError) {
+      const status = SAFE_UPSTREAM_STATUSES.has(error.status) ? error.status : 502;
+      return json({ detail: "Presence request failed safely" }, status);
+    }
+    return json({ detail: "Presence request failed safely" }, 500);
+  }
+}
+
+async function mutate(
+  request: NextRequest,
+  context: { params: Params },
+  active: boolean,
+) {
+  const crossSite = rejectCrossSiteMutation(request);
+  if (crossSite) return crossSite;
+  const auth = await withAuth();
+  if (!auth.user || !auth.accessToken) {
+    return json({ detail: "Authentication required" }, 401);
+  }
+  try {
+    const { organizationId, contextKind, contextId } = await context.params;
+    await handleTypingState(
+      auth.accessToken,
+      organizationId,
+      contextKind,
+      contextId,
+      active,
+    );
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        "Cache-Control": "no-store, private",
+        "Vary": "Cookie",
+      },
+    });
+  } catch (error) {
+    if (error instanceof CollaborationPresenceBffError) {
+      return json({ detail: "Typing request was not accepted" }, error.status);
+    }
+    if (error instanceof BrainApiError) {
+      const status = SAFE_UPSTREAM_STATUSES.has(error.status) ? error.status : 502;
+      return json({ detail: "Typing request failed safely" }, status);
+    }
+    return json({ detail: "Typing request failed safely" }, 500);
+  }
+}
+
+export async function PUT(request: NextRequest, context: { params: Params }) {
+  return mutate(request, context, true);
+}
+
+export async function DELETE(request: NextRequest, context: { params: Params }) {
+  return mutate(request, context, false);
+}
