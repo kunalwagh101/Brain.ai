@@ -207,6 +207,7 @@ def _materialize_recent_activity(
             .where(
                 NativeMessage.organization_id == organization_id,
                 NativeMessage.thread_root_id.in_(root_ids),
+                NativeMessage.deleted_at.is_(None),
                 or_(
                     NativeMessage.author_user_id.is_(None),
                     NativeMessage.author_user_id != user_id,
@@ -318,13 +319,25 @@ def _native_item(
     user_id: uuid.UUID,
 ) -> ActivityItem | None:
     message = db.get(NativeMessage, row.resource_id)
-    if message is None or message.organization_id != row.organization_id:
+    if (
+        message is None
+        or message.organization_id != row.organization_id
+        or message.deleted_at is not None
+    ):
         return None
     channel = db.get(NativeChannel, message.channel_id)
     if channel is None or not _channel_visible(db, channel=channel, user_id=user_id):
         return None
     actor = _actor_name(db, row.actor_user_id)
     if row.kind == ActivityKind.MENTION:
+        still_mentioned = db.scalar(
+            select(NativeMessageMention.id).where(
+                NativeMessageMention.message_id == message.id,
+                NativeMessageMention.mentioned_user_id == user_id,
+            )
+        )
+        if still_mentioned is None:
+            return None
         label = f"{actor or 'An agent'} mentioned you"
     elif row.kind == ActivityKind.THREAD_REPLY:
         label = f"{actor or 'An agent'} replied in a thread"
