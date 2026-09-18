@@ -307,6 +307,30 @@ def send_root(
 
 
 @router.get(
+    "/channels/{channel_id}/messages/{message_id}",
+    response_model=ConversationMessageRead,
+)
+def read_message(
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    message_id: uuid.UUID,
+    authorization: Annotated[AuthorizationContext, Depends(_read)],
+    db: Annotated[Session, Depends(get_db)],
+) -> ConversationMessageRead:
+    try:
+        _, message = visible_message(
+            db,
+            organization_id=organization_id,
+            channel_id=channel_id,
+            message_id=message_id,
+            user_id=authorization.user_id,
+        )
+    except NativeChatError as exc:
+        _raise_chat_error(exc)
+    return _message_reads(db, [message], authorization.user_id)[0]
+
+
+@router.get(
     "/channels/{channel_id}/messages/{root_message_id}/replies",
     response_model=list[ConversationMessageRead],
 )
