@@ -262,3 +262,32 @@ Rollback: migration removes message-attachment relations and native-channel scop
 Leading indicators: restricted-file leakage = 0; duplicate attachment relations = 0; successful upload-to-message-link rate; attachment evidence appears in authorised Search/Ask Brain.
 
 Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires PostgreSQL migration round-trip, focused backend tests, frontend lint/build/source contracts, verifier and authenticated WorkOS multi-user channel upload/revocation/deletion/retry UAT.
+
+
+## Increment 30 readiness record — S-10.14.01
+
+Decision: `READY` for repository implementation on 2026-09-19; board WIP is zero before pull.
+
+Problem and baseline: Brain conversations now have channels, participant-only DMs, threads, mentions, reactions, unread state, Activity, live message refresh, search, lifecycle and governed files. The remaining live-collaboration gap is transient presence: users cannot tell whether an authorised teammate is online or typing.
+
+AI decision: AI is not needed. Presence and typing are deterministic lease/authorization/UI state.
+
+Architecture decision: use PostgreSQL short-lived lease rows because the current product already depends on PostgreSQL and no measured traffic justifies Redis/WebSockets/SSE. One organisation/user presence lease has only `expires_at`. One typing lease has organisation/user plus exactly one native channel or direct conversation and `expires_at`. No draft content, keystrokes, cursor data, IP/user-agent or historical event row is persisted. Expired leases are ignored and purged opportunistically. This is intentionally ephemeral operational state, not company intelligence.
+
+Presence semantics: a visible online-capable browser renews presence every 30 seconds for a 75-second lease. Hidden/offline tabs stop renewing, so status expires naturally. The API never exposes an exact last-seen timestamp. Channel presence returns only users who currently retain access to that exact channel. DM presence returns only the other participant and only to a currently authorised participant.
+
+Typing semantics: non-empty composer input refreshes a context-specific lease no more than once every 3 seconds; lease duration is 8 seconds. Clearing/sending/changing context/hiding/unmounting triggers best-effort DELETE, but expiry is the correctness guarantee. Current user is excluded from typing results.
+
+Privacy/security boundary: no organisation role provides DM presence override. Restricted-channel visibility uses current native-channel access. Browser requests are same-origin WorkOS BFF calls and reusable backend tokens never enter client code. Presence/typing mutations are not organisation-wide audit events because creating behavioural surveillance metadata would violate the purpose of ephemeral collaboration state.
+
+Concurrency/idempotency: unique organisation/user presence and unique user/context typing rows are upserted/updated rather than appended. Repeated heartbeats do not create history.
+
+Migration/rollback: migration `20260919_0031` adds only ephemeral lease tables and scoped foreign keys. Downgrade drops only those tables and changes no messages, channels, DMs, evidence or audit records.
+
+Dependencies: S-10.06.01 and S-10.06.02 provide current access predicates; S-10.10.01 provides the existing live-collaboration client pattern; S-10.04 remains the external authenticated browser acceptance gate. These usable contracts are implementation-staged even though final executable acceptance remains pending.
+
+Open questions: none changes this repository slice. Durable last-seen timestamps, away/manual status, custom status text, mobile push/background presence, group-DM presence and Redis/WebSocket scale-out are explicit later scope and require measured/product need.
+
+Leading indicators: visible online/typing state appears/disappears within lease targets; unauthorised presence/typing exposure = 0; typing network calls remain throttled rather than per-keystroke; durable history rows = 0.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. `DONE` requires PostgreSQL migration round-trip, focused expiry/concurrency/revocation tests, frontend lint/build/source contracts, verifier and authenticated two-user WorkOS browser timing/privacy UAT.
