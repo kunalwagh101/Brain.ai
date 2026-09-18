@@ -43,13 +43,32 @@ IN_REVIEW | S-10.09.01 | F-10.09 | Unified personal Activity & Notifications inb
 IN_REVIEW | S-10.10.01 | F-10.10 | Opaque authorised live revision, same-origin WorkOS BFF, adaptive visible/hidden/offline refresh, selected-channel/DM/Activity invalidation and open-thread refresh are implementation-staged; executable frontend/verifier and authenticated two-user WorkOS timing/revocation UAT remain outstanding
 IN_REVIEW | S-10.11.01 | F-10.11 | Keyboard-first quick switcher, membership-validated same-origin keyword search, exact authorised Brain-message deep links, restricted-channel revoke regression and DM-content exclusion regression are implementation-staged; executable backend/frontend/verifier and authenticated WorkOS keyboard/privacy UAT remain outstanding
 IN_REVIEW | S-10.12.01 | F-10.12 | Author-only edit/retract, expected-revision conflicts, immutable RawEvent/CanonicalEvent lifecycle revisions, retired Search versions, tombstones, historical restricted-evidence access cleanup and governed revision retention are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
-IN_PROGRESS | S-10.13.01 | F-10.13 | Governed channel attachment slice pulled after readiness review; existing EvidenceSource ingestion is reused and restricted files must follow live channel membership
+IN_REVIEW | S-10.13.01 | F-10.13 | Governed EvidenceSource channel uploads, live restricted membership, tenant-scoped attachment relations, file-only messages, bounded WorkOS multipart UI, retry-safe composer and deletion/retraction independence are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 
-### S-10.13.01 Governed Channel Attachments — IN_PROGRESS
+### S-10.13.01 Governed Channel Attachments — IN_REVIEW
 
 Sprint goal: connect the existing governed evidence pipeline to native channel/root/thread messages without introducing a second file store or static restricted-file ACL.
 
-Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-29.md` and `UAT/F-10.13.md`. WIP after pull: one `IN_PROGRESS` story.
+Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-29.md` and `UAT/F-10.13.md`.
+
+Implementation staged:
+
+- reuses existing EvidenceSource ingestion and stores only message↔source references, never duplicate file bytes;
+- organisation/restricted channel scope flows into Evidence/RawEvent/CanonicalEvent/Search provenance;
+- direct restricted Evidence reads recheck live native-channel membership;
+- restricted member add/remove extends/removes attachment Work Graph/Search grants through the existing channel evidence scope;
+- composite database foreign keys enforce tenant-safe channel/evidence/message relationships independently of service code;
+- max five active sources per message/reply, exact-channel validation, duplicate de-duplication and idempotency attachment-set conflict handling;
+- file-only messages are supported without placeholder text; empty-without-attachment remains invalid;
+- message retraction hides cards without deleting evidence; evidence deletion leaves safe unavailable metadata;
+- <=10 MB same-origin WorkOS multipart upload, root/thread attachment cards and retry-safe pending governed-source state are staged;
+- ambiguous send retry reuses the same payload idempotency key, while body/attachment changes reset it;
+- channel/thread upload race guards prevent a completed upload from binding to another composer;
+- live refresh observes attachment structural status only;
+- migration 0030 refuses unsafe downgrade while zero-body attachment-only rows exist and never auto-deletes EvidenceSource content;
+- backend regressions, frontend source contracts, UAT, demo, changelog, retrospective and traceability are staged.
+
+Formal state: `IN_REVIEW`. No executable PostgreSQL/Ruff/Pytest/frontend/verifier/WorkOS browser PASS is claimed. WIP after review move: zero `IN_PROGRESS` stories.
 
 
 ### S-10.12.01 Author-safe Message Lifecycle — IN_REVIEW
