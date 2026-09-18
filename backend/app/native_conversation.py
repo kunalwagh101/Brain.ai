@@ -347,45 +347,58 @@ def edit_message(
     if next_sha256 == message.body_sha256:
         return message
 
-    document = _message_search_document(db, message=message)
+    _message_search_document(db, message=message)
+    if message.canonical_event_id is None:
+        raise NativeChatConflictError(
+            "message_projection_unavailable",
+            "Message canonical evidence is unavailable",
+        )
+    previous_canonical_event_id = message.canonical_event_id
     previous_revision = message.revision
     previous_sha256 = message.body_sha256
-    _snapshot_message_revision(
-        db,
-        message=message,
-        actor_user_id=user_id,
-        action=NativeMessageRevisionAction.EDIT,
-    )
 
-    now = datetime.now(UTC)
-    message.body = normalized_body
-    message.body_sha256 = next_sha256
-    message.body_char_count = len(normalized_body)
-    message.revision += 1
-    message.edited_at = now
+    try:
+        _snapshot_message_revision(
+            db,
+            message=message,
+            actor_user_id=user_id,
+            action=NativeMessageRevisionAction.EDIT,
+        )
 
-    document.content = normalized_body
-    document.is_deleted = False
-    document.provenance = {
-        **document.provenance,
-        "native_message_revision": message.revision,
-        "native_message_edited_at": now.isoformat(),
-    }
-    _reset_embedding(document)
-    sync_exact_mentions(db, channel=channel, message=message, commit=False)
-    _stage_lifecycle_audit(
-        db,
-        message=message,
-        actor_user_id=user_id,
-        event_type="native_chat.message.edited",
-        previous_revision=previous_revision,
-        previous_body_sha256=previous_sha256,
-        request_id=request_id,
-    )
-    db.commit()
+        now = datetime.now(UTC)
+        message.body = normalized_body
+        message.body_sha256 = next_sha256
+        message.body_char_count = len(normalized_body)
+        message.revision += 1
+        message.edited_at = now
+
+        _project_lifecycle_revision(
+            db,
+            channel=channel,
+            message=message,
+            actor_user_id=user_id,
+            event_type="native.message.edited",
+            action="updated",
+            occurred_at=now,
+            supersedes_canonical_event_id=previous_canonical_event_id,
+        )
+        sync_exact_mentions(db, channel=channel, message=message, commit=False)
+        _stage_lifecycle_audit(
+            db,
+            message=message,
+            actor_user_id=user_id,
+            event_type="native_chat.message.edited",
+            previous_revision=previous_revision,
+            previous_body_sha256=previous_sha256,
+            request_id=request_id,
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
     db.refresh(message)
     return message
-
 
 def retract_message(
     db: Session,
@@ -397,7 +410,7 @@ def retract_message(
     expected_revision: int,
     request_id: str | None = None,
 ) -> NativeMessage:
-    _, message = _mutable_author_message(
+    channel, message = _mutable_author_message(
         db,
         organization_id=organization_id,
         channel_id=channel_id,
@@ -405,51 +418,64 @@ def retract_message(
         user_id=user_id,
     )
     _require_expected_revision(message, expected_revision)
-    document = _message_search_document(db, message=message)
+    _message_search_document(db, message=message)
+    if message.canonical_event_id is None:
+        raise NativeChatConflictError(
+            "message_projection_unavailable",
+            "Message canonical evidence is unavailable",
+        )
+    previous_canonical_event_id = message.canonical_event_id
     previous_revision = message.revision
     previous_sha256 = message.body_sha256
-    _snapshot_message_revision(
-        db,
-        message=message,
-        actor_user_id=user_id,
-        action=NativeMessageRevisionAction.RETRACT,
-    )
 
-    now = datetime.now(UTC)
-    message.revision += 1
-    message.deleted_at = now
+    try:
+        _snapshot_message_revision(
+            db,
+            message=message,
+            actor_user_id=user_id,
+            action=NativeMessageRevisionAction.RETRACT,
+        )
 
-    document.content = ""
-    document.is_deleted = True
-    document.provenance = {
-        **document.provenance,
-        "native_message_revision": message.revision,
-        "native_message_deleted_at": now.isoformat(),
-    }
-    _reset_embedding(document)
-    db.execute(
-        delete(NativeMessageMention).where(
-            NativeMessageMention.message_id == message.id
+        now = datetime.now(UTC)
+        message.revision += 1
+        message.deleted_at = now
+
+        _project_lifecycle_revision(
+            db,
+            channel=channel,
+            message=message,
+            actor_user_id=user_id,
+            event_type="native.message.retracted",
+            action="deleted",
+            occurred_at=now,
+            supersedes_canonical_event_id=previous_canonical_event_id,
         )
-    )
-    db.execute(
-        delete(NativeMessageReaction).where(
-            NativeMessageReaction.message_id == message.id
+        db.execute(
+            delete(NativeMessageMention).where(
+                NativeMessageMention.message_id == message.id
+            )
         )
-    )
-    _stage_lifecycle_audit(
-        db,
-        message=message,
-        actor_user_id=user_id,
-        event_type="native_chat.message.retracted",
-        previous_revision=previous_revision,
-        previous_body_sha256=previous_sha256,
-        request_id=request_id,
-    )
-    db.commit()
+        db.execute(
+            delete(NativeMessageReaction).where(
+                NativeMessageReaction.message_id == message.id
+            )
+        )
+        _stage_lifecycle_audit(
+            db,
+            message=message,
+            actor_user_id=user_id,
+            event_type="native_chat.message.retracted",
+            previous_revision=previous_revision,
+            previous_body_sha256=previous_sha256,
+            request_id=request_id,
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
     db.refresh(message)
     return message
-
 
 def list_thread_replies(
     db: Session,
