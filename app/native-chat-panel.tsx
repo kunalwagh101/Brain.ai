@@ -989,7 +989,9 @@ export function NativeChatPanel({
         <div className={styles.channelMeta}>
           <span>{channel.visibility}</span>
           {channel.visibility === "restricted" ? <span>{channel.member_count} member(s)</span> : null}
-          {presenceEndpoint ? <span>{presence.online_users.length} online</span> : null}
+          {presenceEndpoint && presence.loaded ? (
+            <span>{presence.online_users.length} online</span>
+          ) : null}
           <span>{channel.status}</span>
         </div>
       </header>
