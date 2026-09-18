@@ -45,13 +45,29 @@ IN_REVIEW | S-10.11.01 | F-10.11 | Keyboard-first quick switcher, membership-val
 IN_REVIEW | S-10.12.01 | F-10.12 | Author-only edit/retract, expected-revision conflicts, immutable RawEvent/CanonicalEvent lifecycle revisions, retired Search versions, tombstones, historical restricted-evidence access cleanup and governed revision retention are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.13.01 | F-10.13 | Governed EvidenceSource channel uploads, live restricted membership, tenant-scoped attachment relations, file-only messages, bounded WorkOS multipart UI, retry-safe composer and deletion/retraction independence are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.14.01 | F-10.14 | Ephemeral 75s presence + 8s typing leases, read-only authorised polling, restricted-channel/participant-only DM privacy, audit-free traffic, same-origin WorkOS BFF and focused-composer UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
-IN_PROGRESS | S-10.15.01 | F-10.15 | Shared channel message pins pulled after Ready review; reference-only storage, current channel permissions and retract cleanup are in scope
+IN_REVIEW | S-10.15.01 | F-10.15 | Reference-only shared channel pins, current reader/writer permission checks, retry-safe uniqueness, thread/root reopening, same-lifecycle retract cleanup, structural live refresh and WorkOS BFF/UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 
-### S-10.15.01 Shared Channel Message Pins — IN_PROGRESS
+### S-10.15.01 Shared Channel Message Pins — IN_REVIEW
 
 Sprint goal: let channel participants mark and reopen important channel messages/thread replies without copying content or weakening current channel permissions.
 
-Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-31.md` and `UAT/F-10.15.md`. WIP after pull: one `IN_PROGRESS` story.
+Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-31.md` and `UAT/F-10.15.md`.
+
+Implementation staged:
+
+- reference-only `NativeMessagePin` stores organisation/channel/message identity plus pinner/timestamp, never copied message/evidence content;
+- current readers can list pins; current writers can pin/unpin visible non-retracted roots or replies;
+- database composite message scope blocks cross-channel/tenant corruption below service code;
+- unique channel/message storage plus IntegrityError recovery makes pin retries idempotent;
+- high-precision creation timestamps plus UUID tie-breaker preserve newest-pin-first ordering;
+- agent-authored visible messages remain pinnable without changing human edit/retract authority;
+- edits preserve pins; retraction removes active pins in the same lifecycle transaction before commit;
+- typed API/BFF and same-origin WorkOS list/pin/unpin routes are staged;
+- selected-channel pins load server-side and feed structural S-10.10 live revision using pin ID/message ID/timestamp only;
+- accessible Pins panel, root/reply Pin/Unpin actions, older-root reopening and exact thread reopening are staged;
+- migration `20260919_0032`, focused backend regressions, source contracts, UAT/demo/changelog/retro/traceability are staged.
+
+Formal state: `IN_REVIEW`. No executable PostgreSQL/Ruff/Pytest/frontend/verifier/WorkOS browser PASS is claimed. WIP after review move: zero `IN_PROGRESS` stories.
 
 ### S-10.14.01 Ephemeral Presence & Typing — IN_REVIEW
 
