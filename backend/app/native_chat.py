@@ -31,6 +31,7 @@ from app.native_chat_models import (
     NativeMessage,
     NativeMessageActorKind,
     NativeMessageProjectionStatus,
+    NativeMessageRevision,
 )
 from app.native_conversation_models import NativeMessageMention
 from app.permissions import Permission, role_has_permission
@@ -295,11 +296,27 @@ def _channel_evidence_node_ids(
     db: Session,
     channel: NativeChannel,
 ) -> list[uuid.UUID]:
-    canonical_ids = select(NativeMessage.canonical_event_id).where(
-        NativeMessage.organization_id == channel.organization_id,
-        NativeMessage.channel_id == channel.id,
-        NativeMessage.canonical_event_id.is_not(None),
+    current_ids = set(
+        db.scalars(
+            select(NativeMessage.canonical_event_id).where(
+                NativeMessage.organization_id == channel.organization_id,
+                NativeMessage.channel_id == channel.id,
+                NativeMessage.canonical_event_id.is_not(None),
+            )
+        )
     )
+    revision_ids = set(
+        db.scalars(
+            select(NativeMessageRevision.canonical_event_id).where(
+                NativeMessageRevision.organization_id == channel.organization_id,
+                NativeMessageRevision.channel_id == channel.id,
+                NativeMessageRevision.canonical_event_id.is_not(None),
+            )
+        )
+    )
+    canonical_ids = current_ids | revision_ids
+    if not canonical_ids:
+        return []
     return list(
         db.scalars(
             select(WorkGraphNode.id).where(
