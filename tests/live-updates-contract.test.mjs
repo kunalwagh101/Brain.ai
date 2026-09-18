@@ -20,8 +20,12 @@ test("live client uses adaptive same-origin checks without browser bearer tokens
 
 test("live revision is structural and does not serialize message or DM bodies", () => {
   const api = read("app/live-updates-api.ts");
-  assert.match(api, /createHash\("sha256"\)/);
+  assert.match(api, /crypto\.subtle\.digest\("SHA-256"/);
   assert.match(api, /reply_count/);
+  assert.match(api, /selectedChannelPins/);
+  assert.match(api, /pin\.pin_id/);
+  assert.match(api, /pin\.message\.id/);
+  assert.doesNotMatch(api, /pin\.message\.body|pin\.message\.body_sha256/);
   assert.match(api, /reacted_by_me/);
   assert.match(api, /directConversations/);
   assert.match(api, /activity\.items/);
@@ -62,6 +66,7 @@ test("production workspace derives and mounts live revision from already-loaded 
   assert.match(workspace, /computeLiveRevision/);
   assert.match(workspace, /<LiveWorkspaceRefresh/);
   assert.match(workspace, /selectedChannelMessages: nativeMessages/);
+  assert.match(workspace, /selectedChannelPins: selectedNativePins/);
   assert.match(workspace, /directMessages/);
   assert.match(workspace, /enableLiveUpdatesBff/);
 });
