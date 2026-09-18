@@ -239,6 +239,64 @@
   padding: 1px 3px;
 }
 
+.attachments {
+  display: grid;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.attachments > a {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 1px solid #303744;
+  border-radius: 9px;
+  background: #10151d;
+  color: #dce2ea;
+  text-decoration: none;
+}
+
+.attachments > a:hover,
+.attachments > a:focus-visible {
+  border-color: #645bd0;
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+}
+
+.attachments > a[data-unavailable="true"] {
+  opacity: .62;
+  cursor: default;
+}
+
+.attachments > a > span:nth-child(2) {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.attachments strong,
+.attachments small,
+.attachments em {
+  overflow-wrap: anywhere;
+}
+
+.attachments strong {
+  font-size: 11px;
+}
+
+.attachments small {
+  color: #7f8998;
+  font-size: 9px;
+}
+
+.attachments em {
+  color: #9891f4;
+  font-size: 9px;
+  font-style: normal;
+}
+
 .messageActions {
   display: flex;
   align-items: center;
@@ -472,12 +530,13 @@
   border-color: #776bf7;
 }
 
-.composer > div {
+.composerFooter {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   margin-top: 8px;
+  flex-wrap: wrap;
 }
 
 .composer span {
@@ -489,6 +548,77 @@
   margin: 5px 0 0;
   color: #747e8d;
   font-size: 10px;
+}
+
+.pendingAttachments {
+  display: grid;
+  gap: 6px;
+  margin-top: 9px;
+  padding: 8px;
+  border: 1px solid #2f3643;
+  border-radius: 8px;
+  background: #11161e;
+}
+
+.pendingAttachments > span {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.pendingAttachments > span > span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #cbd2dc;
+}
+
+.pendingAttachments small {
+  color: #7f8998;
+  font-size: 9px;
+}
+
+.pendingAttachments p {
+  margin: 2px 0 0;
+  color: #747e8d;
+  font-size: 9px;
+}
+
+.attachButton {
+  position: relative;
+  display: inline-flex !important;
+  align-items: center;
+  margin: 0 !important;
+  min-height: 34px;
+  border: 1px solid #3a4250;
+  border-radius: 8px;
+  background: #181d26;
+  color: #c5ccd6 !important;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.attachButton:hover,
+.attachButton:focus-within {
+  border-color: #645bd0;
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+}
+
+.attachButton input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.attachButton:has(input:disabled) {
+  opacity: .5;
+  cursor: default;
 }
 
 .composer button {
