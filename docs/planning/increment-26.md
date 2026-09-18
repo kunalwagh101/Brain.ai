@@ -2,7 +2,7 @@
 
 Story: `S-10.10.01`
 
-Status: `IN_PROGRESS`
+Status: `IN_REVIEW`
 
 ## Sprint goal
 
@@ -34,3 +34,14 @@ All source data is loaded server-side with the current WorkOS access token and e
 ## Acceptance truth
 
 Repository implementation can reach `IN_REVIEW`. Final DONE requires executable frontend/test/verifier evidence and real authenticated two-user WorkOS browser UAT proving <=5 second visible-tab propagation, hidden/offline backoff, no refresh storm and revocation cleanup.
+
+
+## Retrospective — 2026-09-18
+
+No accepted S-10.10.01 requirement was cut. The implementation stayed inside existing authorization and data contracts.
+
+The main design choice was deliberately not to equate “Slack-like” with “must use WebSockets”. Brain already has secure request/response APIs and a server-session BFF. An opaque structural revision gives the product a live feel with much lower architectural cost and no duplicate source of truth. If measured polling load or a future sub-second requirement makes this insufficient, the same client invalidation contract can move to SSE/WebSockets later.
+
+A nearby state bug was also closed: `NativeChatPanel` previously initialized root-message state from props once. Server refreshes could therefore deliver new props without updating the local root list. The panel now resynchronizes root messages from server props and keeps an open thread refreshed through its current authorised route.
+
+Estimate risk remains browser/runtime acceptance rather than repository coding. WorkOS activation and real two-user timing/offline/revocation evidence are still required before DONE.
