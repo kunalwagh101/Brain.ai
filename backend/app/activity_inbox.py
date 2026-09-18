@@ -246,12 +246,13 @@ def _materialize_channel_activity(
             .where(
                 NativeMessage.organization_id == organization_id,
                 NativeMessage.channel_id == channel.id,
+                NativeMessage.deleted_at.is_(None),
                 or_(
                     NativeMessage.author_user_id.is_(None),
                     NativeMessage.author_user_id != user_id,
                 ),
             )
-            .order_by(NativeMessage.sequence.desc())
+            .order_by(NativeMessage.message_sequence.desc())
             .limit(1)
         )
         if latest is None:
@@ -263,7 +264,7 @@ def _materialize_channel_activity(
                 NativeChannelReadState.user_id == user_id,
             )
         )
-        if read_state is not None and read_state.last_read_sequence >= latest.sequence:
+        if read_state is not None and read_state.last_read_sequence >= latest.message_sequence:
             continue
         _upsert_channel_activity(
             db,
@@ -530,6 +531,7 @@ def _system_item(
             or latest is None
             or channel.organization_id != row.organization_id
             or latest.channel_id != channel.id
+            or latest.deleted_at is not None
             or not _channel_visible(db, channel, user_id)
         ):
             return None
@@ -540,7 +542,7 @@ def _system_item(
                 NativeChannelReadState.user_id == user_id,
             )
         )
-        if read_state is not None and read_state.last_read_sequence >= latest.sequence:
+        if read_state is not None and read_state.last_read_sequence >= latest.message_sequence:
             return None
         return ActivityItem(
             id=row.id,
