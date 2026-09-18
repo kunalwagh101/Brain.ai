@@ -444,6 +444,7 @@ export function NativeChatPanel({
   const router = useRouter();
   const threadHeading = useRef<HTMLHeadingElement>(null);
   const handledDeepLink = useRef<string | null>(null);
+  const activeChannelIdRef = useRef(channel.id);
   const messageRetryKey = useRef<string | null>(null);
   const threadRetryKey = useRef<{ rootId: string; key: string } | null>(null);
   const [rootMessages, setRootMessages] = useState(messages);
@@ -467,6 +468,7 @@ export function NativeChatPanel({
   const threadRootId = threadRoot?.id ?? null;
 
   useEffect(() => {
+    activeChannelIdRef.current = channel.id;
     setBody("");
     setAttachments([]);
     setThreadRoot(null);
@@ -634,6 +636,8 @@ export function NativeChatPanel({
   ) {
     if (!conversationEndpoint || !channel.can_post || !files.length) return;
     if (target === "thread" && !threadRoot) return;
+    const uploadChannelId = channel.id;
+    const uploadThreadId = target === "thread" ? threadRoot?.id ?? null : null;
     const current = target === "channel" ? attachments : threadAttachments;
     const remaining = MAX_ATTACHMENTS_PER_MESSAGE - current.length;
     if (files.length > remaining) {
@@ -671,16 +675,28 @@ export function NativeChatPanel({
           body: form,
         });
         if (!response.ok) {
-          keepUploadedAttachments(uploaded, target);
-          setStatus({ kind: "error", text: safeAttachmentError(response.status) });
+          if (activeChannelIdRef.current === uploadChannelId) {
+            keepUploadedAttachments(uploaded, target);
+            setStatus({ kind: "error", text: safeAttachmentError(response.status) });
+          }
           return;
         }
         uploaded.push(await response.json() as NativeAttachment);
       }
-      keepUploadedAttachments(uploaded, target);
-      setStatus({ kind: "idle" });
+      if (
+        activeChannelIdRef.current === uploadChannelId
+        && (target === "channel" || threadRoot?.id === uploadThreadId)
+      ) {
+        keepUploadedAttachments(uploaded, target);
+        setStatus({ kind: "idle" });
+      }
     } catch {
-      keepUploadedAttachments(uploaded, target);
+      if (
+        activeChannelIdRef.current === uploadChannelId
+        && (target === "channel" || threadRoot?.id === uploadThreadId)
+      ) {
+        keepUploadedAttachments(uploaded, target);
+      }
       setStatus({
         kind: "error",
         text: "The file upload could not reach the secure Brain route. Successful uploads were kept for retry.",
@@ -733,6 +749,13 @@ export function NativeChatPanel({
   }
 
   async function openThread(message: NativeMessage) {
+    if (uploadingTarget === "thread" && threadRoot?.id !== message.id) {
+      setStatus({
+        kind: "error",
+        text: "Finish the current thread file upload before switching threads.",
+      });
+      return;
+    }
     if (threadAttachmentRootId && threadAttachmentRootId !== message.id) {
       setThreadAttachments([]);
       setThreadAttachmentRootId(null);
@@ -1085,12 +1108,21 @@ export function NativeChatPanel({
             className={styles.threadPane}
             aria-labelledby="thread-heading"
             onKeyDown={(event) => {
-              if (event.key === "Escape") setThreadRoot(null);
+              if (event.key === "Escape" && uploadingTarget !== "thread") {
+                setThreadRoot(null);
+              }
             }}
           >
             <header className={styles.threadHeader}>
               <div><h3 id="thread-heading" ref={threadHeading} tabIndex={-1}>Thread</h3><small>#{channel.name}</small></div>
-              <button aria-label="Close thread" onClick={() => setThreadRoot(null)} type="button">×</button>
+              <button
+                aria-label="Close thread"
+                disabled={uploadingTarget === "thread"}
+                onClick={() => setThreadRoot(null)}
+                type="button"
+              >
+                ×
+              </button>
             </header>
             <div className={styles.threadFeed}>
               <MessageCard
