@@ -312,6 +312,12 @@ class NativeMessageRevision(Base):
     body: Mapped[str] = mapped_column(Text, nullable=False)
     body_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     body_char_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    raw_event_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("raw_events.id", ondelete="SET NULL"), nullable=True
+    )
+    canonical_event_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("canonical_events.id", ondelete="SET NULL"), nullable=True
+    )
     changed_by_user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
