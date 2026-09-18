@@ -120,7 +120,8 @@ class RetentionRun(Base):
     __table_args__ = (
         CheckConstraint(
             "raw_events_deleted >= 0 AND derived_events_deleted >= 0 "
-            "AND audit_events_deleted >= 0 AND private_messages_deleted >= 0",
+            "AND audit_events_deleted >= 0 AND private_messages_deleted >= 0 "
+            "AND native_message_revisions_deleted >= 0",
             name="ck_retention_run_nonnegative_counts",
         ),
         Index("ix_retention_runs_org_started", "organization_id", "started_at"),
@@ -143,6 +144,9 @@ class RetentionRun(Base):
     derived_events_deleted: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     audit_events_deleted: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     private_messages_deleted: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    native_message_revisions_deleted: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
+    )
     error_code: Mapped[str | None] = mapped_column(String(128), nullable=True)
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
