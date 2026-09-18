@@ -28,6 +28,7 @@ from app.native_chat import (
     post_user_message,
 )
 from app.native_chat_models import (
+    NativeChannel,
     NativeMessage,
     NativeMessageActorKind,
     NativeMessageProjectionStatus,
