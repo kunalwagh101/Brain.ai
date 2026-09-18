@@ -278,6 +278,8 @@ def _existing_idempotent_source(
     idempotency_key: str | None,
     content_sha256: str,
     kind: EvidenceKind,
+    visibility: EvidenceVisibility,
+    native_channel_id: uuid.UUID | None,
 ) -> EvidenceSource | None:
     if idempotency_key is None:
         return None
@@ -292,6 +294,8 @@ def _existing_idempotent_source(
     if (
         existing.content_sha256 != content_sha256
         or existing.kind != kind
+        or existing.source_visibility != visibility
+        or existing.native_channel_id != native_channel_id
         or existing.status != EvidenceSourceStatus.ACTIVE
     ):
         raise EvidenceConflictError(
@@ -525,6 +529,8 @@ def ingest_evidence(
         idempotency_key=normalized_key,
         content_sha256=content_sha256,
         kind=kind,
+        visibility=visibility,
+        native_channel_id=native_channel_id,
     )
     if existing is not None:
         return existing
@@ -578,6 +584,8 @@ def ingest_evidence(
             idempotency_key=normalized_key,
             content_sha256=content_sha256,
             kind=kind,
+            visibility=visibility,
+            native_channel_id=native_channel_id,
         )
         if replay is not None:
             return replay
