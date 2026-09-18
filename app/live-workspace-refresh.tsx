@@ -54,13 +54,14 @@ export function LiveWorkspaceRefresh({
       }
 
       controller?.abort();
-      controller = new AbortController();
+      const requestController = new AbortController();
+      controller = requestController;
       try {
         const response = await fetch(endpoint, {
           credentials: "same-origin",
           cache: "no-store",
           headers: { Accept: "application/json" },
-          signal: controller.signal,
+          signal: requestController.signal,
         });
         if (!response.ok) throw new Error(`live_state_${response.status}`);
         const next = await response.json() as LiveState;
@@ -74,7 +75,7 @@ export function LiveWorkspaceRefresh({
         }
         schedule(baseInterval());
       } catch (error) {
-        if (controller.signal.aborted || stopped) return;
+        if (requestController.signal.aborted || stopped) return;
         failures += 1;
         setStatus("reconnecting");
         const delay = Math.min(
