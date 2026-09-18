@@ -9,6 +9,8 @@ import {
   sendNativeMessage,
   sendNativeReply,
   setNativeReaction,
+  uploadNativeChannelAttachment,
+  type NativeAttachment,
   type NativeChannel,
   type NativeChannelCreateInput,
   type NativeChannelMember,
@@ -26,6 +28,7 @@ const CHAT_WRITE_ROLES = new Set(["owner", "admin", "executive", "manager", "mem
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ALLOWED_REACTIONS = new Set(["👍", "❤️", "🎉", "👀", "✅"]);
+export const MAX_NATIVE_ATTACHMENT_MULTIPART_BYTES = 10_500_000;
 
 export class NativeChatBffRequestError extends Error {
   status: number;
@@ -76,6 +79,14 @@ function normalizedUuid(value: string, field: string): string {
     }
     throw error;
   }
+}
+
+function normalizeMultipartContentType(value: string): string {
+  const normalized = value.trim();
+  if (!/^multipart\/form-data\s*;/i.test(normalized) || !/boundary=/i.test(normalized)) {
+    invalid(415, "Attachment upload must use multipart/form-data with a boundary");
+  }
+  return normalized;
 }
 
 function normalizeIdempotencyKey(value: string): string {
@@ -130,9 +141,38 @@ export function parseNativeChannelCreateInput(value: unknown): NativeChannelCrea
   };
 }
 
-export function parseNativeMessageInput(value: unknown): { body: string } {
-  const body = exactObject(value, new Set(["body"]), "native message request");
-  return { body: requiredText(body.body, "body", 20_000) };
+export function parseNativeMessageInput(value: unknown): {
+  body: string;
+  attachment_source_ids: string[];
+} {
+  const body = exactObject(
+    value,
+    new Set(["body", "attachment_source_ids"]),
+    "native message request",
+  );
+  const rawBody = body.body ?? "";
+  if (typeof rawBody !== "string") invalid(400, "body must be a string");
+  const normalizedBody = rawBody.trim();
+  if (normalizedBody.length > 20_000) invalid(400, "body is invalid");
+
+  const rawAttachments = body.attachment_source_ids ?? [];
+  if (!Array.isArray(rawAttachments) || rawAttachments.length > 5) {
+    invalid(400, "attachment_source_ids must contain at most five IDs");
+  }
+  const attachmentIds = rawAttachments.map((value, index) => {
+    if (typeof value !== "string") {
+      invalid(400, `attachment_source_ids[${index}] must be a UUID`);
+    }
+    return normalizedUuid(value, `attachment_source_ids[${index}]`);
+  });
+  const uniqueAttachmentIds = [...new Set(attachmentIds)];
+  if (!normalizedBody && !uniqueAttachmentIds.length) {
+    invalid(400, "A message needs text or at least one attachment");
+  }
+  return {
+    body: normalizedBody,
+    attachment_source_ids: uniqueAttachmentIds,
+  };
 }
 
 export function parseNativeMessageEditInput(value: unknown): {
@@ -226,6 +266,29 @@ export async function handleNativeChannelCreateBff(
     accessToken,
     organizationId,
     parseNativeChannelCreateInput(body),
+  );
+}
+
+export async function handleNativeAttachmentUploadBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  body: Uint8Array,
+  contentType: string,
+  idempotencyKey: string,
+): Promise<NativeAttachment> {
+  await requireChatWriter(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  if (!body.byteLength || body.byteLength > MAX_NATIVE_ATTACHMENT_MULTIPART_BYTES) {
+    invalid(413, "Attachment upload body is too large");
+  }
+  return uploadNativeChannelAttachment(
+    accessToken,
+    organizationId,
+    channelId,
+    body,
+    normalizeMultipartContentType(contentType),
+    normalizeIdempotencyKey(idempotencyKey),
   );
 }
 
