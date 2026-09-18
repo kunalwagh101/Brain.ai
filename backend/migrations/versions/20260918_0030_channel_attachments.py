@@ -106,6 +106,25 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    bind = op.get_bind()
+    attachment_only_messages = bind.execute(
+        sa.text(
+            "SELECT COUNT(*) FROM native_messages "
+            "WHERE body_char_count = 0"
+        )
+    ).scalar_one()
+    attachment_only_revisions = bind.execute(
+        sa.text(
+            "SELECT COUNT(*) FROM native_message_revisions "
+            "WHERE body_char_count = 0"
+        )
+    ).scalar_one()
+    if attachment_only_messages or attachment_only_revisions:
+        raise RuntimeError(
+            "Cannot downgrade channel attachments while attachment-only messages exist; "
+            "export or migrate those messages first. Evidence sources are not deleted automatically."
+        )
+
     op.drop_index(
         "ix_native_message_attachment_org_channel_message",
         table_name="native_message_attachments",
