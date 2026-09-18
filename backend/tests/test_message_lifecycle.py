@@ -11,7 +11,15 @@ from app.auth import get_current_user
 from app.data_governance import run_retention_once, set_retention_policy
 from app.data_governance_models import SecurityAuditEvent
 from app.main import app
-from app.models import CanonicalEvent, Membership, MembershipRole, Organization, RawEvent, User
+from app.models import (
+    CanonicalEvent,
+    Membership,
+    MembershipRole,
+    Organization,
+    RawEvent,
+    ResourceGrant,
+    User,
+)
 from app.native_chat_models import (
     NativeMessage,
     NativeMessageRevision,
@@ -19,6 +27,7 @@ from app.native_chat_models import (
 )
 from app.native_conversation_models import NativeMessageMention
 from app.search_models import SearchDocument
+from app.work_graph_models import WorkGraphNode
 
 
 def _as(user: User) -> None:
@@ -643,3 +652,99 @@ def test_message_revision_history_obeys_derived_retention_and_legal_hold(
     assert purge_run is not None
     assert purge_run.native_message_revisions_deleted == 1
     assert db_session.get(NativeMessageRevision, revision.id) is None
+
+
+def test_restricted_member_removal_covers_historical_revision_evidence(
+    db_session: Session,
+    client,
+) -> None:
+    organization, author, member, _, admin, _, _ = _seed(
+        db_session,
+        "revision-access",
+    )
+    channel = _channel(client, organization, admin, visibility="restricted")
+
+    _as(admin)
+    author_invite = client.post(
+        f"/api/v1/organizations/{organization.id}/native-channels/{channel['id']}/members",
+        json={"email": author.email, "access": "write"},
+    )
+    member_invite = client.post(
+        f"/api/v1/organizations/{organization.id}/native-channels/{channel['id']}/members",
+        json={"email": member.email, "access": "read"},
+    )
+    assert author_invite.status_code == 201
+    assert member_invite.status_code == 201
+
+    created = _message(
+        client,
+        organization,
+        channel["id"],
+        author,
+        "Historical restricted evidence.",
+        "revision-access-message",
+    )
+    edited = _edit(
+        client,
+        organization,
+        channel["id"],
+        created["id"],
+        author,
+        "Current restricted evidence.",
+        1,
+    )
+    assert edited.status_code == 200
+
+    message = db_session.get(NativeMessage, uuid.UUID(created["id"]))
+    revision = db_session.scalar(
+        select(NativeMessageRevision).where(
+            NativeMessageRevision.message_id == uuid.UUID(created["id"])
+        )
+    )
+    assert message is not None
+    assert revision is not None
+    assert message.canonical_event_id is not None
+    assert revision.canonical_event_id is not None
+
+    evidence_nodes = list(
+        db_session.scalars(
+            select(WorkGraphNode).where(
+                WorkGraphNode.canonical_event_id.in_(
+                    [message.canonical_event_id, revision.canonical_event_id]
+                )
+            )
+        )
+    )
+    assert len(evidence_nodes) == 2
+    node_resource_ids = {str(node.id) for node in evidence_nodes}
+
+    grants_before = list(
+        db_session.scalars(
+            select(ResourceGrant).where(
+                ResourceGrant.organization_id == organization.id,
+                ResourceGrant.user_id == member.id,
+                ResourceGrant.resource_type == "work_graph.node",
+                ResourceGrant.resource_id.in_(node_resource_ids),
+            )
+        )
+    )
+    assert {grant.resource_id for grant in grants_before} == node_resource_ids
+
+    _as(admin)
+    removed = client.delete(
+        f"/api/v1/organizations/{organization.id}/native-channels/"
+        f"{channel['id']}/members/{member.id}"
+    )
+    assert removed.status_code == 204
+
+    grants_after = list(
+        db_session.scalars(
+            select(ResourceGrant).where(
+                ResourceGrant.organization_id == organization.id,
+                ResourceGrant.user_id == member.id,
+                ResourceGrant.resource_type == "work_graph.node",
+                ResourceGrant.resource_id.in_(node_resource_ids),
+            )
+        )
+    )
+    assert grants_after == []
