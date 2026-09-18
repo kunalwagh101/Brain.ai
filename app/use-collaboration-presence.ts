@@ -57,7 +57,7 @@ export function useCollaborationPresence(
     async function poll() {
       if (stopped) return;
       if (document.visibilityState !== "visible" || !navigator.onLine) {
-        schedule();
+        clearTimer();
         return;
       }
       controller?.abort();
