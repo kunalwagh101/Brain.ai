@@ -20,6 +20,7 @@ import { DirectMessagePanel } from "./direct-message-panel";
 import { EvidenceWorkspace } from "./evidence-workspace";
 import { NativeChannelCreate } from "./native-channel-create";
 import { NativeChatPanel } from "./native-chat-panel";
+import { WorkspaceSearch } from "./workspace-search";
 import styles from "./workspace-shell.module.css";
 
 function projectProgress(project: ProjectStatus): string {
@@ -82,6 +83,7 @@ export function WorkspaceShell({
   nativeChannels,
   selectedNativeChannel,
   nativeMessages,
+  requestedNativeMessage,
   selectedNativeMembers,
   invalidRequestedChannel,
   directConversations,
@@ -104,6 +106,7 @@ export function WorkspaceShell({
   directMessageCreateEndpoint,
   directMessageSendEndpoint,
   agentMutationBase,
+  workspaceSearchEndpoint,
   signOutAction,
 }: {
   organization: BrainOrganization;
@@ -114,6 +117,7 @@ export function WorkspaceShell({
   nativeChannels: NativeChannel[];
   selectedNativeChannel: NativeChannel | null;
   nativeMessages: NativeMessage[];
+  requestedNativeMessage: NativeMessage | null;
   selectedNativeMembers: NativeChannelMember[];
   invalidRequestedChannel: boolean;
   directConversations: DirectConversation[];
@@ -136,6 +140,7 @@ export function WorkspaceShell({
   directMessageCreateEndpoint: string | null;
   directMessageSendEndpoint: string | null;
   agentMutationBase: string | null;
+  workspaceSearchEndpoint: string | null;
   signOutAction?: (formData: FormData) => Promise<void>;
 }) {
   const projectById = new Map(projects.map((project) => [project.project_node_id, project]));
@@ -195,11 +200,14 @@ export function WorkspaceShell({
           </details>
         </header>
 
-        <a className={styles.searchBox} href="#ask-brain" aria-label="Open Ask Brain">
-          <span aria-hidden="true">✦</span>
-          <span>Ask Brain</span>
-          <kbd>⌘K</kbd>
-        </a>
+        <WorkspaceSearch
+          organizationId={organization.id}
+          endpoint={workspaceSearchEndpoint}
+          channels={nativeChannels}
+          projects={navigation.projects}
+          tracks={navigation.tracks}
+          directConversations={directConversations}
+        />
 
         <nav className={styles.navGroups}>
           <section>
@@ -327,6 +335,7 @@ export function WorkspaceShell({
               channel={selectedNativeChannel}
               key={`${selectedNativeChannel.id}:${selectedNativeChannel.latest_message_id ?? "empty"}`}
               messages={nativeMessages}
+              requestedMessage={requestedNativeMessage}
               members={selectedNativeMembers}
               mutationEndpoint={nativeMessageEndpoint}
               memberEndpoint={nativeMemberEndpoint}
