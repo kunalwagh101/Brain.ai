@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Increment 31 — Shared Channel Message Pins
+
+- Added reference-only shared channel message pins with organisation/channel/message scoped foreign keys; pin rows never copy message body, attachment or evidence content.
+- Current channel readers may list pins; current channel writers may pin/unpin visible non-retracted roots or replies, including agent-authored messages, without changing message authorship authority.
+- Added unique channel/message convergence and IntegrityError recovery so repeated/concurrent pin requests remain idempotent.
+- Added explicit high-precision pin timestamps and newest-pin-first ordering.
+- Message edits preserve pins; message retraction removes active pins in the same lifecycle transaction before commit.
+- Added bounded pin-list and pin/unpin FastAPI routes, typed Brain API/BFF helpers and same-origin WorkOS route templates.
+- Selected-channel pins now load server-side and contribute only pin ID/message ID/timestamp to S-10.10 live revision.
+- Added accessible channel Pins panel, Pin/Unpin message actions, older-root reopening and exact thread-reply reopening using existing conversation routes.
+- Added migration `20260919_0032`, focused backend permission/idempotency/revocation/retraction regressions, agent-authority source contract, frontend/live contracts, UAT, demo and traceability.
+- Personal save-for-later/starred messages, arbitrary channel bookmarks and custom pin permission roles remain explicit later scope.
+
+Verification is not claimed as passed. `S-10.15.01` remains `IN_REVIEW` pending executable PostgreSQL migration round-trip, Ruff/Pytest, frontend lint/build/source contracts, delivery verifier and authenticated WorkOS multi-user pin/revoke/retract/thread UAT.
+
+
+
 ### Increment 30 — Ephemeral Presence & Typing
 
 - Added short-lived collaboration presence leases with one row per organisation/user and no durable last-seen event history.
