@@ -15,6 +15,8 @@ import {
   listWorkspaceNavigation,
 } from "./brain-api";
 import { listDirectConversations, listDirectMessages } from "./direct-message-api";
+import { computeLiveRevision } from "./live-updates-api";
+import { LiveWorkspaceRefresh } from "./live-workspace-refresh";
 import { WorkspaceShell } from "./workspace-shell";
 
 const ADMIN_ROLES = new Set(["owner", "admin"]);
@@ -37,6 +39,7 @@ export async function ProductionWorkspace({
   enableDirectMessageBff = false,
   enableActivityBff = false,
   enableAgentWorkspaceBff = false,
+  enableLiveUpdatesBff = false,
   signOutAction,
 }: {
   accessToken: string;
@@ -50,6 +53,7 @@ export async function ProductionWorkspace({
   enableDirectMessageBff?: boolean;
   enableActivityBff?: boolean;
   enableAgentWorkspaceBff?: boolean;
+  enableLiveUpdatesBff?: boolean;
   signOutAction?: (formData: FormData) => Promise<void>;
 }) {
   const organizations = await listOrganizations(accessToken);
@@ -181,6 +185,21 @@ export async function ProductionWorkspace({
   const agentMutationBase = enableAgentWorkspaceBff && AGENT_ROLES.has(organization.role)
     ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/agent-workspace`
     : null;
+  const liveRevision = computeLiveRevision({
+    activity,
+    channels: channelRows,
+    unread: unreadRows,
+    selectedChannelMessages: nativeMessages,
+    directConversations,
+    directMessages,
+  });
+  const liveParams = new URLSearchParams();
+  if (selectedChannel) liveParams.set("channelId", selectedChannel.id);
+  if (selectedDirectConversation) liveParams.set("dmId", selectedDirectConversation.id);
+  const liveQuery = liveParams.toString();
+  const liveUpdatesEndpoint = enableLiveUpdatesBff
+    ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/live${liveQuery ? `?${liveQuery}` : ""}`
+    : null;
 
   return (
     <>
@@ -189,6 +208,12 @@ export async function ProductionWorkspace({
         organizationId={organization.id}
         mutationBase={activityMutationBase}
       />
+      {liveUpdatesEndpoint ? (
+        <LiveWorkspaceRefresh
+          endpoint={liveUpdatesEndpoint}
+          initialRevision={liveRevision}
+        />
+      ) : null}
       <WorkspaceShell
         organization={organization}
         organizations={organizations}
