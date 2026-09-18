@@ -9,6 +9,10 @@ import type {
   NativeMessage,
 } from "./brain-api";
 import styles from "./native-chat-panel.module.css";
+import {
+  useCollaborationPresence,
+  type CollaborationPresenceUser,
+} from "./use-collaboration-presence";
 
 const ALLOWED_REACTIONS = ["👍", "❤️", "🎉", "👀", "✅"] as const;
 const MAX_ATTACHMENTS_PER_MESSAGE = 5;
@@ -58,6 +62,14 @@ function safeAttachmentError(status: number): string {
   if (status === 413) return "Each attachment must be 10 MB or smaller.";
   if (status === 429) return "File uploads are temporarily rate limited.";
   return "The attachment could not be uploaded safely.";
+}
+
+function typingLabel(users: CollaborationPresenceUser[]): string {
+  if (users.length === 1) return `${users[0].display_name} is typing…`;
+  if (users.length === 2) {
+    return `${users[0].display_name} and ${users[1].display_name} are typing…`;
+  }
+  return users.length > 2 ? `${users.length} people are typing…` : "";
 }
 
 function initials(value: string): string {
@@ -432,6 +444,7 @@ export function NativeChatPanel({
   mutationEndpoint,
   memberEndpoint,
   conversationEndpoint,
+  presenceEndpoint,
 }: {
   channel: NativeChannel;
   messages: NativeMessage[];
@@ -440,6 +453,7 @@ export function NativeChatPanel({
   mutationEndpoint: string | null;
   memberEndpoint: string | null;
   conversationEndpoint: string | null;
+  presenceEndpoint: string | null;
 }) {
   const router = useRouter();
   const threadHeading = useRef<HTMLHeadingElement>(null);
@@ -456,6 +470,8 @@ export function NativeChatPanel({
   const [threadAttachments, setThreadAttachments] = useState<NativeAttachment[]>([]);
   const [threadAttachmentRootId, setThreadAttachmentRootId] = useState<string | null>(null);
   const [threadLoading, setThreadLoading] = useState(false);
+  const [composerFocused, setComposerFocused] = useState(false);
+  const [threadFocused, setThreadFocused] = useState(false);
   const [uploadingTarget, setUploadingTarget] = useState<"channel" | "thread" | null>(null);
   const [reactionWorking, setReactionWorking] = useState<string | null>(null);
   const [status, setStatus] = useState<
@@ -467,6 +483,18 @@ export function NativeChatPanel({
   const [memberWorking, setMemberWorking] = useState(false);
   const threadRootId = threadRoot?.id ?? null;
 
+  const presence = useCollaborationPresence(
+    presenceEndpoint,
+    Boolean(
+      channel.can_post
+      && (
+        (composerFocused && body.trim())
+        || (threadFocused && threadBody.trim())
+      )
+    ),
+  );
+  const typingText = typingLabel(presence.typing_users);
+
   useEffect(() => {
     activeChannelIdRef.current = channel.id;
     setBody("");
@@ -476,6 +504,8 @@ export function NativeChatPanel({
     setThreadBody("");
     setThreadAttachments([]);
     setThreadAttachmentRootId(null);
+    setComposerFocused(false);
+    setThreadFocused(false);
     messageRetryKey.current = null;
     threadRetryKey.current = null;
   }, [channel.id]);
@@ -764,6 +794,7 @@ export function NativeChatPanel({
       threadRetryKey.current = null;
     }
     setThreadRoot(message);
+    setThreadFocused(false);
     setThreadReplies([]);
     setThreadLoading(true);
     setStatus({ kind: "idle" });
@@ -958,6 +989,7 @@ export function NativeChatPanel({
         <div className={styles.channelMeta}>
           <span>{channel.visibility}</span>
           {channel.visibility === "restricted" ? <span>{channel.member_count} member(s)</span> : null}
+          {presenceEndpoint ? <span>{presence.online_users.length} online</span> : null}
           <span>{channel.status}</span>
         </div>
       </header>
@@ -1032,6 +1064,12 @@ export function NativeChatPanel({
             )}
           </div>
 
+          {presenceEndpoint && typingText ? (
+            <p className={styles.typingStatus} aria-live="polite" role="status">
+              {typingText}
+            </p>
+          ) : null}
+
           {channel.can_post ? (
             mutationEndpoint ? (
               <form className={styles.composer} onSubmit={submit}>
@@ -1043,6 +1081,8 @@ export function NativeChatPanel({
                     setBody(event.target.value);
                     messageRetryKey.current = null;
                   }}
+                  onFocus={() => setComposerFocused(true)}
+                  onBlur={() => setComposerFocused(false)}
                   maxLength={20_000}
                   placeholder={`Message #${channel.name}`}
                   rows={3}
@@ -1109,6 +1149,7 @@ export function NativeChatPanel({
             aria-labelledby="thread-heading"
             onKeyDown={(event) => {
               if (event.key === "Escape" && uploadingTarget !== "thread") {
+                setThreadFocused(false);
                 setThreadRoot(null);
               }
             }}
@@ -1118,7 +1159,10 @@ export function NativeChatPanel({
               <button
                 aria-label="Close thread"
                 disabled={uploadingTarget === "thread"}
-                onClick={() => setThreadRoot(null)}
+                onClick={() => {
+                  setThreadFocused(false);
+                  setThreadRoot(null);
+                }}
                 type="button"
               >
                 ×
@@ -1162,6 +1206,8 @@ export function NativeChatPanel({
                     setThreadBody(event.target.value);
                     threadRetryKey.current = null;
                   }}
+                  onFocus={() => setThreadFocused(true)}
+                  onBlur={() => setThreadFocused(false)}
                   maxLength={20_000}
                   placeholder="Reply…"
                   rows={3}
