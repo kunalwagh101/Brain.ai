@@ -9,6 +9,7 @@ from app.collaboration_presence_models import (
     CollaborationPresenceLease,
     CollaborationTypingLease,
 )
+from app.data_governance_models import SecurityAuditEvent
 from app.main import app
 from app.models import Membership, MembershipRole, Organization, User
 
@@ -364,3 +365,48 @@ def test_guest_cannot_publish_presence_or_typing(
     assert heartbeat.status_code == 403
     assert typing.status_code == 403
     assert read.status_code == 403
+
+
+def test_normal_presence_traffic_creates_no_security_audit_history(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, _, _ = _seed(db_session, "no-audit")
+    channel = _channel(client, organization, owner)
+    baseline = db_session.scalar(
+        select(func.count())
+        .select_from(SecurityAuditEvent)
+        .where(SecurityAuditEvent.organization_id == organization.id)
+    ) or 0
+
+    assert _heartbeat(client, organization, owner).status_code == 200
+    assert _heartbeat(client, organization, member).status_code == 200
+    assert _context(
+        client,
+        organization,
+        owner,
+        "channel",
+        channel["id"],
+    ).status_code == 200
+    assert _typing(
+        client,
+        organization,
+        member,
+        "channel",
+        channel["id"],
+    ).status_code == 204
+    assert _typing(
+        client,
+        organization,
+        member,
+        "channel",
+        channel["id"],
+        active=False,
+    ).status_code == 204
+
+    after = db_session.scalar(
+        select(func.count())
+        .select_from(SecurityAuditEvent)
+        .where(SecurityAuditEvent.organization_id == organization.id)
+    ) or 0
+    assert after == baseline
