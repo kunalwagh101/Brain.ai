@@ -101,23 +101,112 @@ function updateReaction(
   };
 }
 
+function lifecycleError(status: number): string {
+  if (status === 401) return "Your session is no longer authenticated.";
+  if (status === 403 || status === 404) {
+    return "This message is no longer editable by your account.";
+  }
+  if (status === 409) return "This message changed. Refresh and try your edit again.";
+  if (status === 413) return "The edit is too large.";
+  if (status === 422) return "The edit was not accepted.";
+  return "The message change could not be completed safely.";
+}
+
 function MessageCard({
   message,
   canPost,
   reactionWorking,
+  lifecycleEndpoint,
   onThread,
   onReaction,
+  onLifecycleChange,
 }: {
   message: NativeMessage;
   canPost: boolean;
   reactionWorking: string | null;
+  lifecycleEndpoint: string | null;
   onThread?: (message: NativeMessage) => void;
   onReaction: (message: NativeMessage, reaction: string) => void;
+  onLifecycleChange: (message: NativeMessage) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [editBody, setEditBody] = useState("");
+  const [confirmRetract, setConfirmRetract] = useState(false);
+  const [working, setWorking] = useState<"edit" | "retract" | null>(null);
+  const [lifecycleErrorText, setLifecycleErrorText] = useState<string | null>(null);
+  const deleted = message.deleted_at !== null;
+  const canEdit = Boolean(lifecycleEndpoint && message.can_edit && !deleted);
+  const canDelete = Boolean(lifecycleEndpoint && message.can_delete && !deleted);
+
+  async function submitEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!lifecycleEndpoint || !canEdit || working) return;
+    const normalized = editBody.trim();
+    if (!normalized || normalized.length > 20_000) return;
+
+    setWorking("edit");
+    setLifecycleErrorText(null);
+    try {
+      const response = await fetch(
+        `${lifecycleEndpoint}/messages/${encodeURIComponent(message.id)}`,
+        {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            body: normalized,
+            expected_revision: message.revision,
+          }),
+        },
+      );
+      if (!response.ok) {
+        setLifecycleErrorText(lifecycleError(response.status));
+        return;
+      }
+      const updated = await response.json() as NativeMessage;
+      setEditing(false);
+      setEditBody("");
+      onLifecycleChange(updated);
+    } catch {
+      setLifecycleErrorText("The edit could not reach the secure Brain route.");
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  async function retract() {
+    if (!lifecycleEndpoint || !canDelete || working) return;
+    setWorking("retract");
+    setLifecycleErrorText(null);
+    try {
+      const response = await fetch(
+        `${lifecycleEndpoint}/messages/${encodeURIComponent(message.id)}`,
+        {
+          method: "DELETE",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ expected_revision: message.revision }),
+        },
+      );
+      if (!response.ok) {
+        setLifecycleErrorText(lifecycleError(response.status));
+        return;
+      }
+      const updated = await response.json() as NativeMessage;
+      setConfirmRetract(false);
+      onLifecycleChange(updated);
+    } catch {
+      setLifecycleErrorText("The retraction could not reach the secure Brain route.");
+    } finally {
+      setWorking(null);
+    }
+  }
+
   return (
     <article
       className={styles.message}
       data-agent={message.actor_kind === "agent" || undefined}
+      data-deleted={deleted || undefined}
       id={`message-${message.id}`}
     >
       <span className={styles.avatar} data-agent={message.actor_kind === "agent" || undefined}>
@@ -128,53 +217,141 @@ function MessageCard({
           <strong>{message.actor_display_name}</strong>
           {message.actor_kind === "agent" ? <span className={styles.agentBadge}>Agent</span> : null}
           <time dateTime={message.created_at}>{formatTime(message.created_at)}</time>
+          {message.edited_at && !deleted ? <span className={styles.editedMarker}>edited</span> : null}
           {message.projection_status !== "ready" ? (
             <span className={styles.projection} data-status={message.projection_status}>
               {message.projection_status}
             </span>
           ) : null}
         </div>
-        <p className={styles.body}>{messageBody(message)}</p>
-        <div className={styles.messageActions} aria-label="Message actions">
-          {ALLOWED_REACTIONS.map((reaction) => {
-            const current = message.reactions.find((item) => item.reaction === reaction);
-            const key = `${message.id}:${reaction}`;
-            return (
+
+        {deleted ? (
+          <p className={styles.tombstone}>This message was retracted by its author.</p>
+        ) : editing ? (
+          <form className={styles.editForm} onSubmit={submitEdit}>
+            <label htmlFor={`edit-message-${message.id}`}>Edit message</label>
+            <textarea
+              id={`edit-message-${message.id}`}
+              maxLength={20_000}
+              onChange={(event) => setEditBody(event.target.value)}
+              rows={3}
+              value={editBody}
+            />
+            <div>
+              <span>{editBody.length.toLocaleString()} / 20,000</span>
               <button
-                aria-label={`${current?.reacted_by_me ? "Remove" : "Add"} ${reaction} reaction`}
-                aria-pressed={current?.reacted_by_me ?? false}
-                data-active={current?.reacted_by_me || undefined}
-                disabled={!canPost || reactionWorking === key}
-                key={reaction}
-                onClick={() => onReaction(message, reaction)}
+                disabled={working === "edit" || !editBody.trim()}
+                type="submit"
+              >
+                {working === "edit" ? "Saving…" : "Save"}
+              </button>
+              <button
+                disabled={working !== null}
+                onClick={() => {
+                  setEditing(false);
+                  setEditBody("");
+                  setLifecycleErrorText(null);
+                }}
                 type="button"
               >
-                <span aria-hidden="true">{reaction}</span>
-                {current ? <small>{current.count}</small> : null}
+                Cancel
               </button>
-            );
-          })}
-          {onThread ? (
-            <button className={styles.threadButton} onClick={() => onThread(message)} type="button">
-              {message.reply_count
-                ? `${message.reply_count} ${message.reply_count === 1 ? "reply" : "replies"}`
-                : "Reply in thread"}
+            </div>
+          </form>
+        ) : (
+          <p className={styles.body}>{messageBody(message)}</p>
+        )}
+
+        {!editing ? (
+          <div className={styles.messageActions} aria-label="Message actions">
+            {!deleted ? ALLOWED_REACTIONS.map((reaction) => {
+              const current = message.reactions.find((item) => item.reaction === reaction);
+              const key = `${message.id}:${reaction}`;
+              return (
+                <button
+                  aria-label={`${current?.reacted_by_me ? "Remove" : "Add"} ${reaction} reaction`}
+                  aria-pressed={current?.reacted_by_me ?? false}
+                  data-active={current?.reacted_by_me || undefined}
+                  disabled={!canPost || reactionWorking === key}
+                  key={reaction}
+                  onClick={() => onReaction(message, reaction)}
+                  type="button"
+                >
+                  <span aria-hidden="true">{reaction}</span>
+                  {current ? <small>{current.count}</small> : null}
+                </button>
+              );
+            }) : null}
+            {onThread && (!deleted || message.reply_count > 0) ? (
+              <button className={styles.threadButton} onClick={() => onThread(message)} type="button">
+                {message.reply_count
+                  ? `${message.reply_count} ${message.reply_count === 1 ? "reply" : "replies"}`
+                  : "Reply in thread"}
+              </button>
+            ) : null}
+            {canEdit ? (
+              <button
+                onClick={() => {
+                  setEditBody(message.body);
+                  setEditing(true);
+                  setConfirmRetract(false);
+                  setLifecycleErrorText(null);
+                }}
+                type="button"
+              >
+                Edit
+              </button>
+            ) : null}
+            {canDelete && !confirmRetract ? (
+              <button onClick={() => setConfirmRetract(true)} type="button">
+                Retract
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {confirmRetract && !deleted ? (
+          <div className={styles.retractConfirm} role="group" aria-label="Confirm message retraction">
+            <span>Retract this message from the current conversation and search?</span>
+            <button disabled={working !== null} onClick={() => void retract()} type="button">
+              {working === "retract" ? "Retracting…" : "Yes, retract"}
             </button>
-          ) : null}
-        </div>
-        <details className={styles.provenance}>
-          <summary>Evidence provenance</summary>
-          <dl>
-            <div><dt>Message</dt><dd><code>{message.id}</code></dd></div>
-            <div><dt>SHA-256</dt><dd><code>{message.body_sha256}</code></dd></div>
-            {message.canonical_event_id ? (
-              <div><dt>Canonical event</dt><dd><code>{message.canonical_event_id}</code></dd></div>
-            ) : null}
-            {message.agent_run_id ? (
-              <div><dt>Agent run</dt><dd><code>{message.agent_run_id}</code></dd></div>
-            ) : null}
-          </dl>
-        </details>
+            <button
+              disabled={working !== null}
+              onClick={() => {
+                setConfirmRetract(false);
+                setLifecycleErrorText(null);
+              }}
+              type="button"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : null}
+
+        {lifecycleErrorText ? (
+          <p className={styles.lifecycleError} role="alert">{lifecycleErrorText}</p>
+        ) : null}
+
+        {!deleted ? (
+          <details className={styles.provenance}>
+            <summary>Evidence provenance</summary>
+            <dl>
+              <div><dt>Message</dt><dd><code>{message.id}</code></dd></div>
+              <div><dt>Revision</dt><dd>{message.revision}</dd></div>
+              <div><dt>SHA-256</dt><dd><code>{message.body_sha256}</code></dd></div>
+              {message.canonical_event_id ? (
+                <div>
+                  <dt>Canonical event</dt>
+                  <dd><code>{message.canonical_event_id}</code></dd>
+                </div>
+              ) : null}
+              {message.agent_run_id ? (
+                <div><dt>Agent run</dt><dd><code>{message.agent_run_id}</code></dd></div>
+              ) : null}
+            </dl>
+          </details>
+        ) : null}
       </div>
     </article>
   );
@@ -477,6 +654,13 @@ export function NativeChatPanel({
     }
   }
 
+  function applyLifecycleMessage(updated: NativeMessage) {
+    setRootMessages((items) => items.map((item) => item.id === updated.id ? updated : item));
+    setThreadReplies((items) => items.map((item) => item.id === updated.id ? updated : item));
+    setThreadRoot((item) => item?.id === updated.id ? updated : item);
+    router.refresh();
+  }
+
   async function inviteMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!memberEndpoint) return;
@@ -600,7 +784,9 @@ export function NativeChatPanel({
               <MessageCard
                 canPost={Boolean(conversationEndpoint && channel.can_post)}
                 key={message.id}
+                lifecycleEndpoint={conversationEndpoint}
                 message={message}
+                onLifecycleChange={applyLifecycleMessage}
                 onReaction={toggleReaction}
                 onThread={openThread}
                 reactionWorking={reactionWorking}
@@ -661,7 +847,9 @@ export function NativeChatPanel({
             <div className={styles.threadFeed}>
               <MessageCard
                 canPost={Boolean(conversationEndpoint && channel.can_post)}
+                lifecycleEndpoint={conversationEndpoint}
                 message={threadRoot}
+                onLifecycleChange={applyLifecycleMessage}
                 onReaction={toggleReaction}
                 reactionWorking={reactionWorking}
               />
@@ -673,7 +861,9 @@ export function NativeChatPanel({
                 <MessageCard
                   canPost={Boolean(conversationEndpoint && channel.can_post)}
                   key={reply.id}
+                  lifecycleEndpoint={conversationEndpoint}
                   message={reply}
+                  onLifecycleChange={applyLifecycleMessage}
                   onReaction={toggleReaction}
                   reactionWorking={reactionWorking}
                 />
@@ -682,7 +872,7 @@ export function NativeChatPanel({
                 <p className={styles.threadStatus}>No replies yet.</p>
               ) : null}
             </div>
-            {channel.can_post && conversationEndpoint ? (
+            {channel.can_post && conversationEndpoint && !threadRoot.deleted_at ? (
               <form className={styles.composer} onSubmit={submitReply}>
                 <label htmlFor="native-thread-body">Reply in thread</label>
                 <textarea
