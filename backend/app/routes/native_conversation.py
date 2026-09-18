@@ -22,6 +22,7 @@ from app.models import Membership, User
 from app.native_chat import (
     NativeChatConflictError,
     NativeChatError,
+    can_write_channel,
     list_channel_messages,
     list_visible_channels,
     post_user_message,
@@ -34,10 +35,12 @@ from app.native_chat_models import (
 from app.native_conversation import (
     add_reaction,
     channel_unread_summaries,
+    edit_message,
     list_thread_replies,
     mark_read,
     message_affordances,
     remove_reaction,
+    retract_message,
     unread_count,
     visible_message,
 )
@@ -86,6 +89,11 @@ class ConversationMessageRead(BaseModel):
     reply_count: int
     mentions: list[MentionRead]
     reactions: list[ReactionRead]
+    revision: int
+    edited_at: datetime | None
+    deleted_at: datetime | None
+    can_edit: bool
+    can_delete: bool
 
 
 class ChannelUnreadRead(BaseModel):
@@ -103,6 +111,19 @@ class MarkReadWrite(BaseModel):
 
 class ReactionWrite(BaseModel):
     reaction: str = Field(min_length=1, max_length=32)
+
+    model_config = {"extra": "forbid"}
+
+
+class MessageEditWrite(BaseModel):
+    body: str = Field(min_length=1, max_length=20_000)
+    expected_revision: int = Field(ge=1)
+
+    model_config = {"extra": "forbid"}
+
+
+class MessageRetractWrite(BaseModel):
+    expected_revision: int = Field(ge=1)
 
     model_config = {"extra": "forbid"}
 
@@ -169,6 +190,15 @@ def _message_reads(
     for message in messages:
         actor_id = message.author_user_id or message.agent_run_id
         extra = affordances[message.id]
+        deleted = message.deleted_at is not None
+        channel = db.get(NativeChannel, message.channel_id)
+        can_mutate = bool(
+            not deleted
+            and message.actor_kind == NativeMessageActorKind.USER
+            and message.author_user_id == user_id
+            and channel is not None
+            and can_write_channel(db, channel, user_id=user_id)
+        )
         result.append(
             ConversationMessageRead(
                 id=message.id,
@@ -179,14 +209,19 @@ def _message_reads(
                 author_user_id=message.author_user_id,
                 agent_run_id=message.agent_run_id,
                 actor_display_name=labels.get(actor_id, "Unknown actor"),
-                body=message.body,
-                body_sha256=message.body_sha256,
+                body="" if deleted else message.body,
+                body_sha256="" if deleted else message.body_sha256,
                 projection_status=message.projection_status,
                 canonical_event_id=message.canonical_event_id,
                 created_at=message.created_at,
                 reply_count=int(extra["reply_count"]),
-                mentions=extra["mentions"],
-                reactions=extra["reactions"],
+                mentions=[] if deleted else extra["mentions"],
+                reactions=[] if deleted else extra["reactions"],
+                revision=message.revision,
+                edited_at=message.edited_at,
+                deleted_at=message.deleted_at,
+                can_edit=can_mutate,
+                can_delete=can_mutate,
             )
         )
     return result
@@ -324,6 +359,63 @@ def read_message(
             channel_id=channel_id,
             message_id=message_id,
             user_id=authorization.user_id,
+        )
+    except NativeChatError as exc:
+        _raise_chat_error(exc)
+    return _message_reads(db, [message], authorization.user_id)[0]
+
+
+@router.patch(
+    "/channels/{channel_id}/messages/{message_id}",
+    response_model=ConversationMessageRead,
+)
+def edit_native_message(
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    message_id: uuid.UUID,
+    payload: MessageEditWrite,
+    request: Request,
+    authorization: Annotated[AuthorizationContext, Depends(_write)],
+    db: Annotated[Session, Depends(get_db)],
+) -> ConversationMessageRead:
+    try:
+        message = edit_message(
+            db,
+            organization_id=organization_id,
+            channel_id=channel_id,
+            message_id=message_id,
+            user_id=authorization.user_id,
+            body=payload.body,
+            expected_revision=payload.expected_revision,
+            request_id=_request_id(request),
+        )
+    except NativeChatError as exc:
+        _raise_chat_error(exc)
+    return _message_reads(db, [message], authorization.user_id)[0]
+
+
+@router.delete(
+    "/channels/{channel_id}/messages/{message_id}",
+    response_model=ConversationMessageRead,
+)
+def retract_native_message(
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    message_id: uuid.UUID,
+    payload: MessageRetractWrite,
+    request: Request,
+    authorization: Annotated[AuthorizationContext, Depends(_write)],
+    db: Annotated[Session, Depends(get_db)],
+) -> ConversationMessageRead:
+    try:
+        message = retract_message(
+            db,
+            organization_id=organization_id,
+            channel_id=channel_id,
+            message_id=message_id,
+            user_id=authorization.user_id,
+            expected_revision=payload.expected_revision,
+            request_id=_request_id(request),
         )
     except NativeChatError as exc:
         _raise_chat_error(exc)
