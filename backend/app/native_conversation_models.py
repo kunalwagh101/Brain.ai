@@ -164,15 +164,19 @@ class NativeMessageAttachment(Base):
             name="fk_native_message_attachment_message_scope",
             ondelete="CASCADE",
         ),
+        ForeignKeyConstraint(
+            ["organization_id", "evidence_source_id"],
+            ["evidence_sources.organization_id", "evidence_sources.id"],
+            name="fk_native_message_attachment_evidence_scope",
+            ondelete="RESTRICT",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     organization_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
     channel_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
     message_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
-    evidence_source_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("evidence_sources.id", ondelete="RESTRICT"), nullable=False
-    )
+    evidence_source_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
     created_by_user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
