@@ -611,3 +611,10 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+.message:target {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+  scroll-margin-block: 5rem;
+}
