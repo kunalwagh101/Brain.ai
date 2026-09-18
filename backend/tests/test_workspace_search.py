@@ -106,3 +106,36 @@ def test_workspace_search_finds_native_message_then_hides_it_after_revoke(
         item["object_external_id"] != message_id
         for item in hidden.json()["results"]
     )
+
+
+def test_workspace_search_never_indexes_direct_message_body(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member = _seed(db_session)
+    sentinel = f"private-dm-{uuid.uuid4().hex}"
+
+    _as(owner)
+    conversation = client.post(
+        f"/api/v1/organizations/{organization.id}/direct-messages",
+        json={"target_email": member.email},
+    )
+    assert conversation.status_code == 201
+    conversation_id = conversation.json()["id"]
+
+    sent = client.post(
+        f"/api/v1/organizations/{organization.id}/direct-messages/"
+        f"{conversation_id}/messages",
+        headers={"Idempotency-Key": "workspace-search-private-dm"},
+        json={"body": f"This must stay participant-only: {sentinel}"},
+    )
+    assert sent.status_code == 201
+
+    for user in (owner, member):
+        _as(user)
+        result = client.get(
+            f"/api/v1/organizations/{organization.id}/search",
+            params={"q": sentinel, "mode": "keyword", "limit": 12},
+        )
+        assert result.status_code == 200
+        assert result.json()["results"] == []
