@@ -359,3 +359,45 @@ Expected evidence:
 - S-10.10 live revision changes on edit/retract metadata without hashing or exposing message plaintext.
 
 Final browser demo: with two authenticated users, post/edit/search a unique sentinel, prove the result opens the new canonical-backed current message, trigger a stale edit conflict, retract it, prove Search/Activity/unread no longer surface content, verify existing thread replies remain, then remove a restricted member and confirm no historical revision evidence remains visible. Follow `UAT/F-10.12.md`.
+
+
+## Increment 29 — Governed Channel Attachments
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.13.01 is `IN_REVIEW`, not DONE.
+
+Commands from the repository root:
+
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_channel_attachments.py tests/test_evidence_ingestion.py tests/test_native_conversation.py tests/test_message_lifecycle.py
+alembic heads
+alembic upgrade head
+alembic downgrade 20260918_0029
+alembic upgrade head
+cd ..
+npm run lint
+npm run build
+node --test tests/channel-attachments-contract.test.mjs
+node --test tests/*.test.mjs
+python scripts/verify_board.py
+```
+
+Expected engineering evidence:
+
+- channel uploads reuse the existing EvidenceSource/generic-evidence pipeline and create no second file-content store;
+- supported files are bounded to 10 MB and at most five source IDs per message/reply;
+- file-only messages are accepted while empty messages without attachments are rejected;
+- organisation-channel files are organisation-visible; restricted-channel files recheck live membership for Evidence reads and carry their channel ID into SearchDocument;
+- member add/remove grants/revokes the attachment Work Graph/Search nodes as part of the existing channel evidence scope;
+- database composite foreign keys prevent cross-organisation channel scope or attachment-source relations;
+- another tenant, another restricted channel, deleted evidence and idempotency attachment mismatch all fail closed;
+- attachment message JSON contains safe metadata only and never file bytes or extracted/chunk text;
+- message retraction hides attachment cards but does not delete EvidenceSource; evidence deletion makes existing cards unavailable/deleted without restoring removed content;
+- successful uploads survive later message-send failure and the client retries the same payload with the same message idempotency key rather than re-uploading;
+- thread and channel pending-file state are separate and in-flight upload navigation cannot bind files into another composer;
+- S-10.10 live invalidation observes source ID/status/availability only, not filename/title/content;
+- downgrade refuses safely while zero-body attachment-only messages/revisions exist and never auto-deletes evidence content;
+- WorkOS activation installs the bounded same-origin attachment multipart route.
+
+Final browser demo: use at least two authenticated users. Upload a unique document in an organisation channel and a restricted channel; send both captioned and file-only messages; prove Search/Ask Brain visibility; add/remove a restricted member and prove Evidence/Search/Work Graph access changes; simulate upload-success/send-failure and retry without duplicate upload/message; retract the message and then separately delete evidence to demonstrate the independent lifecycles. Follow `UAT/F-10.13.md`.
