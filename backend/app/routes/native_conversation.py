@@ -50,13 +50,16 @@ from app.native_conversation import (
     add_reaction,
     channel_unread_summaries,
     edit_message,
+    list_message_pins,
     list_thread_replies,
     mark_read,
     message_affordances,
     message_attachment_metadata,
+    pin_message,
     remove_reaction,
     retract_message,
     unread_count,
+    unpin_message,
     visible_message,
 )
 from app.permissions import AuthorizationContext, Permission, require_organization_permission
@@ -124,6 +127,14 @@ class ConversationMessageRead(BaseModel):
     deleted_at: datetime | None
     can_edit: bool
     can_delete: bool
+
+
+class PinnedMessageRead(BaseModel):
+    pin_id: uuid.UUID
+    pinned_at: datetime
+    pinned_by_user_id: uuid.UUID
+    pinned_by_display_name: str
+    message: ConversationMessageRead
 
 
 class ChannelUnreadRead(BaseModel):
@@ -287,6 +298,41 @@ def _message_reads(
     return result
 
 
+def _pin_reads(
+    db: Session,
+    rows: list[tuple[object, NativeMessage]],
+    user_id: uuid.UUID,
+) -> list[PinnedMessageRead]:
+    if not rows:
+        return []
+    pin_user_ids = {row[0].pinned_by_user_id for row in rows}
+    pin_labels = {
+        user.id: user.display_name or user.email
+        for user in db.scalars(
+            select(User).where(User.id.in_(pin_user_ids))
+        )
+    }
+    messages = [message for _, message in rows]
+    reads = {
+        item.id: item
+        for item in _message_reads(db, messages, user_id)
+    }
+    return [
+        PinnedMessageRead(
+            pin_id=pin.id,
+            pinned_at=pin.created_at,
+            pinned_by_user_id=pin.pinned_by_user_id,
+            pinned_by_display_name=pin_labels.get(
+                pin.pinned_by_user_id,
+                "Unknown member",
+            ),
+            message=reads[message.id],
+        )
+        for pin, message in rows
+        if message.id in reads
+    ]
+
+
 @router.get("/channels", response_model=list[ChannelUnreadRead])
 def list_channel_unread(
     organization_id: uuid.UUID,
@@ -407,6 +453,89 @@ async def upload_channel_attachment(
         source_visibility=source.source_visibility.value,
         native_channel_id=source.native_channel_id,
     )
+
+
+@router.get(
+    "/channels/{channel_id}/pins",
+    response_model=list[PinnedMessageRead],
+)
+def list_pins(
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    authorization: Annotated[AuthorizationContext, Depends(_read)],
+    db: Annotated[Session, Depends(get_db)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> list[PinnedMessageRead]:
+    try:
+        rows = list_message_pins(
+            db,
+            organization_id=organization_id,
+            channel_id=channel_id,
+            user_id=authorization.user_id,
+            limit=limit,
+        )
+    except NativeChatError as exc:
+        _raise_chat_error(exc)
+    return _pin_reads(db, rows, authorization.user_id)
+
+
+@router.put(
+    "/channels/{channel_id}/messages/{message_id}/pin",
+    response_model=PinnedMessageRead,
+)
+def pin_native_message(
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    message_id: uuid.UUID,
+    authorization: Annotated[AuthorizationContext, Depends(_write)],
+    db: Annotated[Session, Depends(get_db)],
+) -> PinnedMessageRead:
+    try:
+        pin = pin_message(
+            db,
+            organization_id=organization_id,
+            channel_id=channel_id,
+            message_id=message_id,
+            user_id=authorization.user_id,
+        )
+        _, message = visible_message(
+            db,
+            organization_id=organization_id,
+            channel_id=channel_id,
+            message_id=message_id,
+            user_id=authorization.user_id,
+        )
+    except NativeChatError as exc:
+        _raise_chat_error(exc)
+    return _pin_reads(
+        db,
+        [(pin, message)],
+        authorization.user_id,
+    )[0]
+
+
+@router.delete(
+    "/channels/{channel_id}/messages/{message_id}/pin",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def unpin_native_message(
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    message_id: uuid.UUID,
+    authorization: Annotated[AuthorizationContext, Depends(_write)],
+    db: Annotated[Session, Depends(get_db)],
+) -> Response:
+    try:
+        unpin_message(
+            db,
+            organization_id=organization_id,
+            channel_id=channel_id,
+            message_id=message_id,
+            user_id=authorization.user_id,
+        )
+    except NativeChatError as exc:
+        _raise_chat_error(exc)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get(
