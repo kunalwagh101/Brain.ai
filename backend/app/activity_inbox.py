@@ -3,6 +3,7 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 
 from sqlalchemy import or_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.activity import ActivityItem, emit_activity
@@ -58,7 +59,19 @@ def get_activity_preferences(
         return row
     row = ActivityPreference(organization_id=organization_id, user_id=user_id)
     db.add(row)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing = db.scalar(
+            select(ActivityPreference).where(
+                ActivityPreference.organization_id == organization_id,
+                ActivityPreference.user_id == user_id,
+            )
+        )
+        if existing is None:
+            raise
+        return existing
     db.refresh(row)
     return row
 
