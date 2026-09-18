@@ -217,3 +217,45 @@ Expected focused output:
 - delivery verifier: **NOT COMPLETED**; no PASS is claimed.
 
 For the final live demo, start PostgreSQL from `compose.yaml`, set `BRAIN_TEST_DATABASE_URL`, execute upgrade/downgrade/forward recovery, activate the official WorkOS templates, then follow `UAT/F-10.06.md`. Show two users' independent unread state, root-only thread placement, exact permitted mention resolution, idempotent aggregate reactions, agent attribution, restricted-channel revocation and keyboard/mobile behaviour. Do not call the story DONE from the local checks alone.
+
+
+## Increment 25 — Activity & Notifications Inbox
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.09.01 is `IN_REVIEW`, not DONE.
+
+Commands to run from the repository root:
+
+```bash
+python -m venv .venv
+.venv/bin/pip install -e "./backend[dev]"
+npm ci
+
+cd backend
+../.venv/bin/ruff check app tests migrations
+../.venv/bin/pytest -q tests/test_activity.py tests/test_activity_inbox.py tests/test_native_conversation.py tests/test_direct_messages.py
+../.venv/bin/alembic heads
+../.venv/bin/alembic upgrade head
+../.venv/bin/alembic downgrade 20260918_0026
+../.venv/bin/alembic upgrade head
+
+cd ..
+npm run lint
+npm run build
+node --test tests/activity-contract.test.mjs
+python scripts/verify_board.py
+```
+
+Expected engineering evidence:
+
+- one Alembic head after the notification-branch merge and Activity inbox extension;
+- exact mentions, thread replies, generic unread channel activity, direct messages, agent approval/completion/failure, project/blocker updates and integration failures appear only for currently authorised users;
+- restricted/revoked source access removes persisted references and unread counts immediately;
+- mark-one and mark-all mutate only the authenticated recipient's currently visible items;
+- notification preferences are per-user, boolean-only and suppress presentation without deleting source product state;
+- first-read preference creation remains idempotent under a uniqueness race;
+- Activity responses contain safe labels/IDs only and no copied message/DM bodies, secrets, agent arguments/results or private evidence excerpts;
+- exact deep links carry the channel/message/thread, DM conversation/message, agent run/step, project/blocker or integration identifier;
+- browser mutations use same-origin WorkOS BFF routes and browser code has no reusable backend bearer token;
+- responsive/keyboard Activity UI passes the source-contract test.
+
+For final product acceptance, activate official S-10.04 WorkOS, run authenticated Owner/Admin/Member multi-user browser UAT from `UAT/F-10.09.md`, exercise restricted-channel and DM revocation, integration failure/recovery, agent approval transitions and preference persistence, and inspect network/browser storage for token/content leakage. Do not call S-10.09.01 DONE until those checks plus the delivery verifier pass.
