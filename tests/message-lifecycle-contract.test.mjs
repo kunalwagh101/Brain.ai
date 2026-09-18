@@ -9,6 +9,9 @@ function read(path) {
 test("message lifecycle schema is revisioned and append-only", () => {
   const models = read("backend/app/native_chat_models.py");
   const migration = read("backend/migrations/versions/20260918_0028_native_message_lifecycle.py");
+  const retentionMigration = read(
+    "backend/migrations/versions/20260918_0029_native_message_revision_retention.py",
+  );
   assert.match(models, /revision: Mapped\[int\]/);
   assert.match(models, /edited_at/);
   assert.match(models, /deleted_at/);
@@ -16,6 +19,8 @@ test("message lifecycle schema is revisioned and append-only", () => {
   assert.match(models, /NativeMessageRevisionAction/);
   assert.match(migration, /down_revision: str \| None = "20260918_0027"/);
   assert.match(migration, /native_message_revisions/);
+  assert.match(retentionMigration, /down_revision: str \\| None = "20260918_0028"/);
+  assert.match(retentionMigration, /native_message_revisions_deleted/);
 });
 
 test("backend lifecycle is author-only, optimistic and audit-safe", () => {
@@ -73,4 +78,21 @@ test("WorkOS activation installs lifecycle route and UAT gate", () => {
   assert.match(activation, /app-api-brain-native-message-lifecycle-route\.ts\.template/);
   assert.match(activation, /messages\/\[messageId\]\/route\.ts/);
   assert.match(activation, /UAT\/F-10\.12\.md/);
+});
+
+test("message revision history obeys governed retention", () => {
+  const governance = read("backend/app/data_governance.py");
+  const models = read("backend/app/data_governance_models.py");
+  const route = read("backend/app/routes/data_governance.py");
+  assert.match(governance, /_purge_native_message_revisions/);
+  assert.match(governance, /policy\.derived_content_days/);
+  assert.match(governance, /native_message_revisions_deleted/);
+  assert.match(models, /native_message_revisions_deleted/);
+  assert.match(route, /native_message_revisions_deleted/);
+});
+
+test("human lifecycle service explicitly rejects agent-authored messages", () => {
+  const service = read("backend/app/native_conversation.py");
+  assert.match(service, /message\.actor_kind != NativeMessageActorKind\.USER/);
+  assert.match(service, /message\.author_user_id != user_id/);
 });
