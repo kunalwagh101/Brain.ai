@@ -198,7 +198,7 @@ class NativeMessage(Base):
             name="fk_native_message_thread_root_scope",
             ondelete="CASCADE",
         ),
-        CheckConstraint("body_char_count > 0", name="ck_native_message_body_chars"),
+        CheckConstraint("body_char_count >= 0", name="ck_native_message_body_chars"),
         CheckConstraint("revision >= 1", name="ck_native_message_revision_positive"),
         CheckConstraint(
             "(actor_kind = 'user' AND author_user_id IS NOT NULL AND agent_run_id IS NULL) OR "
@@ -287,7 +287,7 @@ class NativeMessageRevision(Base):
             ondelete="CASCADE",
         ),
         CheckConstraint("revision >= 1", name="ck_native_message_revision_snapshot_positive"),
-        CheckConstraint("body_char_count > 0", name="ck_native_message_revision_body_chars"),
+        CheckConstraint("body_char_count >= 0", name="ck_native_message_revision_body_chars"),
         Index(
             "ix_native_message_revision_org_message_created",
             "organization_id",
