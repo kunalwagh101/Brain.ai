@@ -110,6 +110,11 @@ export type NativeMessage = {
   reply_count: number;
   mentions: NativeMention[];
   reactions: NativeReaction[];
+  revision: number;
+  edited_at: string | null;
+  deleted_at: string | null;
+  can_edit: boolean;
+  can_delete: boolean;
 };
 
 export type NativeChannelCreateInput = {
@@ -629,6 +634,41 @@ export function sendNativeReply(
       method: "POST",
       body: JSON.stringify(input),
       headers: { "Idempotency-Key": idempotencyKey },
+    },
+  );
+}
+
+export function editNativeMessage(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  messageId: string,
+  body: string,
+  expectedRevision: number,
+): Promise<NativeMessage> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ body, expected_revision: expectedRevision }),
+    },
+  );
+}
+
+export function retractNativeMessage(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  messageId: string,
+  expectedRevision: number,
+): Promise<NativeMessage> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}`,
+    {
+      method: "DELETE",
+      body: JSON.stringify({ expected_revision: expectedRevision }),
     },
   );
 }
