@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Increment 28 — Author-safe Message Lifecycle
+
+- Added original-author-only edit and retract controls for Brain-native channel messages and thread replies; organisation role alone never grants content override.
+- Added monotonic message revisions and expected-revision conflict checks so stale clients cannot overwrite unseen edits.
+- Added append-only `NativeMessageRevision` snapshots carrying the prior body/hash and prior RawEvent/CanonicalEvent IDs.
+- Each accepted edit/retraction now appends a new immutable Brain-native RawEvent + CanonicalEvent lifecycle revision instead of rewriting the original evidence.
+- Brain-native Search now treats lifecycle revisions as versioned objects: prior SearchDocument versions are retired; edited content resolves to the new canonical revision; retraction leaves all versions non-searchable.
+- Added body-free retraction tombstones, preserved existing thread replies, and blocked new replies/reactions/edits against retracted messages.
+- Reconciled mentions on edit, hid removed/retracted message Activity, and excluded retracted messages from unread/channel-activity calculations.
+- Extended restricted-channel evidence scope to include historical message revisions so membership changes apply across the full canonical revision chain.
+- Added governed retention for historical message-revision plaintext under existing `derived_content_days` and legal hold, with explicit retention-run counts.
+- Added same-origin WorkOS lifecycle routes, strict BFF validation, accessible inline edit/retract UI, live-refresh lifecycle revision inputs, migrations 0028/0029, backend regressions, source contracts, UAT and demo artifacts.
+- Fixed an existing Activity inbox field mismatch from `NativeMessage.sequence` to the actual `message_sequence` field while touching lifecycle/unread logic.
+
+Verification is not claimed as passed. Latest Backend CI, Delivery Verifier and Release Gate jobs completed with no job steps, and local checkout could not run because the execution environment could not resolve github.com. `S-10.12.01` remains `IN_REVIEW` pending executable PostgreSQL/migration/backend/frontend/verifier evidence and authenticated WorkOS multi-user UAT.
+
+
 ### Increment 27 — Workspace Search & Quick Switcher
 
 - Added a keyboard-first Ctrl+K/Cmd+K workspace search dialog with instant local switching across currently visible Brain channels, projects, tracks and participant-visible DM counterparts.
