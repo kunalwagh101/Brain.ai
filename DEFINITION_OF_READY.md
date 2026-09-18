@@ -202,3 +202,34 @@ Rollback: remove the client dialog/BFF/template wiring. SearchDocument and exist
 Leading indicators: keyboard-open works; median search-to-target time falls; unauthorised result exposure = 0; organisation-wide DM-content search results = 0; browser bearer-token exposure = 0.
 
 Done boundary: repository implementation may move to `IN_REVIEW` after source contracts/docs are staged. `DONE` requires executable frontend/search/verifier evidence plus official WorkOS authenticated browser UAT for keyboard, revocation, private-source isolation and exact Brain-message navigation.
+
+
+## Increment 28 readiness record — S-10.12.01
+
+Decision: `READY` for repository implementation on 2026-09-18, then eligible to pull under the board WIP limit.
+
+Problem and baseline: Brain-native channel messages currently support create/read/thread/mention/reaction/unread but have no author correction or retraction lifecycle. A mistaken message therefore remains current conversation/search content forever unless data is changed outside the product.
+
+AI decision: AI is not needed. This is deterministic state, authorization, concurrency and evidence-governance work.
+
+Architecture decision: extend the existing `NativeMessage` aggregate with monotonic revision, edited/deleted timestamps and an append-only `NativeMessageRevision` history table. Current conversation/search projection is mutable by explicit author action; original RawEvent/CanonicalEvent evidence remains immutable. SecurityAuditEvent records mutation metadata/hashes only. Do not create a second chat store.
+
+Authority rule: only the original human author may edit/retract, and they must still have current write access to the channel. Organisation role alone never grants a content override. Agent-authored messages are immutable to humans. This is the least-privilege baseline; moderation/admin override is explicitly out of scope, not silently inferred.
+
+Concurrency: client sends `expected_revision`. The service row-locks the message where supported and rejects stale revisions with HTTP 409. Successful mutation increments revision exactly once.
+
+Deletion semantics: S-10.12 “delete” is a user-facing retraction, not a data-governance hard-delete request. Current APIs expose a tombstone and no plaintext/hash/mentions/reactions; current SearchDocument is marked deleted and emptied; unread counts ignore retracted messages. Immutable raw/canonical evidence and revision history remain for governance/retention. Existing thread replies remain attached to a retracted root; no new reply/reaction/edit is allowed on a retracted message.
+
+Mention/Activity semantics: mention rows are reconciled to the edited current body, including removal. Activity visibility for a mention rechecks that the recipient is still mentioned and that the message is not retracted. Retraction hides message-derived mention/reaction/thread-reply Activity entries from current inbox presentation without deleting the audit record.
+
+Dependencies: current S-10.06 conversation model, S-10.09 Activity reference model, S-10.10 live invalidation and S-10.11 exact-message path are implementation-staged; S-10.04 remains the external authenticated-browser acceptance gate.
+
+Open questions: none that changes this repository slice. Edit-time windows, administrator moderation, retention-driven physical deletion and DM lifecycle are explicitly separate policy/features.
+
+Security/privacy boundary: mutation requires tenant membership, current channel write permission and exact original human author match; hidden/cross-tenant/non-author cases fail closed. Audit/revision metadata never logs plaintext body. Browser mutations remain same-origin and token-free.
+
+Rollback: downgrade removes message lifecycle columns and revision rows only. Original raw/canonical evidence is preserved. Before downgrade, currently edited visible message bodies remain in `native_messages`; retracted rows retain stored body internally but lose the lifecycle marker, so rollback is operationally destructive to retraction semantics and must be treated as a maintenance rollback with export/backup. This limitation must be stated in migration/demo evidence.
+
+Leading indicators: unauthorised lifecycle mutation = 0; stale edit overwrite = 0; retracted content in current Search/Activity/unread = 0; revision/audit hash coverage = 100%.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. `DONE` requires migration forward/downgrade/re-forward evidence, focused concurrency/security tests, frontend build/source contracts, verifier, and authenticated multi-user WorkOS browser UAT.
