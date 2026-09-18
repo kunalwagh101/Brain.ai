@@ -2,7 +2,7 @@
 
 Story: `S-10.11.01`
 
-Status: `IN_PROGRESS`
+Status: `IN_REVIEW`
 
 ## Sprint goal
 
@@ -29,3 +29,14 @@ Ctrl+K / Cmd+K opens an accessible dialog. With no query, it filters already-loa
 ## Acceptance truth
 
 Repository implementation can reach `IN_REVIEW`. Final DONE requires executable frontend/search/verifier checks and authenticated WorkOS browser UAT proving keyboard behaviour, exact native-message navigation, live revocation filtering, restricted-source isolation and zero DM-content leakage.
+
+
+## Retrospective — 2026-09-18
+
+No accepted S-10.11.01 requirement was cut. The implementation reused the existing search index and authorization predicate instead of creating a duplicate search service.
+
+The main hidden integration issue was deep-link truth. A search result that only opened a channel would not satisfy “jump to the result”. The slice therefore added a permission-aware single-message read and message-level UI anchors. Thread replies use the message's authorised `thread_root_id` to open the correct thread before scrolling.
+
+The DM boundary stayed explicit: visible counterpart metadata may be used for local navigation, but DM bodies are not projected into organisation-wide Search. A unique-sentinel regression now proves that boundary.
+
+The next uncertainty is execution, not architecture: current GitHub runner allocation and official WorkOS browser activation still determine whether this can move from `IN_REVIEW` to DONE.
