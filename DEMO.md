@@ -401,3 +401,43 @@ Expected engineering evidence:
 - WorkOS activation installs the bounded same-origin attachment multipart route.
 
 Final browser demo: use at least two authenticated users. Upload a unique document in an organisation channel and a restricted channel; send both captioned and file-only messages; prove Search/Ask Brain visibility; add/remove a restricted member and prove Evidence/Search/Work Graph access changes; simulate upload-success/send-failure and retry without duplicate upload/message; retract the message and then separately delete evidence to demonstrate the independent lifecycles. Follow `UAT/F-10.13.md`.
+
+
+## Increment 30 — Ephemeral Presence & Typing
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.14.01 is `IN_REVIEW`, not DONE.
+
+Commands from the repository root:
+
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_collaboration_presence.py tests/test_native_conversation.py tests/test_direct_messages.py
+alembic heads
+alembic upgrade head
+alembic downgrade 20260918_0030
+alembic upgrade head
+cd ..
+npm run lint
+npm run build
+node --test tests/collaboration-presence-contract.test.mjs
+node --test tests/*.test.mjs
+python scripts/verify_board.py
+```
+
+Expected engineering evidence:
+
+- one presence row is refreshed per organisation/user rather than appending activity history;
+- one typing row is refreshed per user/exact channel or 1:1 DM context;
+- presence lease is 75 seconds, typing lease is 8 seconds, and expired rows never appear;
+- presence polling is read-only; normal heartbeat/typing writes opportunistically purge stale rows;
+- restricted-channel online/typing results use current membership, and revoke removes stale visibility on the next read;
+- DM presence/typing is participant-only and role privilege does not create Owner/Admin override;
+- normal presence/typing traffic creates no organisation-wide SecurityAuditEvent history;
+- API/database state contains IDs/context/expiry only, with no draft text, keystrokes, cursor position, IP, user-agent or exact last-seen history;
+- browser heartbeat runs only while visible/online and is 30-second throttled;
+- typing refresh is 3-second throttled, requires a focused non-empty composer and best-effort clears on stop/hide/context teardown;
+- all browser traffic is same-origin WorkOS BFF traffic; no reusable backend bearer token enters client code;
+- migration `20260919_0031` adds/removes only ephemeral lease tables.
+
+Final browser demo: use two authenticated users. Show online presence in an organisation channel, hide one tab and prove expiry, show typing appear/disappear without per-keystroke requests, grant/revoke a restricted-channel member and prove current permission filtering, then open a 1:1 DM and prove only its two participants can observe online/typing state. Inspect network/database fields to confirm no draft content or last-seen history. Follow `UAT/F-10.14.md`.
