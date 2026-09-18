@@ -76,7 +76,7 @@ def list_visible_evidence_sources_page(
         visible.extend(
             source
             for source in batch
-            if evidence_source_visible_to_user(source, user_id)
+            if evidence_source_visible_to_user(db, source, user_id)
         )
         if len(batch) < batch_size:
             break
