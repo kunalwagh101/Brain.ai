@@ -11,7 +11,7 @@ from app.auth import get_current_user
 from app.data_governance import run_retention_once, set_retention_policy
 from app.data_governance_models import SecurityAuditEvent
 from app.main import app
-from app.models import Membership, MembershipRole, Organization, User
+from app.models import CanonicalEvent, Membership, MembershipRole, Organization, RawEvent, User
 from app.native_chat_models import (
     NativeMessage,
     NativeMessageRevision,
@@ -259,15 +259,47 @@ def test_author_edit_reconciles_search_mentions_history_and_audit(
     assert audit.metadata_json["previous_revision"] == 1
     assert audit.metadata_json["current_revision"] == 2
 
-    document = db_session.scalar(
-        select(SearchDocument).where(
-            SearchDocument.organization_id == organization.id,
-            SearchDocument.object_external_id == created["id"],
+    documents = list(
+        db_session.scalars(
+            select(SearchDocument)
+            .where(
+                SearchDocument.organization_id == organization.id,
+                SearchDocument.object_external_id == created["id"],
+            )
+            .order_by(SearchDocument.created_at, SearchDocument.id)
         )
     )
-    assert document is not None
-    assert document.content.startswith(new_sentinel)
-    assert document.provenance["native_message_revision"] == 2
+    assert len(documents) == 2
+    current_documents = [item for item in documents if not item.is_deleted]
+    retired_documents = [item for item in documents if item.is_deleted]
+    assert len(current_documents) == 1
+    assert len(retired_documents) == 1
+    assert current_documents[0].content.startswith(new_sentinel)
+    assert current_documents[0].provenance["native_message_revision"] == 2
+    assert retired_documents[0].content == ""
+
+    current_message = db_session.get(NativeMessage, uuid.UUID(created["id"]))
+    assert current_message is not None
+    assert current_message.canonical_event_id != revisions[0].canonical_event_id
+    assert current_message.raw_event_id != revisions[0].raw_event_id
+    assert revisions[0].canonical_event_id is not None
+    assert revisions[0].raw_event_id is not None
+
+    prior_canonical = db_session.get(CanonicalEvent, revisions[0].canonical_event_id)
+    current_canonical = db_session.get(CanonicalEvent, current_message.canonical_event_id)
+    prior_raw = db_session.get(RawEvent, revisions[0].raw_event_id)
+    current_raw = db_session.get(RawEvent, current_message.raw_event_id)
+    assert prior_canonical is not None
+    assert current_canonical is not None
+    assert prior_raw is not None
+    assert current_raw is not None
+    assert prior_canonical.event_type == "native.message.created"
+    assert current_canonical.event_type == "native.message.edited"
+    assert current_canonical.action == "updated"
+    assert current_canonical.provenance["supersedes_canonical_event_id"] == str(
+        prior_canonical.id
+    )
+    assert current_raw.source_event_id.endswith(":revision:2")
 
 
 def test_stale_revision_and_non_author_mutations_fail_closed(
@@ -504,6 +536,28 @@ def test_retraction_hides_content_search_activity_and_unread_but_preserves_threa
     assert len(revisions) == 1
     assert revisions[0].action == NativeMessageRevisionAction.RETRACT
     assert sentinel in revisions[0].body
+
+    retracted_message = db_session.get(NativeMessage, uuid.UUID(root["id"]))
+    assert retracted_message is not None
+    assert retracted_message.canonical_event_id != revisions[0].canonical_event_id
+    retraction_canonical = db_session.get(
+        CanonicalEvent,
+        retracted_message.canonical_event_id,
+    )
+    assert retraction_canonical is not None
+    assert retraction_canonical.event_type == "native.message.retracted"
+    assert retraction_canonical.action == "deleted"
+    retraction_documents = list(
+        db_session.scalars(
+            select(SearchDocument).where(
+                SearchDocument.organization_id == organization.id,
+                SearchDocument.object_external_id == root["id"],
+            )
+        )
+    )
+    assert len(retraction_documents) == 2
+    assert all(item.is_deleted for item in retraction_documents)
+    assert all(item.content == "" for item in retraction_documents)
 
     audit = db_session.scalar(
         select(SecurityAuditEvent).where(
