@@ -451,6 +451,7 @@ export function NativeChatPanel({
   const [threadReplies, setThreadReplies] = useState<NativeMessage[]>([]);
   const [threadBody, setThreadBody] = useState("");
   const [threadAttachments, setThreadAttachments] = useState<NativeAttachment[]>([]);
+  const [threadAttachmentRootId, setThreadAttachmentRootId] = useState<string | null>(null);
   const [threadLoading, setThreadLoading] = useState(false);
   const [uploadingTarget, setUploadingTarget] = useState<"channel" | "thread" | null>(null);
   const [reactionWorking, setReactionWorking] = useState<string | null>(null);
@@ -462,6 +463,16 @@ export function NativeChatPanel({
   const [memberError, setMemberError] = useState<string | null>(null);
   const [memberWorking, setMemberWorking] = useState(false);
   const threadRootId = threadRoot?.id ?? null;
+
+  useEffect(() => {
+    setBody("");
+    setAttachments([]);
+    setThreadRoot(null);
+    setThreadReplies([]);
+    setThreadBody("");
+    setThreadAttachments([]);
+    setThreadAttachmentRootId(null);
+  }, [channel.id]);
 
   useEffect(() => {
     setRootMessages(messages);
@@ -590,11 +601,31 @@ export function NativeChatPanel({
     return () => controller.abort();
   }, [channel.latest_message_id, channel.unread_count, conversationEndpoint, router]);
 
+  function keepUploadedAttachments(
+    uploaded: NativeAttachment[],
+    target: "channel" | "thread",
+  ) {
+    if (!uploaded.length) return;
+    const merge = (items: NativeAttachment[]) => [
+      ...items,
+      ...uploaded.filter(
+        (item) => !items.some((existing) => existing.source_id === item.source_id),
+      ),
+    ];
+    if (target === "channel") {
+      setAttachments(merge);
+    } else {
+      setThreadAttachments(merge);
+      if (threadRoot) setThreadAttachmentRootId(threadRoot.id);
+    }
+  }
+
   async function uploadAttachments(
     files: File[],
     target: "channel" | "thread",
   ) {
     if (!conversationEndpoint || !channel.can_post || !files.length) return;
+    if (target === "thread" && !threadRoot) return;
     const current = target === "channel" ? attachments : threadAttachments;
     const remaining = MAX_ATTACHMENTS_PER_MESSAGE - current.length;
     if (files.length > remaining) {
@@ -632,31 +663,16 @@ export function NativeChatPanel({
           body: form,
         });
         if (!response.ok) {
+          keepUploadedAttachments(uploaded, target);
           setStatus({ kind: "error", text: safeAttachmentError(response.status) });
           return;
         }
         uploaded.push(await response.json() as NativeAttachment);
       }
-      const merge = (items: NativeAttachment[]) => [
-        ...items,
-        ...uploaded.filter(
-          (item) => !items.some((existing) => existing.source_id === item.source_id),
-        ),
-      ];
-      if (target === "channel") setAttachments(merge);
-      else setThreadAttachments(merge);
+      keepUploadedAttachments(uploaded, target);
       setStatus({ kind: "idle" });
     } catch {
-      if (uploaded.length) {
-        const merge = (items: NativeAttachment[]) => [
-          ...items,
-          ...uploaded.filter(
-            (item) => !items.some((existing) => existing.source_id === item.source_id),
-          ),
-        ];
-        if (target === "channel") setAttachments(merge);
-        else setThreadAttachments(merge);
-      }
+      keepUploadedAttachments(uploaded, target);
       setStatus({
         kind: "error",
         text: "The file upload could not reach the secure Brain route. Successful uploads were kept for retry.",
@@ -706,6 +722,10 @@ export function NativeChatPanel({
   }
 
   async function openThread(message: NativeMessage) {
+    if (threadAttachmentRootId && threadAttachmentRootId !== message.id) {
+      setThreadAttachments([]);
+      setThreadAttachmentRootId(null);
+    }
     setThreadRoot(message);
     setThreadReplies([]);
     setThreadLoading(true);
@@ -738,7 +758,10 @@ export function NativeChatPanel({
       !conversationEndpoint
       || !threadRoot
       || !channel.can_post
-      || (!normalized && !threadAttachments.length)
+      || (
+        !normalized
+        && !(threadAttachmentRootId === threadRoot.id && threadAttachments.length)
+      )
     ) return;
     setStatus({ kind: "working", text: "Sending reply…" });
     try {
@@ -753,7 +776,9 @@ export function NativeChatPanel({
           },
           body: JSON.stringify({
             body: normalized,
-            attachment_source_ids: threadAttachments.map((item) => item.source_id),
+            attachment_source_ids: threadAttachmentRootId === threadRoot.id
+              ? threadAttachments.map((item) => item.source_id)
+              : [],
           }),
         },
       );
@@ -773,6 +798,7 @@ export function NativeChatPanel({
         : current);
       setThreadBody("");
       setThreadAttachments([]);
+      setThreadAttachmentRootId(null);
       setStatus({ kind: "idle" });
     } catch {
       setStatus({
@@ -1083,7 +1109,7 @@ export function NativeChatPanel({
                   placeholder="Reply…"
                   rows={3}
                 />
-                {threadAttachments.length ? (
+                {threadAttachmentRootId === threadRoot.id && threadAttachments.length ? (
                   <div className={styles.pendingAttachments} aria-label="Thread files ready to send">
                     {threadAttachments.map((attachment) => (
                       <span key={attachment.source_id}>
@@ -1102,7 +1128,10 @@ export function NativeChatPanel({
                       accept={ATTACHMENT_ACCEPT}
                       disabled={
                         uploadingTarget !== null
-                        || threadAttachments.length >= MAX_ATTACHMENTS_PER_MESSAGE
+                        || (
+                          threadAttachmentRootId === threadRoot.id
+                          && threadAttachments.length >= MAX_ATTACHMENTS_PER_MESSAGE
+                        )
                       }
                       multiple
                       onChange={(event) => {
@@ -1114,13 +1143,21 @@ export function NativeChatPanel({
                     />
                   </label>
                   <span>
-                    {threadBody.length.toLocaleString()} / 20,000 · {threadAttachments.length}/5 files
+                    {threadBody.length.toLocaleString()} / 20,000 · {
+                      threadAttachmentRootId === threadRoot.id ? threadAttachments.length : 0
+                    }/5 files
                   </span>
                   <button
                     disabled={
                       status.kind === "working"
                       || uploadingTarget !== null
-                      || (!threadBody.trim() && !threadAttachments.length)
+                      || (
+                        !threadBody.trim()
+                        && !(
+                          threadAttachmentRootId === threadRoot.id
+                          && threadAttachments.length
+                        )
+                      )
                     }
                     type="submit"
                   >
