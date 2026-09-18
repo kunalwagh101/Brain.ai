@@ -128,7 +128,8 @@ def downgrade() -> None:
     if attachment_only_messages or attachment_only_revisions:
         raise RuntimeError(
             "Cannot downgrade channel attachments while attachment-only messages exist; "
-            "export or migrate those messages first. Evidence sources are not deleted automatically."
+            "export or migrate those messages first. "
+            "Evidence sources are not deleted automatically."
         )
 
     op.drop_index(
