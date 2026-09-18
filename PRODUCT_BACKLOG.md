@@ -309,6 +309,13 @@ Acceptance: Given a current active organisation member with native-chat access a
 Dependencies: S-10.06.01 native channels, S-10.06.02 participant-only DMs, S-10.10.01 live collaboration baseline, S-10.04.01 server-session boundary. Blocking risk: repository implementation can reach IN_REVIEW; DONE still requires executable PostgreSQL/backend/frontend/verifier evidence plus authenticated two-user WorkOS timing/revocation UAT. Size: M. Leading indicator: authorised online/typing state appears/disappears within the lease target with zero unauthorised presence exposure and no per-keystroke request flood. Business value: E-10. Priority: P1.  
 Tasks: T-10.14.01.a ephemeral presence/typing schema + migration; T-10.14.01.b permission-aware lease service for channel + DM contexts; T-10.14.01.c bounded API and same-origin WorkOS BFF; T-10.14.01.d visible-tab heartbeat + throttled typing client; T-10.14.01.e channel/DM online and typing UI; T-10.14.01.f expiry/concurrency/revocation/privacy/frontend tests; T-10.14.01.g docs/UAT/demo/rollback evidence.
 
+#### F-10.15 Shared channel message pins
+**S-10.15.01 — Pin important channel messages without duplicating message content**  
+As a Brain channel participant, I want important messages and thread replies pinned at channel level, so that the team can reopen key context immediately without searching for it again.  
+Acceptance: Given a current channel writer, when they pin a visible non-retracted channel message or thread reply, then Brain creates exactly one channel/message pin reference containing no copied message body, attachment bytes or evidence text; Given the same pin request repeats concurrently or is retried, then the operation is idempotent and the database still contains one pin; Given a current channel reader, when they list pins, then only pins for the exact channel they can currently read are returned and each item is materialised through the existing permission-aware message read model; Given a restricted-channel member is revoked, then the next pin-list/read request fails closed or returns no inaccessible pin content without waiting for pin cleanup; Given a non-writer, guest, revoked member, cross-tenant actor or user targeting another channel's message attempts pin/unpin, then the mutation fails closed without revealing hidden message existence; Given a message or thread reply is retracted, then any active pin to that message is removed in the same lifecycle transaction and it no longer appears in pinned results; Given an edited message remains pinned, then the pin continues to resolve to the current edited message while immutable message revision/evidence history remains unchanged; Given an agent-authored message is visible, then a current channel writer may pin/unpin it because pinning changes channel metadata rather than message authorship; Given pins are listed, then they are ordered newest-pin-first and the response includes pin metadata plus the existing safe message representation, with no second message-content store; Given a root message or reply is pinned, then the UI shows it in a channel Pins panel and can reopen the exact root/thread context using existing message/thread APIs; Given the selected channel's pin set changes, then the existing live workspace revision changes without hashing or exposing message plaintext; Given browser pin/list/unpin requests, then they use same-origin WorkOS BFF routes with bounded identifiers and no reusable backend token in client code; Given migration rollback, then only pin-reference rows/table are removed and no message, evidence, attachment, revision or audit content is deleted.  
+Dependencies: S-10.06.01 native channels/threads, S-10.10.01 live refresh, S-10.12.01 message lifecycle, S-10.04.01 server-session boundary. Blocking risk: repository implementation can reach IN_REVIEW; DONE still requires executable PostgreSQL/backend/frontend/verifier evidence and authenticated WorkOS multi-user pin/revoke/retract UAT. Size: M. Leading indicator: pin-to-open success rate with zero inaccessible pin leakage and zero duplicate pin rows. Business value: E-10. Priority: P1.  
+Tasks: T-10.15.01.a tenant-scoped pin schema/migration; T-10.15.01.b permission-aware pin/list/unpin service + lifecycle cleanup; T-10.15.01.c typed API and same-origin WorkOS BFF; T-10.15.01.d accessible channel Pins panel and message actions; T-10.15.01.e live invalidation; T-10.15.01.f tenant/revocation/retract/idempotency/frontend tests; T-10.15.01.g docs/UAT/demo/rollback evidence.
+
 ## Requirements -> Backlog coverage
 
 | Requirement | Backlog IDs |
@@ -326,7 +333,7 @@ Tasks: T-10.14.01.a ephemeral presence/typing schema + migration; T-10.14.01.b p
 | AI/API access visibility | S-06.03.01, S-10.08.01 |
 | AI/API usage/cost visibility | S-06.02.01, S-10.03.01 |
 | Slack/Discord-style company workspace | S-10.02.01, S-10.03.01, S-10.06.01 |
-| Human communication | S-10.01.01, S-10.06.01, S-10.06.02, S-10.14.01 |
+| Human communication | S-10.01.01, S-10.06.01, S-10.06.02, S-10.14.01, S-10.15.01 |
 | Participant-only private collaboration | S-10.06.02, S-10.14.01 |
 | Tenant/channel-scoped message threads | S-10.06.01 |
 | Exact-member mentions without identity guessing | S-10.06.01 |
@@ -341,12 +348,12 @@ Tasks: T-10.14.01.a ephemeral presence/typing schema + migration; T-10.14.01.b p
 | Citations / no unsupported claims | S-05.02.01, S-10.03.01 |
 | Data provenance | S-03.01.01, S-03.02.01, S-10.05.01, S-10.13.01 |
 | Identity resolution | S-03.03.01 |
-| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01, S-10.14.01 |
-| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01, S-10.14.01 |
+| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01 |
+| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01 |
 | Observability | S-09.01.01 |
-| Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01, S-10.14.01 |
+| Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01 |
 | Latency/cost benchmarks | S-09.04.01 |
-| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01, S-10.14.01 |
+| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01 |
 | Workspace administration and governance UI | S-10.08.01 |
 | Personal Activity & Notifications inbox | S-10.09.01 |
 | @mentions and thread-reply notifications | S-10.06.01, S-10.09.01 |
@@ -362,6 +369,7 @@ Tasks: T-10.14.01.a ephemeral presence/typing schema + migration; T-10.14.01.b p
 | Author-owned channel message edit/retract lifecycle | S-10.12.01 |
 | Governed channel file attachments | S-10.05.01, S-10.13.01 |
 | Ephemeral online presence and typing indicators | S-10.14.01 |
+| Shared channel message pins | S-10.15.01 |
 | Restricted attachment access follows live channel membership | S-10.01.01, S-10.13.01 |
 | File-only channel messages with bounded attachment count | S-10.06.01, S-10.13.01 |
 | Immutable message revision history with optimistic concurrency | S-10.12.01 |
