@@ -450,7 +450,9 @@ def _materialize_integration_activity(
             .where(
                 IntegrationConnection.organization_id == organization_id,
                 or_(
-                    IntegrationConnection.health.in_((IntegrationHealth.DEGRADED, IntegrationHealth.ERROR)),
+                    IntegrationConnection.health.in_(
+                        (IntegrationHealth.DEGRADED, IntegrationHealth.ERROR)
+                    ),
                     IntegrationConnection.status == IntegrationStatus.REVOKE_FAILED,
                 ),
             )
@@ -648,7 +650,11 @@ def _system_item(
         integration = db.get(IntegrationConnection, row.resource_id)
         if integration is None or integration.organization_id != row.organization_id:
             return None
-        failing = integration.health in {IntegrationHealth.DEGRADED, IntegrationHealth.ERROR} or integration.status == IntegrationStatus.REVOKE_FAILED
+        failing = (
+            integration.health
+            in {IntegrationHealth.DEGRADED, IntegrationHealth.ERROR}
+            or integration.status == IntegrationStatus.REVOKE_FAILED
+        )
         if not failing:
             return None
         return ActivityItem(
