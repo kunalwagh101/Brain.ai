@@ -5,11 +5,14 @@ from typing import Annotated
 from fastapi import (
     APIRouter,
     Depends,
+    File,
+    Form,
     Header,
     HTTPException,
     Query,
     Request,
     Response,
+    UploadFile,
     status,
 )
 from pydantic import BaseModel, Field
@@ -18,17 +21,27 @@ from sqlalchemy.orm import Session
 
 from app.agent_models import AgentDefinition, AgentRun
 from app.database import get_db
-from app.models import Membership, User
+from app.evidence_ingestion import (
+    MAX_EVIDENCE_BYTES,
+    EvidenceConflictError,
+    EvidenceIngestionError,
+    ingest_evidence,
+)
+from app.evidence_models import EvidenceKind, EvidenceSourceStatus, EvidenceVisibility
+from app.models import Membership, ResourceAccessLevel, User
 from app.native_chat import (
     NativeChatConflictError,
     NativeChatError,
     can_write_channel,
+    get_visible_channel,
     list_channel_messages,
     list_visible_channels,
     post_user_message,
 )
 from app.native_chat_models import (
     NativeChannel,
+    NativeChannelMembership,
+    NativeChannelVisibility,
     NativeMessage,
     NativeMessageActorKind,
     NativeMessageProjectionStatus,
@@ -40,6 +53,7 @@ from app.native_conversation import (
     list_thread_replies,
     mark_read,
     message_affordances,
+    message_attachment_metadata,
     remove_reaction,
     retract_message,
     unread_count,
@@ -56,7 +70,8 @@ _write = require_organization_permission(Permission.NATIVE_CHAT_WRITE)
 
 
 class ConversationMessageCreate(BaseModel):
-    body: str = Field(min_length=1, max_length=20_000)
+    body: str = Field(default="", max_length=20_000)
+    attachment_source_ids: list[uuid.UUID] = Field(default_factory=list, max_length=5)
 
     model_config = {"extra": "forbid"}
 
@@ -71,6 +86,19 @@ class ReactionRead(BaseModel):
     reaction: str
     count: int
     reacted_by_me: bool
+
+
+class AttachmentRead(BaseModel):
+    source_id: uuid.UUID
+    title: str
+    filename: str
+    kind: str
+    media_type: str
+    byte_size: int
+    status: str
+    retrieval_available: bool
+    source_visibility: str
+    native_channel_id: uuid.UUID | None
 
 
 class ConversationMessageRead(BaseModel):
@@ -90,6 +118,7 @@ class ConversationMessageRead(BaseModel):
     reply_count: int
     mentions: list[MentionRead]
     reactions: list[ReactionRead]
+    attachments: list[AttachmentRead]
     revision: int
     edited_at: datetime | None
     deleted_at: datetime | None
@@ -129,6 +158,19 @@ class MessageRetractWrite(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class ChannelAttachmentUploadRead(BaseModel):
+    source_id: uuid.UUID
+    title: str
+    filename: str
+    kind: str
+    media_type: str
+    byte_size: int
+    status: str
+    retrieval_available: bool
+    source_visibility: str
+    native_channel_id: uuid.UUID | None
+
+
 def _request_id(request: Request) -> str | None:
     value = getattr(request.state, "request_id", None)
     return value if isinstance(value, str) else None
@@ -143,6 +185,17 @@ def _raise_chat_error(exc: NativeChatError) -> None:
         "thread_root_not_found",
     }:
         code = status.HTTP_404_NOT_FOUND
+    else:
+        code = status.HTTP_400_BAD_REQUEST
+    raise HTTPException(
+        status_code=code,
+        detail={"code": exc.code, "message": str(exc)},
+    ) from exc
+
+
+def _raise_evidence_error(exc: EvidenceIngestionError) -> None:
+    if isinstance(exc, EvidenceConflictError):
+        code = status.HTTP_409_CONFLICT
     else:
         code = status.HTTP_400_BAD_REQUEST
     raise HTTPException(
@@ -187,6 +240,11 @@ def _message_reads(
 ) -> list[ConversationMessageRead]:
     labels = _actor_labels(db, messages)
     affordances = message_affordances(db, messages=messages, user_id=user_id)
+    attachment_map = message_attachment_metadata(
+        db,
+        messages=messages,
+        user_id=user_id,
+    )
     result: list[ConversationMessageRead] = []
     for message in messages:
         actor_id = message.author_user_id or message.agent_run_id
@@ -218,6 +276,7 @@ def _message_reads(
                 reply_count=int(extra["reply_count"]),
                 mentions=[] if deleted else extra["mentions"],
                 reactions=[] if deleted else extra["reactions"],
+                attachments=[] if deleted else attachment_map[message.id],
                 revision=message.revision,
                 edited_at=message.edited_at,
                 deleted_at=message.deleted_at,
@@ -259,6 +318,97 @@ def list_channel_unread(
     return result
 
 
+@router.post(
+    "/channels/{channel_id}/attachments/uploads",
+    response_model=ChannelAttachmentUploadRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_channel_attachment(
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    request: Request,
+    authorization: Annotated[AuthorizationContext, Depends(_write)],
+    db: Annotated[Session, Depends(get_db)],
+    file: Annotated[UploadFile, File()],
+    kind: Annotated[EvidenceKind, Form()] = EvidenceKind.DOCUMENT,
+    title: Annotated[str | None, Form(max_length=512)] = None,
+    idempotency_key: Annotated[
+        str | None,
+        Header(alias="Idempotency-Key", max_length=128),
+    ] = None,
+) -> ChannelAttachmentUploadRead:
+    channel = get_visible_channel(
+        db,
+        organization_id=organization_id,
+        channel_id=channel_id,
+        user_id=authorization.user_id,
+    )
+    if channel is None or not can_write_channel(
+        db,
+        channel,
+        user_id=authorization.user_id,
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Channel not found")
+
+    content = await file.read(MAX_EVIDENCE_BYTES + 1)
+    if len(content) > MAX_EVIDENCE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail={"code": "upload_too_large", "message": "Attachment exceeds 10 MB"},
+        )
+
+    visibility = (
+        EvidenceVisibility.ORGANIZATION
+        if channel.visibility == NativeChannelVisibility.ORGANIZATION
+        else EvidenceVisibility.RESTRICTED
+    )
+    restricted_grants: dict[uuid.UUID, ResourceAccessLevel] | None = None
+    if channel.visibility == NativeChannelVisibility.RESTRICTED:
+        restricted_grants = {
+            member.user_id: member.access
+            for member in db.scalars(
+                select(NativeChannelMembership).where(
+                    NativeChannelMembership.organization_id == organization_id,
+                    NativeChannelMembership.channel_id == channel_id,
+                    NativeChannelMembership.revoked_at.is_(None),
+                )
+            )
+        }
+
+    try:
+        source = ingest_evidence(
+            db,
+            organization_id=organization_id,
+            actor_user_id=authorization.user_id,
+            kind=kind,
+            title=title,
+            filename=file.filename or "upload",
+            media_type=file.content_type or "application/octet-stream",
+            content=content,
+            visibility=visibility,
+            occurred_at=None,
+            idempotency_key=idempotency_key,
+            request_id=_request_id(request),
+            native_channel_id=channel.id,
+            restricted_grants=restricted_grants,
+        )
+    except EvidenceIngestionError as exc:
+        _raise_evidence_error(exc)
+
+    return ChannelAttachmentUploadRead(
+        source_id=source.id,
+        title=source.title,
+        filename=source.filename,
+        kind=source.kind.value,
+        media_type=source.media_type,
+        byte_size=source.byte_size,
+        status=source.status.value,
+        retrieval_available=source.status == EvidenceSourceStatus.ACTIVE,
+        source_visibility=source.source_visibility.value,
+        native_channel_id=source.native_channel_id,
+    )
+
+
 @router.get(
     "/channels/{channel_id}/messages",
     response_model=list[ConversationMessageRead],
@@ -295,6 +445,7 @@ def _send(
     idempotency_key: str | None,
     request_id: str | None,
     thread_root_id: uuid.UUID | None,
+    attachment_source_ids: list[uuid.UUID],
 ) -> NativeMessage:
     message = post_user_message(
         db,
@@ -336,6 +487,7 @@ def send_root(
             idempotency_key=idempotency_key,
             request_id=_request_id(request),
             thread_root_id=None,
+            attachment_source_ids=payload.attachment_source_ids,
         )
     except NativeChatError as exc:
         _raise_chat_error(exc)
@@ -477,6 +629,7 @@ def send_reply(
             idempotency_key=idempotency_key,
             request_id=_request_id(request),
             thread_root_id=root_message_id,
+            attachment_source_ids=payload.attachment_source_ids,
         )
     except NativeChatError as exc:
         _raise_chat_error(exc)
