@@ -185,7 +185,7 @@ export async function ProductionWorkspace({
   const agentMutationBase = enableAgentWorkspaceBff && AGENT_ROLES.has(organization.role)
     ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/agent-workspace`
     : null;
-  const liveRevision = computeLiveRevision({
+  const liveRevision = await computeLiveRevision({
     activity,
     channels: channelRows,
     unread: unreadRows,
