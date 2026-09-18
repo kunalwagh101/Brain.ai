@@ -35,6 +35,8 @@ from app.search import _reset_embedding
 from app.search_models import SearchDocument
 
 ALLOWED_REACTIONS = ("👍", "❤️", "🎉", "👀", "✅")
+
+
 def visible_message(
     db: Session,
     *,
@@ -368,14 +370,14 @@ def add_reaction(
 ) -> NativeMessageReaction:
     if reaction not in ALLOWED_REACTIONS:
         raise NativeChatError("reaction_not_allowed", "Reaction is not allowed")
-    channel, _ = visible_message(
+    channel, message = visible_message(
         db,
         organization_id=organization_id,
         channel_id=channel_id,
         message_id=message_id,
         user_id=user_id,
     )
-    if not can_write_channel(db, channel, user_id=user_id):
+    if message.deleted_at is not None or not can_write_channel(db, channel, user_id=user_id):
         raise NativeChatError("message_not_found", "Message not found")
     existing = db.scalar(
         select(NativeMessageReaction).where(
@@ -423,14 +425,14 @@ def remove_reaction(
 ) -> None:
     if reaction not in ALLOWED_REACTIONS:
         raise NativeChatError("reaction_not_allowed", "Reaction is not allowed")
-    channel, _ = visible_message(
+    channel, message = visible_message(
         db,
         organization_id=organization_id,
         channel_id=channel_id,
         message_id=message_id,
         user_id=user_id,
     )
-    if not can_write_channel(db, channel, user_id=user_id):
+    if message.deleted_at is not None or not can_write_channel(db, channel, user_id=user_id):
         raise NativeChatError("message_not_found", "Message not found")
     row = db.scalar(
         select(NativeMessageReaction).where(
@@ -463,6 +465,7 @@ def unread_count(
     conditions = [
         NativeMessage.organization_id == organization_id,
         NativeMessage.channel_id == channel.id,
+        NativeMessage.deleted_at.is_(None),
         or_(
             NativeMessage.author_user_id.is_(None),
             NativeMessage.author_user_id != user_id,
@@ -518,6 +521,7 @@ def channel_unread_summaries(
             .where(
                 NativeMessage.organization_id == organization_id,
                 NativeMessage.channel_id.in_(channel_ids),
+                NativeMessage.deleted_at.is_(None),
                 or_(
                     NativeMessage.author_user_id.is_(None),
                     NativeMessage.author_user_id != user_id,
@@ -539,6 +543,7 @@ def channel_unread_summaries(
         .where(
             NativeMessage.organization_id == organization_id,
             NativeMessage.channel_id.in_(channel_ids),
+            NativeMessage.deleted_at.is_(None),
         )
         .group_by(NativeMessage.channel_id)
         .subquery()
