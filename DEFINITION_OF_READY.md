@@ -457,3 +457,17 @@ Open questions: none changes this slice because OQ-008 already fixes participant
 Leading indicators: unauthorised mutation = 0; stale overwrite = 0; retracted body exposure = 0; organisation-wide DM lifecycle evidence/audit rows = 0.
 
 Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires PostgreSQL migration round-trip, concurrency/privacy/retention tests, frontend build/source contracts, verifier and authenticated two-user WorkOS lifecycle UAT.
+
+## Increment 37 readiness record — S-10.21.01
+
+Decision: `READY` for repository implementation on 2026-09-20; board WIP was zero before pull.
+
+Baseline: root/channel history now has stable sequence paging, but `list_thread_replies` still returns only a bounded first/recent set with no cursor. The thread panel refresh replaces the reply list, so any future loaded history would be lost.
+
+Architecture: reuse `NativeMessage.message_sequence`; add optional positive `before_sequence` to the existing reply GET, query the exact `thread_root_id`, order descending/limit/reverse, and expose a bounded same-origin BFF GET. Client maintains a contiguous thread-history cursor, merges by message ID/sequence, and merges live refresh rather than replacing history.
+
+Security: every page reuses `visible_message` root/channel authorization. A revoked/hidden/retracted root fails closed. No schema or content copy is needed.
+
+Rollback: remove the cursor query parameter and Load older replies state; no persisted data changes.
+
+Done boundary: source implementation may reach IN_REVIEW. DONE still needs executable backend/frontend/verifier evidence plus authenticated long-thread/revocation UAT.
