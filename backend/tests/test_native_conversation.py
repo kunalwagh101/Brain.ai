@@ -510,3 +510,60 @@ def test_single_message_read_respects_current_channel_access(
     _as(member)
     hidden = client.get(endpoint)
     assert hidden.status_code == 404
+
+def test_native_root_history_uses_stable_sequence_cursor(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, _ = _seed(db_session, "history-page")
+    channel = _channel(client, organization, owner)
+    created = [
+        _root(
+            client,
+            organization,
+            channel["id"],
+            owner,
+            f"History root {index}",
+            f"history-root-{index}",
+        ).json()
+        for index in range(1, 6)
+    ]
+
+    _as(member)
+    endpoint = (
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/messages"
+    )
+    first_page = client.get(endpoint, params={"limit": 2})
+    assert first_page.status_code == 200
+    assert [item["id"] for item in first_page.json()] == [
+        created[3]["id"],
+        created[4]["id"],
+    ]
+
+    before_sequence = first_page.json()[0]["message_sequence"]
+    second_page = client.get(
+        endpoint,
+        params={"limit": 2, "before_sequence": before_sequence},
+    )
+    assert second_page.status_code == 200
+    assert [item["id"] for item in second_page.json()] == [
+        created[1]["id"],
+        created[2]["id"],
+    ]
+    assert {
+        item["id"] for item in first_page.json()
+    }.isdisjoint({item["id"] for item in second_page.json()})
+
+    third_page = client.get(
+        endpoint,
+        params={
+            "limit": 2,
+            "before_sequence": second_page.json()[0]["message_sequence"],
+        },
+    )
+    assert [item["id"] for item in third_page.json()] == [created[0]["id"]]
+    assert client.get(
+        endpoint,
+        params={"limit": 2, "before_sequence": 0},
+    ).status_code == 422
