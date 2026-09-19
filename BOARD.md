@@ -46,13 +46,32 @@ IN_REVIEW | S-10.12.01 | F-10.12 | Author-only edit/retract, expected-revision c
 IN_REVIEW | S-10.13.01 | F-10.13 | Governed EvidenceSource channel uploads, live restricted membership, tenant-scoped attachment relations, file-only messages, bounded WorkOS multipart UI, retry-safe composer and deletion/retraction independence are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.14.01 | F-10.14 | Ephemeral 75s presence + 8s typing leases, read-only authorised polling, restricted-channel/participant-only DM privacy, audit-free traffic, same-origin WorkOS BFF and focused-composer UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.15.01 | F-10.15 | Reference-only shared channel pins, current reader/writer permission checks, retry-safe uniqueness, thread/root reopening, same-lifecycle retract cleanup, structural live refresh and WorkOS BFF/UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
-IN_PROGRESS | S-10.16.01 | F-10.16 | Personal saved channel messages pulled after Ready review; private per-user reference storage, current channel permission rechecks and retract cleanup are in scope
+IN_REVIEW | S-10.16.01 | F-10.16 | Private reference-only Saved messages, membership/message scoped FKs, current visible-channel filtering, read-only Save support, audit-free personal traffic, same-lifecycle retract cleanup, exact deep links and WorkOS UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 
-### S-10.16.01 Personal Saved Messages — IN_PROGRESS
+### S-10.16.01 Personal Saved Messages — IN_REVIEW
 
 Sprint goal: let a user privately save and reopen important authorised channel messages/replies without changing shared channel state or copying message content.
 
-Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-32.md` and `UAT/F-10.16.md`. WIP after pull: one `IN_PROGRESS` story.
+Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-32.md` and `UAT/F-10.16.md`.
+
+Implementation staged:
+
+- private `NativeMessageSave` stores only organisation/channel/message identity, saving user and timestamp;
+- database membership + exact message-scope foreign keys prevent cross-tenant/cross-message corruption;
+- current readers may Save/Unsave visible roots/replies even without channel write permission;
+- Saved list is derived only from the authenticated user; there is no privileged-role user selector;
+- restricted-channel revoke hides inaccessible saved content immediately while preserving the content-free reference for later regrant;
+- organisation membership removal cascades saved references through the membership foreign key;
+- unique user/message storage plus IntegrityError recovery makes repeated/concurrent saves idempotent;
+- visible agent-authored messages are saveable without changing human edit/retract authority;
+- edits preserve saves; retraction removes every saved reference for the message before lifecycle commit;
+- normal Saved list/save/unsave traffic bypasses organisation-wide SecurityAuditEvent persistence;
+- typed API/BFF and same-origin WorkOS Saved routes are staged;
+- personal Saved navigation/panel and root/reply Save/Unsave actions are staged;
+- exact S-10.11 channel/message deep links reopen saved roots and thread replies;
+- migration `20260919_0033`, focused backend regressions, source contracts, UAT/demo/changelog/retro/traceability are staged.
+
+Formal state: `IN_REVIEW`. No executable PostgreSQL/Ruff/Pytest/frontend/verifier/WorkOS browser PASS is claimed. WIP after review move: zero `IN_PROGRESS` stories.
 
 ### S-10.15.01 Shared Channel Message Pins — IN_REVIEW
 
