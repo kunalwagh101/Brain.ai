@@ -7,6 +7,7 @@ import {
   getExecutiveOverview,
   getNativeMessage,
   listEvidenceSources,
+  listNativeChannelGroups,
   listNativeChannelMembers,
   listNativeChannels,
   listNativeMessages,
@@ -107,6 +108,7 @@ export async function ProductionWorkspace({
     directConversations,
     savedMessages,
     nativeTeams,
+    nativeChannelGroups,
   ] = await Promise.all([
     listWorkspaceNavigation(accessToken, organization.id),
     listProjectStatuses(accessToken, organization.id),
@@ -131,6 +133,7 @@ export async function ProductionWorkspace({
       : Promise.resolve([]),
     listNativeSavedMessages(accessToken, organization.id, 100),
     listNativeTeams(accessToken, organization.id, true),
+    listNativeChannelGroups(accessToken, organization.id, true),
   ]);
   const unreadByChannel = new Map(unreadRows.map((item) => [item.channel_id, item]));
   const nativeChannels = channelRows.map((channel) => ({
@@ -315,6 +318,7 @@ export async function ProductionWorkspace({
         evidenceSources={evidenceSources}
         nativeChannels={nativeChannels}
         nativeTeams={nativeTeams}
+        nativeChannelGroups={nativeChannelGroups}
         selectedNativeChannel={selectedChannel}
         nativeMessages={nativeMessages}
         nativeHistoryBeforeSequence={nativeMessageRows[0]?.message_sequence ?? null}
