@@ -360,7 +360,7 @@ export function WorkspaceShell({
           ) : selectedNativeChannel ? (
             <NativeChatPanel
               channel={selectedNativeChannel}
-              key={`${selectedNativeChannel.id}:${selectedNativeChannel.latest_message_id ?? "empty"}`}
+              key={selectedNativeChannel.id}
               messages={nativeMessages}
               pins={nativePins}
               savedMessageIds={savedMessages
