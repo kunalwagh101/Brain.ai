@@ -24,6 +24,7 @@ import { DirectMessagePanel } from "./direct-message-panel";
 import { EvidenceWorkspace } from "./evidence-workspace";
 import { NativeChannelCreate } from "./native-channel-create";
 import { NativeChannelGroupManager } from "./native-channel-group-manager";
+import { ArchivedChannelManager } from "./native-channel-settings";
 import { NativeChatPanel } from "./native-chat-panel";
 import { NativeTeamManager } from "./native-team-manager";
 import { SavedMessagesPanel } from "./saved-messages-panel";
@@ -90,6 +91,7 @@ export function WorkspaceShell({
   nativeChannels,
   nativeTeams,
   nativeChannelGroups,
+  archivedNativeChannels,
   selectedNativeChannel,
   nativeMessages,
   nativeHistoryBeforeSequence,
@@ -135,6 +137,7 @@ export function WorkspaceShell({
   nativeChannels: NativeChannel[];
   nativeTeams: NativeTeam[];
   nativeChannelGroups: NativeChannelGroup[];
+  archivedNativeChannels: NativeChannel[];
   selectedNativeChannel: NativeChannel | null;
   nativeMessages: NativeMessage[];
   nativeHistoryBeforeSequence: number | null;
@@ -348,6 +351,10 @@ export function WorkspaceShell({
               groups={nativeChannelGroups}
               channels={nativeChannels}
               endpoint={nativeTeamMutationBase}
+            />
+            <ArchivedChannelManager
+              channels={archivedNativeChannels}
+              mutationBase={nativeChatMutationBase}
             />
           </section>
 
