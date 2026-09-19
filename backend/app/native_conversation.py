@@ -919,7 +919,12 @@ def channel_unread_summaries(
     user_id: uuid.UUID,
 ) -> dict[
     uuid.UUID,
-    tuple[int, NativeChannelReadState | None, uuid.UUID | None],
+    tuple[
+        int,
+        NativeChannelReadState | None,
+        uuid.UUID | None,
+        uuid.UUID | None,
+    ],
 ]:
     """Return personal unread counts and latest cursors in three bounded queries."""
     channel_ids = [channel.id for channel in channels]
@@ -936,34 +941,53 @@ def channel_unread_summaries(
             )
         )
     }
+    unread_ranked = (
+        select(
+            NativeMessage.channel_id.label("channel_id"),
+            NativeMessage.id.label("message_id"),
+            func.count()
+            .over(partition_by=NativeMessage.channel_id)
+            .label("unread_count"),
+            func.row_number()
+            .over(
+                partition_by=NativeMessage.channel_id,
+                order_by=NativeMessage.message_sequence,
+            )
+            .label("unread_rank"),
+        )
+        .outerjoin(
+            NativeChannelReadState,
+            and_(
+                NativeChannelReadState.organization_id
+                == NativeMessage.organization_id,
+                NativeChannelReadState.channel_id == NativeMessage.channel_id,
+                NativeChannelReadState.user_id == user_id,
+            ),
+        )
+        .where(
+            NativeMessage.organization_id == organization_id,
+            NativeMessage.channel_id.in_(channel_ids),
+            NativeMessage.deleted_at.is_(None),
+            or_(
+                NativeMessage.author_user_id.is_(None),
+                NativeMessage.author_user_id != user_id,
+            ),
+            or_(
+                NativeChannelReadState.id.is_(None),
+                NativeMessage.message_sequence
+                > NativeChannelReadState.last_read_sequence,
+            ),
+        )
+        .subquery()
+    )
     unread_by_channel = {
-        channel_id: int(count)
-        for channel_id, count in db.execute(
-            select(NativeMessage.channel_id, func.count())
-            .outerjoin(
-                NativeChannelReadState,
-                and_(
-                    NativeChannelReadState.organization_id
-                    == NativeMessage.organization_id,
-                    NativeChannelReadState.channel_id == NativeMessage.channel_id,
-                    NativeChannelReadState.user_id == user_id,
-                ),
-            )
-            .where(
-                NativeMessage.organization_id == organization_id,
-                NativeMessage.channel_id.in_(channel_ids),
-                NativeMessage.deleted_at.is_(None),
-                or_(
-                    NativeMessage.author_user_id.is_(None),
-                    NativeMessage.author_user_id != user_id,
-                ),
-                or_(
-                    NativeChannelReadState.id.is_(None),
-                    NativeMessage.message_sequence
-                    > NativeChannelReadState.last_read_sequence,
-                ),
-            )
-            .group_by(NativeMessage.channel_id)
+        channel_id: (int(count), message_id)
+        for channel_id, count, message_id in db.execute(
+            select(
+                unread_ranked.c.channel_id,
+                unread_ranked.c.unread_count,
+                unread_ranked.c.message_id,
+            ).where(unread_ranked.c.unread_rank == 1)
         )
     }
     latest_sequences = (
@@ -994,9 +1018,10 @@ def channel_unread_summaries(
     }
     return {
         channel_id: (
-            unread_by_channel.get(channel_id, 0),
+            unread_by_channel.get(channel_id, (0, None))[0],
             states.get(channel_id),
             latest_by_channel.get(channel_id),
+            unread_by_channel.get(channel_id, (0, None))[1],
         )
         for channel_id in channel_ids
     }
