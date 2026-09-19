@@ -1,5 +1,10 @@
 import { BrainApiError } from "./brain-api";
-import { getDirectMessage, listDirectMessages } from "./direct-message-api";
+import {
+  editDirectMessage,
+  getDirectMessage,
+  listDirectMessages,
+  retractDirectMessage,
+} from "./direct-message-api";
 import { requireBrainOrganizationMembership, requireUuid } from "./brain-membership";
 
 const MESSAGE_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
@@ -109,6 +114,83 @@ export async function handleDirectMessageList(
     conversationId,
     limit,
     beforeSequence,
+  );
+}
+
+export async function handleDirectMessageEdit(
+  accessToken: string,
+  organizationId: string,
+  conversationId: string,
+  messageId: string,
+  input: unknown,
+): Promise<unknown> {
+  await assertMessagingMembership(accessToken, organizationId);
+  requireUuid(conversationId, "conversationId");
+  requireUuid(messageId, "messageId");
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new DirectMessageBffError(400, "Invalid direct-message edit request");
+  }
+  const record = input as Record<string, unknown>;
+  if (
+    Object.keys(record).some(
+      (key) => key !== "body" && key !== "expected_revision",
+    )
+  ) {
+    throw new DirectMessageBffError(400, "Unexpected direct-message edit field");
+  }
+  const body = typeof record.body === "string" ? record.body.trim() : "";
+  const expectedRevision = record.expected_revision;
+  if (!body || body.length > 20_000) {
+    throw new DirectMessageBffError(400, "Direct-message edit body is invalid");
+  }
+  if (
+    typeof expectedRevision !== "number"
+    || !Number.isInteger(expectedRevision)
+    || expectedRevision < 1
+  ) {
+    throw new DirectMessageBffError(400, "Direct-message revision is invalid");
+  }
+  return editDirectMessage(
+    accessToken,
+    organizationId,
+    conversationId,
+    messageId,
+    body,
+    expectedRevision,
+  );
+}
+
+export async function handleDirectMessageRetract(
+  accessToken: string,
+  organizationId: string,
+  conversationId: string,
+  messageId: string,
+  input: unknown,
+): Promise<unknown> {
+  await assertMessagingMembership(accessToken, organizationId);
+  requireUuid(conversationId, "conversationId");
+  requireUuid(messageId, "messageId");
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new DirectMessageBffError(400, "Invalid direct-message retract request");
+  }
+  const record = input as Record<string, unknown>;
+  if (Object.keys(record).some((key) => key !== "expected_revision")) {
+    throw new DirectMessageBffError(400, "Unexpected direct-message retract field");
+  }
+  const expectedRevision = record.expected_revision;
+  if (
+    typeof expectedRevision !== "number"
+    || !Number.isInteger(expectedRevision)
+    || expectedRevision < 1
+  ) {
+    throw new DirectMessageBffError(400, "Direct-message revision is invalid");
+  }
+  return retractDirectMessage(
+    accessToken,
+    organizationId,
+    conversationId,
+    messageId,
+    expectedRevision,
   );
 }
 
