@@ -238,6 +238,12 @@ export async function ProductionWorkspace({
   )
     ? `${directMessageCreateEndpoint}/${encodeURIComponent(selectedDirectConversation.id)}/messages`
     : null;
+  const directMessageConversationEndpoint = (
+    selectedDirectConversation
+    && directMessageCreateEndpoint
+  )
+    ? `${directMessageCreateEndpoint}/${encodeURIComponent(selectedDirectConversation.id)}`
+    : null;
   const activityMutationBase = enableActivityBff
     ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/activity`
     : null;
@@ -330,6 +336,7 @@ export async function ProductionWorkspace({
         canCreateNativeChannel={canCreateNativeChannel}
         directMessageCreateEndpoint={directMessageCreateEndpoint}
         directMessageSendEndpoint={directMessageSendEndpoint}
+        directMessageConversationEndpoint={directMessageConversationEndpoint}
         directMessagePresenceEndpoint={directMessagePresenceEndpoint}
         agentMutationBase={agentMutationBase}
         workspaceSearchEndpoint={workspaceSearchEndpoint}
