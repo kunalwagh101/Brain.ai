@@ -11,6 +11,7 @@ import {
   listNativeChannels,
   listNativeMessages,
   listNativePins,
+  listNativeSavedMessages,
   listNativeUnread,
   listOrganizations,
   listProjectStatuses,
@@ -103,6 +104,7 @@ export async function ProductionWorkspace({
     agentWorkspace,
     adminCenter,
     directConversations,
+    savedMessages,
   ] = await Promise.all([
     listWorkspaceNavigation(accessToken, organization.id),
     listProjectStatuses(accessToken, organization.id),
@@ -125,6 +127,7 @@ export async function ProductionWorkspace({
     DM_ROLES.has(organization.role)
       ? listDirectConversations(accessToken, organization.id)
       : Promise.resolve([]),
+    listNativeSavedMessages(accessToken, organization.id, 100),
   ]);
   const unreadByChannel = new Map(unreadRows.map((item) => [item.channel_id, item]));
   const nativeChannels = channelRows.map((channel) => ({
@@ -210,6 +213,9 @@ export async function ProductionWorkspace({
     : null;
   const canCreateNativeChannel = CHAT_WRITE_ROLES.has(organization.role);
   const nativeChatMutationBase = enableNativeChatBff && canCreateNativeChannel
+    ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/native-channels`
+    : null;
+  const nativeSavedMutationBase = enableNativeChatBff
     ? `/api/brain/organizations/${encodeURIComponent(organization.id)}/native-channels`
     : null;
   const nativeMessageEndpoint = selectedChannel && nativeChatMutationBase && selectedChannel.can_post
@@ -298,6 +304,7 @@ export async function ProductionWorkspace({
         selectedNativeChannel={selectedChannel}
         nativeMessages={nativeMessages}
         nativePins={selectedNativePins}
+        savedMessages={savedMessages}
         requestedNativeMessage={requestedNativeMessage}
         selectedNativeMembers={selectedNativeMembers}
         invalidRequestedChannel={invalidRequestedChannel}
@@ -314,6 +321,7 @@ export async function ProductionWorkspace({
         evidenceMutationBase={evidenceMutationBase}
         canUploadEvidence={canUploadEvidence}
         nativeChatMutationBase={nativeChatMutationBase}
+        nativeSavedMutationBase={nativeSavedMutationBase}
         nativeMessageEndpoint={nativeMessageEndpoint}
         nativeMemberEndpoint={nativeMemberEndpoint}
         nativeConversationEndpoint={nativeConversationEndpoint}
