@@ -86,6 +86,10 @@ class NativeChannel(Base):
             "channel_group_id IS NULL OR team_id IS NOT NULL",
             name="ck_native_channel_group_requires_team",
         ),
+        CheckConstraint(
+            "settings_revision >= 1",
+            name="ck_native_channel_settings_revision_positive",
+        ),
         Index(
             "ix_native_channel_org_status_created",
             "organization_id",
@@ -145,6 +149,9 @@ class NativeChannel(Base):
         nullable=False,
     )
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    settings_revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default="1", nullable=False
+    )
     last_message_sequence: Mapped[int] = mapped_column(
         BigInteger,
         default=0,
