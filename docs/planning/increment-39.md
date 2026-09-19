@@ -2,7 +2,7 @@
 
 Story: `S-10.23.01`
 
-Status: `IN_PROGRESS`
+Status: `IN_REVIEW`
 
 ## Sprint goal
 
@@ -23,3 +23,7 @@ Reaction participant lists, arbitrary emoji, reaction notifications, organisatio
 ## Acceptance truth
 
 Repository implementation may reach `IN_REVIEW`; migration/tests/verifier/authenticated UAT are required for DONE.
+
+## Retrospective — 2026-09-20
+
+No accepted requirement was cut. Channel reaction UX could be reused, but persistence and projection could not: OQ-008 requires participant-private DM state. The implementation therefore uses a separate cascade-scoped table and aggregate-only read model, with no organisation activity/audit/search projection. Reaction aggregation is batched across paginated message reads to avoid an N+1 regression. Normalisation, duplicate PUT, repeat DELETE, old-epoch denial, retraction cascade and private-retention/legal-hold behaviour all have named regressions. The story remains IN_REVIEW pending executable migration/tests/verifier and authenticated UAT.
