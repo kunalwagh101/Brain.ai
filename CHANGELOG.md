@@ -1,5 +1,18 @@
 # Changelog
 
+### Increment 35 — Conversation History Pagination
+
+- Added positive stable `before_sequence` pagination to native-channel root history and participant-only DM history.
+- Kept every page on existing permission checks; DM pages always reapply the participant's current visibility floor.
+- Bounded browser/backend page sizes and deliberately avoided SQL OFFSET pagination.
+- Added server-session GET handling on existing WorkOS channel/DM message routes.
+- Added accessible **Load older messages** controls that merge by message ID, sort by sequence, preserve composer/unread context and stop after history exhaustion.
+- Changed native-channel refresh merging so loaded historical pages are not discarded by normal live/server refresh.
+- Added backend cursor/no-duplicate tests, frontend/security source contracts, UAT/demo/traceability. No schema migration was required.
+
+Verification is not claimed as passed. `S-10.19.01` remains `IN_REVIEW` pending executable backend/frontend/verifier checks and authenticated long-history/revocation UAT.
+
+
 ### Increment 34 — DM Unread & Resume
 
 - Added one monotonic last-read sequence per participant to the existing 1:1 DM conversation aggregate; no generic employer-visible read-history table was introduced.
