@@ -712,3 +712,25 @@ python scripts/verify_board.py
 ```
 
 Expected: Teams are revisioned organisation metadata; stale writes conflict; creator/Owner/Admin authority is enforced; Guest/cross-tenant mutations fail; Team lifecycle changes no NativeChannel or ResourceGrant state; browser writes stay same-origin. Final manual acceptance follows `UAT/F-10.24.md`.
+
+## Increment 41 — Team Channel Groups
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.25.01 is `IN_REVIEW`, not DONE.
+
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_native_workspace.py
+alembic heads
+# with test PostgreSQL configured:
+alembic upgrade 20260920_0039
+alembic downgrade 20260920_0038
+alembic upgrade 20260920_0039
+cd ..
+node --test tests/native-channel-groups-contract.test.mjs tests/native-teams-contract.test.mjs
+npm run lint
+npm run build
+python scripts/verify_board.py
+```
+
+Expected: group lifecycle is tenant/team scoped and revisioned; channel moves require channel + target-Team authority; navigation moves do not change visibility, memberships or ResourceGrants; archived group/Team fallbacks keep every already-authorised channel reachable; browser mutation stays same-origin. Final browser acceptance follows `UAT/F-10.25.md`.
