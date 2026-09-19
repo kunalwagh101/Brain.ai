@@ -168,9 +168,12 @@ function MessageCard({
   lifecycleEndpoint,
   pinned,
   pinWorking,
+  saved,
+  saveWorking,
   onThread,
   onReaction,
   onPin,
+  onSave,
   onLifecycleChange,
 }: {
   message: NativeMessage;
@@ -179,9 +182,12 @@ function MessageCard({
   lifecycleEndpoint: string | null;
   pinned: boolean;
   pinWorking: string | null;
+  saved: boolean;
+  saveWorking: string | null;
   onThread?: (message: NativeMessage) => void;
   onReaction: (message: NativeMessage, reaction: string) => void;
   onPin?: (message: NativeMessage, active: boolean) => void;
+  onSave?: (message: NativeMessage, active: boolean) => void;
   onLifecycleChange: (message: NativeMessage) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -387,6 +393,18 @@ function MessageCard({
                 {pinWorking === message.id ? "Working…" : pinned ? "Unpin" : "Pin"}
               </button>
             ) : null}
+            {!deleted && onSave ? (
+              <button
+                aria-label={saved ? "Unsave message" : "Save message"}
+                aria-pressed={saved}
+                data-active={saved || undefined}
+                disabled={saveWorking === message.id}
+                onClick={() => onSave(message, !saved)}
+                type="button"
+              >
+                {saveWorking === message.id ? "Working…" : saved ? "Unsave" : "Save"}
+              </button>
+            ) : null}
             {canEdit ? (
               <button
                 onClick={() => {
@@ -459,6 +477,7 @@ export function NativeChatPanel({
   channel,
   messages,
   pins,
+  savedMessageIds,
   requestedMessage,
   members,
   mutationEndpoint,
@@ -469,6 +488,7 @@ export function NativeChatPanel({
   channel: NativeChannel;
   messages: NativeMessage[];
   pins: NativeMessagePin[];
+  savedMessageIds: string[];
   requestedMessage: NativeMessage | null;
   members: NativeChannelMember[];
   mutationEndpoint: string | null;
@@ -486,6 +506,8 @@ export function NativeChatPanel({
   const [pinRows, setPinRows] = useState(pins);
   const [pinsOpen, setPinsOpen] = useState(false);
   const [pinWorking, setPinWorking] = useState<string | null>(null);
+  const [savedIds, setSavedIds] = useState(savedMessageIds);
+  const [saveWorking, setSaveWorking] = useState<string | null>(null);
   const [body, setBody] = useState("");
   const [attachments, setAttachments] = useState<NativeAttachment[]>([]);
   const [threadRoot, setThreadRoot] = useState<NativeMessage | null>(null);
@@ -546,6 +568,10 @@ export function NativeChatPanel({
   useEffect(() => {
     setPinRows(pins);
   }, [pins]);
+
+  useEffect(() => {
+    setSavedIds(savedMessageIds);
+  }, [savedMessageIds]);
 
 
   useEffect(() => {
@@ -996,6 +1022,33 @@ export function NativeChatPanel({
     if (root) await openThread(root, message.id);
   }
 
+  async function toggleSave(message: NativeMessage, active: boolean) {
+    if (!conversationEndpoint || message.deleted_at) return;
+    setSaveWorking(message.id);
+    setStatus({ kind: "idle" });
+    try {
+      const response = await fetch(
+        `${conversationEndpoint}/messages/${encodeURIComponent(message.id)}/saved`,
+        {
+          method: active ? "PUT" : "DELETE",
+          credentials: "same-origin",
+        },
+      );
+      if (!response.ok) {
+        setStatus({ kind: "error", text: safeMessageError(response.status) });
+        return;
+      }
+      setSavedIds((items) => active
+        ? items.includes(message.id) ? items : [message.id, ...items]
+        : items.filter((id) => id !== message.id));
+      router.refresh();
+    } catch {
+      setStatus({ kind: "error", text: "The Saved change could not reach the secure Brain route." });
+    } finally {
+      setSaveWorking(null);
+    }
+  }
+
   async function toggleReaction(message: NativeMessage, reaction: string) {
     if (!conversationEndpoint || !channel.can_post) return;
     const current = message.reactions.find((item) => item.reaction === reaction);
@@ -1036,6 +1089,7 @@ export function NativeChatPanel({
   function applyLifecycleMessage(updated: NativeMessage) {
     if (updated.deleted_at) {
       setPinRows((items) => items.filter((item) => item.message.id !== updated.id));
+      setSavedIds((items) => items.filter((id) => id !== updated.id));
     } else {
       setPinRows((items) => items.map((item) => item.message.id === updated.id
         ? { ...item, message: updated }
@@ -1241,6 +1295,9 @@ export function NativeChatPanel({
                 onReaction={toggleReaction}
                 pinned={pinRows.some((pin) => pin.message.id === message.id)}
                 pinWorking={pinWorking}
+                saved={savedIds.includes(message.id)}
+                saveWorking={saveWorking}
+                onSave={conversationEndpoint ? toggleSave : undefined}
                 onThread={openThread}
                 reactionWorking={reactionWorking}
               />
@@ -1366,6 +1423,9 @@ export function NativeChatPanel({
                 onReaction={toggleReaction}
                 pinned={pinRows.some((pin) => pin.message.id === threadRoot.id)}
                 pinWorking={pinWorking}
+                saved={savedIds.includes(threadRoot.id)}
+                saveWorking={saveWorking}
+                onSave={conversationEndpoint ? toggleSave : undefined}
                 reactionWorking={reactionWorking}
               />
               <div className={styles.replyDivider}>
@@ -1383,6 +1443,9 @@ export function NativeChatPanel({
                   onReaction={toggleReaction}
                   pinned={pinRows.some((pin) => pin.message.id === reply.id)}
                   pinWorking={pinWorking}
+                  saved={savedIds.includes(reply.id)}
+                  saveWorking={saveWorking}
+                  onSave={conversationEndpoint ? toggleSave : undefined}
                   reactionWorking={reactionWorking}
                 />
               )) : null}
