@@ -122,6 +122,7 @@ export type NativeMessage = {
   body_sha256: string;
   projection_status: "pending" | "ready" | "failed";
   canonical_event_id: string | null;
+  message_sequence: number;
   created_at: string;
   reply_count: number;
   mentions: NativeMention[];
@@ -566,11 +567,16 @@ export function listNativeMessages(
   organizationId: string,
   channelId: string,
   limit = 100,
+  beforeSequence?: number | null,
 ): Promise<NativeMessage[]> {
   const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 200);
+  const params = new URLSearchParams({ limit: String(boundedLimit) });
+  if (beforeSequence !== undefined && beforeSequence !== null) {
+    params.set("before_sequence", String(Math.max(1, Math.trunc(beforeSequence))));
+  }
   return brainApiFetch(
     accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/messages?limit=${boundedLimit}`,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/messages?${params.toString()}`,
   );
 }
 
