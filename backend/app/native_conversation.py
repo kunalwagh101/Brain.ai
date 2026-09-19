@@ -509,6 +509,7 @@ def list_thread_replies(
     root_message_id: uuid.UUID,
     user_id: uuid.UUID,
     limit: int,
+    before_sequence: int | None = None,
 ) -> tuple[NativeMessage, list[NativeMessage]]:
     _, root = visible_message(
         db,
@@ -519,18 +520,19 @@ def list_thread_replies(
     )
     if root.thread_root_id is not None:
         raise NativeChatError("thread_root_not_found", "Thread root not found")
+    query = select(NativeMessage).where(
+        NativeMessage.organization_id == organization_id,
+        NativeMessage.channel_id == channel_id,
+        NativeMessage.thread_root_id == root_message_id,
+    )
+    if before_sequence is not None:
+        query = query.where(NativeMessage.message_sequence < before_sequence)
     replies = list(
         db.scalars(
-            select(NativeMessage)
-            .where(
-                NativeMessage.organization_id == organization_id,
-                NativeMessage.channel_id == channel_id,
-                NativeMessage.thread_root_id == root_message_id,
-            )
-            .order_by(NativeMessage.message_sequence)
-            .limit(limit)
+            query.order_by(NativeMessage.message_sequence.desc()).limit(limit)
         )
     )
+    replies.reverse()
     return root, replies
 
 
