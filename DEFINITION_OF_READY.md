@@ -535,3 +535,19 @@ Security invariants: OQ-009 remains authoritative—navigation hierarchy never g
 Rollback: drop channel navigation FKs/columns and group table only; no channel/message/evidence/DM data is deleted.
 
 Done boundary: repository implementation may reach IN_REVIEW. DONE requires PostgreSQL migration round-trip, ACL-invariance/tenant/archive backend tests, frontend/verifier execution and authenticated hierarchy UAT.
+
+## Increment 42 readiness record — S-10.26.01
+
+Decision: `READY` for repository implementation on 2026-09-20; S-10.25 left implementation WIP first.
+
+Baseline: native channels already store name/slug/description/status/archive timestamp and restricted member access, but the production workspace only creates channels, invites/removes restricted members and cannot safely edit channel identity, archive/restore a channel or change an existing member between read/write. Existing message lifecycle and evidence projections must not be rewritten by channel settings.
+
+Architecture: add optimistic `settings_revision` to `NativeChannel`. Settings mutation locks the channel, verifies creator-or-Owner/Admin authority and expected revision, edits only name/slug/description/status/settings timestamps plus current Work Graph track display metadata. Historical RawEvent/CanonicalEvent/SearchDocument/message revisions remain immutable. Visibility conversion between organisation/restricted is explicitly rejected/not exposed.
+
+Archive behavior: archive makes the channel read-only through the existing `can_write_channel` status check and removes it from the normal active list. A separate permission-filtered archived-channel read surface lets authorised managers restore it. Archive does not revoke current readers, delete content, remove evidence grants or modify Team/group placement.
+
+Restricted member access: existing `upsert_channel_member` already updates the membership access level and propagates matching Work Graph/evidence ResourceGrant access. S-10.26 exposes that existing PUT path through the reviewed BFF/UI rather than inventing a second permission implementation.
+
+Rollback: drop `settings_revision` only. Existing name/description/status/archive fields remain representable and no channel/message/evidence row is deleted.
+
+Done boundary: repository implementation may reach IN_REVIEW. DONE requires migration round-trip, rename/archive/grant-consistency/concurrency/backend tests, frontend/verifier execution and authenticated creator/Admin/member browser UAT.
