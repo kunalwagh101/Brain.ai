@@ -322,3 +322,36 @@ Open questions: none changes this slice. Personal save-for-later/starred items, 
 Leading indicators: duplicate pin rows = 0; inaccessible pin leakage = 0; successful pin-list/open rate.
 
 Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires PostgreSQL migration round-trip, focused backend pin/idempotency/revoke/retract tests, frontend lint/build/source contracts, verifier and authenticated WorkOS multi-user pin/revoke/retract/thread UAT.
+
+
+## Increment 32 readiness record — S-10.16.01
+
+Decision: `READY` for repository implementation on 2026-09-19; board WIP is zero before pull.
+
+Problem and baseline: Brain now supports shared channel pins, but users still lack a private way to mark a message for their own follow-up without changing shared channel state.
+
+AI decision: AI is not needed. Save-for-later is deterministic personal reference, authorization and navigation state.
+
+Architecture decision: add one lightweight `NativeMessageSave` reference table keyed by organisation/user/message. It stores channel identity and saved timestamp only; it never copies body, attachments, evidence excerpts or revisions. Saved reads materialise through the existing permission-aware message read model.
+
+Privacy decision: saved state belongs only to the saving user. No owner/admin/executive/audit override exposes another user's saves. Current channel access is rechecked on every read.
+
+Revocation decision: access loss hides the saved item immediately but does not need to delete the content-free reference. If access is later restored and the message still exists, the private saved reference may reappear. This preserves user intent without retaining message content.
+
+Lifecycle decision: edits preserve the save because message identity is stable. Retraction deletes all saves for that message in the same lifecycle transaction, so no personal list points to a tombstone.
+
+Concurrency/idempotency: unique user/message storage plus IntegrityError recovery makes repeated/concurrent save requests converge to one row. Unsave is idempotent.
+
+Scope decision: S-10.16 covers Brain-native channel roots and thread replies only. DM saves are explicit later scope because private-message retention/privacy semantics are separate.
+
+UI decision: add a personal Saved surface to the workspace and Save/Unsave actions on visible channel roots/replies. Opening a saved reply reuses the existing exact message/thread navigation path.
+
+Audit decision: save/unsave is private personal metadata, not a governance/security event, so it must not create organisation-wide SecurityAuditEvent history.
+
+Migration/rollback: migration `20260919_0033` adds/drops only saved-reference rows and changes no message/evidence/audit content.
+
+Open questions: none changes this repository slice. Reminders/due dates, notes on saved items, DM saves, bulk actions and automatic task creation are later features.
+
+Leading indicators: cross-user saved-state leakage = 0; revoked-content leakage = 0; duplicate save rows = 0; saved-to-open success rate.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires PostgreSQL migration round-trip, focused privacy/idempotency/revoke/retract tests, frontend lint/build/source contracts, verifier and authenticated WorkOS multi-user Saved UAT.
