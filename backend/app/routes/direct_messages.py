@@ -420,7 +420,7 @@ def put_reaction(
     db: Annotated[Session, Depends(get_db)],
 ) -> DirectReactionRead:
     try:
-        add_direct_message_reaction(
+        reaction_row = add_direct_message_reaction(
             db,
             organization_id=organization_id,
             conversation_id=conversation_id,
@@ -443,7 +443,11 @@ def put_reaction(
         user_id=access.user_id,
     )[message.id]
     return DirectReactionRead(
-        **next(item for item in reactions if item["reaction"] == payload.reaction)
+        **next(
+            item
+            for item in reactions
+            if item["reaction"] == reaction_row.reaction
+        )
     )
 
 
