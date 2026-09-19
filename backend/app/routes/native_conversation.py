@@ -1010,18 +1010,19 @@ def mark_channel_read(
             message_id=payload.through_message_id,
             user_id=authorization.user_id,
         )
-        count, _ = unread_count(
+        summary = channel_unread_summaries(
             db,
             organization_id=organization_id,
-            channel=channel,
+            channels=[channel],
             user_id=authorization.user_id,
-        )
+        )[channel.id]
+        count, _, latest_message_id, first_unread_message_id = summary
     except NativeChatError as exc:
         _raise_chat_error(exc)
     return ChannelUnreadRead(
         channel_id=channel_id,
         unread_count=count,
         last_read_at=state.last_read_at,
-        latest_message_id=payload.through_message_id,
-        first_unread_message_id=None,
+        latest_message_id=latest_message_id,
+        first_unread_message_id=first_unread_message_id,
     )
