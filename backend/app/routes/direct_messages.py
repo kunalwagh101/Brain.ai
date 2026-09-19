@@ -187,7 +187,8 @@ def read_messages(
     conversation_id: uuid.UUID,
     access: Annotated[AuthorizationContext, Depends(_dm_access)],
     db: Annotated[Session, Depends(get_db)],
-    limit: Annotated[int, Query(ge=1, le=500)] = 200,
+    limit: Annotated[int, Query(ge=1, le=200)] = 200,
+    before_sequence: Annotated[int | None, Query(ge=1)] = None,
 ) -> list[DirectMessageRead]:
     try:
         messages = list_direct_messages(
@@ -196,6 +197,7 @@ def read_messages(
             conversation_id=conversation_id,
             user_id=access.user_id,
             limit=limit,
+            before_sequence=before_sequence,
         )
     except DirectMessageError as exc:
         _raise_dm_error(exc)
