@@ -1,5 +1,19 @@
 # Changelog
 
+### Increment 36 — Direct-Message Lifecycle
+
+- Added monotonic DM message revisions, edited/retracted timestamps and append-only participant-private `DirectMessageRevision` snapshots.
+- Edit/retract authority is original-author + current participant visibility epoch only; Owner/Admin/Executive role provides no private-content override.
+- Added expected-revision optimistic concurrency so stale clients cannot overwrite a newer private edit.
+- Retracted DMs serialize as body/hash-free participant tombstones and are removed from unread/latest/first-unread attention state.
+- Deliberately created no RawEvent, CanonicalEvent, SearchDocument, Work Graph or organisation-wide per-message audit projection for private lifecycle changes.
+- Private revision rows cascade with their message under the existing `private_message_days` retention path; legal hold remains authoritative.
+- Added bounded same-origin WorkOS PATCH/DELETE handling plus accessible author-only Edit/Retract confirmation UI.
+- Added migration `20260919_0035`, privacy/concurrency/epoch/retention regressions, frontend/security contracts, UAT/demo/traceability.
+
+Verification is not claimed as passed. `S-10.20.01` remains `IN_REVIEW` pending PostgreSQL migration round-trip, executable backend/frontend/verifier evidence and authenticated WorkOS lifecycle UAT.
+
+
 ### Increment 35 — Conversation History Pagination
 
 - Added positive stable `before_sequence` pagination to native-channel root history and participant-only DM history.
