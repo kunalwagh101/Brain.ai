@@ -134,6 +134,7 @@ export async function ProductionWorkspace({
     ...channel,
     unread_count: unreadByChannel.get(channel.id)?.unread_count ?? 0,
     latest_message_id: unreadByChannel.get(channel.id)?.latest_message_id ?? null,
+    first_unread_message_id: unreadByChannel.get(channel.id)?.first_unread_message_id ?? null,
   }));
 
   const selectedDirectConversation = requestedDirectMessageId
