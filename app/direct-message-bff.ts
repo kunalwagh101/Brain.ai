@@ -1,4 +1,5 @@
 import { BrainApiError } from "./brain-api";
+import { getDirectMessage } from "./direct-message-api";
 import { requireBrainOrganizationMembership, requireUuid } from "./brain-membership";
 
 const MESSAGE_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
@@ -29,6 +30,29 @@ async function assertMessagingMembership(accessToken: string, organizationId: st
   if (!MESSAGE_ROLES.has(organization.role)) {
     throw new DirectMessageBffError(403, "Direct messaging is unavailable for this role");
   }
+}
+
+async function forwardRead<T>(
+  accessToken: string,
+  path: string,
+): Promise<T> {
+  const response = await fetch(`${apiBaseUrl()}${path}`, {
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!response.ok) {
+    let detail: unknown = null;
+    try {
+      detail = await response.json();
+    } catch {
+      detail = { error: "non_json_error_response" };
+    }
+    throw new BrainApiError(response.status, detail);
+  }
+  return (await response.json()) as T;
 }
 
 async function forward<T>(
@@ -81,6 +105,44 @@ export async function handleDirectConversationCreate(
     accessToken,
     `/api/v1/organizations/${encodeURIComponent(organizationId)}/direct-messages`,
     { target_email: email },
+  );
+}
+
+export async function handleDirectMessageRead(
+  accessToken: string,
+  organizationId: string,
+  conversationId: string,
+  messageId: string,
+): Promise<unknown> {
+  await assertMessagingMembership(accessToken, organizationId);
+  requireUuid(conversationId, "conversationId");
+  requireUuid(messageId, "messageId");
+  return getDirectMessage(accessToken, organizationId, conversationId, messageId);
+}
+
+export async function handleDirectMessageMarkRead(
+  accessToken: string,
+  organizationId: string,
+  conversationId: string,
+  input: unknown,
+): Promise<unknown> {
+  await assertMessagingMembership(accessToken, organizationId);
+  requireUuid(conversationId, "conversationId");
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new DirectMessageBffError(400, "Invalid direct-message read request");
+  }
+  const record = input as Record<string, unknown>;
+  if (Object.keys(record).some((key) => key !== "through_message_id")) {
+    throw new DirectMessageBffError(400, "Unexpected direct-message read field");
+  }
+  const throughMessageId = typeof record.through_message_id === "string"
+    ? record.through_message_id
+    : "";
+  requireUuid(throughMessageId, "through_message_id");
+  return forward(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/direct-messages/${encodeURIComponent(conversationId)}/read`,
+    { through_message_id: throughMessageId },
   );
 }
 
