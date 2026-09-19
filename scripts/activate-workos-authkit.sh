@@ -111,6 +111,10 @@ mkdir -p \
   'app/api/brain/organizations/[organizationId]/ask-brain' \
   'app/api/brain/organizations/[organizationId]/evidence/uploads' \
   'app/api/brain/organizations/[organizationId]/evidence/[sourceId]' \
+  'app/api/brain/organizations/[organizationId]/native-teams' \
+  'app/api/brain/organizations/[organizationId]/native-teams/[teamId]' \
+  'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/archive' \
+  'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/restore' \
   'app/api/brain/organizations/[organizationId]/native-channels' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/pins' \
@@ -148,6 +152,10 @@ cp docs/workos-activation/app-sign-in-route.ts.template app/sign-in/route.ts
 cp docs/workos-activation/app-api-brain-ask-route.ts.template 'app/api/brain/organizations/[organizationId]/ask-brain/route.ts'
 cp docs/workos-activation/app-api-brain-evidence-upload-route.ts.template 'app/api/brain/organizations/[organizationId]/evidence/uploads/route.ts'
 cp docs/workos-activation/app-api-brain-evidence-delete-route.ts.template 'app/api/brain/organizations/[organizationId]/evidence/[sourceId]/route.ts'
+cp docs/workos-activation/app-api-brain-native-teams-route.ts.template 'app/api/brain/organizations/[organizationId]/native-teams/route.ts'
+cp docs/workos-activation/app-api-brain-native-team-route.ts.template 'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/route.ts'
+cp docs/workos-activation/app-api-brain-native-team-lifecycle-route.ts.template 'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/archive/route.ts'
+cp docs/workos-activation/app-api-brain-native-team-lifecycle-route.ts.template 'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/restore/route.ts'
 cp docs/workos-activation/app-api-brain-native-channels-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/route.ts'
 cp docs/workos-activation/app-api-brain-native-messages-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/route.ts'
 cp docs/workos-activation/app-api-brain-native-pins-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/pins/route.ts'
@@ -208,3 +216,4 @@ echo "Complete UAT/F-10.20.md before marking S-10.20.01 DONE or accepted."
 echo "Complete UAT/F-10.21.md before marking S-10.21.01 DONE or accepted."
 echo "Complete UAT/F-10.22.md before marking S-10.22.01 DONE or accepted."
 echo "Complete UAT/F-10.23.md before marking S-10.23.01 DONE or accepted."
+echo "Complete UAT/F-10.24.md before marking S-10.24.01 DONE or accepted."
