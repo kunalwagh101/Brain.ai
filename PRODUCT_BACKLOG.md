@@ -395,7 +395,7 @@ Tasks: T-10.23.01.a private reaction schema/migration; T-10.23.01.b participant/
 | Exact-member mentions without identity guessing | S-10.06.01 |
 | Idempotent per-user message reactions | S-10.06.01 |
 | Per-user monotonic unread state | S-10.06.01, S-10.17.01, S-10.18.01, S-10.22.01 |
-| First-unread divider and exact jump-to-unread | S-10.17.01, S-10.18.01 |
+| First-unread divider and exact jump-to-unread | S-10.17.01, S-10.18.01, S-10.22.01 |
 | Stable older-message pagination for channels and DMs | S-10.19.01, S-10.21.01 |
 | Independent per-thread unread/resume | S-10.22.01 |
 | Participant-private DM reactions | S-10.23.01 |
@@ -409,12 +409,12 @@ Tasks: T-10.23.01.a private reaction schema/migration; T-10.23.01.b participant/
 | Citations / no unsupported claims | S-05.02.01, S-10.03.01 |
 | Data provenance | S-03.01.01, S-03.02.01, S-10.05.01, S-10.13.01 |
 | Identity resolution | S-03.03.01 |
-| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01, S-10.17.01, S-10.18.01, S-10.19.01, S-10.20.01 |
-| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01, S-10.17.01, S-10.18.01, S-10.19.01, S-10.20.01 |
+| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01, S-10.17.01, S-10.18.01, S-10.19.01, S-10.20.01, S-10.21.01, S-10.22.01, S-10.23.01 |
+| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01, S-10.17.01, S-10.18.01, S-10.19.01, S-10.20.01, S-10.21.01, S-10.22.01, S-10.23.01 |
 | Observability | S-09.01.01 |
-| Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01, S-10.18.01, S-10.20.01 |
+| Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01, S-10.18.01, S-10.20.01, S-10.22.01, S-10.23.01 |
 | Latency/cost benchmarks | S-09.04.01 |
-| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01, S-10.17.01, S-10.18.01, S-10.19.01, S-10.20.01 |
+| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01, S-10.17.01, S-10.18.01, S-10.19.01, S-10.20.01, S-10.21.01, S-10.22.01, S-10.23.01 |
 | Workspace administration and governance UI | S-10.08.01 |
 | Personal Activity & Notifications inbox | S-10.09.01 |
 | @mentions and thread-reply notifications | S-10.06.01, S-10.09.01 |
