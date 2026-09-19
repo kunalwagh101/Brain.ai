@@ -471,3 +471,17 @@ Security: every page reuses `visible_message` root/channel authorization. Revoke
 Rollback: remove the cursor query parameter and Load older replies state; no persisted data changes.
 
 Done boundary: source implementation may reach IN_REVIEW. DONE still needs executable backend/frontend/verifier evidence plus authenticated long-thread/revocation UAT.
+
+## Increment 38 readiness record — S-10.22.01
+
+Decision: `READY` for repository implementation on 2026-09-20; S-10.21 left implementation WIP first.
+
+Baseline: channel read state is monotonic but global to the channel. Opening a channel can therefore clear channel unread while a user still has unread replies in specific threads. Thread history already has stable sequence paging, so an independent thread cursor can reuse the same message sequence safely.
+
+Architecture: add `NativeThreadReadState` keyed by organisation/channel/root/user with last-read message ID/sequence/time. State is created when a user opens a visible thread; until then the root has no personal thread-unread badge. Set-based root summaries return unread count, latest reply ID and first unread reply ID only for roots with an existing personal state. Current-user replies and retracted replies do not count. Mark-read validates that the through-message is the root or one of its replies and advances monotonically.
+
+UI: root reply affordance shows thread unread count; opening captures the root's first-unread reply, loads/paginates replies, then advances the persisted thread cursor through the latest reply. The mounted pane preserves one New replies divider/Jump to unread boundary for that open session.
+
+Security/rollback: current channel visibility is rechecked on every summary/read action. Restricted revocation immediately removes access. Migration adds only thread read-state rows; downgrade drops only that table.
+
+Done boundary: repository implementation may reach IN_REVIEW. DONE requires PostgreSQL migration round-trip, backend/frontend/verifier execution and authenticated two-user thread unread/revocation UAT.
