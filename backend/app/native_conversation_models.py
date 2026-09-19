@@ -221,3 +221,45 @@ class NativeMessagePin(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class NativeMessageSave(Base):
+    __tablename__ = "native_message_saves"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "message_id",
+            name="uq_native_message_save_user_message",
+        ),
+        Index(
+            "ix_native_message_save_org_user_created",
+            "organization_id",
+            "user_id",
+            "created_at",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "user_id"],
+            ["memberships.organization_id", "memberships.user_id"],
+            name="fk_native_message_save_membership",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "channel_id", "message_id"],
+            [
+                "native_messages.organization_id",
+                "native_messages.channel_id",
+                "native_messages.id",
+            ],
+            name="fk_native_message_save_message_scope",
+            ondelete="CASCADE",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    channel_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    message_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
