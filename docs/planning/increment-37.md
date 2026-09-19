@@ -2,7 +2,7 @@
 
 Story: `S-10.21.01`
 
-Status: `IN_PROGRESS`
+Status: `IN_REVIEW`
 
 ## Sprint goal
 
@@ -23,3 +23,7 @@ Independent thread unread state belongs to S-10.22. Automatic virtualised infini
 ## Acceptance truth
 
 Repository implementation may reach `IN_REVIEW`; executable checks and authenticated UAT are still required for DONE.
+
+## Retrospective — 2026-09-20
+
+No accepted requirement was cut. The backend was a direct extension of S-10.19, but the important client fix was making live refresh additive so loaded older replies are not silently lost. A lifecycle conflict was caught before shipping: retracted roots with historical replies must stay addressable under S-10.12, so only hidden/revoked access fails closed. No migration was needed. The story remains IN_REVIEW pending executable checks and authenticated UAT.
