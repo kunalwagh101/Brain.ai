@@ -32,6 +32,8 @@ test("thread unread summary is set-based and excludes own/retracted replies", ()
   assert.match(body, /NativeMessage\.deleted_at\.is_\(None\)/);
   assert.match(body, /NativeMessage\.author_user_id != user_id/);
   assert.match(body, /NativeMessage\.message_sequence\s*> NativeThreadReadState\.last_read_sequence/);
+  assert.match(body, /NativeThreadReadState\.organization_id/);
+  assert.match(body, /NativeThreadReadState\.channel_id/);
   assert.doesNotMatch(body, /for root in roots:/);
 });
 
