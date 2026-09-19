@@ -47,6 +47,16 @@ IN_REVIEW | S-10.13.01 | F-10.13 | Governed EvidenceSource channel uploads, live
 IN_REVIEW | S-10.14.01 | F-10.14 | Ephemeral 75s presence + 8s typing leases, read-only authorised polling, restricted-channel/participant-only DM privacy, audit-free traffic, same-origin WorkOS BFF and focused-composer UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.15.01 | F-10.15 | Reference-only shared channel pins, current reader/writer permission checks, retry-safe uniqueness, thread/root reopening, same-lifecycle retract cleanup, structural live refresh and WorkOS BFF/UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.16.01 | F-10.16 | Private reference-only Saved messages, membership/message scoped FKs, current visible-channel filtering, read-only Save support, audit-free personal traffic, same-lifecycle retract cleanup, exact deep links and WorkOS UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
+IN_PROGRESS | S-10.17.01 | F-10.17 | First-unread boundary + exact jump vertical slice pulled after READY audit; no schema/AI/new unread store planned
+
+
+### S-10.17.01 First-Unread Divider & Jump to Unread — IN_PROGRESS
+
+Sprint goal: let an authorised user resume a Brain channel at the exact first unread root or thread reply without rescanning history or creating a second read-state system.
+
+Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-33.md`.
+
+Formal state: `IN_PROGRESS`. WIP after pull: one story.
 
 ### S-10.16.01 Personal Saved Messages — IN_REVIEW
 
