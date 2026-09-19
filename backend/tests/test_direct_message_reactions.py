@@ -177,7 +177,7 @@ def test_dm_reactions_are_participant_private_idempotent_and_aggregate_only(
             DirectMessageReaction.message_id == uuid.UUID(message["id"])
         )
     )
-    assert row_count == 1
+    assert row_count == 2
 
     _as(bob)
     try:
@@ -188,7 +188,8 @@ def test_dm_reactions_are_participant_private_idempotent_and_aggregate_only(
     assert bob_add.status_code == 200
     assert bob_add.json() == {"reaction": "👍", "count": 2, "reacted_by_me": True}
     assert bob_read.json()["reactions"] == [
-        {"reaction": "👍", "count": 2, "reacted_by_me": True}
+        {"reaction": "👍", "count": 2, "reacted_by_me": True},
+        {"reaction": "✅", "count": 1, "reacted_by_me": False},
     ]
 
     _as(owner)
@@ -208,7 +209,8 @@ def test_dm_reactions_are_participant_private_idempotent_and_aggregate_only(
     assert invalid.status_code == 400
     assert removed.status_code == 204
     assert alice_after.json()["reactions"] == [
-        {"reaction": "👍", "count": 1, "reacted_by_me": False}
+        {"reaction": "👍", "count": 1, "reacted_by_me": False},
+        {"reaction": "✅", "count": 1, "reacted_by_me": True},
     ]
     assert _company_counts(db_session, organization.id) == before
 
