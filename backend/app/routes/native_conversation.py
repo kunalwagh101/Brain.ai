@@ -51,6 +51,7 @@ from app.native_conversation import (
     channel_unread_summaries,
     edit_message,
     list_message_pins,
+    list_saved_messages,
     list_thread_replies,
     mark_read,
     message_affordances,
@@ -58,11 +59,13 @@ from app.native_conversation import (
     pin_message,
     remove_reaction,
     retract_message,
+    save_message,
     unread_count,
     unpin_message,
+    unsave_message,
     visible_message,
 )
-from app.native_conversation_models import NativeMessagePin
+from app.native_conversation_models import NativeMessagePin, NativeMessageSave
 from app.permissions import AuthorizationContext, Permission, require_organization_permission
 
 router = APIRouter(
@@ -135,6 +138,12 @@ class PinnedMessageRead(BaseModel):
     pinned_at: datetime
     pinned_by_user_id: uuid.UUID
     pinned_by_display_name: str
+    message: ConversationMessageRead
+
+
+class SavedMessageRead(BaseModel):
+    save_id: uuid.UUID
+    saved_at: datetime
     message: ConversationMessageRead
 
 
@@ -334,6 +343,29 @@ def _pin_reads(
     ]
 
 
+def _save_reads(
+    db: Session,
+    rows: list[tuple[NativeMessageSave, NativeMessage]],
+    user_id: uuid.UUID,
+) -> list[SavedMessageRead]:
+    if not rows:
+        return []
+    messages = [message for _, message in rows]
+    reads = {
+        item.id: item
+        for item in _message_reads(db, messages, user_id)
+    }
+    return [
+        SavedMessageRead(
+            save_id=save.id,
+            saved_at=save.created_at,
+            message=reads[message.id],
+        )
+        for save, message in rows
+        if message.id in reads
+    ]
+
+
 @router.get("/channels", response_model=list[ChannelUnreadRead])
 def list_channel_unread(
     organization_id: uuid.UUID,
@@ -454,6 +486,84 @@ async def upload_channel_attachment(
         source_visibility=source.source_visibility.value,
         native_channel_id=source.native_channel_id,
     )
+
+
+@router.get(
+    "/saved",
+    response_model=list[SavedMessageRead],
+)
+def list_saved(
+    organization_id: uuid.UUID,
+    authorization: Annotated[AuthorizationContext, Depends(_read)],
+    db: Annotated[Session, Depends(get_db)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+) -> list[SavedMessageRead]:
+    rows = list_saved_messages(
+        db,
+        organization_id=organization_id,
+        user_id=authorization.user_id,
+        limit=limit,
+    )
+    return _save_reads(db, rows, authorization.user_id)
+
+
+@router.put(
+    "/channels/{channel_id}/messages/{message_id}/saved",
+    response_model=SavedMessageRead,
+)
+def save_native_message(
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    message_id: uuid.UUID,
+    authorization: Annotated[AuthorizationContext, Depends(_read)],
+    db: Annotated[Session, Depends(get_db)],
+) -> SavedMessageRead:
+    try:
+        save = save_message(
+            db,
+            organization_id=organization_id,
+            channel_id=channel_id,
+            message_id=message_id,
+            user_id=authorization.user_id,
+        )
+        _, message = visible_message(
+            db,
+            organization_id=organization_id,
+            channel_id=channel_id,
+            message_id=message_id,
+            user_id=authorization.user_id,
+        )
+    except NativeChatError as exc:
+        _raise_chat_error(exc)
+    return _save_reads(
+        db,
+        [(save, message)],
+        authorization.user_id,
+    )[0]
+
+
+@router.delete(
+    "/channels/{channel_id}/messages/{message_id}/saved",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def unsave_native_message(
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    message_id: uuid.UUID,
+    authorization: Annotated[AuthorizationContext, Depends(_read)],
+    db: Annotated[Session, Depends(get_db)],
+) -> Response:
+    try:
+        unsave_message(
+            db,
+            organization_id=organization_id,
+            channel_id=channel_id,
+            message_id=message_id,
+            user_id=authorization.user_id,
+        )
+    except NativeChatError as exc:
+        _raise_chat_error(exc)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get(
