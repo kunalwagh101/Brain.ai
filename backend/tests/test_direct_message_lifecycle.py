@@ -389,6 +389,28 @@ def test_private_retention_deletes_dm_revision_with_message(
     message.created_at = now - timedelta(days=90)
     db_session.commit()
 
+    revision_id = revision.id
+    set_retention_policy(
+        db_session,
+        organization_id=organization.id,
+        actor_user_id=owner.id,
+        raw_event_days=None,
+        derived_content_days=None,
+        audit_event_days=None,
+        private_message_days=30,
+        legal_hold=True,
+    )
+    held = run_retention_once(
+        db_session,
+        organization_id=organization.id,
+        at=now,
+    )
+    assert held is not None
+    assert held.private_messages_deleted == 0
+    db_session.expire_all()
+    assert db_session.get(DirectMessage, message_id) is not None
+    assert db_session.get(DirectMessageRevision, revision_id) is not None
+
     set_retention_policy(
         db_session,
         organization_id=organization.id,
@@ -408,4 +430,4 @@ def test_private_retention_deletes_dm_revision_with_message(
     assert run.private_messages_deleted == 1
     db_session.expire_all()
     assert db_session.get(DirectMessage, message_id) is None
-    assert db_session.get(DirectMessageRevision, revision.id) is None
+    assert db_session.get(DirectMessageRevision, revision_id) is None
