@@ -11,13 +11,15 @@ from app.direct_message_models import DirectMessage
 from app.direct_messages import (
     DirectConversationView,
     DirectMessageError,
+    add_direct_message_reaction,
     create_or_get_direct_conversation,
-    direct_message_author_name,
+    direct_message_reaction_summaries,
     edit_direct_message,
     get_direct_message,
     list_direct_conversations,
     list_direct_messages,
     mark_direct_conversation_read,
+    remove_direct_message_reaction,
     retract_direct_message,
     send_direct_message,
 )
@@ -82,6 +84,18 @@ class DirectConversationUnreadRead(BaseModel):
     first_unread_message_id: uuid.UUID | None
 
 
+class DirectReactionRead(BaseModel):
+    reaction: str
+    count: int
+    reacted_by_me: bool
+
+
+class DirectReactionWrite(BaseModel):
+    reaction: str = Field(min_length=1, max_length=32)
+
+    model_config = {"extra": "forbid"}
+
+
 class DirectMessageRead(BaseModel):
     id: uuid.UUID
     organization_id: uuid.UUID
@@ -97,6 +111,7 @@ class DirectMessageRead(BaseModel):
     deleted_at: datetime | None
     can_edit: bool
     can_delete: bool
+    reactions: list[DirectReactionRead]
     created_at: datetime
 
 
@@ -117,31 +132,68 @@ def _conversation_read(view: DirectConversationView) -> DirectConversationRead:
     )
 
 
+def _message_reads(
+    db: Session,
+    messages: list[DirectMessage],
+    *,
+    current_user_id: uuid.UUID,
+) -> list[DirectMessageRead]:
+    if not messages:
+        return []
+    user_ids = {message.author_user_id for message in messages}
+    labels = {
+        user.id: user.display_name or user.email
+        for user in db.scalars(select(User).where(User.id.in_(user_ids)))
+    }
+    reaction_map = direct_message_reaction_summaries(
+        db,
+        messages=messages,
+        user_id=current_user_id,
+    )
+    result: list[DirectMessageRead] = []
+    for message in messages:
+        deleted = message.deleted_at is not None
+        is_mine = message.author_user_id == current_user_id
+        result.append(
+            DirectMessageRead(
+                id=message.id,
+                organization_id=message.organization_id,
+                conversation_id=message.conversation_id,
+                author_user_id=message.author_user_id,
+                author_display_name=labels.get(
+                    message.author_user_id,
+                    "Former Brain member",
+                ),
+                is_mine=is_mine,
+                body="" if deleted else message.body,
+                body_sha256="" if deleted else message.body_sha256,
+                sequence=message.sequence,
+                revision=message.revision,
+                edited_at=message.edited_at,
+                deleted_at=message.deleted_at,
+                can_edit=is_mine and not deleted,
+                can_delete=is_mine and not deleted,
+                reactions=[] if deleted else [
+                    DirectReactionRead(**item)
+                    for item in reaction_map[message.id]
+                ],
+                created_at=message.created_at,
+            )
+        )
+    return result
+
+
 def _message_read(
     db: Session,
     message: DirectMessage,
     *,
     current_user_id: uuid.UUID,
 ) -> DirectMessageRead:
-    deleted = message.deleted_at is not None
-    is_mine = message.author_user_id == current_user_id
-    return DirectMessageRead(
-        id=message.id,
-        organization_id=message.organization_id,
-        conversation_id=message.conversation_id,
-        author_user_id=message.author_user_id,
-        author_display_name=direct_message_author_name(db, message.author_user_id),
-        is_mine=is_mine,
-        body="" if deleted else message.body,
-        body_sha256="" if deleted else message.body_sha256,
-        sequence=message.sequence,
-        revision=message.revision,
-        edited_at=message.edited_at,
-        deleted_at=message.deleted_at,
-        can_edit=is_mine and not deleted,
-        can_delete=is_mine and not deleted,
-        created_at=message.created_at,
-    )
+    return _message_reads(
+        db,
+        [message],
+        current_user_id=current_user_id,
+    )[0]
 
 
 def _raise_dm_error(exc: DirectMessageError) -> None:
@@ -229,10 +281,11 @@ def read_messages(
         )
     except DirectMessageError as exc:
         _raise_dm_error(exc)
-    return [
-        _message_read(db, message, current_user_id=access.user_id)
-        for message in messages
-    ]
+    return _message_reads(
+        db,
+        messages,
+        current_user_id=access.user_id,
+    )
 
 
 @router.get(
@@ -350,6 +403,72 @@ def retract_message(
     except DirectMessageError as exc:
         _raise_dm_error(exc)
     return _message_read(db, message, current_user_id=access.user_id)
+
+
+@router.put(
+    "/{conversation_id}/messages/{message_id}/reaction",
+    response_model=DirectReactionRead,
+)
+def put_reaction(
+    organization_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+    message_id: uuid.UUID,
+    payload: DirectReactionWrite,
+    access: Annotated[AuthorizationContext, Depends(_dm_access)],
+    db: Annotated[Session, Depends(get_db)],
+) -> DirectReactionRead:
+    try:
+        add_direct_message_reaction(
+            db,
+            organization_id=organization_id,
+            conversation_id=conversation_id,
+            message_id=message_id,
+            user_id=access.user_id,
+            reaction=payload.reaction,
+        )
+        message = get_direct_message(
+            db,
+            organization_id=organization_id,
+            conversation_id=conversation_id,
+            message_id=message_id,
+            user_id=access.user_id,
+        )
+    except DirectMessageError as exc:
+        _raise_dm_error(exc)
+    reactions = direct_message_reaction_summaries(
+        db,
+        messages=[message],
+        user_id=access.user_id,
+    )[message.id]
+    return DirectReactionRead(
+        **next(item for item in reactions if item["reaction"] == payload.reaction)
+    )
+
+
+@router.delete(
+    "/{conversation_id}/messages/{message_id}/reaction",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_reaction(
+    organization_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+    message_id: uuid.UUID,
+    payload: DirectReactionWrite,
+    access: Annotated[AuthorizationContext, Depends(_dm_access)],
+    db: Annotated[Session, Depends(get_db)],
+) -> Response:
+    try:
+        remove_direct_message_reaction(
+            db,
+            organization_id=organization_id,
+            conversation_id=conversation_id,
+            message_id=message_id,
+            user_id=access.user_id,
+            reaction=payload.reaction,
+        )
+    except DirectMessageError as exc:
+        _raise_dm_error(exc)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(
