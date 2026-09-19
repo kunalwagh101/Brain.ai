@@ -1,5 +1,17 @@
 # Changelog
 
+### Increment 37 — Thread History Pagination
+
+- Added stable positive `before_sequence` pagination to native thread replies using the existing per-channel message sequence.
+- Added bounded same-origin WorkOS reply GET parameters and BFF validation.
+- Added **Load older replies** to the thread pane with merge-by-ID/sequence history state.
+- Changed live reply refresh to merge recent state instead of discarding older pages already loaded by the user.
+- Preserved S-10.12 retracted-root semantics: historical replies remain readable under the tombstone root, but new replies remain disabled.
+- Added backend cursor regression, frontend/security contract, UAT/demo/traceability. No migration was required.
+
+Verification is not claimed as passed. `S-10.21.01` remains `IN_REVIEW`.
+
+
 ### Increment 36 — Direct-Message Lifecycle
 
 - Added monotonic DM message revisions, edited/retracted timestamps and append-only participant-private `DirectMessageRevision` snapshots.
