@@ -351,6 +351,27 @@ Acceptance: Given a current participant and author of a visible DM message, when
 Dependencies: S-10.06.02 participant-safe DMs, S-10.18.01 DM unread state, S-10.19.01 history pagination, S-09.02.01 private-message retention, S-10.04.01 server-session boundary. Blocking risk: repository implementation can reach IN_REVIEW; DONE requires PostgreSQL migration/rollback, concurrency/privacy/retention tests, frontend/verifier evidence and authenticated WorkOS multi-user UAT. Size: L. Leading indicator: unauthorised DM lifecycle mutation = 0, stale overwrite = 0, retracted body exposure = 0. Business value: E-10. Priority: P1.  
 Tasks: T-10.20.01.a DM revision/lifecycle schema + migration; T-10.20.01.b author/epoch-safe edit/retract transaction service; T-10.20.01.c unread + retention consistency; T-10.20.01.d API/BFF/UI lifecycle controls; T-10.20.01.e privacy/concurrency/retention/rollback tests; T-10.20.01.f docs/UAT/demo/traceability evidence.
 
+#### F-10.21 Thread history pagination
+**S-10.21.01 — Load older replies inside long-running threads with stable sequence cursors**  
+As a Brain collaborator, I want older thread replies to load without losing my place, so that busy discussions remain usable beyond the initial reply window.  
+Acceptance: Given an authorised thread root, when replies are requested with a positive before-sequence cursor, then only replies under that exact root with `message_sequence < before_sequence` are returned in chronological order with bounded page size and no OFFSET scan; Given a root is hidden/retracted/revoked, then paging fails closed without leaking reply IDs/content; Given older replies are loaded, then the thread panel merges by ID/sequence without duplicate/gap creation and keeps composer, attachments, unread boundary and focused reply state stable; Given live refresh runs after older pages were loaded, then recent reply refresh merges instead of discarding historical pages; Given history is exhausted, then Load older replies disappears; Given browser paging runs, then it uses the existing same-origin WorkOS reply route and no reusable bearer token; rollback changes no persisted state.  
+Dependencies: S-10.06.01 threads, S-10.19.01 sequence pagination, S-10.10.01 live refresh, S-10.04.01 server-session boundary. Blocking risk: repository implementation can reach IN_REVIEW; DONE requires backend/frontend/verifier execution plus authenticated long-thread/revocation UAT. Size: M. Leading indicator: older-thread-page success with zero duplicate/gap/access violations. Business value: E-10. Priority: P1.  
+Tasks: T-10.21.01.a before_sequence reply contract; T-10.21.01.b bounded BFF GET; T-10.21.01.c merge-safe Load older replies UX; T-10.21.01.d revocation/cursor/refresh tests; T-10.21.01.e UAT/demo/traceability.
+
+#### F-10.22 Thread unread and resume
+**S-10.22.01 — Track unread state independently for each thread and resume at its first unread reply**  
+As a Brain collaborator, I want each followed/opened thread to remember what I have read, so that channel-level read state does not hide unread replies inside active threads.  
+Acceptance: Given a user opens or participates in a visible thread, then Brain maintains a monotonic per-user/root read cursor without copying reply content; Given other actors add non-retracted replies after that cursor, then the root exposes an exact thread unread count and first unread reply ID while the current user's own replies do not count; Given the thread opens, then exactly one accessible New replies divider and Jump to unread target the first unread reply and marking read cannot move backwards; Given channel access is revoked or the root is retracted, then thread unread state returns no inaccessible content and no stale badge survives authoritative refresh; Given many roots render, unread summaries are set-based/bounded rather than one query per root; browser read/jump uses same-origin WorkOS routes; rollback removes only per-thread read-state rows.  
+Dependencies: S-10.17.01 channel resume, S-10.21.01 thread pagination, S-10.12.01 lifecycle, S-10.04.01. Blocking risk: repository implementation can reach IN_REVIEW; DONE requires PostgreSQL migration round-trip, executable tests/verifier and authenticated multi-user thread UAT. Size: M. Leading indicator: thread unread-to-open conversion with zero stale/revoked leakage. Business value: E-10. Priority: P1.  
+Tasks: T-10.22.01.a thread read-state schema/migration; T-10.22.01.b set-based unread summary + monotonic mark-read; T-10.22.01.c divider/jump UI; T-10.22.01.d revocation/retraction/concurrency tests; T-10.22.01.e UAT/demo/traceability.
+
+#### F-10.23 Participant-private DM reactions
+**S-10.23.01 — React to participant-only DMs without creating employer-visible activity**  
+As a DM participant, I want lightweight reactions on private messages, so that acknowledgement does not require another message or weaken DM privacy.  
+Acceptance: Given a current participant and visible non-retracted DM message in the current visibility epoch, when they add one allow-listed reaction, then exactly one participant/message/reaction row exists and aggregate counts are correct; Given the same add/remove retries concurrently, then operations are idempotent; Given a nonparticipant, revoked participant, privileged nonparticipant, cross-tenant actor or old visibility epoch targets the message, then the request fails closed without revealing existence; Given a message is retracted or private retention deletes it, then reaction rows disappear by cascade and no reaction remains in unread/latest calculations; Given responses render reactions, then only current participants receive aggregate counts plus reacted-by-me state and no participant list is exposed; Given normal DM reaction changes occur, then no RawEvent/CanonicalEvent/Search/Work Graph/organisation-wide SecurityAuditEvent record is created; browser mutation uses bounded same-origin WorkOS PUT/DELETE with no bearer token; rollback removes only private reaction rows.  
+Dependencies: S-10.06.02 participant-safe DMs, S-10.20.01 DM lifecycle, OQ-008, S-10.04.01. Blocking risk: repository implementation can reach IN_REVIEW; DONE requires PostgreSQL migration, privacy/idempotency tests, frontend/verifier execution and authenticated two-user UAT. Size: M. Leading indicator: DM reaction success with zero cross-participant metadata leakage. Business value: E-10. Priority: P1.  
+Tasks: T-10.23.01.a private reaction schema/migration; T-10.23.01.b participant/epoch-safe add/remove/aggregate service; T-10.23.01.c API/BFF/UI; T-10.23.01.d privacy/idempotency/retract/retention tests; T-10.23.01.e UAT/demo/traceability.
+
 ## Requirements -> Backlog coverage
 
 | Requirement | Backlog IDs |
@@ -369,13 +390,15 @@ Tasks: T-10.20.01.a DM revision/lifecycle schema + migration; T-10.20.01.b autho
 | AI/API usage/cost visibility | S-06.02.01, S-10.03.01 |
 | Slack/Discord-style company workspace | S-10.02.01, S-10.03.01, S-10.06.01 |
 | Human communication | S-10.01.01, S-10.06.01, S-10.06.02, S-10.14.01, S-10.15.01, S-10.16.01 |
-| Participant-only private collaboration | S-10.06.02, S-10.14.01, S-10.18.01, S-10.19.01, S-10.20.01 |
+| Participant-only private collaboration | S-10.06.02, S-10.14.01, S-10.18.01, S-10.19.01, S-10.20.01, S-10.23.01 |
 | Tenant/channel-scoped message threads | S-10.06.01 |
 | Exact-member mentions without identity guessing | S-10.06.01 |
 | Idempotent per-user message reactions | S-10.06.01 |
-| Per-user monotonic unread state | S-10.06.01, S-10.17.01, S-10.18.01 |
+| Per-user monotonic unread state | S-10.06.01, S-10.17.01, S-10.18.01, S-10.22.01 |
 | First-unread divider and exact jump-to-unread | S-10.17.01, S-10.18.01 |
-| Stable older-message pagination for channels and DMs | S-10.19.01 |
+| Stable older-message pagination for channels and DMs | S-10.19.01, S-10.21.01 |
+| Independent per-thread unread/resume | S-10.22.01 |
+| Participant-private DM reactions | S-10.23.01 |
 | Author-owned DM edit/retract lifecycle | S-10.20.01 |
 | Restricted-channel notification/content privacy | S-10.06.01 |
 | Visibly attributed agent messages | S-10.01.01, S-10.06.01 |
@@ -435,5 +458,5 @@ Orphan requirements: **0**.
 - Admin/moderator override, edit-time windows, hard-delete/eDiscovery for Brain-native DMs, and editing/retracting agent-authored channel messages remain outside S-10.20; each needs separate authority/retention rules.
 - Arbitrary image/video/audio attachments and OCR/media previews: S-10.13 reuses the currently supported governed evidence types; unsupported binary/media ingestion needs an explicit storage/scanning/preview story.
 - Brain-native DM attachments: participant-private storage/search rules differ from organisation/channel evidence and are not silently included in S-10.13.
-- Per-thread independent read cursors, unread history analytics and push notifications remain outside S-10.17/S-10.18; thread-level attention and external delivery need separate product/privacy contracts.
-- Group DMs, DM attachments/reactions, message forwarding and organisation-wide DM discovery remain outside S-10.18–S-10.20 unless separately specified; participant-only privacy remains authoritative.
+- Unread history analytics and push notifications remain outside S-10.17/S-10.18/S-10.22; external delivery still needs a separate product/privacy contract.
+- Group DMs, DM attachments, message forwarding and organisation-wide DM discovery remain outside S-10.18–S-10.23 unless separately specified; participant-only privacy remains authoritative.
