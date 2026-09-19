@@ -127,6 +127,7 @@ mkdir -p \
   'app/api/brain/organizations/[organizationId]/direct-messages' \
   'app/api/brain/organizations/[organizationId]/direct-messages/[conversationId]/messages' \
   'app/api/brain/organizations/[organizationId]/direct-messages/[conversationId]/messages/[messageId]' \
+  'app/api/brain/organizations/[organizationId]/direct-messages/[conversationId]/messages/[messageId]/reaction' \
   'app/api/brain/organizations/[organizationId]/direct-messages/[conversationId]/read' \
   'app/api/brain/organizations/[organizationId]/activity/[notificationId]/read' \
   'app/api/brain/organizations/[organizationId]/activity/read-all' \
@@ -163,6 +164,7 @@ cp docs/workos-activation/app-api-brain-native-member-route.ts.template 'app/api
 cp docs/workos-activation/app-api-brain-direct-messages-route.ts.template 'app/api/brain/organizations/[organizationId]/direct-messages/route.ts'
 cp docs/workos-activation/app-api-brain-direct-message-route.ts.template 'app/api/brain/organizations/[organizationId]/direct-messages/[conversationId]/messages/route.ts'
 cp docs/workos-activation/app-api-brain-direct-message-exact-route.ts.template 'app/api/brain/organizations/[organizationId]/direct-messages/[conversationId]/messages/[messageId]/route.ts'
+cp docs/workos-activation/app-api-brain-direct-message-reaction-route.ts.template 'app/api/brain/organizations/[organizationId]/direct-messages/[conversationId]/messages/[messageId]/reaction/route.ts'
 cp docs/workos-activation/app-api-brain-direct-message-read-route.ts.template 'app/api/brain/organizations/[organizationId]/direct-messages/[conversationId]/read/route.ts'
 cp docs/workos-activation/app-api-brain-activity-read-route.ts.template 'app/api/brain/organizations/[organizationId]/activity/[notificationId]/read/route.ts'
 cp docs/workos-activation/app-api-brain-activity-read-all-route.ts.template 'app/api/brain/organizations/[organizationId]/activity/read-all/route.ts'
