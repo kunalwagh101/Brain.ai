@@ -517,3 +517,21 @@ Ambiguities: OQ-009 records that team/group membership does not currently inheri
 Rollback: migration removes only Team rows/table; no channel/message/evidence/DM row is changed.
 
 Done boundary: repository implementation may reach IN_REVIEW. DONE requires PostgreSQL migration round-trip, focused backend/frontend/verifier execution and authenticated member/creator/Admin/tenant UAT.
+
+## Increment 41 readiness record — S-10.25.01
+
+Decision: `READY` for repository implementation on 2026-09-20; S-10.24 left implementation WIP first.
+
+Baseline: Teams now exist as navigation-only organisation metadata, but every visible channel still sits in the Unassigned fallback. The original product hierarchy needs Team → channel group → channel nesting.
+
+Architecture: add revisioned `NativeChannelGroup` rows scoped to one Team plus nullable navigation references on `NativeChannel` (`team_id`, `channel_group_id`). These references are not read by `can_read_channel`, `can_write_channel`, Search/evidence ACL code or direct-message code. Group list/navigation must materialise only channels already returned by the existing permission-aware channel list.
+
+Authority: Team creator or Owner/Admin manages groups. Channel assignment additionally requires existing channel-manager authority (channel creator or Owner/Admin). Assignment to a group requires an active same-organisation Team/group pair. Unassigning is allowed by the same channel authority.
+
+Archive behavior: an archived group is removed from active nested navigation; its visible channels fall back to that Team's Ungrouped section. An archived Team causes its channels to fall back to global Unassigned channels until restored. No content or permission row is changed.
+
+Security invariants: OQ-009 remains authoritative—navigation hierarchy never grants access. OQ-010 keeps DMs separate. Hidden restricted channels are never enumerated through Team/group reads; hierarchy is composed in the frontend from the already-authorised channel list.
+
+Rollback: drop channel navigation FKs/columns and group table only; no channel/message/evidence/DM data is deleted.
+
+Done boundary: repository implementation may reach IN_REVIEW. DONE requires PostgreSQL migration round-trip, ACL-invariance/tenant/archive backend tests, frontend/verifier execution and authenticated hierarchy UAT.
