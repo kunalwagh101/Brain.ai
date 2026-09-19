@@ -146,6 +146,12 @@ export type NativeMessagePin = {
   message: NativeMessage;
 };
 
+export type NativeMessageSave = {
+  save_id: string;
+  saved_at: string;
+  message: NativeMessage;
+};
+
 export type NativeMessageCreateInput = {
   body: string;
   attachment_source_ids: string[];
@@ -528,6 +534,18 @@ export function listNativeChannels(
   );
 }
 
+export function listNativeSavedMessages(
+  accessToken: string,
+  organizationId: string,
+  limit = 100,
+): Promise<NativeMessageSave[]> {
+  const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 200);
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/saved?limit=${boundedLimit}`,
+  );
+}
+
 export function listNativePins(
   accessToken: string,
   organizationId: string,
@@ -729,6 +747,20 @@ export function retractNativeMessage(
       method: "DELETE",
       body: JSON.stringify({ expected_revision: expectedRevision }),
     },
+  );
+}
+
+export function setNativeSavedMessage(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  messageId: string,
+  active: boolean,
+): Promise<NativeMessageSave | void> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/saved`,
+    { method: active ? "PUT" : "DELETE" },
   );
 }
 
