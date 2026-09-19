@@ -1,6 +1,7 @@
 import {
   createNativeChannel,
   editNativeMessage,
+  getNativeMessage,
   inviteNativeChannelMember,
   listNativePins,
   listNativeReplies,
@@ -314,6 +315,18 @@ export async function handleNativeMessageCreateBff(
     parseNativeMessageInput(body),
     normalizeIdempotencyKey(idempotencyKey),
   );
+}
+
+export async function handleNativeMessageReadBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  messageId: string,
+): Promise<NativeMessage> {
+  await requireChatReader(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  normalizedUuid(messageId, "messageId");
+  return getNativeMessage(accessToken, organizationId, channelId, messageId);
 }
 
 export async function handleNativeMessageEditBff(
