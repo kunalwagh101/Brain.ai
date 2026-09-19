@@ -1325,6 +1325,7 @@ def list_channel_messages(
     user_id: uuid.UUID,
     limit: int,
     before: datetime | None,
+    before_sequence: int | None = None,
 ) -> tuple[NativeChannel, list[NativeMessage]]:
     channel = get_visible_channel(
         db,
@@ -1341,6 +1342,8 @@ def list_channel_messages(
     )
     if before is not None:
         query = query.where(NativeMessage.created_at < before)
+    if before_sequence is not None:
+        query = query.where(NativeMessage.message_sequence < before_sequence)
     rows = list(
         db.scalars(
             query.order_by(
