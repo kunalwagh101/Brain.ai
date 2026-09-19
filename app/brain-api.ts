@@ -46,6 +46,21 @@ export type EvidenceSource = {
   can_delete: boolean;
 };
 
+export type NativeTeam = {
+  id: string;
+  organization_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  status: "active" | "archived";
+  revision: number;
+  created_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+  archived_at: string | null;
+  can_manage: boolean;
+};
+
 export type NativeChannel = {
   id: string;
   organization_id: string;
@@ -527,6 +542,57 @@ export function deleteEvidenceSource(
     accessToken,
     `/api/v1/organizations/${encodeURIComponent(organizationId)}/evidence/${encodeURIComponent(sourceId)}`,
     { method: "DELETE" },
+  );
+}
+
+export function listNativeTeams(
+  accessToken: string,
+  organizationId: string,
+  includeArchived = false,
+): Promise<NativeTeam[]> {
+  const suffix = includeArchived ? "?include_archived=true" : "";
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-teams${suffix}`,
+  );
+}
+
+export function createNativeTeam(
+  accessToken: string,
+  organizationId: string,
+  input: { name: string; description: string | null },
+): Promise<NativeTeam> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-teams`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export function updateNativeTeam(
+  accessToken: string,
+  organizationId: string,
+  teamId: string,
+  input: { name: string; description: string | null; expected_revision: number },
+): Promise<NativeTeam> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-teams/${encodeURIComponent(teamId)}`,
+    { method: "PATCH", body: JSON.stringify(input) },
+  );
+}
+
+export function setNativeTeamArchived(
+  accessToken: string,
+  organizationId: string,
+  teamId: string,
+  expectedRevision: number,
+  archived: boolean,
+): Promise<NativeTeam> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-teams/${encodeURIComponent(teamId)}/${archived ? "archive" : "restore"}`,
+    { method: "POST", body: JSON.stringify({ expected_revision: expectedRevision }) },
   );
 }
 
