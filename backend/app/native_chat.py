@@ -505,6 +505,19 @@ def _can_manage_members(
     }
 
 
+def can_manage_channel(
+    channel: NativeChannel,
+    *,
+    actor_user_id: uuid.UUID,
+    actor_role: MembershipRole,
+) -> bool:
+    return _can_manage_members(
+        channel,
+        actor_user_id=actor_user_id,
+        actor_role=actor_role,
+    )
+
+
 def upsert_channel_member(
     db: Session,
     *,
