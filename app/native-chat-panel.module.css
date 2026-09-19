@@ -184,6 +184,33 @@
   border-color: #776bf7;
 }
 
+.loadOlder {
+  align-self: center;
+  margin: 6px 12px 10px;
+  border: 1px solid #3b4350;
+  border-radius: 999px;
+  background: #181d26;
+  color: #aeb6c2;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.loadOlder:hover,
+.loadOlder:focus-visible {
+  border-color: #7469e8;
+  color: #fff;
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+}
+
+.loadOlder:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
 .feed {
   display: flex;
   flex: 1;
