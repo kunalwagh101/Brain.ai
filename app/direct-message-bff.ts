@@ -1,5 +1,5 @@
 import { BrainApiError } from "./brain-api";
-import { getDirectMessage } from "./direct-message-api";
+import { getDirectMessage, listDirectMessages } from "./direct-message-api";
 import { requireBrainOrganizationMembership, requireUuid } from "./brain-membership";
 
 const MESSAGE_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
@@ -82,6 +82,33 @@ export async function handleDirectConversationCreate(
     accessToken,
     `/api/v1/organizations/${encodeURIComponent(organizationId)}/direct-messages`,
     { target_email: email },
+  );
+}
+
+export async function handleDirectMessageList(
+  accessToken: string,
+  organizationId: string,
+  conversationId: string,
+  limit: number,
+  beforeSequence: number | null,
+): Promise<unknown> {
+  await assertMessagingMembership(accessToken, organizationId);
+  requireUuid(conversationId, "conversationId");
+  if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
+    throw new DirectMessageBffError(400, "Direct-message limit is invalid");
+  }
+  if (
+    beforeSequence !== null
+    && (!Number.isInteger(beforeSequence) || beforeSequence < 1)
+  ) {
+    throw new DirectMessageBffError(400, "Direct-message cursor is invalid");
+  }
+  return listDirectMessages(
+    accessToken,
+    organizationId,
+    conversationId,
+    limit,
+    beforeSequence,
   );
 }
 
