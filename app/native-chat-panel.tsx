@@ -10,6 +10,7 @@ import type {
   NativeMessagePin,
 } from "./brain-api";
 import styles from "./native-chat-panel.module.css";
+import { NativeChannelSettings } from "./native-channel-settings";
 import {
   useCollaborationPresence,
   type CollaborationPresenceUser,
@@ -1487,6 +1488,35 @@ export function NativeChatPanel({
     }
   }
 
+  async function updateMemberAccess(
+    userId: string,
+    access: "read" | "write",
+  ) {
+    if (!memberEndpoint) return;
+    setMemberWorking(true);
+    setMemberError(null);
+    try {
+      const response = await fetch(
+        `${memberEndpoint}/${encodeURIComponent(userId)}`,
+        {
+          method: "PUT",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ access }),
+        },
+      );
+      if (!response.ok) {
+        setMemberError(safeMemberError(response.status));
+        return;
+      }
+      router.refresh();
+    } catch {
+      setMemberError("The membership access change could not reach the secure Brain route.");
+    } finally {
+      setMemberWorking(false);
+    }
+  }
+
   async function revokeMember(userId: string) {
     if (!memberEndpoint || userId === channel.created_by_user_id) return;
     setMemberWorking(true);
@@ -1543,6 +1573,8 @@ export function NativeChatPanel({
         </div>
       </header>
 
+      <NativeChannelSettings channel={channel} endpoint={conversationEndpoint} />
+
       {channel.can_manage_members ? (
         <details className={styles.memberManager}>
           <summary>Manage restricted-channel members</summary>
@@ -1573,16 +1605,38 @@ export function NativeChatPanel({
                   <strong>{member.display_name ?? member.email}</strong>
                   <small>{member.email} · {member.role} · {member.access}</small>
                 </span>
-                {member.user_id === channel.created_by_user_id ? (
+                {memberEndpoint ? (
+                  <div className={styles.memberAccessActions}>
+                    <label>
+                      <span className={styles.srOnly}>
+                        Access for {member.display_name ?? member.email}
+                      </span>
+                      <select
+                        disabled={memberWorking}
+                        value={member.access}
+                        onChange={(event) => void updateMemberAccess(
+                          member.user_id,
+                          event.currentTarget.value as "read" | "write",
+                        )}
+                      >
+                        <option value="read">Read</option>
+                        <option value="write">Read & write</option>
+                      </select>
+                    </label>
+                    {member.user_id === channel.created_by_user_id ? (
+                      <small>Creator</small>
+                    ) : (
+                      <button
+                        disabled={memberWorking}
+                        type="button"
+                        onClick={() => revokeMember(member.user_id)}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ) : member.user_id === channel.created_by_user_id ? (
                   <small>Creator</small>
-                ) : memberEndpoint ? (
-                  <button
-                    disabled={memberWorking}
-                    type="button"
-                    onClick={() => revokeMember(member.user_id)}
-                  >
-                    Remove
-                  </button>
                 ) : null}
               </div>
             ))}
