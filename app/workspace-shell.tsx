@@ -12,6 +12,7 @@ import type {
   NativeMessage,
   NativeMessagePin,
   NativeMessageSave,
+  NativeTeam,
   ProjectMemory,
   ProjectStatus,
   WorkspaceNavigation,
@@ -22,6 +23,7 @@ import { DirectMessagePanel } from "./direct-message-panel";
 import { EvidenceWorkspace } from "./evidence-workspace";
 import { NativeChannelCreate } from "./native-channel-create";
 import { NativeChatPanel } from "./native-chat-panel";
+import { NativeTeamManager } from "./native-team-manager";
 import { SavedMessagesPanel } from "./saved-messages-panel";
 import { WorkspaceSearch } from "./workspace-search";
 import styles from "./workspace-shell.module.css";
@@ -84,6 +86,7 @@ export function WorkspaceShell({
   projects,
   evidenceSources,
   nativeChannels,
+  nativeTeams,
   selectedNativeChannel,
   nativeMessages,
   nativeHistoryBeforeSequence,
@@ -106,6 +109,7 @@ export function WorkspaceShell({
   evidenceMutationBase,
   canUploadEvidence,
   nativeChatMutationBase,
+  nativeTeamMutationBase,
   nativeSavedMutationBase,
   nativeMessageEndpoint,
   nativeMemberEndpoint,
@@ -126,6 +130,7 @@ export function WorkspaceShell({
   projects: ProjectStatus[];
   evidenceSources: EvidenceSource[];
   nativeChannels: NativeChannel[];
+  nativeTeams: NativeTeam[];
   selectedNativeChannel: NativeChannel | null;
   nativeMessages: NativeMessage[];
   nativeHistoryBeforeSequence: number | null;
@@ -148,6 +153,7 @@ export function WorkspaceShell({
   evidenceMutationBase: string | null;
   canUploadEvidence: boolean;
   nativeChatMutationBase: string | null;
+  nativeTeamMutationBase: string | null;
   nativeSavedMutationBase: string | null;
   nativeMessageEndpoint: string | null;
   nativeMemberEndpoint: string | null;
@@ -166,6 +172,7 @@ export function WorkspaceShell({
   const blockers = uniqueMemory(projects.flatMap((project) => project.active_blockers));
   const decisions = uniqueMemory(projects.flatMap((project) => project.confirmed_decisions));
   const warningCount = overview?.budget_warnings.filter((item) => item.warning_active).length ?? 0;
+  const activeTeams = nativeTeams.filter((team) => team.status === "active");
   const topbarTitle = selectedDirectConversation
     ? selectedDirectConversation.other_display_name
     : selectedNativeChannel
@@ -245,7 +252,23 @@ export function WorkspaceShell({
 
           <section>
             <div className={styles.groupTitle}>
-              <span>Brain channels</span><small>{nativeChannels.length}</small>
+              <span>Teams</span><small>{activeTeams.length}</small>
+            </div>
+            {activeTeams.length ? activeTeams.map((team) => (
+              <div className={styles.teamNavRow} key={team.id}>
+                <span aria-hidden="true">▦</span>
+                <span>
+                  <strong>{team.name}</strong>
+                  {team.description ? <small>{team.description}</small> : null}
+                </span>
+              </div>
+            )) : <p className={styles.emptyNav}>No Teams yet</p>}
+            <NativeTeamManager teams={nativeTeams} endpoint={nativeTeamMutationBase} />
+          </section>
+
+          <section>
+            <div className={styles.groupTitle}>
+              <span>Unassigned channels</span><small>{nativeChannels.length}</small>
             </div>
             {nativeChannels.length ? nativeChannels.map((channel) => (
               <a
