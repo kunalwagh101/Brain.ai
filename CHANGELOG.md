@@ -1,5 +1,19 @@
 # Changelog
 
+### Increment 41 — Team Channel Groups
+
+- Added revisioned `NativeChannelGroup` metadata scoped to a Team.
+- Added nullable `team_id` / `channel_group_id` navigation references to native channels with tenant/team/group database constraints.
+- Channel placement requires existing channel-manager authority plus target-Team-manager authority.
+- Channel placement deliberately does not call membership/grant/evidence authorization helpers.
+- Added nested Team → Group → Channel sidebar composition from the existing permission-filtered channel list.
+- Archived group channels fall back to Team **Ungrouped**; archived-Team channels fall back to global **Unassigned channels**.
+- DMs remain a separate participant-private section under OQ-010.
+- Added migration `20260920_0039`, same-origin WorkOS group/assignment routes, management UI and ACL-invariance/tenant/stale-revision contracts.
+
+Verification is not claimed as passed. `S-10.25.01` remains `IN_REVIEW`.
+
+
 ### Increment 40 — Workspace Teams
 
 - Added organisation-scoped `NativeTeam` metadata with stable UUID/slug, description, active/archive lifecycle and optimistic revision.
