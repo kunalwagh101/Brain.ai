@@ -1,14 +1,17 @@
 import { BrainApiError } from "./brain-api";
 import {
+  addDirectMessageReaction,
   editDirectMessage,
   getDirectMessage,
   listDirectMessages,
+  removeDirectMessageReaction,
   retractDirectMessage,
 } from "./direct-message-api";
 import { requireBrainOrganizationMembership, requireUuid } from "./brain-membership";
 
 const MESSAGE_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DIRECT_REACTIONS = new Set(["👍", "❤️", "🎉", "👀", "✅"]);
 
 export class DirectMessageBffError extends Error {
   status: number;
@@ -115,6 +118,52 @@ export async function handleDirectMessageList(
     limit,
     beforeSequence,
   );
+}
+
+function parseDirectReaction(input: unknown): string {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new DirectMessageBffError(400, "Invalid direct-message reaction request");
+  }
+  const record = input as Record<string, unknown>;
+  if (Object.keys(record).some((key) => key !== "reaction")) {
+    throw new DirectMessageBffError(400, "Unexpected direct-message reaction field");
+  }
+  const reaction = typeof record.reaction === "string" ? record.reaction.trim() : "";
+  if (!DIRECT_REACTIONS.has(reaction)) {
+    throw new DirectMessageBffError(400, "Direct-message reaction is invalid");
+  }
+  return reaction;
+}
+
+export async function handleDirectMessageReaction(
+  accessToken: string,
+  organizationId: string,
+  conversationId: string,
+  messageId: string,
+  input: unknown,
+  active: boolean,
+): Promise<unknown> {
+  await assertMessagingMembership(accessToken, organizationId);
+  requireUuid(conversationId, "conversationId");
+  requireUuid(messageId, "messageId");
+  const reaction = parseDirectReaction(input);
+  if (active) {
+    return addDirectMessageReaction(
+      accessToken,
+      organizationId,
+      conversationId,
+      messageId,
+      reaction,
+    );
+  }
+  await removeDirectMessageReaction(
+    accessToken,
+    organizationId,
+    conversationId,
+    messageId,
+    reaction,
+  );
+  return undefined;
 }
 
 export async function handleDirectMessageEdit(
