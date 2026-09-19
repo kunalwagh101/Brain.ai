@@ -13,10 +13,12 @@ from app.direct_messages import (
     DirectMessageError,
     create_or_get_direct_conversation,
     direct_message_author_name,
+    edit_direct_message,
     get_direct_message,
     list_direct_conversations,
     list_direct_messages,
     mark_direct_conversation_read,
+    retract_direct_message,
     send_direct_message,
 )
 from app.permissions import AuthorizationContext, Permission, require_organization_permission
@@ -54,6 +56,19 @@ class DirectMessageCreate(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class DirectMessageEdit(BaseModel):
+    body: str = Field(min_length=1, max_length=20_000)
+    expected_revision: int = Field(ge=1)
+
+    model_config = {"extra": "forbid"}
+
+
+class DirectMessageRetract(BaseModel):
+    expected_revision: int = Field(ge=1)
+
+    model_config = {"extra": "forbid"}
+
+
 class DirectMarkRead(BaseModel):
     through_message_id: uuid.UUID
 
@@ -77,6 +92,11 @@ class DirectMessageRead(BaseModel):
     body: str
     body_sha256: str
     sequence: int
+    revision: int
+    edited_at: datetime | None
+    deleted_at: datetime | None
+    can_edit: bool
+    can_delete: bool
     created_at: datetime
 
 
@@ -103,16 +123,23 @@ def _message_read(
     *,
     current_user_id: uuid.UUID,
 ) -> DirectMessageRead:
+    deleted = message.deleted_at is not None
+    is_mine = message.author_user_id == current_user_id
     return DirectMessageRead(
         id=message.id,
         organization_id=message.organization_id,
         conversation_id=message.conversation_id,
         author_user_id=message.author_user_id,
         author_display_name=direct_message_author_name(db, message.author_user_id),
-        is_mine=message.author_user_id == current_user_id,
-        body=message.body,
-        body_sha256=message.body_sha256,
+        is_mine=is_mine,
+        body="" if deleted else message.body,
+        body_sha256="" if deleted else message.body_sha256,
         sequence=message.sequence,
+        revision=message.revision,
+        edited_at=message.edited_at,
+        deleted_at=message.deleted_at,
+        can_edit=is_mine and not deleted,
+        can_delete=is_mine and not deleted,
         created_at=message.created_at,
     )
 
@@ -129,6 +156,7 @@ def _raise_dm_error(exc: DirectMessageError) -> None:
         "self_dm_not_allowed",
         "recipient_unavailable",
         "idempotency_key_reused",
+        "message_revision_conflict",
     }:
         code = status.HTTP_409_CONFLICT
     elif exc.code == "actor_not_available":
@@ -269,6 +297,59 @@ def mark_read(
         latest_message_id=view.latest_message_id,
         first_unread_message_id=view.first_unread_message_id,
     )
+
+
+@router.patch(
+    "/{conversation_id}/messages/{message_id}",
+    response_model=DirectMessageRead,
+)
+def edit_message(
+    organization_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+    message_id: uuid.UUID,
+    payload: DirectMessageEdit,
+    access: Annotated[AuthorizationContext, Depends(_dm_access)],
+    db: Annotated[Session, Depends(get_db)],
+) -> DirectMessageRead:
+    try:
+        message = edit_direct_message(
+            db,
+            organization_id=organization_id,
+            conversation_id=conversation_id,
+            message_id=message_id,
+            user_id=access.user_id,
+            body=payload.body,
+            expected_revision=payload.expected_revision,
+        )
+    except DirectMessageError as exc:
+        _raise_dm_error(exc)
+    return _message_read(db, message, current_user_id=access.user_id)
+
+
+@router.delete(
+    "/{conversation_id}/messages/{message_id}",
+    response_model=DirectMessageRead,
+)
+def retract_message(
+    organization_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+    message_id: uuid.UUID,
+    payload: DirectMessageRetract,
+    access: Annotated[AuthorizationContext, Depends(_dm_access)],
+    db: Annotated[Session, Depends(get_db)],
+) -> DirectMessageRead:
+    try:
+        message = retract_direct_message(
+            db,
+            organization_id=organization_id,
+            conversation_id=conversation_id,
+            message_id=message_id,
+            user_id=access.user_id,
+            expected_revision=payload.expected_revision,
+        )
+    except DirectMessageError as exc:
+        _raise_dm_error(exc)
+    return _message_read(db, message, current_user_id=access.user_id)
 
 
 @router.post(
