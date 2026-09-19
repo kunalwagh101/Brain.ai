@@ -3,16 +3,63 @@ import { NextRequest, NextResponse } from "next/server";
 import { BrainApiError } from "../../../../../../../../brain-api";
 import {
   DirectMessageBffError,
+  handleDirectMessageEdit,
   handleDirectMessageRead,
+  handleDirectMessageRetract,
 } from "../../../../../../../../direct-message-bff";
 
-const SAFE_UPSTREAM_STATUSES = new Set([400, 401, 403, 404, 409, 422, 429, 503]);
+const MAX_EDIT_BODY_BYTES = 24 * 1024;
+const MAX_RETRACT_BODY_BYTES = 2 * 1024;
+const SAFE_UPSTREAM_STATUSES = new Set([400, 401, 403, 404, 409, 413, 415, 422, 429, 503]);
 
 function json(body: object, status: number) {
   return NextResponse.json(body, {
     status,
     headers: { "Cache-Control": "no-store, private", Vary: "Cookie" },
   });
+}
+
+function requireSameOrigin(request: NextRequest) {
+  const fetchSite = request.headers.get("sec-fetch-site")?.toLowerCase();
+  if (fetchSite === "cross-site") {
+    throw new DirectMessageBffError(403, "Cross-site DM mutation denied");
+  }
+  const origin = request.headers.get("origin");
+  if (origin && origin !== request.nextUrl.origin) {
+    throw new DirectMessageBffError(403, "Cross-origin DM mutation denied");
+  }
+}
+
+async function readJson(request: NextRequest, maxBytes: number): Promise<unknown> {
+  requireSameOrigin(request);
+  const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+  if (!contentType.startsWith("application/json")) {
+    throw new DirectMessageBffError(415, "Content-Type must be application/json");
+  }
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    throw new DirectMessageBffError(413, "Request body is too large");
+  }
+  const raw = await request.text();
+  if (new TextEncoder().encode(raw).byteLength > maxBytes) {
+    throw new DirectMessageBffError(413, "Request body is too large");
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new DirectMessageBffError(400, "Request body must be valid JSON");
+  }
+}
+
+function safeError(error: unknown) {
+  if (error instanceof DirectMessageBffError) {
+    return json({ detail: "Invalid direct-message request" }, error.status);
+  }
+  if (error instanceof BrainApiError) {
+    const status = SAFE_UPSTREAM_STATUSES.has(error.status) ? error.status : 502;
+    return json({ detail: "Brain direct-message request failed safely" }, status);
+  }
+  return json({ detail: "Brain direct-message request failed safely" }, 500);
 }
 
 export async function GET(
@@ -39,13 +86,64 @@ export async function GET(
     );
     return json(result as object, 200);
   } catch (error) {
-    if (error instanceof DirectMessageBffError) {
-      return json({ detail: "Invalid direct-message request" }, error.status);
-    }
-    if (error instanceof BrainApiError) {
-      const status = SAFE_UPSTREAM_STATUSES.has(error.status) ? error.status : 502;
-      return json({ detail: "Brain direct-message request failed safely" }, status);
-    }
-    return json({ detail: "Brain direct-message request failed safely" }, 500);
+    return safeError(error);
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  context: {
+    params: Promise<{
+      organizationId: string;
+      conversationId: string;
+      messageId: string;
+    }>;
+  },
+) {
+  const auth = await withAuth();
+  if (!auth.user || !auth.accessToken) {
+    return json({ detail: "Authentication required" }, 401);
+  }
+  try {
+    const { organizationId, conversationId, messageId } = await context.params;
+    const result = await handleDirectMessageEdit(
+      auth.accessToken,
+      organizationId,
+      conversationId,
+      messageId,
+      await readJson(request, MAX_EDIT_BODY_BYTES),
+    );
+    return json(result as object, 200);
+  } catch (error) {
+    return safeError(error);
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  context: {
+    params: Promise<{
+      organizationId: string;
+      conversationId: string;
+      messageId: string;
+    }>;
+  },
+) {
+  const auth = await withAuth();
+  if (!auth.user || !auth.accessToken) {
+    return json({ detail: "Authentication required" }, 401);
+  }
+  try {
+    const { organizationId, conversationId, messageId } = await context.params;
+    const result = await handleDirectMessageRetract(
+      auth.accessToken,
+      organizationId,
+      conversationId,
+      messageId,
+      await readJson(request, MAX_RETRACT_BODY_BYTES),
+    );
+    return json(result as object, 200);
+  } catch (error) {
+    return safeError(error);
   }
 }
