@@ -50,19 +50,21 @@ IN_REVIEW | S-10.16.01 | F-10.16 | Private reference-only Saved messages, member
 IN_REVIEW | S-10.17.01 | F-10.17 | Set-based first-unread ID, same-origin exact-message recovery, stable accessible root/thread divider/jump, regressions/docs/UAT staged; executable backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.18.01 | F-10.18 | Epoch-safe participant DM read cursors, set-based unread/first-target summary, exact participant-only recovery, badges/divider/jump, migration/tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.19.01 | F-10.19 | Stable before_sequence pagination for channel roots + participant-visible DMs, same-origin GETs, merge-safe Load older UX, tests/docs staged; executable verification/UAT outstanding
-IN_PROGRESS | S-10.20.01 | F-10.20 | Author-owned participant-private DM edit/retract lifecycle with private revision history pulled after READY audit
+IN_REVIEW | S-10.20.01 | F-10.20 | Author/current-epoch DM edit/retract, optimistic revisions, private tombstones/history, unread/retention consistency, WorkOS UI/tests/docs staged; executable verification/UAT outstanding
 
 
 
 
 
-### S-10.20.01 Direct-Message Lifecycle — IN_PROGRESS
+### S-10.20.01 Direct-Message Lifecycle — IN_REVIEW
 
 Sprint goal: let the current author edit/retract a visible private DM with optimistic concurrency and private revision history, without granting organisation roles access or projecting private content into company intelligence/audit.
 
 Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-36.md`.
 
-Formal state: `IN_PROGRESS`. WIP=1.
+Implementation staged: private revision/lifecycle schema + migration, original-author/current-epoch mutation authority, expected-revision conflicts, participant tombstones, unread exclusion, no company-intelligence/audit projection, private-retention cascade, same-origin WorkOS PATCH/DELETE, accessible UI, privacy/concurrency/retention tests and complete UAT/demo/changelog/traceability artifacts.
+
+Formal state: `IN_REVIEW`. No executable PASS or authenticated lifecycle UAT is claimed. WIP returns to zero.
 
 ### S-10.19.01 Conversation History Pagination — IN_REVIEW
 
