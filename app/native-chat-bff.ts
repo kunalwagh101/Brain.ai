@@ -3,6 +3,7 @@ import {
   editNativeMessage,
   getNativeMessage,
   inviteNativeChannelMember,
+  listNativeMessages,
   listNativePins,
   listNativeReplies,
   listNativeSavedMessages,
@@ -296,6 +297,33 @@ export async function handleNativeAttachmentUploadBff(
     body,
     normalizeMultipartContentType(contentType),
     normalizeIdempotencyKey(idempotencyKey),
+  );
+}
+
+export async function handleNativeMessageListBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  limit: number,
+  beforeSequence: number | null,
+): Promise<NativeMessage[]> {
+  await requireChatReader(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
+    invalid(400, "limit is invalid");
+  }
+  if (
+    beforeSequence !== null
+    && (!Number.isInteger(beforeSequence) || beforeSequence < 1)
+  ) {
+    invalid(400, "before_sequence is invalid");
+  }
+  return listNativeMessages(
+    accessToken,
+    organizationId,
+    channelId,
+    limit,
+    beforeSequence,
   );
 }
 
