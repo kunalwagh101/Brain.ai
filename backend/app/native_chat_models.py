@@ -68,11 +68,35 @@ class NativeChannel(Base):
             "id",
             name="uq_native_channel_org_id",
         ),
+        ForeignKeyConstraint(
+            ["organization_id", "team_id"],
+            ["native_teams.organization_id", "native_teams.id"],
+            name="fk_native_channel_team_scope",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "team_id", "channel_group_id"],
+            [
+                "native_channel_groups.organization_id",
+                "native_channel_groups.team_id",
+                "native_channel_groups.id",
+            ],
+            name="fk_native_channel_group_scope",
+        ),
+        CheckConstraint(
+            "channel_group_id IS NULL OR team_id IS NOT NULL",
+            name="ck_native_channel_group_requires_team",
+        ),
         Index(
             "ix_native_channel_org_status_created",
             "organization_id",
             "status",
             "created_at",
+        ),
+        Index(
+            "ix_native_channel_org_team_group",
+            "organization_id",
+            "team_id",
+            "channel_group_id",
         ),
     )
 
@@ -87,6 +111,8 @@ class NativeChannel(Base):
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     slug: Mapped[str] = mapped_column(String(96), nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    team_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    channel_group_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     visibility: Mapped[NativeChannelVisibility] = mapped_column(
         Enum(
             NativeChannelVisibility,
