@@ -481,3 +481,43 @@ Expected engineering evidence:
 - migration `20260919_0032` adds/removes only the pin-reference table.
 
 Final browser demo: use two authenticated users in an organisation and restricted channel. Pin roots and replies, retry a pin, edit a pinned message, pin a visible agent message, revoke a restricted member, remotely pin/unpin and observe live refresh, retract a pinned human message and confirm it disappears from Pins, then open an older root and a pinned reply from the Pins panel. Follow `UAT/F-10.15.md`.
+
+
+## Increment 32 — Personal Saved Messages
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.16.01 is `IN_REVIEW`, not DONE.
+
+Commands from the repository root:
+
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_saved_messages.py tests/test_native_conversation.py tests/test_message_lifecycle.py
+alembic heads
+alembic upgrade head
+alembic downgrade 20260919_0032
+alembic upgrade head
+cd ..
+npm run lint
+npm run build
+node --test tests/saved-messages-contract.test.mjs
+node --test tests/*.test.mjs
+python scripts/verify_board.py
+```
+
+Expected engineering evidence:
+
+- saved persistence contains only organisation/channel/message identity, saving user and timestamp;
+- repeated/concurrent save requests converge to one user/message row;
+- only the authenticated user's saves are returned; Owner/Admin/Executive roles cannot query another user's personal Saved state;
+- current read visibility, not write permission, controls Save/Unsave eligibility;
+- restricted-channel revocation hides saved content immediately while the content-free row can survive for later regrant;
+- thread replies save and reopen through the existing exact message/thread deep link;
+- visible agent-authored messages can be saved without changing human edit/retract authority;
+- editing a saved message preserves the same save reference and current content materialisation;
+- retracting a saved message removes all saved references before lifecycle commit;
+- normal Saved list/save/unsave traffic creates no organisation-wide SecurityAuditEvent history;
+- browser mutations use same-origin WorkOS routes and no reusable bearer token enters client code;
+- migration `20260919_0033` adds/removes only private saved-reference rows.
+
+Final browser demo: use at least two authenticated users plus a restricted channel. Save roots/replies as a read-only member, retry a save, prove another Owner/Admin user sees an empty personal Saved list, revoke restricted access and prove content disappears, restore access and prove the content-free saved reference can return, edit a saved message, retract it, then open saved root/reply deep links. Inspect the organisation audit table to confirm normal Saved activity creates no behavioural audit trail. Follow `UAT/F-10.16.md`.
