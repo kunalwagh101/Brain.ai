@@ -296,6 +296,74 @@
   outline-offset: 3px;
 }
 
+.messageActions,
+.retractConfirm,
+.editForm > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
+.messageActions button,
+.retractConfirm button,
+.editForm button {
+  border: 1px solid rgba(128, 128, 128, 0.28);
+  border-radius: 0.55rem;
+  background: transparent;
+  color: inherit;
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.messageActions button:focus-visible,
+.retractConfirm button:focus-visible,
+.editForm button:focus-visible,
+.editForm textarea:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.messageActions button:disabled,
+.retractConfirm button:disabled,
+.editForm button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.editForm {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.editForm label {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.editForm textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(128, 128, 128, 0.28);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: inherit;
+  padding: 0.55rem 0.65rem;
+  font: inherit;
+}
+
+.tombstone {
+  opacity: 0.68;
+  font-style: italic;
+}
+
+.messages article[data-deleted="true"] {
+  opacity: 0.82;
+}
+
 .messages p {
   margin: 0;
   white-space: pre-wrap;
