@@ -7,7 +7,11 @@ from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.direct_message_models import DirectConversation, DirectMessage
+from app.direct_message_models import (
+    DirectConversation,
+    DirectMessage,
+    DirectMessageRevision,
+)
 from app.models import Membership, User
 from app.permissions import Permission, role_has_permission
 
@@ -370,6 +374,7 @@ def _direct_unread_summaries(
             DirectMessage.sequence >= visible_from,
             DirectMessage.sequence > last_read,
             DirectMessage.author_user_id != user_id,
+            DirectMessage.deleted_at.is_(None),
         )
         .subquery()
     )
@@ -406,6 +411,7 @@ def _direct_unread_summaries(
             DirectMessage.organization_id == organization_id,
             DirectMessage.conversation_id.in_(conversation_ids),
             DirectMessage.sequence >= visible_from,
+            DirectMessage.deleted_at.is_(None),
         )
         .subquery()
     )
@@ -578,6 +584,124 @@ def mark_direct_conversation_read(
         db.commit()
         db.refresh(conversation)
     return conversation
+
+
+def _visible_direct_message_for_update(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+    message_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> tuple[DirectConversation, DirectMessage]:
+    conversation = _participant_conversation(
+        db,
+        organization_id=organization_id,
+        conversation_id=conversation_id,
+        user_id=user_id,
+        for_update=True,
+    )
+    visible_from_sequence = _participant_visible_from_sequence(conversation, user_id)
+    message = db.scalar(
+        select(DirectMessage)
+        .where(
+            DirectMessage.organization_id == organization_id,
+            DirectMessage.conversation_id == conversation_id,
+            DirectMessage.id == message_id,
+            DirectMessage.sequence >= visible_from_sequence,
+        )
+        .with_for_update()
+    )
+    if message is None or message.author_user_id != user_id or message.deleted_at is not None:
+        raise DirectMessageError("message_not_found", "Direct message not found")
+    return conversation, message
+
+
+def _snapshot_direct_message(
+    db: Session,
+    *,
+    message: DirectMessage,
+    action: str,
+) -> None:
+    db.add(
+        DirectMessageRevision(
+            organization_id=message.organization_id,
+            conversation_id=message.conversation_id,
+            message_id=message.id,
+            revision=message.revision,
+            action=action,
+            body=message.body,
+            body_sha256=message.body_sha256,
+            body_char_count=message.body_char_count,
+        )
+    )
+
+
+def edit_direct_message(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+    message_id: uuid.UUID,
+    user_id: uuid.UUID,
+    body: str,
+    expected_revision: int,
+) -> DirectMessage:
+    normalized_body = _normalize_body(body)
+    conversation, message = _visible_direct_message_for_update(
+        db,
+        organization_id=organization_id,
+        conversation_id=conversation_id,
+        message_id=message_id,
+        user_id=user_id,
+    )
+    if expected_revision != message.revision:
+        raise DirectMessageConflictError(
+            "message_revision_conflict",
+            "Direct message revision changed",
+        )
+    _snapshot_direct_message(db, message=message, action="edit")
+    now = datetime.now(UTC)
+    message.body = normalized_body
+    message.body_sha256 = hashlib.sha256(normalized_body.encode()).hexdigest()
+    message.body_char_count = len(normalized_body)
+    message.revision += 1
+    message.edited_at = now
+    conversation.updated_at = now
+    db.commit()
+    db.refresh(message)
+    return message
+
+
+def retract_direct_message(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+    message_id: uuid.UUID,
+    user_id: uuid.UUID,
+    expected_revision: int,
+) -> DirectMessage:
+    conversation, message = _visible_direct_message_for_update(
+        db,
+        organization_id=organization_id,
+        conversation_id=conversation_id,
+        message_id=message_id,
+        user_id=user_id,
+    )
+    if expected_revision != message.revision:
+        raise DirectMessageConflictError(
+            "message_revision_conflict",
+            "Direct message revision changed",
+        )
+    _snapshot_direct_message(db, message=message, action="retract")
+    now = datetime.now(UTC)
+    message.revision += 1
+    message.deleted_at = now
+    conversation.updated_at = now
+    db.commit()
+    db.refresh(message)
+    return message
 
 
 def send_direct_message(
