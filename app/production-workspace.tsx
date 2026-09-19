@@ -310,6 +310,8 @@ export async function ProductionWorkspace({
         nativeChannels={nativeChannels}
         selectedNativeChannel={selectedChannel}
         nativeMessages={nativeMessages}
+        nativeHistoryBeforeSequence={nativeMessageRows[0]?.message_sequence ?? null}
+        nativeHasOlderHistory={nativeMessageRows.length >= 100}
         nativePins={selectedNativePins}
         savedMessages={savedMessages}
         requestedNativeMessage={requestedNativeMessage}
