@@ -397,7 +397,7 @@ export async function handleNativeSavedListBff(
   accessToken: string,
   organizationId: string,
 ): Promise<NativeMessageSave[]> {
-  await requireChatReader(accessToken, organizationId);
+  normalizedUuid(organizationId, "organizationId");
   return listNativeSavedMessages(accessToken, organizationId, 100);
 }
 
@@ -408,7 +408,7 @@ export async function handleNativeSavedBff(
   messageId: string,
   active: boolean,
 ): Promise<NativeMessageSave | void> {
-  await requireChatReader(accessToken, organizationId);
+  normalizedUuid(organizationId, "organizationId");
   normalizedUuid(channelId, "channelId");
   normalizedUuid(messageId, "messageId");
   return setNativeSavedMessage(
