@@ -116,6 +116,7 @@ mkdir -p \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/pins' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/attachments/uploads' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[rootMessageId]/replies' \
+  'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[rootMessageId]/thread-read' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/reaction' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/pin' \
@@ -151,6 +152,7 @@ cp docs/workos-activation/app-api-brain-native-messages-route.ts.template 'app/a
 cp docs/workos-activation/app-api-brain-native-pins-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/pins/route.ts'
 cp docs/workos-activation/app-api-brain-native-attachment-upload-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/attachments/uploads/route.ts'
 cp docs/workos-activation/app-api-brain-native-replies-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[rootMessageId]/replies/route.ts'
+cp docs/workos-activation/app-api-brain-native-thread-read-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[rootMessageId]/thread-read/route.ts'
 cp docs/workos-activation/app-api-brain-native-message-lifecycle-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/route.ts'
 cp docs/workos-activation/app-api-brain-native-reaction-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/reaction/route.ts'
 cp docs/workos-activation/app-api-brain-native-pin-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/pin/route.ts'
