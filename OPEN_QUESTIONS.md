@@ -51,3 +51,15 @@ Retention/deletion boundary: private-message retention is independently configur
 Audit boundary: normal DM creation and sends do not create organisation-wide per-message/per-conversation audit records, because that would expose private activity metadata to privileged audit roles. Aggregate retention-run accounting may record the number of private messages deleted, but must not copy DM body, participant pair, target email or per-message hash into organisation-wide audit metadata.  
 Reason: this preserves a familiar private collaboration UX without turning Brain's company-intelligence layer into employee surveillance or granting privileged roles silent access to private conversations.  
 Revisit trigger: explicit customer requirement for group DMs, participant-scoped AI over DMs, legal/compliance retention rules, eDiscovery requirements or external-user messaging.
+
+## OQ-009 Team/group permission inheritance
+Ambiguity: the product hierarchy is Workspace → Teams → channel groups → channels, but no accepted rule says that team or group membership grants access to a restricted channel.  
+Engineering-safe behavior for S-10.24/S-10.25: teams and channel groups are navigation/organisation metadata only. They never create, widen, copy or revoke channel membership, ResourceGrant, evidence or Search access. Restricted-channel access remains explicit under the existing channel ACL.  
+Revisit trigger: the product owner explicitly requires inherited team/group access and defines how grant, revoke, migration, audit and restricted evidence propagation must behave.  
+Blast radius: tenant/resource authorization, evidence grants, Search/Ask Brain visibility, revocation, audit and membership administration.
+
+## OQ-010 Shared team groups and participant-private DMs
+Ambiguity: the desired hierarchy mentions channels/DMs below channel groups, but OQ-008 makes Brain-native DMs participant-private and no accepted rule says a shared team/group may expose DM counterpart metadata or membership.  
+Engineering-safe behavior for S-10.24/S-10.25: shared teams/groups organise Brain channels only. DMs remain in the personal participant-only Direct messages section and are never inserted into shared navigation containers.  
+Revisit trigger: an explicit participant-scoped design defines whether DM shortcuts are personal or shared, who can see counterpart identity, how removal/revocation behaves and how OQ-008 privacy is preserved.  
+Blast radius: private relationship metadata, participant privacy, navigation visibility, notifications and access revocation.
