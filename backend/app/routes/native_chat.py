@@ -189,6 +189,10 @@ def _channel_read(
         )
         or 0
     )
+    can_manage = (
+        role_has_permission(authorization.role, Permission.NATIVE_CHAT_WRITE)
+        and _can_manage(channel, authorization)
+    )
     return NativeChannelRead(
         id=channel.id,
         organization_id=channel.organization_id,
@@ -210,10 +214,10 @@ def _channel_read(
             role_has_permission(authorization.role, Permission.NATIVE_CHAT_WRITE)
             and can_write_channel(db, channel, user_id=authorization.user_id)
         ),
-        can_manage=_can_manage(channel, authorization),
+        can_manage=can_manage,
         can_manage_members=(
             channel.visibility == NativeChannelVisibility.RESTRICTED
-            and _can_manage(channel, authorization)
+            and can_manage
         ),
     )
 
