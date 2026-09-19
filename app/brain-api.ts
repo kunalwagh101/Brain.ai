@@ -830,6 +830,28 @@ export function markNativeChannelRead(
   );
 }
 
+export function markNativeThreadRead(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  rootMessageId: string,
+  throughMessageId: string,
+): Promise<{
+  root_message_id: string;
+  unread_count: number;
+  latest_reply_id: string | null;
+  first_unread_reply_id: string | null;
+}> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(rootMessageId)}/thread-read`,
+    {
+      method: "POST",
+      body: JSON.stringify({ through_message_id: throughMessageId }),
+    },
+  );
+}
+
 export function searchWorkspaceDocuments(
   accessToken: string,
   organizationId: string,
