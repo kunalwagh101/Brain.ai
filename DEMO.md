@@ -646,3 +646,25 @@ python scripts/verify_board.py
 ```
 
 Expected: reply pages remain exact-root scoped, use `message_sequence < before_sequence`, never OFFSET, merge without duplicates, survive live refresh and fail closed after permission revocation. Final manual acceptance follows `UAT/F-10.21.md`.
+
+## Increment 38 — Thread Unread & Resume
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.22.01 is `IN_REVIEW`, not DONE.
+
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_native_conversation.py::test_thread_unread_state_is_independent_monotonic_and_excludes_own_replies tests/test_native_conversation.py::test_retracted_reply_is_removed_from_thread_unread_attention
+alembic heads
+# with test PostgreSQL configured:
+alembic upgrade 20260920_0036
+alembic downgrade 20260919_0035
+alembic upgrade 20260920_0036
+cd ..
+node --test tests/thread-unread-contract.test.mjs tests/thread-pagination-contract.test.mjs
+npm run lint
+npm run build
+python scripts/verify_board.py
+```
+
+Expected: channel reads do not clear independent thread cursors; own/retracted replies do not count unread; stale reads never move backwards; cross-root read targets fail; first-unread recovery stays same-origin and permission-aware. Final browser acceptance follows `UAT/F-10.22.md`.
