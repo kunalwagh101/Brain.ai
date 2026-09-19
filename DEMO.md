@@ -668,3 +668,25 @@ python scripts/verify_board.py
 ```
 
 Expected: channel reads do not clear independent thread cursors; own/retracted replies do not count unread; stale reads never move backwards; cross-root read targets fail; first-unread recovery stays same-origin and permission-aware. Final browser acceptance follows `UAT/F-10.22.md`.
+
+## Increment 39 — Participant-Private DM Reactions
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.23.01 is `IN_REVIEW`, not DONE.
+
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_direct_message_reactions.py tests/test_direct_message_lifecycle.py tests/test_direct_message_unread.py
+alembic heads
+# with test PostgreSQL configured:
+alembic upgrade 20260920_0037
+alembic downgrade 20260920_0036
+alembic upgrade 20260920_0037
+cd ..
+node --test tests/direct-message-reaction-contract.test.mjs tests/direct-message-lifecycle-contract.test.mjs
+npm run lint
+npm run build
+python scripts/verify_board.py
+```
+
+Expected: reaction PUT/DELETE is participant/current-epoch only and idempotent; read models expose aggregate count + reacted-by-me but no user list; retraction/private retention cascades rows; legal hold blocks purge; no company-wide evidence/search/audit projection appears; browser mutation stays same-origin and token-free. Final browser acceptance follows `UAT/F-10.23.md`.
