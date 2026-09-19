@@ -98,7 +98,7 @@ export async function ProductionWorkspace({
     navigation,
     projects,
     evidenceSources,
-    channelRows,
+    allChannelRows,
     unreadRows,
     activity,
     overview,
@@ -113,7 +113,7 @@ export async function ProductionWorkspace({
     listWorkspaceNavigation(accessToken, organization.id),
     listProjectStatuses(accessToken, organization.id),
     listEvidenceSources(accessToken, organization.id),
-    listNativeChannels(accessToken, organization.id),
+    listNativeChannels(accessToken, organization.id, true),
     listNativeUnread(accessToken, organization.id),
     getActivity(accessToken, organization.id),
     EXECUTIVE_ROLES.has(organization.role)
@@ -135,6 +135,10 @@ export async function ProductionWorkspace({
     listNativeTeams(accessToken, organization.id, true),
     listNativeChannelGroups(accessToken, organization.id, true),
   ]);
+  const channelRows = allChannelRows.filter((channel) => channel.status === "active");
+  const archivedNativeChannels = allChannelRows.filter(
+    (channel) => channel.status === "archived" && channel.can_manage,
+  );
   const unreadByChannel = new Map(unreadRows.map((item) => [item.channel_id, item]));
   const nativeChannels = channelRows.map((channel) => ({
     ...channel,
@@ -319,6 +323,7 @@ export async function ProductionWorkspace({
         nativeChannels={nativeChannels}
         nativeTeams={nativeTeams}
         nativeChannelGroups={nativeChannelGroups}
+        archivedNativeChannels={archivedNativeChannels}
         selectedNativeChannel={selectedChannel}
         nativeMessages={nativeMessages}
         nativeHistoryBeforeSequence={nativeMessageRows[0]?.message_sequence ?? null}
