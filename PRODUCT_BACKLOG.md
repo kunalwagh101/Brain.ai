@@ -432,7 +432,7 @@ Orphan requirements: **0**.
 - Employee productivity/worth scoring: explicitly rejected; project/system evidence only.
 - Organisation-wide Brain-native DM-content search: prohibited by the resolved participant-only DM privacy boundary; only visible counterpart metadata may be used for local navigation.
 - Admin/moderator editing or hard-deleting another user's Brain-native channel message: not part of S-10.12; moderation policy requires an explicit new story and evidence-retention decision.
-- Editing/retracting Brain-native direct messages or agent-authored messages: separate privacy/authority rules; not silently included in S-10.12.
+- Admin/moderator override, edit-time windows, hard-delete/eDiscovery for Brain-native DMs, and editing/retracting agent-authored channel messages remain outside S-10.20; each needs separate authority/retention rules.
 - Arbitrary image/video/audio attachments and OCR/media previews: S-10.13 reuses the currently supported governed evidence types; unsupported binary/media ingestion needs an explicit storage/scanning/preview story.
 - Brain-native DM attachments: participant-private storage/search rules differ from organisation/channel evidence and are not silently included in S-10.13.
 - Per-thread independent read cursors, unread history analytics and push notifications remain outside S-10.17/S-10.18; thread-level attention and external delivery need separate product/privacy contracts.
