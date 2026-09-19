@@ -51,7 +51,7 @@ IN_REVIEW | S-10.17.01 | F-10.17 | Set-based first-unread ID, same-origin exact-
 IN_REVIEW | S-10.18.01 | F-10.18 | Epoch-safe participant DM read cursors, set-based unread/first-target summary, exact participant-only recovery, badges/divider/jump, migration/tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.19.01 | F-10.19 | Stable before_sequence pagination for channel roots + participant-visible DMs, same-origin GETs, merge-safe Load older UX, tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.20.01 | F-10.20 | Author/current-epoch DM edit/retract, optimistic revisions, private tombstones/history, unread/retention consistency, WorkOS UI/tests/docs staged; executable verification/UAT outstanding
-IN_PROGRESS | S-10.21.01 | F-10.21 | Stable sequence-cursor thread-reply pagination pulled after READY audit
+IN_REVIEW | S-10.21.01 | F-10.21 | Stable before_sequence thread pagination, merge-safe Load older replies/live refresh, tests/docs staged; executable verification/UAT outstanding
 BACKLOG | S-10.22.01 | F-10.22 | Independent per-thread unread/read cursor + first-unread resume
 BACKLOG | S-10.23.01 | F-10.23 | Participant-private idempotent DM reactions with no organisation-wide projection
 
@@ -60,13 +60,13 @@ BACKLOG | S-10.23.01 | F-10.23 | Participant-private idempotent DM reactions wit
 
 
 
-### S-10.21.01 Thread History Pagination — IN_PROGRESS
+### S-10.21.01 Thread History Pagination — IN_REVIEW
 
 Sprint goal: make long-running native threads browsable with stable reply sequence cursors while preserving current channel authority and live thread state.
 
 Ready evidence is in `DEFINITION_OF_READY.md`; implementation scope is in `docs/planning/increment-37.md`.
 
-Formal state: `IN_PROGRESS`. WIP=1. S-10.22/S-10.23 remain BACKLOG until this slice leaves implementation.
+Implementation staged: exact-root sequence cursor backend/API/BFF, merge-safe Load older replies, live-refresh preservation, validation tests, UAT/demo/changelog/traceability. Formal state: `IN_REVIEW`; no executable PASS/UAT is claimed. WIP returns to zero; S-10.22 may now be pulled.
 
 ### S-10.20.01 Direct-Message Lifecycle — IN_REVIEW
 
