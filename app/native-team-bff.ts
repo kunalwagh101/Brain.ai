@@ -4,6 +4,7 @@ import {
   updateNativeTeam,
   type NativeTeam,
 } from "./brain-api";
+import { NativeChatBffRequestError } from "./native-chat-bff";
 import {
   BrainMembershipError,
   requireBrainOrganizationMembership,
@@ -12,13 +13,10 @@ import {
 
 const TEAM_WRITE_ROLES = new Set(["owner", "admin", "executive", "manager", "member"]);
 
-export class NativeTeamBffError extends Error {
-  status: number;
-
+export class NativeTeamBffError extends NativeChatBffRequestError {
   constructor(status: number, message: string) {
-    super(message);
+    super(status, message);
     this.name = "NativeTeamBffError";
-    this.status = status;
   }
 }
 
