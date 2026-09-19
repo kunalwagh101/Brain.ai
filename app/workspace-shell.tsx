@@ -86,6 +86,8 @@ export function WorkspaceShell({
   nativeChannels,
   selectedNativeChannel,
   nativeMessages,
+  nativeHistoryBeforeSequence,
+  nativeHasOlderHistory,
   nativePins,
   savedMessages,
   requestedNativeMessage,
@@ -126,6 +128,8 @@ export function WorkspaceShell({
   nativeChannels: NativeChannel[];
   selectedNativeChannel: NativeChannel | null;
   nativeMessages: NativeMessage[];
+  nativeHistoryBeforeSequence: number | null;
+  nativeHasOlderHistory: boolean;
   nativePins: NativeMessagePin[];
   savedMessages: NativeMessageSave[];
   requestedNativeMessage: NativeMessage | null;
@@ -369,6 +373,8 @@ export function WorkspaceShell({
               channel={selectedNativeChannel}
               key={selectedNativeChannel.id}
               messages={nativeMessages}
+              initialHistoryBeforeSequence={nativeHistoryBeforeSequence}
+              initialHasOlderHistory={nativeHasOlderHistory}
               pins={nativePins}
               savedMessageIds={savedMessages
                 .filter((item) => item.message.channel_id === selectedNativeChannel.id)
