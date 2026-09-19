@@ -29,6 +29,8 @@ from app.native_chat import (
     list_visible_channels,
     post_user_message,
     revoke_channel_member,
+    set_channel_archived,
+    update_channel_settings,
     upsert_channel_member,
 )
 from app.native_chat_models import (
@@ -63,6 +65,20 @@ class NativeChannelCreate(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class NativeChannelSettingsWrite(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+    description: str | None = Field(default=None, max_length=500)
+    expected_revision: int = Field(ge=1)
+
+    model_config = {"extra": "forbid"}
+
+
+class NativeChannelLifecycleWrite(BaseModel):
+    expected_revision: int = Field(ge=1)
+
+    model_config = {"extra": "forbid"}
+
+
 class NativeChannelRead(BaseModel):
     id: uuid.UUID
     organization_id: uuid.UUID
@@ -78,6 +94,7 @@ class NativeChannelRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     archived_at: datetime | None
+    settings_revision: int
     member_count: int
     can_post: bool
     can_manage: bool
@@ -187,6 +204,7 @@ def _channel_read(
         created_at=channel.created_at,
         updated_at=channel.updated_at,
         archived_at=channel.archived_at,
+        settings_revision=channel.settings_revision,
         member_count=member_count,
         can_post=(
             role_has_permission(authorization.role, Permission.NATIVE_CHAT_WRITE)
@@ -353,6 +371,82 @@ def read_channel(
     )
     if channel is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Channel not found")
+    return _channel_read(db, channel, authorization)
+
+
+@router.patch("/{channel_id}/settings", response_model=NativeChannelRead)
+def edit_channel_settings(
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    payload: NativeChannelSettingsWrite,
+    request: Request,
+    authorization: Annotated[AuthorizationContext, Depends(_write)],
+    db: Annotated[Session, Depends(get_db)],
+) -> NativeChannelRead:
+    try:
+        channel = update_channel_settings(
+            db,
+            organization_id=organization_id,
+            channel_id=channel_id,
+            actor_user_id=authorization.user_id,
+            actor_role=authorization.role,
+            expected_revision=payload.expected_revision,
+            name=payload.name,
+            description=payload.description,
+            request_id=_request_id(request),
+        )
+    except NativeChatError as exc:
+        _raise_chat_error(exc)
+    return _channel_read(db, channel, authorization)
+
+
+@router.post("/{channel_id}/archive", response_model=NativeChannelRead)
+def archive_channel(
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    payload: NativeChannelLifecycleWrite,
+    request: Request,
+    authorization: Annotated[AuthorizationContext, Depends(_write)],
+    db: Annotated[Session, Depends(get_db)],
+) -> NativeChannelRead:
+    try:
+        channel = set_channel_archived(
+            db,
+            organization_id=organization_id,
+            channel_id=channel_id,
+            actor_user_id=authorization.user_id,
+            actor_role=authorization.role,
+            expected_revision=payload.expected_revision,
+            archived=True,
+            request_id=_request_id(request),
+        )
+    except NativeChatError as exc:
+        _raise_chat_error(exc)
+    return _channel_read(db, channel, authorization)
+
+
+@router.post("/{channel_id}/restore", response_model=NativeChannelRead)
+def restore_channel(
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    payload: NativeChannelLifecycleWrite,
+    request: Request,
+    authorization: Annotated[AuthorizationContext, Depends(_write)],
+    db: Annotated[Session, Depends(get_db)],
+) -> NativeChannelRead:
+    try:
+        channel = set_channel_archived(
+            db,
+            organization_id=organization_id,
+            channel_id=channel_id,
+            actor_user_id=authorization.user_id,
+            actor_role=authorization.role,
+            expected_revision=payload.expected_revision,
+            archived=False,
+            request_id=_request_id(request),
+        )
+    except NativeChatError as exc:
+        _raise_chat_error(exc)
     return _channel_read(db, channel, authorization)
 
 
