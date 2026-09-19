@@ -223,6 +223,29 @@
   opacity: 0.75;
 }
 
+.loadOlder {
+  align-self: center;
+  border: 1px solid rgba(128, 128, 128, 0.28);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  padding: 0.4rem 0.7rem;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.loadOlder:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.loadOlder:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .messages {
   padding: 1rem;
   overflow: auto;
