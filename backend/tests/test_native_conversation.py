@@ -567,3 +567,68 @@ def test_native_root_history_uses_stable_sequence_cursor(
         endpoint,
         params={"limit": 2, "before_sequence": 0},
     ).status_code == 422
+
+def test_thread_reply_history_uses_stable_sequence_cursor(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, _ = _seed(db_session, "thread-page")
+    channel = _channel(client, organization, owner)
+    root = _root(
+        client,
+        organization,
+        channel["id"],
+        owner,
+        "Thread pagination root",
+        "thread-page-root",
+    ).json()
+    created = []
+    for index in range(1, 6):
+        reply = _reply(
+            client,
+            organization,
+            channel["id"],
+            root["id"],
+            member,
+            f"Reply {index}",
+            f"thread-page-reply-{index}",
+        )
+        assert reply.status_code == 201
+        created.append(reply.json())
+
+    _as(owner)
+    endpoint = (
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/messages/{root['id']}/replies"
+    )
+    first = client.get(endpoint, params={"limit": 2})
+    assert first.status_code == 200
+    assert [item["id"] for item in first.json()] == [
+        created[3]["id"],
+        created[4]["id"],
+    ]
+
+    second = client.get(
+        endpoint,
+        params={
+            "limit": 2,
+            "before_sequence": first.json()[0]["message_sequence"],
+        },
+    )
+    third = client.get(
+        endpoint,
+        params={
+            "limit": 2,
+            "before_sequence": second.json()[0]["message_sequence"],
+        },
+    )
+    invalid = client.get(endpoint, params={"before_sequence": 0})
+    assert [item["id"] for item in second.json()] == [
+        created[1]["id"],
+        created[2]["id"],
+    ]
+    assert [item["id"] for item in third.json()] == [created[0]["id"]]
+    assert {
+        item["id"] for item in first.json()
+    }.isdisjoint({item["id"] for item in second.json()})
+    assert invalid.status_code == 422
