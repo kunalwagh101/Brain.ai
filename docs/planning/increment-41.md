@@ -2,7 +2,7 @@
 
 Story: `S-10.25.01`
 
-Status: `IN_PROGRESS`
+Status: `IN_REVIEW`
 
 ## Sprint goal
 
@@ -23,3 +23,7 @@ Create/edit/archive/restore channel groups inside active Teams. An authorised ch
 ## Acceptance truth
 
 Repository implementation may reach `IN_REVIEW`; executable migration/tests/verifier plus authenticated multi-role/revocation UAT remain required for DONE.
+
+## Retrospective — 2026-09-20
+
+No accepted requirement was cut. Channel placement is intentionally two nullable navigation references instead of a new permission relation. The service requires both channel authority and target-Team authority, while the existing channel/evidence ACL functions never read Team/group IDs. Archive behavior is UI fallback, not data destruction. The key regression snapshots memberships and ResourceGrants across a restricted-channel move. The story remains IN_REVIEW pending executable migration/tests/verifier and authenticated UAT.
