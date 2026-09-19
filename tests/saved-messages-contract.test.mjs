@@ -103,3 +103,24 @@ test("WorkOS activation installs Saved routes and UAT gate", () => {
   assert.match(saveRoute, /withAuth\(\)/);
   assert.match(saveRoute, /rejectCrossSiteMutation/);
 });
+
+
+test("Saved endpoints avoid organisation-wide audit authorization history", () => {
+  const route = read("backend/app/routes/native_conversation.py");
+  const bff = read("app/native-chat-bff.ts");
+
+  const listStart = route.indexOf("def list_saved(");
+  const pinsStart = route.indexOf("@router.get(\n    \"/channels/{channel_id}/pins\"", listStart);
+  assert.ok(listStart >= 0 && pinsStart > listStart);
+  const savedRoutes = route.slice(listStart, pinsStart);
+  assert.match(savedRoutes, /Depends\(get_current_user\)/);
+  assert.match(route, /def _saved_user_id/);
+  assert.doesNotMatch(savedRoutes, /Depends\(_read\)|AuthorizationContext/);
+
+  const bffStart = bff.indexOf("export async function handleNativeSavedListBff(");
+  const bffEnd = bff.indexOf("export async function handleNativePinsListBff(", bffStart);
+  assert.ok(bffStart >= 0 && bffEnd > bffStart);
+  const savedBff = bff.slice(bffStart, bffEnd);
+  assert.doesNotMatch(savedBff, /requireChatReader|requireChatWriter/);
+  assert.match(savedBff, /normalizedUuid\(organizationId/);
+});
