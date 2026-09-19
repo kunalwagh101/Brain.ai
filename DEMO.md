@@ -582,3 +582,24 @@ python scripts/verify_board.py
 Expected: per-participant unread counts exclude own sends; partial/stale reads remain monotonic; exact first-unread IDs stay inside the current visibility epoch; nonparticipants/revoked users cannot read or mutate private read state; re-initiation cannot resurrect old unread; one accessible DM divider/jump remains visible through the selected conversation's immediate mark-read refresh; browser routes are same-origin and token-free.
 
 Final browser demo follows `UAT/F-10.18.md`. Do not call DONE/PASSED without executed tests, migration round-trip, verifier and authenticated two-user UAT.
+
+## Increment 35 — Conversation History Pagination
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.19.01 is `IN_REVIEW`, not DONE.
+
+Commands:
+
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_native_conversation.py::test_native_root_history_uses_stable_sequence_cursor tests/test_direct_messages.py::test_direct_message_history_uses_sequence_cursor tests/test_direct_message_unread.py
+cd ..
+node --test tests/conversation-pagination-contract.test.mjs tests/direct-message-unread-contract.test.mjs tests/first-unread-contract.test.mjs
+npm run lint
+npm run build
+python scripts/verify_board.py
+```
+
+Expected: channel and DM pages use `sequence < before_sequence`; invalid cursors fail validation; DM pages never cross current visibility floors; no OFFSET queries appear; browser merges pages by ID/sequence while keeping composer/resume state; Load older stops after history exhaustion; same-origin server-session routes expose no reusable browser token.
+
+Final manual acceptance follows `UAT/F-10.19.md`. Do not mark DONE/PASSED without executed evidence.
