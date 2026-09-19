@@ -1,5 +1,18 @@
 # Changelog
 
+### Increment 38 — Thread Unread & Resume
+
+- Added per-user/per-root `NativeThreadReadState` separate from channel read state.
+- Added tenant-scoped set-based thread unread/latest/first-unread summaries; current-user and retracted replies do not count.
+- Added monotonic cross-root-safe thread mark-read service and same-origin WorkOS route.
+- Root reply actions now show personal thread unread counts.
+- Thread open captures its first unread reply, persists progress through the latest reply, and preserves one accessible **New replies** divider plus **Jump to unread**.
+- Exact first-unread recovery reuses the permission-aware message read path and validates reply ownership by root.
+- Added migration `20260920_0036`, regressions, frontend/security contracts and UAT/demo/traceability.
+
+Verification is not claimed as passed. `S-10.22.01` remains `IN_REVIEW`.
+
+
 ### Increment 37 — Thread History Pagination
 
 - Added stable positive `before_sequence` pagination to native thread replies using the existing per-channel message sequence.
