@@ -84,9 +84,16 @@ export function listDirectMessages(
   accessToken: string,
   organizationId: string,
   conversationId: string,
+  limit = 200,
+  beforeSequence?: number | null,
 ): Promise<DirectMessage[]> {
+  const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 200);
+  const params = new URLSearchParams({ limit: String(boundedLimit) });
+  if (beforeSequence !== undefined && beforeSequence !== null) {
+    params.set("before_sequence", String(Math.max(1, Math.trunc(beforeSequence))));
+  }
   return dmFetch(
     accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/direct-messages/${encodeURIComponent(conversationId)}/messages?limit=200`,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/direct-messages/${encodeURIComponent(conversationId)}/messages?${params.toString()}`,
   );
 }
