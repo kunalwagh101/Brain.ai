@@ -112,6 +112,7 @@ export function WorkspaceShell({
   canCreateNativeChannel,
   directMessageCreateEndpoint,
   directMessageSendEndpoint,
+  directMessageConversationEndpoint,
   directMessagePresenceEndpoint,
   agentMutationBase,
   workspaceSearchEndpoint,
@@ -151,6 +152,7 @@ export function WorkspaceShell({
   canCreateNativeChannel: boolean;
   directMessageCreateEndpoint: string | null;
   directMessageSendEndpoint: string | null;
+  directMessageConversationEndpoint: string | null;
   directMessagePresenceEndpoint: string | null;
   agentMutationBase: string | null;
   workspaceSearchEndpoint: string | null;
@@ -270,6 +272,11 @@ export function WorkspaceShell({
               >
                 <span>●</span>
                 <span className={styles.channelName}>{conversation.other_display_name}</span>
+                {conversation.unread_count ? (
+                  <span className={styles.unreadBadge} aria-label={`${conversation.unread_count} unread`}>
+                    {conversation.unread_count > 99 ? "99+" : conversation.unread_count}
+                  </span>
+                ) : null}
               </a>
             )) : <p className={styles.emptyNav}>No direct messages</p>}
           </section>
