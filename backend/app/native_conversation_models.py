@@ -140,6 +140,63 @@ class NativeChannelReadState(Base):
     )
 
 
+class NativeThreadReadState(Base):
+    __tablename__ = "native_thread_read_states"
+    __table_args__ = (
+        UniqueConstraint(
+            "root_message_id",
+            "user_id",
+            name="uq_native_thread_read_state_root_user",
+        ),
+        Index(
+            "ix_native_thread_read_state_org_user",
+            "organization_id",
+            "user_id",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "user_id"],
+            ["memberships.organization_id", "memberships.user_id"],
+            name="fk_native_thread_read_state_membership",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "channel_id", "root_message_id"],
+            [
+                "native_messages.organization_id",
+                "native_messages.channel_id",
+                "native_messages.id",
+            ],
+            name="fk_native_thread_read_state_root_scope",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "channel_id", "last_read_message_id"],
+            [
+                "native_messages.organization_id",
+                "native_messages.channel_id",
+                "native_messages.id",
+            ],
+            name="fk_native_thread_read_state_message_scope",
+            ondelete="CASCADE",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    channel_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    root_message_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    last_read_message_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    last_read_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    last_read_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
 class NativeMessageAttachment(Base):
     __tablename__ = "native_message_attachments"
     __table_args__ = (
