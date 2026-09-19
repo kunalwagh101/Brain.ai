@@ -3,7 +3,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -29,6 +29,9 @@ class DirectConversationView:
     conversation: DirectConversation
     other_user: User
     can_send: bool
+    unread_count: int = 0
+    latest_message_id: uuid.UUID | None = None
+    first_unread_message_id: uuid.UUID | None = None
 
 
 def _ordered_pair(first: uuid.UUID, second: uuid.UUID) -> tuple[uuid.UUID, uuid.UUID]:
@@ -83,6 +86,31 @@ def _participant_visible_from_sequence(
         return conversation.participant_a_visible_from_sequence
     if conversation.participant_b_user_id == user_id:
         return conversation.participant_b_visible_from_sequence
+    raise DirectMessageError("conversation_not_found", "Direct conversation not found")
+
+
+def _participant_last_read_sequence(
+    conversation: DirectConversation,
+    user_id: uuid.UUID,
+) -> int:
+    if conversation.participant_a_user_id == user_id:
+        return conversation.participant_a_last_read_sequence
+    if conversation.participant_b_user_id == user_id:
+        return conversation.participant_b_last_read_sequence
+    raise DirectMessageError("conversation_not_found", "Direct conversation not found")
+
+
+def _set_participant_last_read_sequence(
+    conversation: DirectConversation,
+    user_id: uuid.UUID,
+    sequence: int,
+) -> None:
+    if conversation.participant_a_user_id == user_id:
+        conversation.participant_a_last_read_sequence = sequence
+        return
+    if conversation.participant_b_user_id == user_id:
+        conversation.participant_b_last_read_sequence = sequence
+        return
     raise DirectMessageError("conversation_not_found", "Direct conversation not found")
 
 
@@ -161,6 +189,7 @@ def _reactivate_current_pair(
         ):
             conversation.participant_a_revoked_at = None
             conversation.participant_a_visible_from_sequence = conversation.next_message_sequence
+            conversation.participant_a_last_read_sequence = conversation.next_message_sequence - 1
             changed = True
         elif (
             conversation.participant_b_user_id == user_id
@@ -168,6 +197,7 @@ def _reactivate_current_pair(
         ):
             conversation.participant_b_revoked_at = None
             conversation.participant_b_visible_from_sequence = conversation.next_message_sequence
+            conversation.participant_b_last_read_sequence = conversation.next_message_sequence - 1
             changed = True
     if changed:
         conversation.updated_at = now
@@ -288,6 +318,116 @@ def create_or_get_direct_conversation(
     return conversation
 
 
+def _direct_unread_summaries(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    conversations: list[DirectConversation],
+    user_id: uuid.UUID,
+) -> dict[uuid.UUID, tuple[int, uuid.UUID | None, uuid.UUID | None]]:
+    conversation_ids = [conversation.id for conversation in conversations]
+    if not conversation_ids:
+        return {}
+
+    visible_from = case(
+        (
+            DirectConversation.participant_a_user_id == user_id,
+            DirectConversation.participant_a_visible_from_sequence,
+        ),
+        else_=DirectConversation.participant_b_visible_from_sequence,
+    )
+    last_read = case(
+        (
+            DirectConversation.participant_a_user_id == user_id,
+            DirectConversation.participant_a_last_read_sequence,
+        ),
+        else_=DirectConversation.participant_b_last_read_sequence,
+    )
+    unread_ranked = (
+        select(
+            DirectMessage.conversation_id.label("conversation_id"),
+            DirectMessage.id.label("message_id"),
+            func.count()
+            .over(partition_by=DirectMessage.conversation_id)
+            .label("unread_count"),
+            func.row_number()
+            .over(
+                partition_by=DirectMessage.conversation_id,
+                order_by=DirectMessage.sequence,
+            )
+            .label("unread_rank"),
+        )
+        .join(
+            DirectConversation,
+            and_(
+                DirectConversation.organization_id == DirectMessage.organization_id,
+                DirectConversation.id == DirectMessage.conversation_id,
+            ),
+        )
+        .where(
+            DirectMessage.organization_id == organization_id,
+            DirectMessage.conversation_id.in_(conversation_ids),
+            DirectMessage.sequence >= visible_from,
+            DirectMessage.sequence > last_read,
+            DirectMessage.author_user_id != user_id,
+        )
+        .subquery()
+    )
+    unread = {
+        conversation_id: (int(count), message_id)
+        for conversation_id, count, message_id in db.execute(
+            select(
+                unread_ranked.c.conversation_id,
+                unread_ranked.c.unread_count,
+                unread_ranked.c.message_id,
+            ).where(unread_ranked.c.unread_rank == 1)
+        )
+    }
+
+    latest_ranked = (
+        select(
+            DirectMessage.conversation_id.label("conversation_id"),
+            DirectMessage.id.label("message_id"),
+            func.row_number()
+            .over(
+                partition_by=DirectMessage.conversation_id,
+                order_by=DirectMessage.sequence.desc(),
+            )
+            .label("latest_rank"),
+        )
+        .join(
+            DirectConversation,
+            and_(
+                DirectConversation.organization_id == DirectMessage.organization_id,
+                DirectConversation.id == DirectMessage.conversation_id,
+            ),
+        )
+        .where(
+            DirectMessage.organization_id == organization_id,
+            DirectMessage.conversation_id.in_(conversation_ids),
+            DirectMessage.sequence >= visible_from,
+        )
+        .subquery()
+    )
+    latest = {
+        conversation_id: message_id
+        for conversation_id, message_id in db.execute(
+            select(
+                latest_ranked.c.conversation_id,
+                latest_ranked.c.message_id,
+            ).where(latest_ranked.c.latest_rank == 1)
+        )
+    }
+    return {
+        conversation_id: (
+            unread.get(conversation_id, (0, None))[0],
+            latest.get(conversation_id),
+            unread.get(conversation_id, (0, None))[1],
+        )
+        for conversation_id in conversation_ids
+    }
+
+
 def list_direct_conversations(
     db: Session,
     *,
@@ -313,6 +453,12 @@ def list_direct_conversations(
             .order_by(DirectConversation.updated_at.desc(), DirectConversation.id.desc())
         )
     )
+    summaries = _direct_unread_summaries(
+        db,
+        organization_id=organization_id,
+        conversations=conversations,
+        user_id=user_id,
+    )
     views: list[DirectConversationView] = []
     for conversation in conversations:
         other_id, other_revoked_at = _other_participant_state(conversation, user_id)
@@ -323,11 +469,17 @@ def list_direct_conversations(
                 organization_id=organization_id,
                 user_id=other_id,
             )
+            unread_count, latest_message_id, first_unread_message_id = summaries[
+                conversation.id
+            ]
             views.append(
                 DirectConversationView(
                     conversation=conversation,
                     other_user=other_user,
                     can_send=can_send,
+                    unread_count=unread_count,
+                    latest_message_id=latest_message_id,
+                    first_unread_message_id=first_unread_message_id,
                 )
             )
     return views
@@ -362,6 +514,69 @@ def list_direct_messages(
     )
     latest.reverse()
     return latest
+
+
+def get_direct_message(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+    message_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> DirectMessage:
+    conversation = _participant_conversation(
+        db,
+        organization_id=organization_id,
+        conversation_id=conversation_id,
+        user_id=user_id,
+    )
+    visible_from_sequence = _participant_visible_from_sequence(conversation, user_id)
+    message = db.scalar(
+        select(DirectMessage).where(
+            DirectMessage.organization_id == organization_id,
+            DirectMessage.conversation_id == conversation_id,
+            DirectMessage.id == message_id,
+            DirectMessage.sequence >= visible_from_sequence,
+        )
+    )
+    if message is None:
+        raise DirectMessageError("message_not_found", "Direct message not found")
+    return message
+
+
+def mark_direct_conversation_read(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+    user_id: uuid.UUID,
+    through_message_id: uuid.UUID,
+) -> DirectConversation:
+    conversation = _participant_conversation(
+        db,
+        organization_id=organization_id,
+        conversation_id=conversation_id,
+        user_id=user_id,
+        for_update=True,
+    )
+    visible_from_sequence = _participant_visible_from_sequence(conversation, user_id)
+    message = db.scalar(
+        select(DirectMessage).where(
+            DirectMessage.organization_id == organization_id,
+            DirectMessage.conversation_id == conversation_id,
+            DirectMessage.id == through_message_id,
+            DirectMessage.sequence >= visible_from_sequence,
+        )
+    )
+    if message is None:
+        raise DirectMessageError("message_not_found", "Direct message not found")
+
+    current = _participant_last_read_sequence(conversation, user_id)
+    if message.sequence > current:
+        _set_participant_last_read_sequence(conversation, user_id, message.sequence)
+        db.commit()
+        db.refresh(conversation)
+    return conversation
 
 
 def send_direct_message(
