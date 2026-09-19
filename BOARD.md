@@ -53,20 +53,20 @@ IN_REVIEW | S-10.19.01 | F-10.19 | Stable before_sequence pagination for channel
 IN_REVIEW | S-10.20.01 | F-10.20 | Author/current-epoch DM edit/retract, optimistic revisions, private tombstones/history, unread/retention consistency, WorkOS UI/tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.21.01 | F-10.21 | Stable before_sequence thread pagination, merge-safe Load older replies/live refresh, tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.22.01 | F-10.22 | Tenant/root/user thread read state, set-based unread/first target, monotonic mark-read, badge/divider/jump, migration/tests/docs staged; executable verification/UAT outstanding
-IN_PROGRESS | S-10.23.01 | F-10.23 | Participant-private idempotent DM reactions with no organisation-wide projection pulled after READY audit
+IN_REVIEW | S-10.23.01 | F-10.23 | Private allow-listed/idempotent DM reactions, aggregate-only reads, retention/privacy-safe WorkOS UI/tests/docs staged; executable verification/UAT outstanding
 
 
 
 
 
 
-### S-10.23.01 Participant-Private DM Reactions — IN_PROGRESS
+### S-10.23.01 Participant-Private DM Reactions — IN_REVIEW
 
 Sprint goal: add lightweight reactions to visible participant-private DM messages without exposing participant metadata or creating employer-wide intelligence/audit events.
 
 Ready evidence is in `DEFINITION_OF_READY.md`; implementation scope is in `docs/planning/increment-39.md`.
 
-Formal state: `IN_PROGRESS`. WIP=1.
+Implementation staged: private reaction migration/model, current-participant/current-epoch idempotent add/remove, batched aggregate-only reads, same-origin WorkOS route/UI, privacy/retraction/retention/legal-hold tests and full UAT/demo/changelog/traceability. Formal state: `IN_REVIEW`; no executable PASS/UAT is claimed. WIP returns to zero.
 
 ### S-10.22.01 Thread Unread & Resume — IN_REVIEW
 
