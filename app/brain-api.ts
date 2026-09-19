@@ -125,6 +125,9 @@ export type NativeMessage = {
   message_sequence: number;
   created_at: string;
   reply_count: number;
+  thread_unread_count: number;
+  thread_latest_reply_id: string | null;
+  thread_first_unread_reply_id: string | null;
   mentions: NativeMention[];
   reactions: NativeReaction[];
   attachments: NativeAttachment[];
