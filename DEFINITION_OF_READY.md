@@ -407,3 +407,27 @@ Open questions: none changes this slice. Group DMs, push notifications, read rec
 Leading indicators: unread count correctness, exact jump success, stale/backward read movement = 0, cross-participant unread leakage = 0, earlier-epoch unread resurrection = 0.
 
 Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires PostgreSQL migration round-trip, focused epoch/revocation/monotonic tests, frontend source contracts/build, verifier and authenticated two-user WorkOS UAT.
+
+## Increment 35 readiness record — S-10.19.01
+
+Decision: `READY` for repository implementation on 2026-09-19; S-10.18 left implementation WIP first.
+
+Problem and baseline: native channels currently return only the latest bounded root-message window and DMs return only the latest bounded private-message window. Exact deep links can recover one old message, but users cannot browse normal older history. Timestamp/offset pagination would be unstable under concurrent sends and DM epoch changes.
+
+AI decision: AI is not needed. This is deterministic sequence-cursor retrieval and UI state.
+
+Architecture decision: reuse existing monotonic `NativeMessage.message_sequence` and `DirectMessage.sequence`. Add optional positive `before_sequence` query parameters to existing list endpoints. Each query orders by sequence descending, applies `sequence < before_sequence`, takes a bounded limit, then returns chronological order. No OFFSET scans, cache, new table or migration.
+
+Authorization: every page request executes the same current channel/participant authorization as the initial list. DM pages additionally enforce the participant's current `visible_from_sequence`; old epochs remain inaccessible. Restricted-channel or DM revocation fails closed on the next page request.
+
+Browser boundary: add authenticated same-origin GET handling to the existing channel and DM message routes. Client Load older controls request the sequence of the oldest currently rendered item, merge by message ID, sort by sequence, and stop when a page returns fewer than the requested page size. Existing first-unread/exact target/open-thread state is not reset.
+
+Performance: default client page size is 50; backend allows only bounded 1–200 channel roots and 1–200 DM messages for browser pagination. Sequence comparisons use existing conversation/channel sequence keys; no offset pagination or full-history transfer.
+
+Open questions: none changes this slice. Automatic infinite-scroll-on-observer, virtualised rendering and thread-reply pagination are explicit later optimisations; S-10.19 starts with an accessible explicit Load older control for channel roots and 1:1 DM messages.
+
+Rollback: remove query parameters, GET BFF handlers and Load older controls. No persisted state changed.
+
+Leading indicators: duplicate/gap count = 0; inaccessible historical page exposure = 0; successful load-older completion rate; bounded page size maintained.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires focused pagination/access tests, frontend source/build checks, verifier and authenticated long-history/revocation UAT.
