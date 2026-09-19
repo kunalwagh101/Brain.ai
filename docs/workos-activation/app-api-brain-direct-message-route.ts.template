@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { BrainApiError } from "../../../../../../../brain-api";
 import {
   DirectMessageBffError,
+  handleDirectMessageList,
   handleDirectMessageSend,
 } from "../../../../../../../direct-message-bff";
 
@@ -40,6 +41,38 @@ async function readJson(request: NextRequest): Promise<unknown> {
     return JSON.parse(raw);
   } catch {
     throw new DirectMessageBffError(400, "Request body must be valid JSON");
+  }
+}
+
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ organizationId: string; conversationId: string }> },
+) {
+  const auth = await withAuth();
+  if (!auth.user || !auth.accessToken) return json({ detail: "Authentication required" }, 401);
+  try {
+    const { organizationId, conversationId } = await context.params;
+    const rawLimit = request.nextUrl.searchParams.get("limit") ?? "50";
+    const rawBefore = request.nextUrl.searchParams.get("before_sequence");
+    const limit = Number(rawLimit);
+    const beforeSequence = rawBefore === null ? null : Number(rawBefore);
+    const result = await handleDirectMessageList(
+      auth.accessToken,
+      organizationId,
+      conversationId,
+      limit,
+      beforeSequence,
+    );
+    return json(result as object, 200);
+  } catch (error) {
+    if (error instanceof DirectMessageBffError) {
+      return json({ detail: "Invalid direct-message request" }, error.status);
+    }
+    if (error instanceof BrainApiError) {
+      const status = SAFE_UPSTREAM_STATUSES.has(error.status) ? error.status : 502;
+      return json({ detail: "Brain direct-message request failed safely" }, status);
+    }
+    return json({ detail: "Brain direct-message request failed safely" }, 500);
   }
 }
 
