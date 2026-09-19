@@ -501,3 +501,19 @@ Browser/security: bounded same-origin WorkOS PUT/DELETE route with allow-list va
 Migration/rollback: migration `20260920_0037` adds only private reaction rows; downgrade removes only those rows/table and changes no DM content.
 
 Done boundary: repository implementation may reach IN_REVIEW. DONE requires PostgreSQL migration round-trip, privacy/idempotency tests, frontend execution/verifier and authenticated two-user WorkOS UAT.
+
+## Increment 40 readiness record — S-10.24.01
+
+Decision: `READY` for repository implementation on 2026-09-20; board WIP was zero before pull.
+
+Problem evidence: the product requirement is Workspace → Teams → channel groups → channels/DMs, but the current production sidebar renders one flat Brain channels section. Native channel ACLs already work and must not be weakened by navigation hierarchy.
+
+Architecture: add organisation-scoped `NativeTeam` metadata with unique slug, active/archived lifecycle and optimistic `revision`. Team metadata is navigation-only. Listing a Team never grants channel, evidence, Search, Work Graph or DM access. Existing channel list remains authoritative and unassigned until S-10.25 introduces explicit navigation references.
+
+Authority: current native-chat writers may create Teams. Team creator or organisation Owner/Admin may edit/archive/restore. This reuses the existing channel-manager authority pattern rather than inventing a broader role. Team visibility itself is organisation metadata; it contains no private source/body/participant data.
+
+Ambiguities: OQ-009 records that team/group membership does not currently inherit restricted-channel access. OQ-010 keeps participant-private DMs outside shared containers until a privacy-safe rule is explicitly accepted.
+
+Rollback: migration removes only Team rows/table; no channel/message/evidence/DM row is changed.
+
+Done boundary: repository implementation may reach IN_REVIEW. DONE requires PostgreSQL migration round-trip, focused backend/frontend/verifier execution and authenticated member/creator/Admin/tenant UAT.
