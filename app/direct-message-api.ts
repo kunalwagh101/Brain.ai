@@ -7,6 +7,9 @@ export type DirectConversation = {
   other_display_name: string;
   other_email: string;
   can_send: boolean;
+  unread_count: number;
+  latest_message_id: string | null;
+  first_unread_message_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -20,6 +23,7 @@ export type DirectMessage = {
   is_mine: boolean;
   body: string;
   body_sha256: string;
+  sequence: number;
   created_at: string;
 };
 
@@ -61,6 +65,18 @@ export function listDirectConversations(
   return dmFetch(
     accessToken,
     `/api/v1/organizations/${encodeURIComponent(organizationId)}/direct-messages`,
+  );
+}
+
+export function getDirectMessage(
+  accessToken: string,
+  organizationId: string,
+  conversationId: string,
+  messageId: string,
+): Promise<DirectMessage> {
+  return dmFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/direct-messages/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
   );
 }
 
