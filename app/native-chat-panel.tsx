@@ -1216,14 +1216,11 @@ export function NativeChatPanel({
           setStatus({ kind: "error", text: safeMessageError(rootResponse.status) });
           return;
         }
-        root = await rootResponse.json() as NativeMessage;
-        if (root.deleted_at) {
-          setFirstUnreadMessageId(null);
-          return;
-        }
-        setRootMessages((items) => items.some((item) => item.id === root?.id)
+        const loadedRoot = await rootResponse.json() as NativeMessage;
+        root = loadedRoot;
+        setRootMessages((items) => items.some((item) => item.id === loadedRoot.id)
           ? items
-          : [root as NativeMessage, ...items]);
+          : [loadedRoot, ...items]);
       }
 
       const repliesResponse = await fetch(
