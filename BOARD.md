@@ -47,16 +47,27 @@ IN_REVIEW | S-10.13.01 | F-10.13 | Governed EvidenceSource channel uploads, live
 IN_REVIEW | S-10.14.01 | F-10.14 | Ephemeral 75s presence + 8s typing leases, read-only authorised polling, restricted-channel/participant-only DM privacy, audit-free traffic, same-origin WorkOS BFF and focused-composer UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.15.01 | F-10.15 | Reference-only shared channel pins, current reader/writer permission checks, retry-safe uniqueness, thread/root reopening, same-lifecycle retract cleanup, structural live refresh and WorkOS BFF/UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.16.01 | F-10.16 | Private reference-only Saved messages, membership/message scoped FKs, current visible-channel filtering, read-only Save support, audit-free personal traffic, same-lifecycle retract cleanup, exact deep links and WorkOS UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
-IN_PROGRESS | S-10.17.01 | F-10.17 | First-unread boundary + exact jump vertical slice pulled after READY audit; no schema/AI/new unread store planned
+IN_REVIEW | S-10.17.01 | F-10.17 | Set-based first-unread ID, same-origin exact-message recovery, stable accessible root/thread divider/jump, regressions/docs/UAT staged; executable backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 
 
-### S-10.17.01 First-Unread Divider & Jump to Unread — IN_PROGRESS
+### S-10.17.01 First-Unread Divider & Jump to Unread — IN_REVIEW
 
 Sprint goal: let an authorised user resume a Brain channel at the exact first unread root or thread reply without rescanning history or creating a second read-state system.
 
 Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-33.md`.
 
-Formal state: `IN_PROGRESS`. WIP after pull: one story.
+Implementation staged:
+
+- existing monotonic read state now exposes exact first-unread identity with a bounded set-based window query;
+- own human-authored and retracted messages remain excluded from unread targets;
+- same-origin WorkOS exact-message GET reuses current backend channel authorization for old-window/thread recovery;
+- the mounted channel captures the initial unread boundary so immediate mark-read/router refresh does not erase the visual resume point;
+- one accessible New messages divider and Jump to unread support rendered roots, old roots and thread replies;
+- preserved replies remain jumpable under a retracted root, while a retracted target itself clears the stale boundary;
+- no AI, second unread store, cache, schema migration, Redis/WebSocket or copied message content was added;
+- backend regressions, frontend/query/security source contract, planning, UAT, demo, changelog, retrospective and traceability are staged.
+
+Formal state: `IN_REVIEW`. No executable backend/frontend/verifier PASS or authenticated WorkOS browser UAT is claimed. WIP after review move: zero `IN_PROGRESS` stories.
 
 ### S-10.16.01 Personal Saved Messages — IN_REVIEW
 
