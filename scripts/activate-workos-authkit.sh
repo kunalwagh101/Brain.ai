@@ -119,6 +119,7 @@ mkdir -p \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/reaction' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/pin' \
+  'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/saved' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/read' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/members' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/members/[userId]' \
@@ -130,6 +131,7 @@ mkdir -p \
   'app/api/brain/organizations/[organizationId]/live' \
   'app/api/brain/organizations/[organizationId]/presence/heartbeat' \
   'app/api/brain/organizations/[organizationId]/presence/[contextKind]/[contextId]' \
+  'app/api/brain/organizations/[organizationId]/saved-messages' \
   'app/api/brain/organizations/[organizationId]/search' \
   'app/api/brain/organizations/[organizationId]/agent-workspace/runs' \
   'app/api/brain/organizations/[organizationId]/agent-workspace/runs/[runId]/advance' \
@@ -150,6 +152,7 @@ cp docs/workos-activation/app-api-brain-native-replies-route.ts.template 'app/ap
 cp docs/workos-activation/app-api-brain-native-message-lifecycle-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/route.ts'
 cp docs/workos-activation/app-api-brain-native-reaction-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/reaction/route.ts'
 cp docs/workos-activation/app-api-brain-native-pin-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/pin/route.ts'
+cp docs/workos-activation/app-api-brain-native-save-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/[messageId]/saved/route.ts'
 cp docs/workos-activation/app-api-brain-native-read-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/read/route.ts'
 cp docs/workos-activation/app-api-brain-native-members-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/members/route.ts'
 cp docs/workos-activation/app-api-brain-native-member-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/members/[userId]/route.ts'
@@ -161,6 +164,7 @@ cp docs/workos-activation/app-api-brain-activity-preferences-route.ts.template '
 cp docs/workos-activation/app-api-brain-live-route.ts.template 'app/api/brain/organizations/[organizationId]/live/route.ts'
 cp docs/workos-activation/app-api-brain-presence-heartbeat-route.ts.template 'app/api/brain/organizations/[organizationId]/presence/heartbeat/route.ts'
 cp docs/workos-activation/app-api-brain-presence-context-route.ts.template 'app/api/brain/organizations/[organizationId]/presence/[contextKind]/[contextId]/route.ts'
+cp docs/workos-activation/app-api-brain-native-saved-route.ts.template 'app/api/brain/organizations/[organizationId]/saved-messages/route.ts'
 cp docs/workos-activation/app-api-brain-search-route.ts.template 'app/api/brain/organizations/[organizationId]/search/route.ts'
 cp docs/workos-activation/app-api-brain-agent-workspace-runs-route.ts.template 'app/api/brain/organizations/[organizationId]/agent-workspace/runs/route.ts'
 cp docs/workos-activation/app-api-brain-agent-workspace-advance-route.ts.template 'app/api/brain/organizations/[organizationId]/agent-workspace/runs/[runId]/advance/route.ts'
@@ -188,3 +192,4 @@ echo "Complete UAT/F-10.12.md before marking S-10.12.01 DONE or accepted."
 echo "Complete UAT/F-10.13.md before marking S-10.13.01 DONE or accepted."
 echo "Complete UAT/F-10.14.md before marking S-10.14.01 DONE or accepted."
 echo "Complete UAT/F-10.15.md before marking S-10.15.01 DONE or accepted."
+echo "Complete UAT/F-10.16.md before marking S-10.16.01 DONE or accepted."
