@@ -323,6 +323,13 @@ Acceptance: Given a current channel reader, when they save a visible non-retract
 Dependencies: S-10.06.01 native channels/threads, S-10.11.01 exact message navigation, S-10.12.01 message lifecycle, S-10.04.01 server-session boundary. Blocking risk: repository implementation can reach IN_REVIEW; DONE still requires executable PostgreSQL/backend/frontend/verifier evidence and authenticated WorkOS multi-user privacy/revoke/retract UAT. Size: M. Leading indicator: saved-to-open completion rate with zero cross-user or revoked-content leakage. Business value: E-10. Priority: P1.  
 Tasks: T-10.16.01.a tenant/user/message scoped save schema/migration; T-10.16.01.b permission-aware save/list/unsave service + lifecycle cleanup; T-10.16.01.c typed API and same-origin WorkOS BFF; T-10.16.01.d accessible personal Saved panel and message actions; T-10.16.01.e privacy/revocation/idempotency/retract tests; T-10.16.01.f docs/UAT/demo/rollback evidence.
 
+#### F-10.17 First-unread divider and jump-to-unread
+**S-10.17.01 — Resume a channel at the exact first unread message**  
+As a Brain collaborator, I want a clear first-unread divider and a Jump to unread action, so that I can resume a busy channel at the exact point new activity starts instead of rescanning conversation history.  
+Acceptance: Given a visible channel has unread non-retracted messages from other actors after the authenticated user's monotonic read cursor, when unread summaries are loaded, then Brain returns the exact first unread message ID together with the existing unread count/latest-message cursor using bounded tenant-scoped queries; Given the first unread item is a root message already in the rendered window, when the channel opens, then exactly one accessible "New messages" divider renders immediately before that message and Jump to unread scrolls to that boundary; Given the first unread item is a thread reply or an older root outside the initial message window, when Jump to unread is used, then Brain re-fetches that exact message through the existing permission-aware same-origin message route, opens the owning thread when required, materialises the target without copying content to new storage, and scrolls to the divider; Given opening the channel advances the existing read cursor, when server refreshes occur, then the captured first-unread boundary for that open channel remains stable until the channel component is replaced, while the persisted read cursor remains monotonic; Given the first unread target is retracted after render, when current message state or a jump request observes the retraction, then the stale divider is removed and no retracted body is shown as unread; Given the current user authored a message, when unread boundaries are computed, then that message does not become their first unread item; Given restricted-channel access is revoked, when unread or exact-message reads are requested, then no unread boundary or hidden message content is returned; Given there are no unread messages, then no divider or Jump to unread action is rendered; Given browser jump/read requests execute, then they use authenticated same-origin WorkOS BFF routes and expose no reusable backend bearer token; Given the summary path is exercised across many visible channels, then the first-unread addition remains bounded and does not introduce per-channel N+1 database queries; Given this feature is rolled back, then removing the response/UI/BFF additions changes no persisted message/read/evidence state and requires no data migration.  
+Dependencies: S-10.06.01 monotonic per-user unread state, S-10.10.01 live refresh, S-10.11.01 exact message navigation/read, S-10.12.01 retraction consistency, S-10.04.01 server-session boundary. Blocking risk: repository implementation can reach IN_REVIEW; DONE still requires executable backend/frontend/verifier evidence and authenticated WorkOS multi-user unread/thread/revocation UAT. Size: M. Leading indicator: jump-to-first-unread success rate with zero hidden/retracted target exposure and zero unread-summary N+1 queries. Business value: E-10. Priority: P1.  
+Tasks: T-10.17.01.a bounded first-unread summary contract; T-10.17.01.b same-origin exact-message read BFF for jump recovery; T-10.17.01.c accessible channel/thread divider and Jump to unread UI; T-10.17.01.d security/revocation/retraction/query-boundary tests; T-10.17.01.e frontend contract tests; T-10.17.01.f docs/UAT/demo/rollback/traceability evidence.
+
 ## Requirements -> Backlog coverage
 
 | Requirement | Backlog IDs |
@@ -345,7 +352,8 @@ Tasks: T-10.16.01.a tenant/user/message scoped save schema/migration; T-10.16.01
 | Tenant/channel-scoped message threads | S-10.06.01 |
 | Exact-member mentions without identity guessing | S-10.06.01 |
 | Idempotent per-user message reactions | S-10.06.01 |
-| Per-user monotonic unread state | S-10.06.01 |
+| Per-user monotonic unread state | S-10.06.01, S-10.17.01 |
+| First-unread divider and exact jump-to-unread | S-10.17.01 |
 | Restricted-channel notification/content privacy | S-10.06.01 |
 | Visibly attributed agent messages | S-10.01.01, S-10.06.01 |
 | Focused responsive Slack/Discord-style channel surface | S-10.02.01, S-10.06.01 |
@@ -355,12 +363,12 @@ Tasks: T-10.16.01.a tenant/user/message scoped save schema/migration; T-10.16.01
 | Citations / no unsupported claims | S-05.02.01, S-10.03.01 |
 | Data provenance | S-03.01.01, S-03.02.01, S-10.05.01, S-10.13.01 |
 | Identity resolution | S-03.03.01 |
-| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01 |
-| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01 |
+| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01, S-10.17.01 |
+| Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01, S-10.17.01 |
 | Observability | S-09.01.01 |
 | Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01 |
 | Latency/cost benchmarks | S-09.04.01 |
-| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01 |
+| Accessibility | S-07.01.01, S-07.02.01, S-10.02.01, S-10.03.01, S-10.05.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01, S-10.17.01 |
 | Workspace administration and governance UI | S-10.08.01 |
 | Personal Activity & Notifications inbox | S-10.09.01 |
 | @mentions and thread-reply notifications | S-10.06.01, S-10.09.01 |
@@ -404,3 +412,4 @@ Orphan requirements: **0**.
 - Editing/retracting Brain-native direct messages or agent-authored messages: separate privacy/authority rules; not silently included in S-10.12.
 - Arbitrary image/video/audio attachments and OCR/media previews: S-10.13 reuses the currently supported governed evidence types; unsupported binary/media ingestion needs an explicit storage/scanning/preview story.
 - Brain-native DM attachments: participant-private storage/search rules differ from organisation/channel evidence and are not silently included in S-10.13.
+- Direct-message first-unread dividers, per-thread independent read cursors, unread history analytics and push notifications: S-10.17 reuses the existing native-channel cursor only; those behaviours require separate privacy/state contracts.
