@@ -52,7 +52,7 @@ IN_REVIEW | S-10.18.01 | F-10.18 | Epoch-safe participant DM read cursors, set-b
 IN_REVIEW | S-10.19.01 | F-10.19 | Stable before_sequence pagination for channel roots + participant-visible DMs, same-origin GETs, merge-safe Load older UX, tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.20.01 | F-10.20 | Author/current-epoch DM edit/retract, optimistic revisions, private tombstones/history, unread/retention consistency, WorkOS UI/tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.21.01 | F-10.21 | Stable before_sequence thread pagination, merge-safe Load older replies/live refresh, tests/docs staged; executable verification/UAT outstanding
-IN_PROGRESS | S-10.22.01 | F-10.22 | Independent per-thread unread/read cursor + first-unread resume pulled after READY audit
+IN_REVIEW | S-10.22.01 | F-10.22 | Tenant/root/user thread read state, set-based unread/first target, monotonic mark-read, badge/divider/jump, migration/tests/docs staged; executable verification/UAT outstanding
 BACKLOG | S-10.23.01 | F-10.23 | Participant-private idempotent DM reactions with no organisation-wide projection
 
 
@@ -60,13 +60,13 @@ BACKLOG | S-10.23.01 | F-10.23 | Participant-private idempotent DM reactions wit
 
 
 
-### S-10.22.01 Thread Unread & Resume — IN_PROGRESS
+### S-10.22.01 Thread Unread & Resume — IN_REVIEW
 
 Sprint goal: preserve an independent monotonic unread boundary for each opened native thread without changing channel-level read semantics.
 
 Ready evidence is in `DEFINITION_OF_READY.md`; implementation scope is in `docs/planning/increment-38.md`.
 
-Formal state: `IN_PROGRESS`. WIP=1. S-10.23 remains BACKLOG until this slice leaves implementation.
+Implementation staged: independent thread read-state migration, set-based tenant-safe summaries, monotonic mark-read, root unread metadata, same-origin BFF, New replies/Jump UI and negative tests/docs. Formal state: `IN_REVIEW`; no executable PASS/UAT is claimed. WIP returns to zero; S-10.23 may now be pulled.
 
 ### S-10.21.01 Thread History Pagination — IN_REVIEW
 
