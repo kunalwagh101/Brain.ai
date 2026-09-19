@@ -524,6 +524,9 @@ export function NativeChatPanel({
   const [attachments, setAttachments] = useState<NativeAttachment[]>([]);
   const [threadRoot, setThreadRoot] = useState<NativeMessage | null>(null);
   const [threadReplies, setThreadReplies] = useState<NativeMessage[]>([]);
+  const [threadBeforeSequence, setThreadBeforeSequence] = useState<number | null>(null);
+  const [threadHasOlderHistory, setThreadHasOlderHistory] = useState(false);
+  const [threadHistoryLoading, setThreadHistoryLoading] = useState(false);
   const [threadBody, setThreadBody] = useState("");
   const [threadAttachments, setThreadAttachments] = useState<NativeAttachment[]>([]);
   const [threadAttachmentRootId, setThreadAttachmentRootId] = useState<string | null>(null);
@@ -559,6 +562,9 @@ export function NativeChatPanel({
     setAttachments([]);
     setThreadRoot(null);
     setThreadReplies([]);
+    setThreadBeforeSequence(null);
+    setThreadHasOlderHistory(false);
+    setThreadHistoryLoading(false);
     setThreadBody("");
     setThreadAttachments([]);
     setThreadAttachmentRootId(null);
@@ -624,6 +630,8 @@ export function NativeChatPanel({
         if (!response.ok) throw new Error(`thread_deep_link_${response.status}`);
         const replies = await response.json() as NativeMessage[];
       setThreadReplies(replies);
+      setThreadBeforeSequence(replies[0]?.message_sequence ?? null);
+      setThreadHasOlderHistory(replies.length >= 100);
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           document.getElementById(`message-${requestedMessage.id}`)?.scrollIntoView({
@@ -679,7 +687,18 @@ export function NativeChatPanel({
           return;
         }
         if (response.ok) {
-          setThreadReplies(await response.json() as NativeMessage[]);
+          const refreshed = await response.json() as NativeMessage[];
+          setThreadReplies((current) => {
+            const merged = new Map(current.map((message) => [message.id, message]));
+            for (const message of refreshed) merged.set(message.id, message);
+            return [...merged.values()].sort(
+              (left, right) => left.message_sequence - right.message_sequence,
+            );
+          });
+          if (!threadBeforeSequence && refreshed.length) {
+            setThreadBeforeSequence(refreshed[0].message_sequence);
+            setThreadHasOlderHistory(refreshed.length >= 100);
+          }
         }
       } catch {
         if (requestController.signal.aborted || stopped) return;
@@ -700,7 +719,7 @@ export function NativeChatPanel({
       document.removeEventListener("visibilitychange", wake);
       window.removeEventListener("online", wake);
     };
-  }, [conversationEndpoint, router, threadRootId]);
+  }, [conversationEndpoint, router, threadBeforeSequence, threadRootId]);
 
   useEffect(() => {
     if (!firstUnreadMessageId) return;
@@ -931,6 +950,9 @@ export function NativeChatPanel({
     setThreadRoot(message);
     setThreadFocused(false);
     setThreadReplies([]);
+    setThreadBeforeSequence(null);
+    setThreadHasOlderHistory(false);
+    setThreadHistoryLoading(false);
     setThreadLoading(true);
     setStatus({ kind: "idle" });
     if (!conversationEndpoint) {
@@ -948,6 +970,8 @@ export function NativeChatPanel({
       }
       const replies = await response.json() as NativeMessage[];
       setThreadReplies(replies);
+      setThreadBeforeSequence(replies[0]?.message_sequence ?? null);
+      setThreadHasOlderHistory(replies.length >= 100);
       if (focusMessageId) {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
@@ -961,6 +985,56 @@ export function NativeChatPanel({
       setStatus({ kind: "error", text: "The thread could not reach the secure Brain route." });
     } finally {
       setThreadLoading(false);
+    }
+  }
+
+  async function loadOlderReplies() {
+    if (
+      !conversationEndpoint
+      || !threadRoot
+      || !threadHasOlderHistory
+      || threadHistoryLoading
+      || threadBeforeSequence === null
+    ) return;
+    setThreadHistoryLoading(true);
+    setStatus({ kind: "idle" });
+    try {
+      const params = new URLSearchParams({
+        limit: "50",
+        before_sequence: String(threadBeforeSequence),
+      });
+      const response = await fetch(
+        `${conversationEndpoint}/messages/${encodeURIComponent(threadRoot.id)}/replies?${params.toString()}`,
+        { credentials: "same-origin", cache: "no-store" },
+      );
+      if (response.status === 403 || response.status === 404) {
+        setThreadRoot(null);
+        setThreadReplies([]);
+        router.refresh();
+        return;
+      }
+      if (!response.ok) {
+        setStatus({ kind: "error", text: safeMessageError(response.status) });
+        return;
+      }
+      const page = await response.json() as NativeMessage[];
+      if (!page.length) {
+        setThreadHasOlderHistory(false);
+        return;
+      }
+      setThreadReplies((current) => {
+        const merged = new Map(current.map((message) => [message.id, message]));
+        for (const message of page) merged.set(message.id, message);
+        return [...merged.values()].sort(
+          (left, right) => left.message_sequence - right.message_sequence,
+        );
+      });
+      setThreadBeforeSequence(page[0].message_sequence);
+      setThreadHasOlderHistory(page.length === 50);
+    } catch {
+      setStatus({ kind: "error", text: "Older thread replies could not be loaded safely." });
+    } finally {
+      setThreadHistoryLoading(false);
     }
   }
 
@@ -1641,6 +1715,16 @@ export function NativeChatPanel({
               <div className={styles.replyDivider}>
                 <span>{threadRoot.reply_count} {threadRoot.reply_count === 1 ? "reply" : "replies"}</span>
               </div>
+              {threadHasOlderHistory ? (
+                <button
+                  className={styles.loadOlder}
+                  disabled={threadHistoryLoading}
+                  onClick={() => void loadOlderReplies()}
+                  type="button"
+                >
+                  {threadHistoryLoading ? "Loading older…" : "Load older replies"}
+                </button>
+              ) : null}
               {threadLoading ? <p className={styles.threadStatus} role="status">Loading replies…</p> : null}
               {!threadLoading && threadReplies.length ? threadReplies.map((reply) => (
                 <Fragment key={reply.id}>
