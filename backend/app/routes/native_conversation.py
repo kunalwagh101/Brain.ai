@@ -61,7 +61,6 @@ from app.native_conversation import (
     remove_reaction,
     retract_message,
     save_message,
-    unread_count,
     unpin_message,
     unsave_message,
     visible_message,
