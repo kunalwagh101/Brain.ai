@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Increment 32 — Personal Saved Messages
+
+- Added private reference-only saved channel messages with organisation membership and exact organisation/channel/message database scoping.
+- Saved rows store only user/message identity and timestamp; no message body, attachment, evidence excerpt or revision content is copied.
+- Current channel readers, including read-only members and guests with normal resource-read access, may Save/Unsave visible non-retracted roots or thread replies without changing shared channel state.
+- Saved list is derived only from the authenticated user; there is no user selector or privileged Owner/Admin/Executive override.
+- Restricted-channel revocation immediately hides inaccessible saved content while preserving the content-free personal row for later regrant; organisation membership removal cascades the row.
+- Added retry-safe unique user/message convergence and explicit high-precision save timestamps.
+- Message edits preserve saved identity; message retraction removes all saves for that message in the same lifecycle transaction.
+- Visible agent-authored messages may be saved without changing existing human edit/retract authority.
+- Added audit-free Saved list/save/unsave backend/BFF authority path so ordinary personal follow-up activity does not become organisation-wide SecurityAuditEvent history.
+- Added typed API/BFF helpers, WorkOS list/save/unsave routes, personal Saved navigation/panel and Save/Unsave actions on channel roots/replies.
+- Saved links reuse the existing exact S-10.11 channel/message deep-link and thread reopening flow.
+- Added migration `20260919_0033`, focused backend privacy/idempotency/revocation/retraction regressions, source contracts, UAT, demo and traceability.
+- DM saves, reminders, notes, bulk actions and automatic task creation remain explicit later scope.
+
+Verification is not claimed as passed. `S-10.16.01` remains `IN_REVIEW` pending executable PostgreSQL migration round-trip, Ruff/Pytest, frontend lint/build/source contracts, delivery verifier and authenticated WorkOS multi-user Saved UAT.
+
+
+
 ### Increment 31 — Shared Channel Message Pins
 
 - Added reference-only shared channel message pins with organisation/channel/message scoped foreign keys; pin rows never copy message body, attachment or evidence content.
