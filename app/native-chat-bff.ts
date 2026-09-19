@@ -497,11 +497,29 @@ export async function handleNativeThreadListBff(
   organizationId: string,
   channelId: string,
   rootMessageId: string,
+  limit: number,
+  beforeSequence: number | null,
 ): Promise<NativeMessage[]> {
   await requireChatReader(accessToken, organizationId);
   normalizedUuid(channelId, "channelId");
   normalizedUuid(rootMessageId, "rootMessageId");
-  return listNativeReplies(accessToken, organizationId, channelId, rootMessageId);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
+    invalid(400, "limit is invalid");
+  }
+  if (
+    beforeSequence !== null
+    && (!Number.isInteger(beforeSequence) || beforeSequence < 1)
+  ) {
+    invalid(400, "before_sequence is invalid");
+  }
+  return listNativeReplies(
+    accessToken,
+    organizationId,
+    channelId,
+    rootMessageId,
+    limit,
+    beforeSequence,
+  );
 }
 
 export async function handleNativeReplyCreateBff(
