@@ -557,3 +557,28 @@ Final browser demo: use two authenticated WorkOS users. Read a channel as User A
 
 Do not call the story DONE until the commands above and the delivery verifier actually pass and the authenticated UAT evidence is recorded.
 
+## Increment 34 — DM Unread & Resume
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.18.01 is `IN_REVIEW`, not DONE.
+
+Commands from repository root:
+
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_direct_messages.py tests/test_direct_message_epochs.py tests/test_direct_message_unread.py
+alembic heads
+# with test PostgreSQL configured:
+alembic upgrade 20260919_0034
+alembic downgrade 20260919_0033
+alembic upgrade 20260919_0034
+cd ..
+node --test tests/direct-message-contract.test.mjs tests/direct-message-unread-contract.test.mjs
+npm run lint
+npm run build
+python scripts/verify_board.py
+```
+
+Expected: per-participant unread counts exclude own sends; partial/stale reads remain monotonic; exact first-unread IDs stay inside the current visibility epoch; nonparticipants/revoked users cannot read or mutate private read state; re-initiation cannot resurrect old unread; one accessible DM divider/jump remains visible through the selected conversation's immediate mark-read refresh; browser routes are same-origin and token-free.
+
+Final browser demo follows `UAT/F-10.18.md`. Do not call DONE/PASSED without executed tests, migration round-trip, verifier and authenticated two-user UAT.
