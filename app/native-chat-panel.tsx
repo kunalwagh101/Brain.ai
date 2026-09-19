@@ -377,7 +377,7 @@ function MessageCard({
             {onThread && (!deleted || message.reply_count > 0) ? (
               <button className={styles.threadButton} onClick={() => onThread(message)} type="button">
                 {message.reply_count
-                  ? `${message.reply_count} ${message.reply_count === 1 ? "reply" : "replies"}`
+                  ? `${message.reply_count} ${message.reply_count === 1 ? "reply" : "replies"}${message.thread_unread_count ? ` · ${message.thread_unread_count} unread` : ""}`
                   : "Reply in thread"}
               </button>
             ) : null}
@@ -506,6 +506,7 @@ export function NativeChatPanel({
   const activeChannelIdRef = useRef(channel.id);
   const messageRetryKey = useRef<string | null>(null);
   const threadRetryKey = useRef<{ rootId: string; key: string } | null>(null);
+  const threadMarkedThroughRef = useRef<string | null>(null);
   const [rootMessages, setRootMessages] = useState(messages);
   const [historyBeforeSequence, setHistoryBeforeSequence] = useState(
     initialHistoryBeforeSequence,
@@ -527,6 +528,7 @@ export function NativeChatPanel({
   const [threadBeforeSequence, setThreadBeforeSequence] = useState<number | null>(null);
   const [threadHasOlderHistory, setThreadHasOlderHistory] = useState(false);
   const [threadHistoryLoading, setThreadHistoryLoading] = useState(false);
+  const [threadFirstUnreadReplyId, setThreadFirstUnreadReplyId] = useState<string | null>(null);
   const [threadBody, setThreadBody] = useState("");
   const [threadAttachments, setThreadAttachments] = useState<NativeAttachment[]>([]);
   const [threadAttachmentRootId, setThreadAttachmentRootId] = useState<string | null>(null);
@@ -565,6 +567,8 @@ export function NativeChatPanel({
     setThreadBeforeSequence(null);
     setThreadHasOlderHistory(false);
     setThreadHistoryLoading(false);
+    setThreadFirstUnreadReplyId(null);
+    threadMarkedThroughRef.current = null;
     setThreadBody("");
     setThreadAttachments([]);
     setThreadAttachmentRootId(null);
@@ -621,6 +625,8 @@ export function NativeChatPanel({
     handledDeepLink.current = requestedMessage.id;
     const controller = new AbortController();
     setThreadRoot(root);
+    setThreadFirstUnreadReplyId(root.thread_first_unread_reply_id ?? null);
+    threadMarkedThroughRef.current = null;
     setThreadLoading(true);
     void fetch(
       `${conversationEndpoint}/messages/${encodeURIComponent(root.id)}/replies`,
@@ -632,6 +638,7 @@ export function NativeChatPanel({
       setThreadReplies(replies);
       setThreadBeforeSequence(replies[0]?.message_sequence ?? null);
       setThreadHasOlderHistory(replies.length >= 100);
+      void persistThreadRead(root.id, replies.at(-1)?.id ?? root.id);
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           document.getElementById(`message-${requestedMessage.id}`)?.scrollIntoView({
@@ -699,6 +706,8 @@ export function NativeChatPanel({
             setThreadBeforeSequence(refreshed[0].message_sequence);
             setThreadHasOlderHistory(refreshed.length >= 100);
           }
+          const latest = refreshed.at(-1);
+          if (latest) void persistThreadRead(threadRootId, latest.id);
         }
       } catch {
         if (requestController.signal.aborted || stopped) return;
@@ -728,6 +737,14 @@ export function NativeChatPanel({
     );
     if (current?.deleted_at) setFirstUnreadMessageId(null);
   }, [firstUnreadMessageId, rootMessages, threadReplies]);
+
+  useEffect(() => {
+    if (!threadFirstUnreadReplyId) return;
+    const current = threadReplies.find(
+      (message) => message.id === threadFirstUnreadReplyId,
+    );
+    if (current?.deleted_at) setThreadFirstUnreadReplyId(null);
+  }, [threadFirstUnreadReplyId, threadReplies]);
 
   useEffect(() => {
     if (!conversationEndpoint || !channel.latest_message_id || !channel.unread_count) return;
@@ -932,6 +949,86 @@ export function NativeChatPanel({
     }
   }
 
+  async function persistThreadRead(
+    rootId: string,
+    throughMessageId: string,
+  ) {
+    if (!conversationEndpoint || threadMarkedThroughRef.current === throughMessageId) return;
+    try {
+      const response = await fetch(
+        `${conversationEndpoint}/messages/${encodeURIComponent(rootId)}/thread-read`,
+        {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ through_message_id: throughMessageId }),
+        },
+      );
+      if (response.ok) {
+        threadMarkedThroughRef.current = throughMessageId;
+        router.refresh();
+      } else if (response.status === 403 || response.status === 404) {
+        setThreadRoot(null);
+        setThreadReplies([]);
+        router.refresh();
+      }
+    } catch {
+      // Read progress is best-effort UI state; a later open/live refresh retries safely.
+    }
+  }
+
+  function focusThreadUnreadDivider(messageId: string) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const divider = document.getElementById(`thread-first-unread-${messageId}`);
+        divider?.scrollIntoView({ block: "center" });
+        divider?.focus({ preventScroll: true });
+      });
+    });
+  }
+
+  async function jumpToThreadUnread() {
+    if (!threadFirstUnreadReplyId || !conversationEndpoint || !threadRoot) return;
+    const existing = document.getElementById(
+      `thread-first-unread-${threadFirstUnreadReplyId}`,
+    );
+    if (existing) {
+      existing.scrollIntoView({ block: "center" });
+      existing.focus({ preventScroll: true });
+      return;
+    }
+    try {
+      const response = await fetch(
+        `${conversationEndpoint}/messages/${encodeURIComponent(threadFirstUnreadReplyId)}`,
+        { credentials: "same-origin", cache: "no-store" },
+      );
+      if (response.status === 403 || response.status === 404) {
+        setThreadFirstUnreadReplyId(null);
+        router.refresh();
+        return;
+      }
+      if (!response.ok) {
+        setStatus({ kind: "error", text: safeMessageError(response.status) });
+        return;
+      }
+      const target = await response.json() as NativeMessage;
+      if (target.deleted_at || target.thread_root_id !== threadRoot.id) {
+        setThreadFirstUnreadReplyId(null);
+        return;
+      }
+      setThreadReplies((current) => {
+        const merged = new Map(current.map((message) => [message.id, message]));
+        merged.set(target.id, target);
+        return [...merged.values()].sort(
+          (left, right) => left.message_sequence - right.message_sequence,
+        );
+      });
+      focusThreadUnreadDivider(target.id);
+    } catch {
+      setStatus({ kind: "error", text: "The first unread reply could not be loaded safely." });
+    }
+  }
+
   async function openThread(message: NativeMessage, focusMessageId?: string) {
     if (uploadingTarget === "thread" && threadRoot?.id !== message.id) {
       setStatus({
@@ -950,6 +1047,8 @@ export function NativeChatPanel({
     setThreadRoot(message);
     setThreadFocused(false);
     setThreadReplies([]);
+    setThreadFirstUnreadReplyId(message.thread_first_unread_reply_id ?? null);
+    threadMarkedThroughRef.current = null;
     setThreadBeforeSequence(null);
     setThreadHasOlderHistory(false);
     setThreadHistoryLoading(false);
@@ -972,6 +1071,8 @@ export function NativeChatPanel({
       setThreadReplies(replies);
       setThreadBeforeSequence(replies[0]?.message_sequence ?? null);
       setThreadHasOlderHistory(replies.length >= 100);
+      const throughId = replies.at(-1)?.id ?? message.id;
+      void persistThreadRead(message.id, throughId);
       if (focusMessageId) {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
@@ -1685,6 +1786,12 @@ export function NativeChatPanel({
           >
             <header className={styles.threadHeader}>
               <div><h3 id="thread-heading" ref={threadHeading} tabIndex={-1}>Thread</h3><small>#{channel.name}</small></div>
+              <div className={styles.threadHeaderActions}>
+                {threadFirstUnreadReplyId ? (
+                  <button onClick={() => void jumpToThreadUnread()} type="button">
+                    Jump to unread
+                  </button>
+                ) : null}
               <button
                 aria-label="Close thread"
                 disabled={uploadingTarget === "thread"}
@@ -1696,6 +1803,7 @@ export function NativeChatPanel({
               >
                 ×
               </button>
+              </div>
             </header>
             <div className={styles.threadFeed}>
               <MessageCard
@@ -1728,7 +1836,17 @@ export function NativeChatPanel({
               {threadLoading ? <p className={styles.threadStatus} role="status">Loading replies…</p> : null}
               {!threadLoading && threadReplies.length ? threadReplies.map((reply) => (
                 <Fragment key={reply.id}>
-                  {reply.id === firstUnreadMessageId ? (
+                  {reply.id === threadFirstUnreadReplyId ? (
+                    <div
+                      aria-label="New replies begin here"
+                      className={styles.firstUnreadDivider}
+                      id={`thread-first-unread-${reply.id}`}
+                      role="separator"
+                      tabIndex={-1}
+                    >
+                      <span>New replies</span>
+                    </div>
+                  ) : reply.id === firstUnreadMessageId ? (
                     <div
                       aria-label="New messages begin here"
                       className={styles.firstUnreadDivider}
