@@ -161,6 +161,13 @@ def test_dm_reactions_are_participant_private_idempotent_and_aggregate_only(
     assert duplicate.status_code == 200
     assert first.json() == {"reaction": "👍", "count": 1, "reacted_by_me": True}
     assert duplicate.json() == first.json()
+    _as(alice)
+    try:
+        spaced = client.put(f"{base}/reaction", json={"reaction": " ✅ "})
+    finally:
+        _clear()
+    assert spaced.status_code == 200
+    assert spaced.json() == {"reaction": "✅", "count": 1, "reacted_by_me": True}
     assert alice_read.json()["reactions"] == [
         {"reaction": "👍", "count": 1, "reacted_by_me": True}
     ]
