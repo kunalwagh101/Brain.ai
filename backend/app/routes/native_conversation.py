@@ -121,6 +121,7 @@ class ConversationMessageRead(BaseModel):
     body_sha256: str
     projection_status: NativeMessageProjectionStatus
     canonical_event_id: uuid.UUID | None
+    message_sequence: int
     created_at: datetime
     reply_count: int
     mentions: list[MentionRead]
@@ -319,6 +320,7 @@ def _message_reads(
                 body_sha256="" if deleted else message.body_sha256,
                 projection_status=message.projection_status,
                 canonical_event_id=message.canonical_event_id,
+                message_sequence=message.message_sequence,
                 created_at=message.created_at,
                 reply_count=int(extra["reply_count"]),
                 mentions=[] if deleted else extra["mentions"],
@@ -702,6 +704,7 @@ def list_roots(
     db: Annotated[Session, Depends(get_db)],
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     before: datetime | None = None,
+    before_sequence: Annotated[int | None, Query(ge=1)] = None,
 ) -> list[ConversationMessageRead]:
     try:
         _, messages = list_channel_messages(
@@ -711,6 +714,7 @@ def list_roots(
             user_id=authorization.user_id,
             limit=limit,
             before=before,
+            before_sequence=before_sequence,
         )
     except NativeChatError as exc:
         _raise_chat_error(exc)
