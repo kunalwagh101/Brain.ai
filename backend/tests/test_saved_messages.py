@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
+from app.data_governance_models import SecurityAuditEvent
 from app.main import app
 from app.models import Membership, MembershipRole, Organization, User
 from app.native_conversation_models import NativeMessageSave
@@ -378,3 +379,49 @@ def test_wrong_channel_cross_tenant_and_unsave_are_fail_closed_and_idempotent(
         owner,
         active=False,
     ).status_code == 204
+
+
+def test_normal_saved_traffic_creates_no_security_audit_history(
+    db_session: Session,
+    client,
+) -> None:
+    organization, _, owner, _, _ = _seed(db_session, "no-audit")
+    channel = _channel(client, organization, owner)
+    message = _message(
+        client,
+        organization,
+        channel["id"],
+        owner,
+        "Private follow-up metadata.",
+        "save-no-audit",
+    )
+    baseline = db_session.scalar(
+        select(func.count())
+        .select_from(SecurityAuditEvent)
+        .where(SecurityAuditEvent.organization_id == organization.id)
+    ) or 0
+
+    assert _saved(client, organization, owner).status_code == 200
+    assert _save(
+        client,
+        organization,
+        channel["id"],
+        message["id"],
+        owner,
+    ).status_code == 200
+    assert _saved(client, organization, owner).status_code == 200
+    assert _save(
+        client,
+        organization,
+        channel["id"],
+        message["id"],
+        owner,
+        active=False,
+    ).status_code == 204
+
+    after = db_session.scalar(
+        select(func.count())
+        .select_from(SecurityAuditEvent)
+        .where(SecurityAuditEvent.organization_id == organization.id)
+    ) or 0
+    assert after == baseline
