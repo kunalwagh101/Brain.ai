@@ -202,3 +202,50 @@ class DirectMessageRevision(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+class DirectMessageReaction(Base):
+    __tablename__ = "direct_message_reactions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "conversation_id", "message_id"],
+            [
+                "direct_messages.organization_id",
+                "direct_messages.conversation_id",
+                "direct_messages.id",
+            ],
+            ondelete="CASCADE",
+            name="fk_direct_message_reaction_message_scope",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "user_id"],
+            ["memberships.organization_id", "memberships.user_id"],
+            ondelete="CASCADE",
+            name="fk_direct_message_reaction_membership",
+        ),
+        UniqueConstraint(
+            "message_id",
+            "user_id",
+            "reaction",
+            name="uq_direct_message_reaction_message_user_value",
+        ),
+        CheckConstraint(
+            "reaction IN ('👍', '❤️', '🎉', '👀', '✅')",
+            name="ck_direct_message_reaction_allowed",
+        ),
+        Index(
+            "ix_direct_message_reaction_org_message",
+            "organization_id",
+            "message_id",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    conversation_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    message_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    reaction: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
