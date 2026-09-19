@@ -2,6 +2,7 @@ import { withAuth } from "@workos-inc/authkit-nextjs";
 import { NextRequest } from "next/server";
 import {
   handleNativeMessageEditBff,
+  handleNativeMessageReadBff,
   handleNativeMessageRetractBff,
 } from "../../../../../../../../../native-chat-bff";
 import {
@@ -16,6 +17,25 @@ type Params = Promise<{
   channelId: string;
   messageId: string;
 }>;
+
+export async function GET(_request: NextRequest, context: { params: Params }) {
+  const auth = await withAuth();
+  if (!auth.user || !auth.accessToken) {
+    return nativeChatJson({ detail: "Authentication required" }, 401);
+  }
+  try {
+    const { organizationId, channelId, messageId } = await context.params;
+    const result = await handleNativeMessageReadBff(
+      auth.accessToken,
+      organizationId,
+      channelId,
+      messageId,
+    );
+    return nativeChatJson(result, 200);
+  } catch (error) {
+    return nativeChatRouteError(error, "Native message read");
+  }
+}
 
 export async function PATCH(request: NextRequest, context: { params: Params }) {
   const crossSite = rejectCrossSiteMutation(request);
