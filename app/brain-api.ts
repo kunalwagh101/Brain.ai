@@ -607,10 +607,17 @@ export function listNativeReplies(
   organizationId: string,
   channelId: string,
   rootMessageId: string,
+  limit = 100,
+  beforeSequence?: number | null,
 ): Promise<NativeMessage[]> {
+  const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 200);
+  const params = new URLSearchParams({ limit: String(boundedLimit) });
+  if (beforeSequence !== undefined && beforeSequence !== null) {
+    params.set("before_sequence", String(Math.max(1, Math.trunc(beforeSequence))));
+  }
   return brainApiFetch(
     accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(rootMessageId)}/replies`,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(rootMessageId)}/replies?${params.toString()}`,
   );
 }
 
