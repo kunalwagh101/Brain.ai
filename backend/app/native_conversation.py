@@ -46,6 +46,7 @@ from app.native_conversation_models import (
     NativeMessagePin,
     NativeMessageReaction,
     NativeMessageSave,
+    NativeThreadReadState,
 )
 from app.search import project_search_document
 from app.search_models import SearchDocument
@@ -1027,6 +1028,198 @@ def channel_unread_summaries(
         )
         for channel_id in channel_ids
     }
+
+
+def thread_unread_summaries(
+    db: Session,
+    *,
+    roots: list[NativeMessage],
+    user_id: uuid.UUID,
+) -> dict[
+    uuid.UUID,
+    tuple[
+        int,
+        NativeThreadReadState | None,
+        uuid.UUID | None,
+        uuid.UUID | None,
+    ],
+]:
+    root_ids = [root.id for root in roots if root.thread_root_id is None]
+    if not root_ids:
+        return {}
+
+    states = {
+        state.root_message_id: state
+        for state in db.scalars(
+            select(NativeThreadReadState).where(
+                NativeThreadReadState.root_message_id.in_(root_ids),
+                NativeThreadReadState.user_id == user_id,
+            )
+        )
+    }
+
+    unread_ranked = (
+        select(
+            NativeMessage.thread_root_id.label("root_message_id"),
+            NativeMessage.id.label("message_id"),
+            func.count()
+            .over(partition_by=NativeMessage.thread_root_id)
+            .label("unread_count"),
+            func.row_number()
+            .over(
+                partition_by=NativeMessage.thread_root_id,
+                order_by=NativeMessage.message_sequence,
+            )
+            .label("unread_rank"),
+        )
+        .join(
+            NativeThreadReadState,
+            and_(
+                NativeThreadReadState.root_message_id
+                == NativeMessage.thread_root_id,
+                NativeThreadReadState.user_id == user_id,
+            ),
+        )
+        .where(
+            NativeMessage.thread_root_id.in_(root_ids),
+            NativeMessage.deleted_at.is_(None),
+            or_(
+                NativeMessage.author_user_id.is_(None),
+                NativeMessage.author_user_id != user_id,
+            ),
+            NativeMessage.message_sequence
+            > NativeThreadReadState.last_read_sequence,
+        )
+        .subquery()
+    )
+    unread = {
+        root_id: (int(count), message_id)
+        for root_id, count, message_id in db.execute(
+            select(
+                unread_ranked.c.root_message_id,
+                unread_ranked.c.unread_count,
+                unread_ranked.c.message_id,
+            ).where(unread_ranked.c.unread_rank == 1)
+        )
+    }
+
+    latest_ranked = (
+        select(
+            NativeMessage.thread_root_id.label("root_message_id"),
+            NativeMessage.id.label("message_id"),
+            func.row_number()
+            .over(
+                partition_by=NativeMessage.thread_root_id,
+                order_by=NativeMessage.message_sequence.desc(),
+            )
+            .label("latest_rank"),
+        )
+        .where(
+            NativeMessage.thread_root_id.in_(root_ids),
+            NativeMessage.deleted_at.is_(None),
+        )
+        .subquery()
+    )
+    latest = {
+        root_id: message_id
+        for root_id, message_id in db.execute(
+            select(
+                latest_ranked.c.root_message_id,
+                latest_ranked.c.message_id,
+            ).where(latest_ranked.c.latest_rank == 1)
+        )
+    }
+
+    return {
+        root_id: (
+            unread.get(root_id, (0, None))[0] if root_id in states else 0,
+            states.get(root_id),
+            latest.get(root_id),
+            unread.get(root_id, (0, None))[1] if root_id in states else None,
+        )
+        for root_id in root_ids
+    }
+
+
+def mark_thread_read(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    root_message_id: uuid.UUID,
+    user_id: uuid.UUID,
+    through_message_id: uuid.UUID,
+) -> NativeThreadReadState:
+    _, root = visible_message(
+        db,
+        organization_id=organization_id,
+        channel_id=channel_id,
+        message_id=root_message_id,
+        user_id=user_id,
+    )
+    if root.thread_root_id is not None:
+        raise NativeChatError("thread_root_not_found", "Thread root not found")
+
+    _, through = visible_message(
+        db,
+        organization_id=organization_id,
+        channel_id=channel_id,
+        message_id=through_message_id,
+        user_id=user_id,
+    )
+    if through.id != root.id and through.thread_root_id != root.id:
+        raise NativeChatError("message_not_found", "Message not found")
+
+    state = db.scalar(
+        select(NativeThreadReadState)
+        .where(
+            NativeThreadReadState.organization_id == organization_id,
+            NativeThreadReadState.channel_id == channel_id,
+            NativeThreadReadState.root_message_id == root_message_id,
+            NativeThreadReadState.user_id == user_id,
+        )
+        .with_for_update()
+    )
+    cursor = through.message_sequence
+    if state is None:
+        state = NativeThreadReadState(
+            organization_id=organization_id,
+            channel_id=channel_id,
+            root_message_id=root_message_id,
+            user_id=user_id,
+            last_read_message_id=through.id,
+            last_read_sequence=cursor,
+            last_read_at=through.created_at,
+        )
+        db.add(state)
+    elif cursor > state.last_read_sequence:
+        state.last_read_message_id = through.id
+        state.last_read_sequence = cursor
+        state.last_read_at = through.created_at
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        state = db.scalar(
+            select(NativeThreadReadState).where(
+                NativeThreadReadState.organization_id == organization_id,
+                NativeThreadReadState.channel_id == channel_id,
+                NativeThreadReadState.root_message_id == root_message_id,
+                NativeThreadReadState.user_id == user_id,
+            )
+        )
+        if state is None:
+            raise NativeChatConflictError(
+                "thread_read_state_conflict",
+                "Thread read state could not be updated",
+            ) from None
+        if cursor > state.last_read_sequence:
+            state.last_read_message_id = through.id
+            state.last_read_sequence = cursor
+            state.last_read_at = through.created_at
+            db.commit()
+    db.refresh(state)
+    return state
 
 
 def mark_read(
