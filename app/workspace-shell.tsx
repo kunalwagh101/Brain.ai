@@ -403,6 +403,7 @@ export function WorkspaceShell({
             </div>
           ) : null}
           <DirectMessagePanel
+            key={selectedDirectConversation?.id ?? "no-direct-conversation"}
             organizationId={organization.id}
             conversations={directConversations}
             selectedConversation={selectedDirectConversation}
