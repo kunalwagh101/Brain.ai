@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.main import app
 from app.models import Membership, MembershipRole, Organization, ResourceGrant, User
-from app.native_chat_models import NativeChannel
-from app.native_workspace_models import NativeTeam
+from app.native_chat_models import NativeChannel, NativeChannelMembership
+from app.native_workspace_models import NativeChannelGroup, NativeTeam
 
 
 def _seed(db: Session, suffix: str):
@@ -262,3 +262,202 @@ def test_team_cross_tenant_mutation_fails_closed(
         },
     )
     assert response.status_code == 404
+
+def test_channel_group_moves_preserve_acl_and_resource_grants(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, other, _ = _seed(db_session, "groups")
+    _as(owner)
+    team = client.post(
+        f"/api/v1/organizations/{organization.id}/native-teams",
+        json={"name": "Engineering"},
+    ).json()
+    group = client.post(
+        f"/api/v1/organizations/{organization.id}/native-teams/"
+        f"{team['id']}/groups",
+        json={"name": "Backend Services"},
+    )
+    assert group.status_code == 201
+    group_row = group.json()
+
+    channel = client.post(
+        f"/api/v1/organizations/{organization.id}/native-channels",
+        json={
+            "name": "Production Backend",
+            "visibility": "restricted",
+            "description": "Sensitive backend channel",
+        },
+    )
+    assert channel.status_code == 201
+    channel_id = uuid.UUID(channel.json()["id"])
+    invited = client.post(
+        f"/api/v1/organizations/{organization.id}/native-channels/"
+        f"{channel_id}/members",
+        json={"email": member.email, "access": "read"},
+    )
+    assert invited.status_code == 200
+
+    memberships_before = set(
+        db_session.execute(
+            select(
+                NativeChannelMembership.user_id,
+                NativeChannelMembership.access,
+                NativeChannelMembership.revoked_at,
+            ).where(
+                NativeChannelMembership.organization_id == organization.id,
+                NativeChannelMembership.channel_id == channel_id,
+            )
+        ).all()
+    )
+    grants_before = set(
+        db_session.execute(
+            select(
+                ResourceGrant.resource_type,
+                ResourceGrant.resource_id,
+                ResourceGrant.user_id,
+                ResourceGrant.access,
+            ).where(ResourceGrant.organization_id == organization.id)
+        ).all()
+    )
+
+    assigned = client.patch(
+        f"/api/v1/organizations/{organization.id}/native-teams/"
+        f"channel-assignment/{channel_id}",
+        json={
+            "team_id": team["id"],
+            "channel_group_id": group_row["id"],
+        },
+    )
+    assert assigned.status_code == 200
+    assert assigned.json()["team_id"] == team["id"]
+    assert assigned.json()["channel_group_id"] == group_row["id"]
+
+    db_session.expire_all()
+    stored = db_session.get(NativeChannel, channel_id)
+    assert stored is not None
+    assert str(stored.team_id) == team["id"]
+    assert str(stored.channel_group_id) == group_row["id"]
+    assert set(
+        db_session.execute(
+            select(
+                NativeChannelMembership.user_id,
+                NativeChannelMembership.access,
+                NativeChannelMembership.revoked_at,
+            ).where(
+                NativeChannelMembership.organization_id == organization.id,
+                NativeChannelMembership.channel_id == channel_id,
+            )
+        ).all()
+    ) == memberships_before
+    assert set(
+        db_session.execute(
+            select(
+                ResourceGrant.resource_type,
+                ResourceGrant.resource_id,
+                ResourceGrant.user_id,
+                ResourceGrant.access,
+            ).where(ResourceGrant.organization_id == organization.id)
+        ).all()
+    ) == grants_before
+
+    _as(member)
+    denied = client.patch(
+        f"/api/v1/organizations/{organization.id}/native-teams/"
+        f"channel-assignment/{channel_id}",
+        json={"team_id": None, "channel_group_id": None},
+    )
+    assert denied.status_code == 404
+
+    _as(owner)
+    archived = client.post(
+        f"/api/v1/organizations/{organization.id}/native-teams/"
+        f"{team['id']}/groups/{group_row['id']}/archive",
+        json={"expected_revision": group_row["revision"]},
+    )
+    assert archived.status_code == 200
+    assert archived.json()["status"] == "archived"
+
+    groups = client.get(
+        f"/api/v1/organizations/{organization.id}/native-teams/groups"
+    )
+    assert all(item["id"] != group_row["id"] for item in groups.json())
+    visible_channels = client.get(
+        f"/api/v1/organizations/{organization.id}/native-channels"
+    )
+    visible = next(item for item in visible_channels.json() if item["id"] == str(channel_id))
+    assert visible["team_id"] == team["id"]
+    assert visible["channel_group_id"] == group_row["id"]
+
+    rejected_archived_target = client.patch(
+        f"/api/v1/organizations/{organization.id}/native-teams/"
+        f"channel-assignment/{channel_id}",
+        json={
+            "team_id": team["id"],
+            "channel_group_id": group_row["id"],
+        },
+    )
+    assert rejected_archived_target.status_code == 404
+
+    unassigned = client.patch(
+        f"/api/v1/organizations/{organization.id}/native-teams/"
+        f"channel-assignment/{channel_id}",
+        json={"team_id": None, "channel_group_id": None},
+    )
+    assert unassigned.status_code == 200
+    assert unassigned.json()["team_id"] is None
+    assert unassigned.json()["channel_group_id"] is None
+
+
+def test_channel_group_team_scope_and_stale_revision_fail_closed(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, _, _ = _seed(db_session, "group-scope")
+    _as(owner)
+    first_team = client.post(
+        f"/api/v1/organizations/{organization.id}/native-teams",
+        json={"name": "First Team"},
+    ).json()
+    second_team = client.post(
+        f"/api/v1/organizations/{organization.id}/native-teams",
+        json={"name": "Second Team"},
+    ).json()
+    group = client.post(
+        f"/api/v1/organizations/{organization.id}/native-teams/"
+        f"{first_team['id']}/groups",
+        json={"name": "API"},
+    )
+    assert group.status_code == 201
+    current = group.json()
+
+    edited = client.patch(
+        f"/api/v1/organizations/{organization.id}/native-teams/"
+        f"{first_team['id']}/groups/{current['id']}",
+        json={"name": "Platform API", "expected_revision": current["revision"]},
+    )
+    assert edited.status_code == 200
+    stale = client.patch(
+        f"/api/v1/organizations/{organization.id}/native-teams/"
+        f"{first_team['id']}/groups/{current['id']}",
+        json={"name": "Stale", "expected_revision": current["revision"]},
+    )
+    assert stale.status_code == 409
+
+    wrong_team = client.patch(
+        f"/api/v1/organizations/{organization.id}/native-teams/"
+        f"{second_team['id']}/groups/{current['id']}",
+        json={
+            "name": "Cross Team",
+            "expected_revision": edited.json()["revision"],
+        },
+    )
+    assert wrong_team.status_code == 404
+
+    _as(member)
+    denied_create = client.post(
+        f"/api/v1/organizations/{organization.id}/native-teams/"
+        f"{first_team['id']}/groups",
+        json={"name": "No Authority"},
+    )
+    assert denied_create.status_code == 404
