@@ -24,6 +24,11 @@ export type DirectMessage = {
   body: string;
   body_sha256: string;
   sequence: number;
+  revision: number;
+  edited_at: string | null;
+  deleted_at: string | null;
+  can_edit: boolean;
+  can_delete: boolean;
   created_at: string;
 };
 
@@ -35,6 +40,35 @@ function apiBaseUrl(): string {
     throw new Error("BRAIN_API_BASE_URL must use HTTPS in production");
   }
   return configured.replace(/\/$/, "");
+}
+
+async function dmMutation<T>(
+  accessToken: string,
+  path: string,
+  method: "PATCH" | "DELETE",
+  body: object,
+): Promise<T> {
+  if (!accessToken.trim()) throw new Error("A server-side WorkOS access token is required");
+  const response = await fetch(`${apiBaseUrl()}${path}`, {
+    method,
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    let detail: unknown = null;
+    try {
+      detail = await response.json();
+    } catch {
+      detail = { error: "non_json_error_response" };
+    }
+    throw new BrainApiError(response.status, detail);
+  }
+  return (await response.json()) as T;
 }
 
 async function dmFetch<T>(accessToken: string, path: string): Promise<T> {
@@ -95,5 +129,36 @@ export function listDirectMessages(
   return dmFetch(
     accessToken,
     `/api/v1/organizations/${encodeURIComponent(organizationId)}/direct-messages/${encodeURIComponent(conversationId)}/messages?${params.toString()}`,
+  );
+}
+
+export function editDirectMessage(
+  accessToken: string,
+  organizationId: string,
+  conversationId: string,
+  messageId: string,
+  body: string,
+  expectedRevision: number,
+): Promise<DirectMessage> {
+  return dmMutation(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/direct-messages/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
+    "PATCH",
+    { body, expected_revision: expectedRevision },
+  );
+}
+
+export function retractDirectMessage(
+  accessToken: string,
+  organizationId: string,
+  conversationId: string,
+  messageId: string,
+  expectedRevision: number,
+): Promise<DirectMessage> {
+  return dmMutation(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/direct-messages/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
+    "DELETE",
+    { expected_revision: expectedRevision },
   );
 }
