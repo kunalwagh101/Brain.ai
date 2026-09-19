@@ -485,3 +485,19 @@ UI: root reply affordance shows thread unread count; opening captures the root's
 Security/rollback: current channel visibility is rechecked on every summary/read action. Restricted revocation immediately removes access. Migration adds only thread read-state rows; downgrade drops only that table.
 
 Done boundary: repository implementation may reach IN_REVIEW. DONE requires PostgreSQL migration round-trip, backend/frontend/verifier execution and authenticated two-user thread unread/revocation UAT.
+
+## Increment 39 readiness record — S-10.23.01
+
+Decision: `READY` for repository implementation on 2026-09-20; S-10.22 left implementation WIP first.
+
+Baseline: channel reactions already provide a proven five-reaction/idempotent UX, but DMs intentionally use separate participant-private persistence and cannot reuse channel reaction tables or organisation-wide activity/audit semantics.
+
+Architecture: add `DirectMessageReaction` scoped by organisation/conversation/message/user with the same allowlist (👍 ❤️ 🎉 👀 ✅), unique message/user/reaction and cascade from the private DM message. Batch reaction aggregates are materialised into DM read models as count + reacted-by-me only; participant identity lists are never returned. Add/remove validates current DM participation and current visibility epoch through the existing participant message read path and rejects retracted messages.
+
+Privacy: normal private reaction changes create no RawEvent, CanonicalEvent, SearchDocument, Work Graph, Activity item or organisation-wide SecurityAuditEvent. Owner/Admin/Executive status alone grants no access. Retraction/private-message retention removes reaction rows by cascade.
+
+Browser/security: bounded same-origin WorkOS PUT/DELETE route with allow-list validation and server-held bearer token only.
+
+Migration/rollback: migration `20260920_0037` adds only private reaction rows; downgrade removes only those rows/table and changes no DM content.
+
+Done boundary: repository implementation may reach IN_REVIEW. DONE requires PostgreSQL migration round-trip, privacy/idempotency tests, frontend execution/verifier and authenticated two-user WorkOS UAT.
