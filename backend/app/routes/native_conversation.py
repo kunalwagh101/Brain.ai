@@ -153,6 +153,7 @@ class ChannelUnreadRead(BaseModel):
     unread_count: int
     last_read_at: datetime | None
     latest_message_id: uuid.UUID | None
+    first_unread_message_id: uuid.UUID | None
 
 
 class MarkReadWrite(BaseModel):
@@ -411,13 +412,14 @@ def list_channel_unread(
     )
     result = []
     for channel in channels:
-        count, read_state, latest_message_id = summaries[channel.id]
+        count, read_state, latest_message_id, first_unread_message_id = summaries[channel.id]
         result.append(
             ChannelUnreadRead(
                 channel_id=channel.id,
                 unread_count=count,
                 last_read_at=read_state.last_read_at if read_state else None,
                 latest_message_id=latest_message_id,
+                first_unread_message_id=first_unread_message_id,
             )
         )
     return result
@@ -1021,4 +1023,5 @@ def mark_channel_read(
         unread_count=count,
         last_read_at=state.last_read_at,
         latest_message_id=payload.through_message_id,
+        first_unread_message_id=None,
     )
