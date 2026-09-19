@@ -41,7 +41,11 @@ class DirectConversation(Base):
             "AND participant_a_visible_from_sequence >= 1 "
             "AND participant_b_visible_from_sequence >= 1 "
             "AND participant_a_visible_from_sequence <= next_message_sequence "
-            "AND participant_b_visible_from_sequence <= next_message_sequence",
+            "AND participant_b_visible_from_sequence <= next_message_sequence "
+            "AND participant_a_last_read_sequence >= participant_a_visible_from_sequence - 1 "
+            "AND participant_b_last_read_sequence >= participant_b_visible_from_sequence - 1 "
+            "AND participant_a_last_read_sequence < next_message_sequence "
+            "AND participant_b_last_read_sequence < next_message_sequence",
             name="ck_direct_conversation_sequence_bounds",
         ),
         Index(
@@ -74,6 +78,12 @@ class DirectConversation(Base):
     )
     participant_b_visible_from_sequence: Mapped[int] = mapped_column(
         Integer, default=1, nullable=False
+    )
+    participant_a_last_read_sequence: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
+    )
+    participant_b_last_read_sequence: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
     )
     participant_a_revoked_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
