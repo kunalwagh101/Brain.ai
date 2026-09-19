@@ -55,11 +55,13 @@ from app.native_conversation import (
     list_saved_messages,
     list_thread_replies,
     mark_read,
+    mark_thread_read,
     message_affordances,
     message_attachment_metadata,
     pin_message,
     remove_reaction,
     retract_message,
+    thread_unread_summaries,
     save_message,
     unpin_message,
     unsave_message,
@@ -124,6 +126,9 @@ class ConversationMessageRead(BaseModel):
     message_sequence: int
     created_at: datetime
     reply_count: int
+    thread_unread_count: int
+    thread_latest_reply_id: uuid.UUID | None
+    thread_first_unread_reply_id: uuid.UUID | None
     mentions: list[MentionRead]
     reactions: list[ReactionRead]
     attachments: list[AttachmentRead]
@@ -160,6 +165,13 @@ class MarkReadWrite(BaseModel):
     through_message_id: uuid.UUID
 
     model_config = {"extra": "forbid"}
+
+
+class ThreadUnreadRead(BaseModel):
+    root_message_id: uuid.UUID
+    unread_count: int
+    latest_reply_id: uuid.UUID | None
+    first_unread_reply_id: uuid.UUID | None
 
 
 class ReactionWrite(BaseModel):
@@ -288,6 +300,12 @@ def _message_reads(
 ) -> list[ConversationMessageRead]:
     labels = _actor_labels(db, messages)
     affordances = message_affordances(db, messages=messages, user_id=user_id)
+    roots = [message for message in messages if message.thread_root_id is None]
+    thread_summaries = thread_unread_summaries(
+        db,
+        roots=roots,
+        user_id=user_id,
+    )
     attachment_map = message_attachment_metadata(
         db,
         messages=messages,
@@ -323,6 +341,21 @@ def _message_reads(
                 message_sequence=message.message_sequence,
                 created_at=message.created_at,
                 reply_count=int(extra["reply_count"]),
+                thread_unread_count=(
+                    thread_summaries.get(message.id, (0, None, None, None))[0]
+                    if message.thread_root_id is None
+                    else 0
+                ),
+                thread_latest_reply_id=(
+                    thread_summaries.get(message.id, (0, None, None, None))[2]
+                    if message.thread_root_id is None
+                    else None
+                ),
+                thread_first_unread_reply_id=(
+                    thread_summaries.get(message.id, (0, None, None, None))[3]
+                    if message.thread_root_id is None
+                    else None
+                ),
                 mentions=[] if deleted else extra["mentions"],
                 reactions=[] if deleted else extra["reactions"],
                 attachments=[] if deleted else attachment_map[message.id],
@@ -889,6 +922,49 @@ def list_replies(
     except NativeChatError as exc:
         _raise_chat_error(exc)
     return _message_reads(db, replies, authorization.user_id)
+
+
+@router.post(
+    "/channels/{channel_id}/messages/{root_message_id}/thread-read",
+    response_model=ThreadUnreadRead,
+)
+def mark_thread_as_read(
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    root_message_id: uuid.UUID,
+    payload: MarkReadWrite,
+    authorization: Annotated[AuthorizationContext, Depends(_read)],
+    db: Annotated[Session, Depends(get_db)],
+) -> ThreadUnreadRead:
+    try:
+        mark_thread_read(
+            db,
+            organization_id=organization_id,
+            channel_id=channel_id,
+            root_message_id=root_message_id,
+            user_id=authorization.user_id,
+            through_message_id=payload.through_message_id,
+        )
+        _, root = visible_message(
+            db,
+            organization_id=organization_id,
+            channel_id=channel_id,
+            message_id=root_message_id,
+            user_id=authorization.user_id,
+        )
+        summary = thread_unread_summaries(
+            db,
+            roots=[root],
+            user_id=authorization.user_id,
+        )[root.id]
+    except NativeChatError as exc:
+        _raise_chat_error(exc)
+    return ThreadUnreadRead(
+        root_message_id=root_message_id,
+        unread_count=summary[0],
+        latest_reply_id=summary[2],
+        first_unread_reply_id=summary[3],
+    )
 
 
 @router.post(
