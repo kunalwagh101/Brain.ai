@@ -17,18 +17,22 @@ type Params = Promise<{
   rootMessageId: string;
 }>;
 
-export async function GET(_request: NextRequest, context: { params: Params }) {
+export async function GET(request: NextRequest, context: { params: Params }) {
   const auth = await withAuth();
   if (!auth.user || !auth.accessToken) {
     return nativeChatJson({ detail: "Authentication required" }, 401);
   }
   try {
     const { organizationId, channelId, rootMessageId } = await context.params;
+    const rawLimit = request.nextUrl.searchParams.get("limit") ?? "100";
+    const rawBefore = request.nextUrl.searchParams.get("before_sequence");
     const result = await handleNativeThreadListBff(
       auth.accessToken,
       organizationId,
       channelId,
       rootMessageId,
+      Number(rawLimit),
+      rawBefore === null ? null : Number(rawBefore),
     );
     return nativeChatJson(result, 200);
   } catch (error) {
