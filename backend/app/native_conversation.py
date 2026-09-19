@@ -28,6 +28,7 @@ from app.native_chat import (
     can_read_channel,
     can_write_channel,
     get_visible_channel,
+    list_visible_channels,
     normalize_message_body,
     sync_exact_mentions,
 )
