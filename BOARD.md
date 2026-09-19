@@ -48,19 +48,21 @@ IN_REVIEW | S-10.14.01 | F-10.14 | Ephemeral 75s presence + 8s typing leases, re
 IN_REVIEW | S-10.15.01 | F-10.15 | Reference-only shared channel pins, current reader/writer permission checks, retry-safe uniqueness, thread/root reopening, same-lifecycle retract cleanup, structural live refresh and WorkOS BFF/UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.16.01 | F-10.16 | Private reference-only Saved messages, membership/message scoped FKs, current visible-channel filtering, read-only Save support, audit-free personal traffic, same-lifecycle retract cleanup, exact deep links and WorkOS UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.17.01 | F-10.17 | Set-based first-unread ID, same-origin exact-message recovery, stable accessible root/thread divider/jump, regressions/docs/UAT staged; executable backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
-IN_PROGRESS | S-10.18.01 | F-10.18 | Participant-only DM unread/read cursor + exact first-unread/jump vertical slice pulled after READY audit
+IN_REVIEW | S-10.18.01 | F-10.18 | Epoch-safe participant DM read cursors, set-based unread/first-target summary, exact participant-only recovery, badges/divider/jump, migration/tests/docs staged; executable verification/UAT outstanding
 BACKLOG | S-10.19.01 | F-10.19 | Stable sequence-cursor older-message pagination for native channels and participant-only DMs
 BACKLOG | S-10.20.01 | F-10.20 | Author-owned participant-private DM edit/retract lifecycle with private revision history
 
 
 
-### S-10.18.01 DM Unread & Resume — IN_PROGRESS
+### S-10.18.01 DM Unread & Resume — IN_REVIEW
 
 Sprint goal: give each DM participant an exact monotonic private unread boundary, badge and Jump to unread without exposing private activity outside the participant pair or reviving prior visibility epochs.
 
 Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-34.md`.
 
-Formal state: `IN_PROGRESS`. WIP after pull: one story. S-10.19/S-10.20 remain BACKLOG until this slice leaves implementation WIP.
+Implementation staged: participant read cursors, visibility-epoch reset, set-based unread/latest/first-unread summaries, exact participant-only reads, monotonic mark-read, workspace/DM badges, accessible divider/jump, same-origin WorkOS routes, migration `20260919_0034`, focused regressions, UAT/demo/changelog/traceability.
+
+Formal state: `IN_REVIEW`. No executable PASS or authenticated browser UAT is claimed. WIP returns to zero; S-10.19 may now be refined/pulled.
 
 ### S-10.17.01 First-Unread Divider & Jump to Unread — IN_REVIEW
 
