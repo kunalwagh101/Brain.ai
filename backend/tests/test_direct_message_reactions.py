@@ -1,12 +1,14 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
+from app.data_governance import run_retention_once, set_retention_policy
 from app.data_governance_models import SecurityAuditEvent
-from app.direct_message_models import DirectMessageReaction
+from app.direct_message_models import DirectMessage, DirectMessageReaction
 from app.main import app
 from app.models import (
     CanonicalEvent,
@@ -203,11 +205,17 @@ def test_dm_reactions_are_participant_private_idempotent_and_aggregate_only(
     try:
         invalid = client.put(f"{base}/reaction", json={"reaction": "🔥"})
         removed = client.request("DELETE", f"{base}/reaction", json={"reaction": "👍"})
+        removed_again = client.request(
+            "DELETE",
+            f"{base}/reaction",
+            json={"reaction": "👍"},
+        )
         alice_after = client.get(base)
     finally:
         _clear()
     assert invalid.status_code == 400
     assert removed.status_code == 204
+    assert removed_again.status_code == 204
     assert alice_after.json()["reactions"] == [
         {"reaction": "👍", "count": 1, "reacted_by_me": False},
         {"reaction": "✅", "count": 1, "reacted_by_me": True},
@@ -320,3 +328,83 @@ def test_dm_reaction_old_epoch_and_retracted_message_fail_closed_and_cascade(
     assert denied.status_code == 404
     assert tombstone.status_code == 200
     assert tombstone.json()["reactions"] == []
+
+def test_private_retention_cascades_dm_reactions_and_respects_legal_hold(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    organization, alice, bob, owner = _seed(db_session)
+    conversation = _conversation(client, organization, alice, bob)
+    message = _send(
+        client,
+        organization,
+        conversation["id"],
+        alice,
+        "Aged private reaction target",
+        "dm-reaction-retention",
+    )
+    base = (
+        f"/api/v1/organizations/{organization.id}/direct-messages/"
+        f"{conversation['id']}/messages/{message['id']}"
+    )
+    _as(bob)
+    try:
+        added = client.put(f"{base}/reaction", json={"reaction": "🎉"})
+    finally:
+        _clear()
+    assert added.status_code == 200
+
+    message_id = uuid.UUID(message["id"])
+    stored = db_session.get(DirectMessage, message_id)
+    assert stored is not None
+    now = datetime.now(UTC)
+    stored.created_at = now - timedelta(days=90)
+    db_session.commit()
+
+    set_retention_policy(
+        db_session,
+        organization_id=organization.id,
+        actor_user_id=owner.id,
+        raw_event_days=None,
+        derived_content_days=None,
+        audit_event_days=None,
+        private_message_days=30,
+        legal_hold=True,
+    )
+    held = run_retention_once(
+        db_session,
+        organization_id=organization.id,
+        at=now,
+    )
+    assert held is not None
+    assert held.private_messages_deleted == 0
+    assert db_session.scalar(
+        select(func.count(DirectMessageReaction.id)).where(
+            DirectMessageReaction.message_id == message_id
+        )
+    ) == 1
+
+    set_retention_policy(
+        db_session,
+        organization_id=organization.id,
+        actor_user_id=owner.id,
+        raw_event_days=None,
+        derived_content_days=None,
+        audit_event_days=None,
+        private_message_days=30,
+        legal_hold=False,
+    )
+    purged = run_retention_once(
+        db_session,
+        organization_id=organization.id,
+        at=now,
+    )
+    assert purged is not None
+    assert purged.private_messages_deleted == 1
+    db_session.expire_all()
+    assert db_session.get(DirectMessage, message_id) is None
+    assert db_session.scalar(
+        select(func.count(DirectMessageReaction.id)).where(
+            DirectMessageReaction.message_id == message_id
+        )
+    ) == 0
