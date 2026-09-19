@@ -17,6 +17,17 @@ function timeLabel(value: string): string {
   });
 }
 
+function lifecycleError(status: number): string {
+  if (status === 401) return "Your session has expired. Sign in again.";
+  if (status === 403 || status === 404) {
+    return "This direct message is no longer editable by your account.";
+  }
+  if (status === 409) return "This direct message changed. Refresh and try again.";
+  if (status === 413) return "The message edit is too large.";
+  if (status === 422) return "The message change was not accepted.";
+  return "The direct-message change could not be completed safely.";
+}
+
 function safeError(status: number): string {
   if (status === 401) return "Your session has expired. Sign in again.";
   if (status === 403) return "Direct messaging is not available for this account.";
@@ -57,6 +68,10 @@ export function DirectMessagePanel({
   );
   const [hasOlderHistory, setHasOlderHistory] = useState(messages.length >= 200);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editBody, setEditBody] = useState("");
+  const [confirmRetractId, setConfirmRetractId] = useState<string | null>(null);
+  const [lifecycleBusyId, setLifecycleBusyId] = useState<string | null>(null);
   const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(
     selectedConversation?.first_unread_message_id ?? null,
   );
@@ -68,6 +83,14 @@ export function DirectMessagePanel({
       return [...merged.values()].sort((left, right) => left.sequence - right.sequence);
     });
   }, [messages]);
+
+  useEffect(() => {
+    if (!firstUnreadMessageId) return;
+    const current = visibleMessages.find(
+      (message) => message.id === firstUnreadMessageId,
+    );
+    if (current?.deleted_at) setFirstUnreadMessageId(null);
+  }, [firstUnreadMessageId, visibleMessages]);
 
   useEffect(() => {
     if (
@@ -162,6 +185,80 @@ export function DirectMessagePanel({
       setError("The direct-message action could not be completed.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  function applyLifecycleMessage(updated: DirectMessage) {
+    setVisibleMessages((current) => current.map((message) => (
+      message.id === updated.id ? updated : message
+    )));
+    if (updated.deleted_at && firstUnreadMessageId === updated.id) {
+      setFirstUnreadMessageId(null);
+    }
+  }
+
+  async function saveEdit(message: DirectMessage) {
+    if (!conversationEndpoint || lifecycleBusyId) return;
+    const normalized = editBody.trim();
+    if (!normalized || normalized.length > 20_000) return;
+    setLifecycleBusyId(message.id);
+    setError(null);
+    try {
+      const response = await fetch(
+        `${conversationEndpoint}/messages/${encodeURIComponent(message.id)}`,
+        {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            body: normalized,
+            expected_revision: message.revision,
+          }),
+        },
+      );
+      if (!response.ok) {
+        setError(lifecycleError(response.status));
+        return;
+      }
+      const updated = await response.json() as DirectMessage;
+      applyLifecycleMessage(updated);
+      setEditingMessageId(null);
+      setEditBody("");
+    } catch {
+      setError("The direct-message edit could not reach the secure Brain route.");
+    } finally {
+      setLifecycleBusyId(null);
+    }
+  }
+
+  async function retractMessage(message: DirectMessage) {
+    if (!conversationEndpoint || lifecycleBusyId) return;
+    setLifecycleBusyId(message.id);
+    setError(null);
+    try {
+      const response = await fetch(
+        `${conversationEndpoint}/messages/${encodeURIComponent(message.id)}`,
+        {
+          method: "DELETE",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ expected_revision: message.revision }),
+        },
+      );
+      if (!response.ok) {
+        setError(lifecycleError(response.status));
+        return;
+      }
+      const updated = await response.json() as DirectMessage;
+      applyLifecycleMessage(updated);
+      setConfirmRetractId(null);
+      setEditingMessageId(null);
+      setEditBody("");
+      router.refresh();
+    } catch {
+      setError("The direct-message retraction could not reach the secure Brain route.");
+    } finally {
+      setLifecycleBusyId(null);
     }
   }
 
@@ -360,13 +457,108 @@ export function DirectMessagePanel({
                   ) : null}
                   <article
                     className={message.is_mine ? styles.mine : styles.theirs}
+                    data-deleted={message.deleted_at !== null || undefined}
                     id={`dm-message-${message.id}`}
                   >
                     <div>
                       <strong>{message.is_mine ? "You" : message.author_display_name}</strong>
-                      <small>{timeLabel(message.created_at)}</small>
+                      <small>
+                        {timeLabel(message.created_at)}
+                        {message.edited_at && !message.deleted_at ? " · edited" : ""}
+                      </small>
                     </div>
-                    <p>{message.body}</p>
+                    {message.deleted_at ? (
+                      <p className={styles.tombstone}>
+                        This direct message was retracted by its author.
+                      </p>
+                    ) : editingMessageId === message.id ? (
+                      <form
+                        className={styles.editForm}
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void saveEdit(message);
+                        }}
+                      >
+                        <label htmlFor={`dm-edit-${message.id}`}>Edit direct message</label>
+                        <textarea
+                          id={`dm-edit-${message.id}`}
+                          maxLength={20_000}
+                          onChange={(event) => setEditBody(event.target.value)}
+                          rows={3}
+                          value={editBody}
+                        />
+                        <div>
+                          <small>{editBody.length.toLocaleString()} / 20,000</small>
+                          <button
+                            disabled={lifecycleBusyId !== null || !editBody.trim()}
+                            type="submit"
+                          >
+                            {lifecycleBusyId === message.id ? "Saving…" : "Save"}
+                          </button>
+                          <button
+                            disabled={lifecycleBusyId !== null}
+                            onClick={() => {
+                              setEditingMessageId(null);
+                              setEditBody("");
+                            }}
+                            type="button"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <p>{message.body}</p>
+                    )}
+                    {!message.deleted_at && editingMessageId !== message.id ? (
+                      <div className={styles.messageActions} aria-label="Direct-message actions">
+                        {message.can_edit ? (
+                          <button
+                            disabled={lifecycleBusyId !== null}
+                            onClick={() => {
+                              setEditingMessageId(message.id);
+                              setEditBody(message.body);
+                              setConfirmRetractId(null);
+                            }}
+                            type="button"
+                          >
+                            Edit
+                          </button>
+                        ) : null}
+                        {message.can_delete && confirmRetractId !== message.id ? (
+                          <button
+                            disabled={lifecycleBusyId !== null}
+                            onClick={() => setConfirmRetractId(message.id)}
+                            type="button"
+                          >
+                            Retract
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {confirmRetractId === message.id && !message.deleted_at ? (
+                      <div
+                        className={styles.retractConfirm}
+                        role="group"
+                        aria-label="Confirm direct-message retraction"
+                      >
+                        <span>Retract this private message?</span>
+                        <button
+                          disabled={lifecycleBusyId !== null}
+                          onClick={() => void retractMessage(message)}
+                          type="button"
+                        >
+                          {lifecycleBusyId === message.id ? "Retracting…" : "Yes, retract"}
+                        </button>
+                        <button
+                          disabled={lifecycleBusyId !== null}
+                          onClick={() => setConfirmRetractId(null)}
+                          type="button"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : null}
                   </article>
                 </div>
               )) : <p className={styles.empty}>No messages are visible in this direct conversation.</p>}
