@@ -6,6 +6,8 @@ import type { DirectConversation, DirectMessage } from "./direct-message-api";
 import styles from "./direct-message-panel.module.css";
 import { useCollaborationPresence } from "./use-collaboration-presence";
 
+const DIRECT_REACTIONS = ["👍", "❤️", "🎉", "👀", "✅"] as const;
+
 function timeLabel(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -72,6 +74,7 @@ export function DirectMessagePanel({
   const [editBody, setEditBody] = useState("");
   const [confirmRetractId, setConfirmRetractId] = useState<string | null>(null);
   const [lifecycleBusyId, setLifecycleBusyId] = useState<string | null>(null);
+  const [reactionWorking, setReactionWorking] = useState<string | null>(null);
   const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(
     selectedConversation?.first_unread_message_id ?? null,
   );
@@ -185,6 +188,67 @@ export function DirectMessagePanel({
       setError("The direct-message action could not be completed.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  function updateReaction(
+    message: DirectMessage,
+    reaction: string,
+    active: boolean,
+  ): DirectMessage {
+    const existing = message.reactions.find((item) => item.reaction === reaction);
+    const next = message.reactions
+      .filter((item) => item.reaction !== reaction)
+      .concat(
+        active
+          ? [{
+              reaction,
+              count: (existing?.count ?? 0) + (existing?.reacted_by_me ? 0 : 1),
+              reacted_by_me: true,
+            }]
+          : existing && existing.count > 1
+            ? [{
+                reaction,
+                count: existing.count - (existing.reacted_by_me ? 1 : 0),
+                reacted_by_me: false,
+              }]
+            : [],
+      )
+      .sort(
+        (left, right) => DIRECT_REACTIONS.indexOf(left.reaction as typeof DIRECT_REACTIONS[number])
+          - DIRECT_REACTIONS.indexOf(right.reaction as typeof DIRECT_REACTIONS[number]),
+      );
+    return { ...message, reactions: next };
+  }
+
+  async function toggleReaction(message: DirectMessage, reaction: string) {
+    if (!conversationEndpoint || message.deleted_at) return;
+    const current = message.reactions.find((item) => item.reaction === reaction);
+    const active = !(current?.reacted_by_me ?? false);
+    const key = `${message.id}:${reaction}`;
+    setReactionWorking(key);
+    setError(null);
+    try {
+      const response = await fetch(
+        `${conversationEndpoint}/messages/${encodeURIComponent(message.id)}/reaction`,
+        {
+          method: active ? "PUT" : "DELETE",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reaction }),
+        },
+      );
+      if (!response.ok) {
+        setError(safeError(response.status));
+        return;
+      }
+      setVisibleMessages((items) => items.map((item) => (
+        item.id === message.id ? updateReaction(item, reaction, active) : item
+      )));
+    } catch {
+      setError("The private reaction could not reach the secure Brain route.");
+    } finally {
+      setReactionWorking(null);
     }
   }
 
@@ -512,6 +576,24 @@ export function DirectMessagePanel({
                     )}
                     {!message.deleted_at && editingMessageId !== message.id ? (
                       <div className={styles.messageActions} aria-label="Direct-message actions">
+                        {DIRECT_REACTIONS.map((reaction) => {
+                          const current = message.reactions.find((item) => item.reaction === reaction);
+                          const key = `${message.id}:${reaction}`;
+                          return (
+                            <button
+                              aria-label={`${current?.reacted_by_me ? "Remove" : "Add"} ${reaction} private reaction`}
+                              aria-pressed={current?.reacted_by_me ?? false}
+                              data-active={current?.reacted_by_me || undefined}
+                              disabled={reactionWorking === key}
+                              key={reaction}
+                              onClick={() => void toggleReaction(message, reaction)}
+                              type="button"
+                            >
+                              <span aria-hidden="true">{reaction}</span>
+                              {current ? <small>{current.count}</small> : null}
+                            </button>
+                          );
+                        })}
                         {message.can_edit ? (
                           <button
                             disabled={lifecycleBusyId !== null}
