@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { DirectConversation, DirectMessage } from "./direct-message-api";
 import styles from "./direct-message-panel.module.css";
 import { useCollaborationPresence } from "./use-collaboration-presence";
@@ -32,6 +33,7 @@ export function DirectMessagePanel({
   messages,
   createEndpoint,
   messageEndpoint,
+  conversationEndpoint,
   presenceEndpoint,
 }: {
   organizationId: string;
@@ -40,13 +42,61 @@ export function DirectMessagePanel({
   messages: DirectMessage[];
   createEndpoint: string | null;
   messageEndpoint: string | null;
+  conversationEndpoint: string | null;
   presenceEndpoint: string | null;
 }) {
+  const router = useRouter();
   const [targetEmail, setTargetEmail] = useState("");
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [composerFocused, setComposerFocused] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [visibleMessages, setVisibleMessages] = useState(messages);
+  const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(
+    selectedConversation?.first_unread_message_id ?? null,
+  );
+
+  useEffect(() => {
+    setVisibleMessages(messages);
+    setFirstUnreadMessageId(selectedConversation?.first_unread_message_id ?? null);
+    setError(null);
+  }, [selectedConversation?.id]);
+
+  useEffect(() => {
+    setVisibleMessages((current) => {
+      const merged = new Map(current.map((message) => [message.id, message]));
+      for (const message of messages) merged.set(message.id, message);
+      return [...merged.values()].sort((left, right) => left.sequence - right.sequence);
+    });
+  }, [messages]);
+
+  useEffect(() => {
+    if (
+      !selectedConversation
+      || !conversationEndpoint
+      || !selectedConversation.latest_message_id
+      || !selectedConversation.unread_count
+    ) return;
+    const controller = new AbortController();
+    void fetch(`${conversationEndpoint}/read`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        through_message_id: selectedConversation.latest_message_id,
+      }),
+      signal: controller.signal,
+    }).then((response) => {
+      if (response.ok) router.refresh();
+    }).catch(() => undefined);
+    return () => controller.abort();
+  }, [
+    conversationEndpoint,
+    router,
+    selectedConversation?.id,
+    selectedConversation?.latest_message_id,
+    selectedConversation?.unread_count,
+  ]);
 
   const presence = useCollaborationPresence(
     presenceEndpoint,
@@ -113,6 +163,51 @@ export function DirectMessagePanel({
       setError("The direct-message action could not be completed.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  function focusUnread(messageId: string) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const divider = document.getElementById(`dm-first-unread-${messageId}`);
+        divider?.scrollIntoView({ block: "center" });
+        divider?.focus({ preventScroll: true });
+      });
+    });
+  }
+
+  async function jumpToUnread() {
+    if (!firstUnreadMessageId || !conversationEndpoint) return;
+    const existing = document.getElementById(`dm-first-unread-${firstUnreadMessageId}`);
+    if (existing) {
+      existing.scrollIntoView({ block: "center" });
+      existing.focus({ preventScroll: true });
+      return;
+    }
+    try {
+      const response = await fetch(
+        `${conversationEndpoint}/messages/${encodeURIComponent(firstUnreadMessageId)}`,
+        { credentials: "same-origin", cache: "no-store" },
+      );
+      if (response.status === 403 || response.status === 404) {
+        setFirstUnreadMessageId(null);
+        router.refresh();
+        return;
+      }
+      if (!response.ok) {
+        setError(safeError(response.status));
+        return;
+      }
+      const target = await response.json() as DirectMessage;
+      setVisibleMessages((current) => {
+        const merged = current.some((message) => message.id === target.id)
+          ? current
+          : [...current, target];
+        return [...merged].sort((left, right) => left.sequence - right.sequence);
+      });
+      focusUnread(target.id);
+    } catch {
+      setError("The first unread direct message could not be loaded safely.");
     }
   }
 
@@ -196,17 +291,30 @@ export function DirectMessagePanel({
             </header>
 
             <div className={styles.messages} aria-live="polite">
-              {messages.length ? messages.map((message) => (
-                <article
-                  key={message.id}
-                  className={message.is_mine ? styles.mine : styles.theirs}
-                >
-                  <div>
-                    <strong>{message.is_mine ? "You" : message.author_display_name}</strong>
-                    <small>{timeLabel(message.created_at)}</small>
-                  </div>
-                  <p>{message.body}</p>
-                </article>
+              {visibleMessages.length ? visibleMessages.map((message) => (
+                <div className={styles.messageGroup} key={message.id}>
+                  {message.id === firstUnreadMessageId ? (
+                    <div
+                      aria-label="New direct messages begin here"
+                      className={styles.firstUnreadDivider}
+                      id={`dm-first-unread-${message.id}`}
+                      role="separator"
+                      tabIndex={-1}
+                    >
+                      <span>New messages</span>
+                    </div>
+                  ) : null}
+                  <article
+                    className={message.is_mine ? styles.mine : styles.theirs}
+                    id={`dm-message-${message.id}`}
+                  >
+                    <div>
+                      <strong>{message.is_mine ? "You" : message.author_display_name}</strong>
+                      <small>{timeLabel(message.created_at)}</small>
+                    </div>
+                    <p>{message.body}</p>
+                  </article>
+                </div>
               )) : <p className={styles.empty}>No messages are visible in this direct conversation.</p>}
             </div>
 
