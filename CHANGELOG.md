@@ -1,5 +1,19 @@
 # Changelog
 
+### Increment 39 — Participant-Private DM Reactions
+
+- Added private `DirectMessageReaction` rows with the same five-value allowlist as native channel reactions.
+- Reaction mutation reuses current participant/current visibility-epoch DM authorization and rejects retracted messages.
+- Adds are idempotent with uniqueness-race recovery; removals are idempotent.
+- DM message reads batch aggregate reaction counts and personal reacted-by-me state; reaction participant identities are never returned.
+- Added same-origin WorkOS PUT/DELETE route and accessible aria-pressed private reaction buttons.
+- Normal private reaction changes deliberately create no RawEvent, CanonicalEvent, SearchDocument, Work Graph/Activity or organisation-wide per-message audit projection.
+- Message retraction and private-message retention cascade reaction rows; legal hold continues protecting the underlying private message.
+- Added migration `20260920_0037`, privacy/idempotency/epoch/retention regressions and frontend/security contracts.
+
+Verification is not claimed as passed. `S-10.23.01` remains `IN_REVIEW`.
+
+
 ### Increment 38 — Thread Unread & Resume
 
 - Added per-user/per-root `NativeThreadReadState` separate from channel read state.
