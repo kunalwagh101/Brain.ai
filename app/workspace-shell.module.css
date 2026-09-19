@@ -765,3 +765,34 @@
   .mobileOrgForm { width: 100%; }
   .mobileOrgForm select { flex: 1; max-width: none; }
 }
+
+
+.teamTree {
+  margin-bottom: 0.45rem;
+}
+
+.channelGroupTree {
+  margin-left: 0.85rem;
+  border-left: 1px solid #2b303c;
+  padding-left: 0.25rem;
+}
+
+.channelGroupTitle {
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  color: #8d96a5;
+  font-size: 11px;
+}
+
+.channelGroupTitle strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navGroups a.nestedChannel {
+  padding-left: 12px;
+}
