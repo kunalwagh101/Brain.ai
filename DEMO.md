@@ -603,3 +603,29 @@ python scripts/verify_board.py
 Expected: channel and DM pages use `sequence < before_sequence`; invalid cursors fail validation; DM pages never cross current visibility floors; no OFFSET queries appear; browser merges pages by ID/sequence while keeping composer/resume state; Load older stops after history exhaustion; same-origin server-session routes expose no reusable browser token.
 
 Final manual acceptance follows `UAT/F-10.19.md`. Do not mark DONE/PASSED without executed evidence.
+
+## Increment 36 — Direct-Message Lifecycle
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.20.01 is `IN_REVIEW`, not DONE.
+
+Commands:
+
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_direct_messages.py tests/test_direct_message_epochs.py tests/test_direct_message_unread.py tests/test_direct_message_lifecycle.py
+alembic heads
+# with test PostgreSQL configured:
+alembic upgrade 20260919_0035
+alembic downgrade 20260919_0034
+alembic upgrade 20260919_0035
+cd ..
+node --test tests/direct-message-contract.test.mjs tests/direct-message-unread-contract.test.mjs tests/conversation-pagination-contract.test.mjs tests/direct-message-lifecycle-contract.test.mjs
+npm run lint
+npm run build
+python scripts/verify_board.py
+```
+
+Expected: only the original current-epoch author can edit/retract; stale expected revisions return conflict; retraction emits a safe participant tombstone and disappears from unread attention; no company-wide evidence/search/audit record is created; private revisions cascade under existing private-message retention; nonparticipants and old visibility epochs fail closed; browser mutation stays same-origin and token-free.
+
+Final browser acceptance follows `UAT/F-10.20.md`. Do not mark DONE/PASSED without executed migration/tests/verifier and authenticated lifecycle UAT.
