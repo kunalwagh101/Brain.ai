@@ -10,12 +10,14 @@ from sqlalchemy.orm import Session
 from app.direct_message_models import (
     DirectConversation,
     DirectMessage,
+    DirectMessageReaction,
     DirectMessageRevision,
 )
 from app.models import Membership, User
 from app.permissions import Permission, role_has_permission
 
 MAX_DIRECT_MESSAGE_CHARS = 20_000
+ALLOWED_DIRECT_MESSAGE_REACTIONS = ("👍", "❤️", "🎉", "👀", "✅")
 
 
 class DirectMessageError(ValueError):
@@ -549,6 +551,154 @@ def get_direct_message(
     if message is None:
         raise DirectMessageError("message_not_found", "Direct message not found")
     return message
+
+
+def direct_message_reaction_summaries(
+    db: Session,
+    *,
+    messages: list[DirectMessage],
+    user_id: uuid.UUID,
+) -> dict[uuid.UUID, list[dict[str, object]]]:
+    message_ids = [message.id for message in messages]
+    result = {message_id: [] for message_id in message_ids}
+    if not message_ids:
+        return result
+
+    rows = db.execute(
+        select(
+            DirectMessageReaction.message_id,
+            DirectMessageReaction.reaction,
+            func.count(),
+        )
+        .where(DirectMessageReaction.message_id.in_(message_ids))
+        .group_by(
+            DirectMessageReaction.message_id,
+            DirectMessageReaction.reaction,
+        )
+    ).all()
+    mine = set(
+        db.execute(
+            select(
+                DirectMessageReaction.message_id,
+                DirectMessageReaction.reaction,
+            ).where(
+                DirectMessageReaction.message_id.in_(message_ids),
+                DirectMessageReaction.user_id == user_id,
+            )
+        ).all()
+    )
+    for message_id, reaction, count in rows:
+        result[message_id].append(
+            {
+                "reaction": reaction,
+                "count": int(count),
+                "reacted_by_me": (message_id, reaction) in mine,
+            }
+        )
+    for items in result.values():
+        items.sort(
+            key=lambda item: ALLOWED_DIRECT_MESSAGE_REACTIONS.index(
+                str(item["reaction"])
+            )
+        )
+    return result
+
+
+def _normalize_direct_reaction(reaction: str) -> str:
+    value = reaction.strip()
+    if value not in ALLOWED_DIRECT_MESSAGE_REACTIONS:
+        raise DirectMessageError("reaction_invalid", "Direct-message reaction is invalid")
+    return value
+
+
+def add_direct_message_reaction(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+    message_id: uuid.UUID,
+    user_id: uuid.UUID,
+    reaction: str,
+) -> DirectMessageReaction:
+    value = _normalize_direct_reaction(reaction)
+    message = get_direct_message(
+        db,
+        organization_id=organization_id,
+        conversation_id=conversation_id,
+        message_id=message_id,
+        user_id=user_id,
+    )
+    if message.deleted_at is not None:
+        raise DirectMessageError("message_not_found", "Direct message not found")
+
+    existing = db.scalar(
+        select(DirectMessageReaction).where(
+            DirectMessageReaction.message_id == message_id,
+            DirectMessageReaction.user_id == user_id,
+            DirectMessageReaction.reaction == value,
+        )
+    )
+    if existing is not None:
+        return existing
+
+    row = DirectMessageReaction(
+        organization_id=organization_id,
+        conversation_id=conversation_id,
+        message_id=message_id,
+        user_id=user_id,
+        reaction=value,
+    )
+    db.add(row)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing = db.scalar(
+            select(DirectMessageReaction).where(
+                DirectMessageReaction.message_id == message_id,
+                DirectMessageReaction.user_id == user_id,
+                DirectMessageReaction.reaction == value,
+            )
+        )
+        if existing is None:
+            raise
+        return existing
+    db.refresh(row)
+    return row
+
+
+def remove_direct_message_reaction(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+    message_id: uuid.UUID,
+    user_id: uuid.UUID,
+    reaction: str,
+) -> None:
+    value = _normalize_direct_reaction(reaction)
+    message = get_direct_message(
+        db,
+        organization_id=organization_id,
+        conversation_id=conversation_id,
+        message_id=message_id,
+        user_id=user_id,
+    )
+    if message.deleted_at is not None:
+        raise DirectMessageError("message_not_found", "Direct message not found")
+
+    row = db.scalar(
+        select(DirectMessageReaction).where(
+            DirectMessageReaction.organization_id == organization_id,
+            DirectMessageReaction.conversation_id == conversation_id,
+            DirectMessageReaction.message_id == message_id,
+            DirectMessageReaction.user_id == user_id,
+            DirectMessageReaction.reaction == value,
+        )
+    )
+    if row is not None:
+        db.delete(row)
+        db.commit()
 
 
 def mark_direct_conversation_read(
