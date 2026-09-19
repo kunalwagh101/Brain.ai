@@ -2,8 +2,9 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -23,6 +24,7 @@ from app.direct_messages import (
     retract_direct_message,
     send_direct_message,
 )
+from app.models import User
 from app.permissions import AuthorizationContext, Permission, require_organization_permission
 
 router = APIRouter(
