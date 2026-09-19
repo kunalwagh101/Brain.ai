@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type {
   NativeAttachment,
@@ -508,6 +508,9 @@ export function NativeChatPanel({
   const [pinWorking, setPinWorking] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState(savedMessageIds);
   const [saveWorking, setSaveWorking] = useState<string | null>(null);
+  const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(
+    channel.first_unread_message_id ?? null,
+  );
   const [body, setBody] = useState("");
   const [attachments, setAttachments] = useState<NativeAttachment[]>([]);
   const [threadRoot, setThreadRoot] = useState<NativeMessage | null>(null);
@@ -680,6 +683,14 @@ export function NativeChatPanel({
       window.removeEventListener("online", wake);
     };
   }, [conversationEndpoint, router, threadRootId]);
+
+  useEffect(() => {
+    if (!firstUnreadMessageId) return;
+    const current = [...rootMessages, ...threadReplies].find(
+      (message) => message.id === firstUnreadMessageId,
+    );
+    if (current?.deleted_at) setFirstUnreadMessageId(null);
+  }, [firstUnreadMessageId, rootMessages, threadReplies]);
 
   useEffect(() => {
     if (!conversationEndpoint || !channel.latest_message_id || !channel.unread_count) return;
@@ -1136,6 +1147,109 @@ export function NativeChatPanel({
     }
   }
 
+  function focusUnreadDivider(messageId: string) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const divider = document.getElementById(`first-unread-${messageId}`);
+        divider?.scrollIntoView({ block: "center" });
+        divider?.focus({ preventScroll: true });
+      });
+    });
+  }
+
+  async function jumpToUnread() {
+    if (!firstUnreadMessageId) return;
+    const existingDivider = document.getElementById(
+      `first-unread-${firstUnreadMessageId}`,
+    );
+    if (existingDivider) {
+      existingDivider.scrollIntoView({ block: "center" });
+      existingDivider.focus({ preventScroll: true });
+      return;
+    }
+    if (!conversationEndpoint) return;
+
+    setStatus({ kind: "working", text: "Finding first unread message…" });
+    try {
+      const response = await fetch(
+        `${conversationEndpoint}/messages/${encodeURIComponent(firstUnreadMessageId)}`,
+        { credentials: "same-origin", cache: "no-store" },
+      );
+      if (response.status === 403 || response.status === 404) {
+        setFirstUnreadMessageId(null);
+        router.refresh();
+        return;
+      }
+      if (!response.ok) {
+        setStatus({ kind: "error", text: safeMessageError(response.status) });
+        return;
+      }
+      const target = await response.json() as NativeMessage;
+      if (target.deleted_at) {
+        setFirstUnreadMessageId(null);
+        return;
+      }
+
+      if (!target.thread_root_id) {
+        setThreadRoot(null);
+        setThreadReplies([]);
+        setRootMessages((items) => items.some((item) => item.id === target.id)
+          ? items
+          : [target, ...items]);
+        focusUnreadDivider(target.id);
+        setStatus({ kind: "idle" });
+        return;
+      }
+
+      let root = rootMessages.find((item) => item.id === target.thread_root_id) ?? null;
+      if (!root) {
+        const rootResponse = await fetch(
+          `${conversationEndpoint}/messages/${encodeURIComponent(target.thread_root_id)}`,
+          { credentials: "same-origin", cache: "no-store" },
+        );
+        if (!rootResponse.ok) {
+          if (rootResponse.status === 403 || rootResponse.status === 404) {
+            setFirstUnreadMessageId(null);
+            router.refresh();
+            return;
+          }
+          setStatus({ kind: "error", text: safeMessageError(rootResponse.status) });
+          return;
+        }
+        root = await rootResponse.json() as NativeMessage;
+        if (root.deleted_at) {
+          setFirstUnreadMessageId(null);
+          return;
+        }
+        setRootMessages((items) => items.some((item) => item.id === root?.id)
+          ? items
+          : [root as NativeMessage, ...items]);
+      }
+
+      const repliesResponse = await fetch(
+        `${conversationEndpoint}/messages/${encodeURIComponent(root.id)}/replies`,
+        { credentials: "same-origin", cache: "no-store" },
+      );
+      if (!repliesResponse.ok) {
+        setStatus({ kind: "error", text: safeMessageError(repliesResponse.status) });
+        return;
+      }
+      const replies = await repliesResponse.json() as NativeMessage[];
+      const visibleReplies = replies.some((item) => item.id === target.id)
+        ? replies
+        : [...replies, target];
+      setThreadRoot(root);
+      setThreadReplies(visibleReplies);
+      focusUnreadDivider(target.id);
+      setStatus({ kind: "idle" });
+    } catch {
+      setStatus({
+        kind: "error",
+        text: "The first unread message could not be loaded through the secure Brain route.",
+      });
+    }
+  }
+
   async function revokeMember(userId: string) {
     if (!memberEndpoint || userId === channel.created_by_user_id) return;
     setMemberWorking(true);
@@ -1172,6 +1286,15 @@ export function NativeChatPanel({
             <span>{presence.online_users.length} online</span>
           ) : null}
           <span>{channel.status}</span>
+          {firstUnreadMessageId ? (
+            <button
+              className={styles.jumpUnreadButton}
+              onClick={() => void jumpToUnread()}
+              type="button"
+            >
+              Jump to unread
+            </button>
+          ) : null}
           <button
             aria-expanded={pinsOpen}
             className={styles.pinsButton}
@@ -1288,22 +1411,34 @@ export function NativeChatPanel({
         <div className={styles.channelPane}>
           <div className={styles.feed} role="log" aria-live="polite" aria-label={`${channel.name} messages`}>
             {rootMessages.length ? rootMessages.map((message) => (
-              <MessageCard
-                canPost={Boolean(conversationEndpoint && channel.can_post)}
-                key={message.id}
-                lifecycleEndpoint={conversationEndpoint}
-                message={message}
-                onLifecycleChange={applyLifecycleMessage}
-                onPin={channel.can_post ? togglePin : undefined}
-                onReaction={toggleReaction}
-                pinned={pinRows.some((pin) => pin.message.id === message.id)}
-                pinWorking={pinWorking}
-                saved={savedIds.includes(message.id)}
-                saveWorking={saveWorking}
-                onSave={conversationEndpoint ? toggleSave : undefined}
-                onThread={openThread}
-                reactionWorking={reactionWorking}
-              />
+              <Fragment key={message.id}>
+                {message.id === firstUnreadMessageId ? (
+                  <div
+                    aria-label="New messages begin here"
+                    className={styles.firstUnreadDivider}
+                    id={`first-unread-${message.id}`}
+                    role="separator"
+                    tabIndex={-1}
+                  >
+                    <span>New messages</span>
+                  </div>
+                ) : null}
+                <MessageCard
+                  canPost={Boolean(conversationEndpoint && channel.can_post)}
+                  lifecycleEndpoint={conversationEndpoint}
+                  message={message}
+                  onLifecycleChange={applyLifecycleMessage}
+                  onPin={channel.can_post ? togglePin : undefined}
+                  onReaction={toggleReaction}
+                  pinned={pinRows.some((pin) => pin.message.id === message.id)}
+                  pinWorking={pinWorking}
+                  saved={savedIds.includes(message.id)}
+                  saveWorking={saveWorking}
+                  onSave={conversationEndpoint ? toggleSave : undefined}
+                  onThread={openThread}
+                  reactionWorking={reactionWorking}
+                />
+              </Fragment>
             )) : (
               <div className={styles.empty}>
                 <strong>No messages yet.</strong>
@@ -1436,21 +1571,33 @@ export function NativeChatPanel({
               </div>
               {threadLoading ? <p className={styles.threadStatus} role="status">Loading replies…</p> : null}
               {!threadLoading && threadReplies.length ? threadReplies.map((reply) => (
-                <MessageCard
-                  canPost={Boolean(conversationEndpoint && channel.can_post)}
-                  key={reply.id}
-                  lifecycleEndpoint={conversationEndpoint}
-                  message={reply}
-                  onLifecycleChange={applyLifecycleMessage}
-                  onPin={channel.can_post ? togglePin : undefined}
-                  onReaction={toggleReaction}
-                  pinned={pinRows.some((pin) => pin.message.id === reply.id)}
-                  pinWorking={pinWorking}
-                  saved={savedIds.includes(reply.id)}
-                  saveWorking={saveWorking}
-                  onSave={conversationEndpoint ? toggleSave : undefined}
-                  reactionWorking={reactionWorking}
-                />
+                <Fragment key={reply.id}>
+                  {reply.id === firstUnreadMessageId ? (
+                    <div
+                      aria-label="New messages begin here"
+                      className={styles.firstUnreadDivider}
+                      id={`first-unread-${reply.id}`}
+                      role="separator"
+                      tabIndex={-1}
+                    >
+                      <span>New messages</span>
+                    </div>
+                  ) : null}
+                  <MessageCard
+                    canPost={Boolean(conversationEndpoint && channel.can_post)}
+                    lifecycleEndpoint={conversationEndpoint}
+                    message={reply}
+                    onLifecycleChange={applyLifecycleMessage}
+                    onPin={channel.can_post ? togglePin : undefined}
+                    onReaction={toggleReaction}
+                    pinned={pinRows.some((pin) => pin.message.id === reply.id)}
+                    pinWorking={pinWorking}
+                    saved={savedIds.includes(reply.id)}
+                    saveWorking={saveWorking}
+                    onSave={conversationEndpoint ? toggleSave : undefined}
+                    reactionWorking={reactionWorking}
+                  />
+                </Fragment>
               )) : null}
               {!threadLoading && !threadReplies.length ? (
                 <p className={styles.threadStatus}>No replies yet.</p>
