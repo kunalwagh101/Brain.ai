@@ -55,7 +55,7 @@ IN_REVIEW | S-10.21.01 | F-10.21 | Stable before_sequence thread pagination, mer
 IN_REVIEW | S-10.22.01 | F-10.22 | Tenant/root/user thread read state, set-based unread/first target, monotonic mark-read, badge/divider/jump, migration/tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.23.01 | F-10.23 | Private allow-listed/idempotent DM reactions, aggregate-only reads, retention/privacy-safe WorkOS UI/tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.24.01 | F-10.24 | Revisioned navigation-only Teams, server UI, same-origin lifecycle, migration/tests/docs staged; executable verification/UAT outstanding
-IN_PROGRESS | S-10.25.01 | F-10.25 | Team channel groups + ACL-invariant channel assignment pulled after READY audit
+IN_REVIEW | S-10.25.01 | F-10.25 | Revisioned Team groups, ACL-neutral channel placement, nested fallbacks, migration/tests/docs staged; executable verification/UAT outstanding
 BACKLOG | S-10.26.01 | F-10.26 | Channel identity/archive/member-access administration
 
 
@@ -64,13 +64,13 @@ BACKLOG | S-10.26.01 | F-10.26 | Channel identity/archive/member-access administ
 
 
 
-### S-10.25.01 Team Channel Groups — IN_PROGRESS
+### S-10.25.01 Team Channel Groups — IN_REVIEW
 
 Sprint goal: add Team → group → channel navigation while proving that navigation moves do not change any collaboration/evidence authorization state.
 
 Ready evidence is in `DEFINITION_OF_READY.md`; implementation scope is in `docs/planning/increment-41.md`.
 
-Formal state: `IN_PROGRESS`. WIP=1. S-10.26 remains BACKLOG until this slice leaves implementation.
+Implementation staged: group/navigation schema, revisioned group lifecycle, channel + target-Team management gates, same-origin API/BFF/UI, nested Team/Ungrouped/Unassigned rendering and explicit ACL/grant-invariance tests/docs. Formal state: `IN_REVIEW`; no executable PASS/UAT is claimed. WIP returns to zero; S-10.26 may now be pulled.
 
 ### S-10.24.01 Workspace Teams — IN_REVIEW
 
