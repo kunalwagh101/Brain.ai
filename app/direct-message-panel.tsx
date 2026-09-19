@@ -52,12 +52,20 @@ export function DirectMessagePanel({
   const [composerFocused, setComposerFocused] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [visibleMessages, setVisibleMessages] = useState(messages);
+  const [historyBeforeSequence, setHistoryBeforeSequence] = useState(
+    messages[0]?.sequence ?? null,
+  );
+  const [hasOlderHistory, setHasOlderHistory] = useState(messages.length >= 200);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(
     selectedConversation?.first_unread_message_id ?? null,
   );
 
   useEffect(() => {
     setVisibleMessages(messages);
+    setHistoryBeforeSequence(messages[0]?.sequence ?? null);
+    setHasOlderHistory(messages.length >= 200);
+    setHistoryLoading(false);
     setFirstUnreadMessageId(selectedConversation?.first_unread_message_id ?? null);
     setError(null);
   }, [selectedConversation?.id]);
@@ -163,6 +171,51 @@ export function DirectMessagePanel({
       setError("The direct-message action could not be completed.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function loadOlderHistory() {
+    if (
+      !conversationEndpoint
+      || !hasOlderHistory
+      || historyLoading
+      || historyBeforeSequence === null
+    ) return;
+    setHistoryLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        limit: "50",
+        before_sequence: String(historyBeforeSequence),
+      });
+      const response = await fetch(
+        `${conversationEndpoint}/messages?${params.toString()}`,
+        { credentials: "same-origin", cache: "no-store" },
+      );
+      if (response.status === 403 || response.status === 404) {
+        router.refresh();
+        return;
+      }
+      if (!response.ok) {
+        setError(safeError(response.status));
+        return;
+      }
+      const page = await response.json() as DirectMessage[];
+      if (!page.length) {
+        setHasOlderHistory(false);
+        return;
+      }
+      setVisibleMessages((current) => {
+        const merged = new Map(current.map((message) => [message.id, message]));
+        for (const message of page) merged.set(message.id, message);
+        return [...merged.values()].sort((left, right) => left.sequence - right.sequence);
+      });
+      setHistoryBeforeSequence(page[0].sequence);
+      setHasOlderHistory(page.length === 50);
+    } catch {
+      setError("Older direct-message history could not be loaded safely.");
+    } finally {
+      setHistoryLoading(false);
     }
   }
 
@@ -291,6 +344,16 @@ export function DirectMessagePanel({
             </header>
 
             <div className={styles.messages} aria-live="polite">
+              {hasOlderHistory ? (
+                <button
+                  className={styles.loadOlder}
+                  disabled={historyLoading}
+                  onClick={() => void loadOlderHistory()}
+                  type="button"
+                >
+                  {historyLoading ? "Loading older…" : "Load older messages"}
+                </button>
+              ) : null}
               {visibleMessages.length ? visibleMessages.map((message) => (
                 <div className={styles.messageGroup} key={message.id}>
                   {message.id === firstUnreadMessageId ? (
