@@ -355,3 +355,31 @@ Open questions: none changes this repository slice. Reminders/due dates, notes o
 Leading indicators: cross-user saved-state leakage = 0; revoked-content leakage = 0; duplicate save rows = 0; saved-to-open success rate.
 
 Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires PostgreSQL migration round-trip, focused privacy/idempotency/revoke/retract tests, frontend lint/build/source contracts, verifier and authenticated WorkOS multi-user Saved UAT.
+
+## Increment 33 readiness record — S-10.17.01
+
+Decision: `READY` for repository implementation on 2026-09-19; board WIP is zero before pull.
+
+Problem and baseline: Brain already stores a monotonic per-user/channel read cursor and unread count, but the workspace immediately marks the selected channel read and gives the user no durable visual boundary showing where unread activity began. Users must visually rescan the conversation, and old/thread unread targets can sit outside the initially rendered root-message window.
+
+AI decision: AI is not needed. First-unread location is deterministic sequence, authorization and UI-navigation state.
+
+Architecture decision: extend the existing unread summary with one permission-safe `first_unread_message_id`. Compute count plus first unread in one bounded set-based query over all visible channels, retaining the existing bounded read-state/latest-message queries and avoiding N+1 work. Do not create a new unread table, cache, index or migration. The client captures the initial boundary for the open channel before its existing mark-read refresh can erase server unread state. If the target is not already rendered, reuse the exact permission-aware message read through the existing same-origin message route; a reply opens its owning thread.
+
+Authority/privacy: unread computation keeps the existing rules: current tenant/channel visibility, non-retracted messages only and own human-authored messages excluded. Exact jump recovery revalidates current organisation membership in the BFF and current channel visibility in the backend. Restricted-channel revocation fails closed. No message body is added to unread summaries.
+
+Lifecycle semantics: message retraction already removes the message from unread counts. If a captured target is later observed as retracted, the client clears the stale boundary rather than presenting a deleted item as unread. Edits keep message identity and therefore keep the boundary valid.
+
+Browser/security boundary: browser requests remain same-origin with WorkOS session validation; no reusable backend bearer token is exposed. The GET method added to the existing message lifecycle route is read-only and uses the current permission-aware backend message read.
+
+Performance boundary: unread summary remains set-based across all visible channels. No per-channel lookup loop may be introduced. Jump recovery performs network work only when the exact unread target is not already present in the DOM.
+
+Open questions: none changes this slice. Direct-message unread boundaries, independent per-thread cursors, unread-history analytics, push/mobile notification behaviour and infinite-history pagination are explicit non-scope rather than invented behaviour.
+
+Dependencies: S-10.06.01 provides monotonic read state; S-10.10.01 provides refresh behaviour; S-10.11.01 provides exact message identity/navigation; S-10.12.01 provides retraction semantics; S-10.04 remains the external authenticated-browser gate. These contracts are implementation-staged even though final executable acceptance remains pending.
+
+Leading indicators: jump reaches the exact first unread target; unauthorised/retracted target exposure = 0; unread summary stays bounded with zero N+1 queries; divider count per open channel = at most one.
+
+Rollback: remove the added summary field, GET BFF handler/template method and divider/jump UI. No schema or persisted read/message/evidence state changes, so there is no data rollback.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires focused backend unread/revocation/retraction tests, frontend source-contract tests/build, delivery verifier, and authenticated WorkOS multi-user root/thread/old-window/revocation UAT.
