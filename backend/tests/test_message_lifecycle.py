@@ -460,6 +460,7 @@ def test_retraction_hides_content_search_activity_and_unread_but_preserves_threa
     assert before_unread.status_code == 200
     summary = next(row for row in before_unread.json() if row["channel_id"] == channel["id"])
     assert summary["unread_count"] == 1
+    assert summary["first_unread_message_id"] == root["id"]
 
     reply = client.post(
         f"/api/v1/organizations/{organization.id}/native-conversation/"
@@ -534,6 +535,7 @@ def test_retraction_hides_content_search_activity_and_unread_but_preserves_threa
     )
     summary = next(row for row in after_unread.json() if row["channel_id"] == channel["id"])
     assert summary["unread_count"] == 0
+    assert summary["first_unread_message_id"] is None
 
     revisions = list(
         db_session.scalars(
