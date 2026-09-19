@@ -59,7 +59,8 @@
   letter-spacing: .05em;
 }
 
-.pinsButton {
+.pinsButton,
+.jumpUnreadButton {
   min-height: 26px;
   border: 1px solid #4a456f;
   border-radius: 999px;
@@ -73,11 +74,51 @@
 }
 
 .pinsButton:hover,
-.pinsButton:focus-visible {
+.pinsButton:focus-visible,
+.jumpUnreadButton:hover,
+.jumpUnreadButton:focus-visible {
   border-color: #8075f0;
   color: #fff;
   outline: 2px solid #5148a8;
   outline-offset: 1px;
+}
+
+.jumpUnreadButton {
+  border: 1px solid #6b5b35;
+  border-radius: 999px;
+  background: #2a2317;
+  color: #f1cb83;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.firstUnreadDivider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 18px 5px;
+  color: #f0b85d;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  scroll-margin-block: 5rem;
+}
+
+.firstUnreadDivider::before,
+.firstUnreadDivider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #7b5930;
+}
+
+.firstUnreadDivider:focus-visible {
+  outline: 2px solid #d9a24e;
+  outline-offset: -2px;
 }
 
 .agentBadge {
