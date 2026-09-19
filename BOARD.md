@@ -46,6 +46,13 @@ IN_REVIEW | S-10.12.01 | F-10.12 | Author-only edit/retract, expected-revision c
 IN_REVIEW | S-10.13.01 | F-10.13 | Governed EvidenceSource channel uploads, live restricted membership, tenant-scoped attachment relations, file-only messages, bounded WorkOS multipart UI, retry-safe composer and deletion/retraction independence are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.14.01 | F-10.14 | Ephemeral 75s presence + 8s typing leases, read-only authorised polling, restricted-channel/participant-only DM privacy, audit-free traffic, same-origin WorkOS BFF and focused-composer UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.15.01 | F-10.15 | Reference-only shared channel pins, current reader/writer permission checks, retry-safe uniqueness, thread/root reopening, same-lifecycle retract cleanup, structural live refresh and WorkOS BFF/UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
+IN_PROGRESS | S-10.16.01 | F-10.16 | Personal saved channel messages pulled after Ready review; private per-user reference storage, current channel permission rechecks and retract cleanup are in scope
+
+### S-10.16.01 Personal Saved Messages — IN_PROGRESS
+
+Sprint goal: let a user privately save and reopen important authorised channel messages/replies without changing shared channel state or copying message content.
+
+Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-32.md` and `UAT/F-10.16.md`. WIP after pull: one `IN_PROGRESS` story.
 
 ### S-10.15.01 Shared Channel Message Pins — IN_REVIEW
 
