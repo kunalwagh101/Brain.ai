@@ -492,6 +492,7 @@ def list_direct_messages(
     conversation_id: uuid.UUID,
     user_id: uuid.UUID,
     limit: int,
+    before_sequence: int | None = None,
 ) -> list[DirectMessage]:
     conversation = _participant_conversation(
         db,
@@ -500,16 +501,16 @@ def list_direct_messages(
         user_id=user_id,
     )
     visible_from_sequence = _participant_visible_from_sequence(conversation, user_id)
+    query = select(DirectMessage).where(
+        DirectMessage.organization_id == organization_id,
+        DirectMessage.conversation_id == conversation_id,
+        DirectMessage.sequence >= visible_from_sequence,
+    )
+    if before_sequence is not None:
+        query = query.where(DirectMessage.sequence < before_sequence)
     latest = list(
         db.scalars(
-            select(DirectMessage)
-            .where(
-                DirectMessage.organization_id == organization_id,
-                DirectMessage.conversation_id == conversation_id,
-                DirectMessage.sequence >= visible_from_sequence,
-            )
-            .order_by(DirectMessage.sequence.desc())
-            .limit(limit)
+            query.order_by(DirectMessage.sequence.desc()).limit(limit)
         )
     )
     latest.reverse()
