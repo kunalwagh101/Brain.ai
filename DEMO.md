@@ -521,3 +521,39 @@ Expected engineering evidence:
 - migration `20260919_0033` adds/removes only private saved-reference rows.
 
 Final browser demo: use at least two authenticated users plus a restricted channel. Save roots/replies as a read-only member, retry a save, prove another Owner/Admin user sees an empty personal Saved list, revoke restricted access and prove content disappears, restore access and prove the content-free saved reference can return, edit a saved message, retract it, then open saved root/reply deep links. Inspect the organisation audit table to confirm normal Saved activity creates no behavioural audit trail. Follow `UAT/F-10.16.md`.
+
+## Increment 33 — First-Unread Divider & Jump to Unread
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.17.01 is `IN_REVIEW`, not DONE.
+
+Commands from the repository root:
+
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_native_conversation.py tests/test_message_lifecycle.py
+cd ..
+node --test tests/first-unread-contract.test.mjs tests/workspace-contract.test.mjs tests/workspace-search-contract.test.mjs
+npm run lint
+npm run build
+python scripts/verify_board.py
+```
+
+Expected engineering evidence:
+
+- a visible channel's unread summary returns the existing unread count/latest cursor plus the exact first unread message ID;
+- the current user's own human-authored messages and retracted messages never become first-unread targets;
+- unread count + first target are computed set-wise across visible channels rather than one query per channel;
+- opening a channel renders at most one accessible **New messages** divider before the exact first unread root or reply;
+- **Jump to unread** focuses the existing divider immediately when the target is already rendered;
+- an older root outside the initial window is recovered through the exact permission-aware same-origin message GET;
+- a first-unread reply opens its owning thread, including when the thread root has already been retracted but the reply remains valid;
+- a target that is itself retracted clears the stale boundary rather than exposing deleted content;
+- the existing mark-read cursor remains monotonic and authoritative while the captured open-panel divider survives its router refresh;
+- restricted-channel revocation prevents both unread-summary visibility and exact-message recovery;
+- browser code receives no reusable bearer token and the feature adds no persistence table or migration.
+
+Final browser demo: use two authenticated WorkOS users. Read a channel as User A, create two roots as User B, reopen as A and prove the divider sits before the first root while the badge clears. Repeat with a thread reply, a reply under a retracted root, and an old first-unread root outside the initial message window. Then revoke A from a restricted channel and prove both the summary and exact jump fail closed. Follow `UAT/F-10.17.md`.
+
+Do not call the story DONE until the commands above and the delivery verifier actually pass and the authenticated UAT evidence is recorded.
+
