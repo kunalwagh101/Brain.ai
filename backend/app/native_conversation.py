@@ -1075,6 +1075,9 @@ def thread_unread_summaries(
         .join(
             NativeThreadReadState,
             and_(
+                NativeThreadReadState.organization_id
+                == NativeMessage.organization_id,
+                NativeThreadReadState.channel_id == NativeMessage.channel_id,
                 NativeThreadReadState.root_message_id
                 == NativeMessage.thread_root_id,
                 NativeThreadReadState.user_id == user_id,
