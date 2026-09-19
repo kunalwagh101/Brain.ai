@@ -32,29 +32,6 @@ async function assertMessagingMembership(accessToken: string, organizationId: st
   }
 }
 
-async function forwardRead<T>(
-  accessToken: string,
-  path: string,
-): Promise<T> {
-  const response = await fetch(`${apiBaseUrl()}${path}`, {
-    cache: "no-store",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-  if (!response.ok) {
-    let detail: unknown = null;
-    try {
-      detail = await response.json();
-    } catch {
-      detail = { error: "non_json_error_response" };
-    }
-    throw new BrainApiError(response.status, detail);
-  }
-  return (await response.json()) as T;
-}
-
 async function forward<T>(
   accessToken: string,
   path: string,
