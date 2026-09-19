@@ -11,11 +11,14 @@ import {
   markNativeThreadRead,
   retractNativeMessage,
   revokeNativeChannelMember,
+  setNativeChannelArchived,
   sendNativeMessage,
   sendNativeReply,
   setNativePin,
   setNativeReaction,
   setNativeSavedMessage,
+  updateNativeChannelMemberAccess,
+  updateNativeChannelSettings,
   uploadNativeChannelAttachment,
   type NativeAttachment,
   type NativeChannel,
@@ -150,6 +153,54 @@ export function parseNativeChannelCreateInput(value: unknown): NativeChannelCrea
   };
 }
 
+export function parseNativeChannelSettingsInput(value: unknown): {
+  name: string;
+  description: string | null;
+  expected_revision: number;
+} {
+  const body = exactObject(
+    value,
+    new Set(["name", "description", "expected_revision"]),
+    "native channel settings request",
+  );
+  if (!Number.isInteger(body.expected_revision) || Number(body.expected_revision) < 1) {
+    invalid(400, "expected_revision is invalid");
+  }
+  return {
+    name: requiredText(body.name, "name", 160),
+    description: optionalText(body.description, "description", 500) ?? null,
+    expected_revision: Number(body.expected_revision),
+  };
+}
+
+export function parseNativeChannelLifecycleInput(value: unknown): {
+  expected_revision: number;
+} {
+  const body = exactObject(
+    value,
+    new Set(["expected_revision"]),
+    "native channel lifecycle request",
+  );
+  if (!Number.isInteger(body.expected_revision) || Number(body.expected_revision) < 1) {
+    invalid(400, "expected_revision is invalid");
+  }
+  return { expected_revision: Number(body.expected_revision) };
+}
+
+export function parseNativeMemberAccessInput(value: unknown): {
+  access: "read" | "write";
+} {
+  const body = exactObject(
+    value,
+    new Set(["access"]),
+    "native member access request",
+  );
+  if (body.access !== "read" && body.access !== "write") {
+    invalid(400, "access must be read or write");
+  }
+  return { access: body.access };
+}
+
 export function parseNativeMessageInput(value: unknown): {
   body: string;
   attachment_source_ids: string[];
@@ -263,6 +314,41 @@ export function parseNativeReadInput(value: unknown): { through_message_id: stri
       "through_message_id",
     ),
   };
+}
+
+export async function handleNativeChannelSettingsBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  body: unknown,
+): Promise<NativeChannel> {
+  await requireChatWriter(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  return updateNativeChannelSettings(
+    accessToken,
+    organizationId,
+    channelId,
+    parseNativeChannelSettingsInput(body),
+  );
+}
+
+export async function handleNativeChannelLifecycleBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  body: unknown,
+  archived: boolean,
+): Promise<NativeChannel> {
+  await requireChatWriter(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  const input = parseNativeChannelLifecycleInput(body);
+  return setNativeChannelArchived(
+    accessToken,
+    organizationId,
+    channelId,
+    input.expected_revision,
+    archived,
+  );
 }
 
 export async function handleNativeChannelCreateBff(
@@ -413,6 +499,26 @@ export async function handleNativeMemberInviteBff(
     organizationId,
     channelId,
     input.email,
+    input.access,
+  );
+}
+
+export async function handleNativeMemberAccessBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  userId: string,
+  body: unknown,
+): Promise<NativeChannelMember> {
+  await requireChatWriter(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  normalizedUuid(userId, "userId");
+  const input = parseNativeMemberAccessInput(body);
+  return updateNativeChannelMemberAccess(
+    accessToken,
+    organizationId,
+    channelId,
+    userId,
     input.access,
   );
 }
