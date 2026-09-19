@@ -11,6 +11,7 @@ import type {
   NativeChannelMember,
   NativeMessage,
   NativeMessagePin,
+  NativeMessageSave,
   ProjectMemory,
   ProjectStatus,
   WorkspaceNavigation,
@@ -21,6 +22,7 @@ import { DirectMessagePanel } from "./direct-message-panel";
 import { EvidenceWorkspace } from "./evidence-workspace";
 import { NativeChannelCreate } from "./native-channel-create";
 import { NativeChatPanel } from "./native-chat-panel";
+import { SavedMessagesPanel } from "./saved-messages-panel";
 import { WorkspaceSearch } from "./workspace-search";
 import styles from "./workspace-shell.module.css";
 
@@ -85,6 +87,7 @@ export function WorkspaceShell({
   selectedNativeChannel,
   nativeMessages,
   nativePins,
+  savedMessages,
   requestedNativeMessage,
   selectedNativeMembers,
   invalidRequestedChannel,
@@ -101,6 +104,7 @@ export function WorkspaceShell({
   evidenceMutationBase,
   canUploadEvidence,
   nativeChatMutationBase,
+  nativeSavedMutationBase,
   nativeMessageEndpoint,
   nativeMemberEndpoint,
   nativeConversationEndpoint,
@@ -122,6 +126,7 @@ export function WorkspaceShell({
   selectedNativeChannel: NativeChannel | null;
   nativeMessages: NativeMessage[];
   nativePins: NativeMessagePin[];
+  savedMessages: NativeMessageSave[];
   requestedNativeMessage: NativeMessage | null;
   selectedNativeMembers: NativeChannelMember[];
   invalidRequestedChannel: boolean;
@@ -138,6 +143,7 @@ export function WorkspaceShell({
   evidenceMutationBase: string | null;
   canUploadEvidence: boolean;
   nativeChatMutationBase: string | null;
+  nativeSavedMutationBase: string | null;
   nativeMessageEndpoint: string | null;
   nativeMemberEndpoint: string | null;
   nativeConversationEndpoint: string | null;
@@ -169,6 +175,7 @@ export function WorkspaceShell({
         <nav className={styles.railNav} aria-label="Primary workspace shortcuts">
           <a className={styles.railActive} href="#home" aria-label="Home">⌂</a>
           <a href="#native-chat" aria-label="Brain channels">#</a>
+          <a href="#saved-messages" aria-label="Saved messages">☆</a>
           <a href="#direct-messages" aria-label="Direct messages">↔</a>
           <a href="#projects" aria-label="Projects">▣</a>
           <a href="#agent-workspace" aria-label="Developer and agent workspace">⌘</a>
@@ -220,6 +227,10 @@ export function WorkspaceShell({
           <section>
             <div className={styles.groupTitle}><span>Workspace</span></div>
             <a className={styles.navActive} href="#home"><span>⌂</span> Home</a>
+            <a href="#saved-messages">
+              <span>☆</span> Saved
+              {savedMessages.length ? <small>{savedMessages.length}</small> : null}
+            </a>
             <a href="#agent-workspace"><span>⌘</span> Developer & agents</a>
             <a href="#memory"><span>◇</span> Decisions & blockers</a>
             <a href="#files"><span>▤</span> Files & evidence</a>
@@ -328,6 +339,15 @@ export function WorkspaceShell({
           </div>
         </header>
 
+        <section className={styles.panel} id="saved-messages" aria-label="Personal saved messages">
+          <SavedMessagesPanel
+            organizationId={organization.id}
+            items={savedMessages}
+            channels={nativeChannels}
+            mutationBase={nativeSavedMutationBase}
+          />
+        </section>
+
         <section className={styles.panel} id="native-chat" aria-label="Brain native channels">
           {canCreateNativeChannel ? (
             <NativeChannelCreate organizationId={organization.id} endpoint={nativeChatMutationBase} />
@@ -343,6 +363,9 @@ export function WorkspaceShell({
               key={`${selectedNativeChannel.id}:${selectedNativeChannel.latest_message_id ?? "empty"}`}
               messages={nativeMessages}
               pins={nativePins}
+              savedMessageIds={savedMessages
+                .filter((item) => item.message.channel_id === selectedNativeChannel.id)
+                .map((item) => item.message.id)}
               requestedMessage={requestedNativeMessage}
               members={selectedNativeMembers}
               mutationEndpoint={nativeMessageEndpoint}
