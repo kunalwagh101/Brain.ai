@@ -54,7 +54,7 @@ IN_REVIEW | S-10.20.01 | F-10.20 | Author/current-epoch DM edit/retract, optimis
 IN_REVIEW | S-10.21.01 | F-10.21 | Stable before_sequence thread pagination, merge-safe Load older replies/live refresh, tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.22.01 | F-10.22 | Tenant/root/user thread read state, set-based unread/first target, monotonic mark-read, badge/divider/jump, migration/tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.23.01 | F-10.23 | Private allow-listed/idempotent DM reactions, aggregate-only reads, retention/privacy-safe WorkOS UI/tests/docs staged; executable verification/UAT outstanding
-IN_PROGRESS | S-10.24.01 | F-10.24 | Workspace Teams foundation pulled after READY audit; navigation-only, no permission inheritance
+IN_REVIEW | S-10.24.01 | F-10.24 | Revisioned navigation-only Teams, server UI, same-origin lifecycle, migration/tests/docs staged; executable verification/UAT outstanding
 BACKLOG | S-10.25.01 | F-10.25 | Team channel groups + ACL-invariant channel assignment
 BACKLOG | S-10.26.01 | F-10.26 | Channel identity/archive/member-access administration
 
@@ -64,13 +64,13 @@ BACKLOG | S-10.26.01 | F-10.26 | Channel identity/archive/member-access administ
 
 
 
-### S-10.24.01 Workspace Teams — IN_PROGRESS
+### S-10.24.01 Workspace Teams — IN_REVIEW
 
 Sprint goal: add real shared Team navigation containers without creating a new authorization boundary or hiding existing channels.
 
 Ready evidence is in `DEFINITION_OF_READY.md`; implementation scope is in `docs/planning/increment-40.md`. OQ-009/OQ-010 preserve unresolved inheritance/DM-group semantics.
 
-Formal state: `IN_PROGRESS`. WIP=1. S-10.25/S-10.26 remain BACKLOG until this slice leaves implementation.
+Implementation staged: Team model/migration/service/API, optimistic creator/Owner/Admin lifecycle, Alembic registration, server-loaded Team navigation, Unassigned channel fallback, same-origin WorkOS UI/routes, ACL-invariance/security tests and UAT/demo/changelog/traceability. Formal state: `IN_REVIEW`; no executable PASS/UAT is claimed. WIP returns to zero; S-10.25 may now be pulled.
 
 ### S-10.23.01 Participant-Private DM Reactions — IN_REVIEW
 
