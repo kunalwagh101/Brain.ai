@@ -1,7 +1,12 @@
 import {
+  assignNativeChannelNavigation,
+  createNativeChannelGroup,
   createNativeTeam,
+  setNativeChannelGroupArchived,
   setNativeTeamArchived,
+  updateNativeChannelGroup,
   updateNativeTeam,
+  type NativeChannelGroup,
   type NativeTeam,
 } from "./brain-api";
 import { NativeChatBffRequestError } from "./native-chat-bff";
@@ -130,5 +135,91 @@ export async function handleNativeTeamLifecycle(
     teamId(rawTeamId),
     revision(input.expected_revision),
     archived,
+  );
+}
+
+export async function handleNativeChannelGroupCreate(
+  accessToken: string,
+  organizationId: string,
+  rawTeamId: string,
+  body: unknown,
+): Promise<NativeChannelGroup> {
+  await requireWriter(accessToken, organizationId);
+  const input = exactObject(body, new Set(["name"]));
+  return createNativeChannelGroup(
+    accessToken,
+    organizationId,
+    teamId(rawTeamId),
+    text(input.name, "name", 120),
+  );
+}
+
+export async function handleNativeChannelGroupUpdate(
+  accessToken: string,
+  organizationId: string,
+  rawTeamId: string,
+  rawGroupId: string,
+  body: unknown,
+): Promise<NativeChannelGroup> {
+  await requireWriter(accessToken, organizationId);
+  const input = exactObject(body, new Set(["name", "expected_revision"]));
+  return updateNativeChannelGroup(
+    accessToken,
+    organizationId,
+    teamId(rawTeamId),
+    teamId(rawGroupId),
+    text(input.name, "name", 120),
+    revision(input.expected_revision),
+  );
+}
+
+export async function handleNativeChannelGroupLifecycle(
+  accessToken: string,
+  organizationId: string,
+  rawTeamId: string,
+  rawGroupId: string,
+  body: unknown,
+  archived: boolean,
+): Promise<NativeChannelGroup> {
+  await requireWriter(accessToken, organizationId);
+  const input = exactObject(body, new Set(["expected_revision"]));
+  return setNativeChannelGroupArchived(
+    accessToken,
+    organizationId,
+    teamId(rawTeamId),
+    teamId(rawGroupId),
+    revision(input.expected_revision),
+    archived,
+  );
+}
+
+export async function handleNativeChannelAssignment(
+  accessToken: string,
+  organizationId: string,
+  rawChannelId: string,
+  body: unknown,
+) {
+  await requireWriter(accessToken, organizationId);
+  const input = exactObject(body, new Set(["team_id", "channel_group_id"]));
+  const channelId = teamId(rawChannelId);
+  const rawTargetTeam = input.team_id;
+  const rawGroup = input.channel_group_id;
+  if (rawTargetTeam !== null && rawTargetTeam !== undefined && typeof rawTargetTeam !== "string") {
+    invalid(400, "team_id is invalid");
+  }
+  if (rawGroup !== null && rawGroup !== undefined && typeof rawGroup !== "string") {
+    invalid(400, "channel_group_id is invalid");
+  }
+  const targetTeam = typeof rawTargetTeam === "string" ? teamId(rawTargetTeam) : null;
+  const targetGroup = typeof rawGroup === "string" ? teamId(rawGroup) : null;
+  if (targetGroup && !targetTeam) {
+    invalid(400, "channel_group_id requires team_id");
+  }
+  return assignNativeChannelNavigation(
+    accessToken,
+    organizationId,
+    channelId,
+    targetTeam,
+    targetGroup,
   );
 }
