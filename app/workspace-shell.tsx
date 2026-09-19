@@ -8,6 +8,7 @@ import type {
   EvidenceSource,
   ExecutiveOverview,
   NativeChannel,
+  NativeChannelGroup,
   NativeChannelMember,
   NativeMessage,
   NativeMessagePin,
@@ -22,6 +23,7 @@ import type { DirectConversation, DirectMessage } from "./direct-message-api";
 import { DirectMessagePanel } from "./direct-message-panel";
 import { EvidenceWorkspace } from "./evidence-workspace";
 import { NativeChannelCreate } from "./native-channel-create";
+import { NativeChannelGroupManager } from "./native-channel-group-manager";
 import { NativeChatPanel } from "./native-chat-panel";
 import { NativeTeamManager } from "./native-team-manager";
 import { SavedMessagesPanel } from "./saved-messages-panel";
@@ -87,6 +89,7 @@ export function WorkspaceShell({
   evidenceSources,
   nativeChannels,
   nativeTeams,
+  nativeChannelGroups,
   selectedNativeChannel,
   nativeMessages,
   nativeHistoryBeforeSequence,
@@ -131,6 +134,7 @@ export function WorkspaceShell({
   evidenceSources: EvidenceSource[];
   nativeChannels: NativeChannel[];
   nativeTeams: NativeTeam[];
+  nativeChannelGroups: NativeChannelGroup[];
   selectedNativeChannel: NativeChannel | null;
   nativeMessages: NativeMessage[];
   nativeHistoryBeforeSequence: number | null;
@@ -173,6 +177,17 @@ export function WorkspaceShell({
   const decisions = uniqueMemory(projects.flatMap((project) => project.confirmed_decisions));
   const warningCount = overview?.budget_warnings.filter((item) => item.warning_active).length ?? 0;
   const activeTeams = nativeTeams.filter((team) => team.status === "active");
+  const activeTeamIds = new Set(activeTeams.map((team) => team.id));
+  const activeGroups = nativeChannelGroups.filter((group) => group.status === "active");
+  const activeGroupsByTeam = new Map<string, NativeChannelGroup[]>();
+  for (const group of activeGroups) {
+    const items = activeGroupsByTeam.get(group.team_id) ?? [];
+    items.push(group);
+    activeGroupsByTeam.set(group.team_id, items);
+  }
+  const globalUnassignedChannels = nativeChannels.filter(
+    (channel) => !channel.team_id || !activeTeamIds.has(channel.team_id),
+  );
   const topbarTitle = selectedDirectConversation
     ? selectedDirectConversation.other_display_name
     : selectedNativeChannel
@@ -254,23 +269,93 @@ export function WorkspaceShell({
             <div className={styles.groupTitle}>
               <span>Teams</span><small>{activeTeams.length}</small>
             </div>
-            {activeTeams.length ? activeTeams.map((team) => (
-              <div className={styles.teamNavRow} key={team.id}>
-                <span aria-hidden="true">▦</span>
-                <span>
-                  <strong>{team.name}</strong>
-                  {team.description ? <small>{team.description}</small> : null}
-                </span>
-              </div>
-            )) : <p className={styles.emptyNav}>No Teams yet</p>}
+            {activeTeams.length ? activeTeams.map((team) => {
+              const groups = activeGroupsByTeam.get(team.id) ?? [];
+              const activeGroupIds = new Set(groups.map((group) => group.id));
+              const teamChannels = nativeChannels.filter(
+                (channel) => channel.team_id === team.id,
+              );
+              const ungrouped = teamChannels.filter(
+                (channel) => !channel.channel_group_id
+                  || !activeGroupIds.has(channel.channel_group_id),
+              );
+              return (
+                <div className={styles.teamTree} key={team.id}>
+                  <div className={styles.teamNavRow}>
+                    <span aria-hidden="true">▦</span>
+                    <span>
+                      <strong>{team.name}</strong>
+                      {team.description ? <small>{team.description}</small> : null}
+                    </span>
+                  </div>
+                  {groups.map((group) => {
+                    const groupChannels = teamChannels.filter(
+                      (channel) => channel.channel_group_id === group.id,
+                    );
+                    return (
+                      <div className={styles.channelGroupTree} key={group.id}>
+                        <div className={styles.channelGroupTitle}>
+                          <span>⌄</span><strong>{group.name}</strong>
+                        </div>
+                        {groupChannels.map((channel) => (
+                          <a
+                            className={styles.nestedChannel}
+                            href={`?organizationId=${encodeURIComponent(organization.id)}&channelId=${encodeURIComponent(channel.id)}#native-chat`}
+                            key={channel.id}
+                            aria-current={selectedNativeChannel?.id === channel.id ? "page" : undefined}
+                          >
+                            <span>{channel.visibility === "restricted" ? "▣" : "#"}</span>
+                            <span className={styles.channelName}>{channel.name}</span>
+                            {channel.unread_count ? (
+                              <span className={styles.unreadBadge} aria-label={`${channel.unread_count} unread`}>
+                                {channel.unread_count > 99 ? "99+" : channel.unread_count}
+                              </span>
+                            ) : null}
+                          </a>
+                        ))}
+                      </div>
+                    );
+                  })}
+                  {ungrouped.length ? (
+                    <div className={styles.channelGroupTree}>
+                      <div className={styles.channelGroupTitle}>
+                        <span>⌄</span><strong>Ungrouped</strong>
+                      </div>
+                      {ungrouped.map((channel) => (
+                        <a
+                          className={styles.nestedChannel}
+                          href={`?organizationId=${encodeURIComponent(organization.id)}&channelId=${encodeURIComponent(channel.id)}#native-chat`}
+                          key={channel.id}
+                          aria-current={selectedNativeChannel?.id === channel.id ? "page" : undefined}
+                        >
+                          <span>{channel.visibility === "restricted" ? "▣" : "#"}</span>
+                          <span className={styles.channelName}>{channel.name}</span>
+                          {channel.unread_count ? (
+                            <span className={styles.unreadBadge} aria-label={`${channel.unread_count} unread`}>
+                              {channel.unread_count > 99 ? "99+" : channel.unread_count}
+                            </span>
+                          ) : null}
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            }) : <p className={styles.emptyNav}>No Teams yet</p>}
             <NativeTeamManager teams={nativeTeams} endpoint={nativeTeamMutationBase} />
+            <NativeChannelGroupManager
+              teams={nativeTeams}
+              groups={nativeChannelGroups}
+              channels={nativeChannels}
+              endpoint={nativeTeamMutationBase}
+            />
           </section>
 
           <section>
             <div className={styles.groupTitle}>
-              <span>Unassigned channels</span><small>{nativeChannels.length}</small>
+              <span>Unassigned channels</span><small>{globalUnassignedChannels.length}</small>
             </div>
-            {nativeChannels.length ? nativeChannels.map((channel) => (
+            {globalUnassignedChannels.length ? globalUnassignedChannels.map((channel) => (
               <a
                 href={`?organizationId=${encodeURIComponent(organization.id)}&channelId=${encodeURIComponent(channel.id)}#native-chat`}
                 key={channel.id}
@@ -284,7 +369,7 @@ export function WorkspaceShell({
                   </span>
                 ) : null}
               </a>
-            )) : <p className={styles.emptyNav}>No visible Brain channels</p>}
+            )) : <p className={styles.emptyNav}>No unassigned visible channels</p>}
           </section>
 
           <section>
