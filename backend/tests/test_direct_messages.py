@@ -490,3 +490,68 @@ def test_private_message_retention_is_explicit_and_legal_hold_safe(
     assert db_session.get(DirectMessage, old_message_id) is None
     assert db_session.get(DirectMessage, recent_message_id) is not None
     assert db_session.get(DirectConversation, conversation_id) is not None
+
+def test_direct_message_history_uses_sequence_cursor(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    organization, alice, bob, _, _, _, _, _ = _seed(db_session)
+    conversation = _create_dm(client, organization, alice, bob)
+    conversation_id = conversation["id"]
+    created = []
+
+    _as(alice)
+    try:
+        for index in range(1, 6):
+            response = client.post(
+                f"/api/v1/organizations/{organization.id}/direct-messages/"
+                f"{conversation_id}/messages",
+                json={"body": f"Private history {index}"},
+                headers={"Idempotency-Key": f"dm-history-{index}"},
+            )
+            assert response.status_code == 201
+            created.append(response.json())
+    finally:
+        _clear()
+
+    _as(bob)
+    try:
+        endpoint = (
+            f"/api/v1/organizations/{organization.id}/direct-messages/"
+            f"{conversation_id}/messages"
+        )
+        first_page = client.get(endpoint, params={"limit": 2})
+        second_page = client.get(
+            endpoint,
+            params={
+                "limit": 2,
+                "before_sequence": first_page.json()[0]["sequence"],
+            },
+        )
+        third_page = client.get(
+            endpoint,
+            params={
+                "limit": 2,
+                "before_sequence": second_page.json()[0]["sequence"],
+            },
+        )
+        invalid = client.get(
+            endpoint,
+            params={"limit": 2, "before_sequence": 0},
+        )
+    finally:
+        _clear()
+
+    assert [item["id"] for item in first_page.json()] == [
+        created[3]["id"],
+        created[4]["id"],
+    ]
+    assert [item["id"] for item in second_page.json()] == [
+        created[1]["id"],
+        created[2]["id"],
+    ]
+    assert [item["id"] for item in third_page.json()] == [created[0]["id"]]
+    assert {
+        item["id"] for item in first_page.json()
+    }.isdisjoint({item["id"] for item in second_page.json()})
+    assert invalid.status_code == 422
