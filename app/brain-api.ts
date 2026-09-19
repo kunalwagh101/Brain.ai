@@ -61,6 +61,21 @@ export type NativeTeam = {
   can_manage: boolean;
 };
 
+export type NativeChannelGroup = {
+  id: string;
+  organization_id: string;
+  team_id: string;
+  name: string;
+  slug: string;
+  status: "active" | "archived";
+  revision: number;
+  created_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+  archived_at: string | null;
+  can_manage: boolean;
+};
+
 export type NativeChannel = {
   id: string;
   organization_id: string;
@@ -68,6 +83,8 @@ export type NativeChannel = {
   name: string;
   slug: string;
   description: string | null;
+  team_id: string | null;
+  channel_group_id: string | null;
   visibility: "organization" | "restricted";
   status: "active" | "archived";
   created_by_user_id: string;
@@ -76,6 +93,7 @@ export type NativeChannel = {
   archived_at: string | null;
   member_count: number;
   can_post: boolean;
+  can_manage: boolean;
   can_manage_members: boolean;
   unread_count?: number;
   latest_message_id?: string | null;
@@ -593,6 +611,91 @@ export function setNativeTeamArchived(
     accessToken,
     `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-teams/${encodeURIComponent(teamId)}/${archived ? "archive" : "restore"}`,
     { method: "POST", body: JSON.stringify({ expected_revision: expectedRevision }) },
+  );
+}
+
+export function listNativeChannelGroups(
+  accessToken: string,
+  organizationId: string,
+  includeArchived = false,
+): Promise<NativeChannelGroup[]> {
+  const suffix = includeArchived ? "?include_archived=true" : "";
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-teams/groups${suffix}`,
+  );
+}
+
+export function createNativeChannelGroup(
+  accessToken: string,
+  organizationId: string,
+  teamId: string,
+  name: string,
+): Promise<NativeChannelGroup> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-teams/${encodeURIComponent(teamId)}/groups`,
+    { method: "POST", body: JSON.stringify({ name }) },
+  );
+}
+
+export function updateNativeChannelGroup(
+  accessToken: string,
+  organizationId: string,
+  teamId: string,
+  groupId: string,
+  name: string,
+  expectedRevision: number,
+): Promise<NativeChannelGroup> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-teams/${encodeURIComponent(teamId)}/groups/${encodeURIComponent(groupId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ name, expected_revision: expectedRevision }),
+    },
+  );
+}
+
+export function setNativeChannelGroupArchived(
+  accessToken: string,
+  organizationId: string,
+  teamId: string,
+  groupId: string,
+  expectedRevision: number,
+  archived: boolean,
+): Promise<NativeChannelGroup> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-teams/${encodeURIComponent(teamId)}/groups/${encodeURIComponent(groupId)}/${archived ? "archive" : "restore"}`,
+    {
+      method: "POST",
+      body: JSON.stringify({ expected_revision: expectedRevision }),
+    },
+  );
+}
+
+export function assignNativeChannelNavigation(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  teamId: string | null,
+  channelGroupId: string | null,
+): Promise<{
+  channel_id: string;
+  team_id: string | null;
+  channel_group_id: string | null;
+}> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-teams/channel-assignment/${encodeURIComponent(channelId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        team_id: teamId,
+        channel_group_id: channelGroupId,
+      }),
+    },
   );
 }
 
