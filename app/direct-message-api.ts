@@ -14,6 +14,12 @@ export type DirectConversation = {
   updated_at: string;
 };
 
+export type DirectReaction = {
+  reaction: string;
+  count: number;
+  reacted_by_me: boolean;
+};
+
 export type DirectMessage = {
   id: string;
   organization_id: string;
@@ -29,6 +35,7 @@ export type DirectMessage = {
   deleted_at: string | null;
   can_edit: boolean;
   can_delete: boolean;
+  reactions: DirectReaction[];
   created_at: string;
 };
 
@@ -45,7 +52,7 @@ function apiBaseUrl(): string {
 async function dmMutation<T>(
   accessToken: string,
   path: string,
-  method: "PATCH" | "DELETE",
+  method: "PUT" | "PATCH" | "DELETE",
   body: object,
 ): Promise<T> {
   if (!accessToken.trim()) throw new Error("A server-side WorkOS access token is required");
@@ -161,4 +168,51 @@ export function retractDirectMessage(
     "DELETE",
     { expected_revision: expectedRevision },
   );
+}
+
+export function addDirectMessageReaction(
+  accessToken: string,
+  organizationId: string,
+  conversationId: string,
+  messageId: string,
+  reaction: string,
+): Promise<DirectReaction> {
+  return dmMutation(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/direct-messages/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/reaction`,
+    "PUT",
+    { reaction },
+  );
+}
+
+export async function removeDirectMessageReaction(
+  accessToken: string,
+  organizationId: string,
+  conversationId: string,
+  messageId: string,
+  reaction: string,
+): Promise<void> {
+  if (!accessToken.trim()) throw new Error("A server-side WorkOS access token is required");
+  const response = await fetch(
+    `${apiBaseUrl()}/api/v1/organizations/${encodeURIComponent(organizationId)}/direct-messages/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/reaction`,
+    {
+      method: "DELETE",
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ reaction }),
+    },
+  );
+  if (!response.ok) {
+    let detail: unknown = null;
+    try {
+      detail = await response.json();
+    } catch {
+      detail = { error: "non_json_error_response" };
+    }
+    throw new BrainApiError(response.status, detail);
+  }
 }
