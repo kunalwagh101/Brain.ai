@@ -383,3 +383,27 @@ Leading indicators: jump reaches the exact first unread target; unauthorised/ret
 Rollback: remove the added summary field, GET BFF handler/template method and divider/jump UI. No schema or persisted read/message/evidence state changes, so there is no data rollback.
 
 Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires focused backend unread/revocation/retraction tests, frontend source-contract tests/build, delivery verifier, and authenticated WorkOS multi-user root/thread/old-window/revocation UAT.
+
+## Increment 34 readiness record — S-10.18.01
+
+Decision: `READY` for repository implementation on 2026-09-19; board WIP was zero before pull.
+
+Problem and baseline: Brain DMs already have participant-only visibility epochs and monotonic message sequences, but no per-participant read cursor, unread badge, first-unread identity or resume action. Channel unread state cannot be reused because DM access is pair-private and reactivation intentionally starts a new visibility epoch.
+
+AI decision: AI is not needed. This is deterministic participant state, sequence arithmetic, authorization and UI.
+
+Architecture decision: extend `DirectConversation` with one last-read sequence per participant. Keep it inside the existing 1:1 conversation row rather than adding a generic read-state table. On new/reactivated visibility, set the participant read cursor immediately before that participant's visible floor. Compute unread count/first unread/latest visible message from `DirectMessage.sequence` with bounded set-based queries over the current user's visible conversations. Own messages never count as unread.
+
+Privacy/authority: only a current active participant with DM permission can list unread state, read an exact message or mark read. Owner/Admin/Executive status alone gives no access. The route/API returns IDs/counts only beyond the already-authorised message representation; it creates no organisation-wide audit/history.
+
+Epoch safety: read cursors are clamped to the participant visibility epoch. Revocation blocks the participant immediately. Re-initiation resets only the reactivated participant's cursor to `visible_from_sequence - 1`; earlier private history remains inaccessible and cannot become unread again.
+
+Browser/security: unread badges arrive in the existing server-rendered conversation list. The selected DM captures its initial first-unread ID before mark-read refresh. Exact recovery/read mutations use same-origin WorkOS routes, UUID validation and server-held bearer tokens only.
+
+Migration/rollback: migration `20260919_0034` adds two integer read-cursor columns, backfills each to `visible_from_sequence - 1`, adds sequence-bound checks and removes only those columns on downgrade. No DM content is deleted.
+
+Open questions: none changes this slice. Group DMs, push notifications, read receipts visible to the other participant and per-message "seen" indicators are separate social/privacy features and are not inferred.
+
+Leading indicators: unread count correctness, exact jump success, stale/backward read movement = 0, cross-participant unread leakage = 0, earlier-epoch unread resurrection = 0.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires PostgreSQL migration round-trip, focused epoch/revocation/monotonic tests, frontend source contracts/build, verifier and authenticated two-user WorkOS UAT.
