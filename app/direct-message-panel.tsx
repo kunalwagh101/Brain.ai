@@ -62,15 +62,6 @@ export function DirectMessagePanel({
   );
 
   useEffect(() => {
-    setVisibleMessages(messages);
-    setHistoryBeforeSequence(messages[0]?.sequence ?? null);
-    setHasOlderHistory(messages.length >= 200);
-    setHistoryLoading(false);
-    setFirstUnreadMessageId(selectedConversation?.first_unread_message_id ?? null);
-    setError(null);
-  }, [selectedConversation?.id]);
-
-  useEffect(() => {
     setVisibleMessages((current) => {
       const merged = new Map(current.map((message) => [message.id, message]));
       for (const message of messages) merged.set(message.id, message);
