@@ -53,12 +53,20 @@ IN_REVIEW | S-10.19.01 | F-10.19 | Stable before_sequence pagination for channel
 IN_REVIEW | S-10.20.01 | F-10.20 | Author/current-epoch DM edit/retract, optimistic revisions, private tombstones/history, unread/retention consistency, WorkOS UI/tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.21.01 | F-10.21 | Stable before_sequence thread pagination, merge-safe Load older replies/live refresh, tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.22.01 | F-10.22 | Tenant/root/user thread read state, set-based unread/first target, monotonic mark-read, badge/divider/jump, migration/tests/docs staged; executable verification/UAT outstanding
-BACKLOG | S-10.23.01 | F-10.23 | Participant-private idempotent DM reactions with no organisation-wide projection
+IN_PROGRESS | S-10.23.01 | F-10.23 | Participant-private idempotent DM reactions with no organisation-wide projection pulled after READY audit
 
 
 
 
 
+
+### S-10.23.01 Participant-Private DM Reactions — IN_PROGRESS
+
+Sprint goal: add lightweight reactions to visible participant-private DM messages without exposing participant metadata or creating employer-wide intelligence/audit events.
+
+Ready evidence is in `DEFINITION_OF_READY.md`; implementation scope is in `docs/planning/increment-39.md`.
+
+Formal state: `IN_PROGRESS`. WIP=1.
 
 ### S-10.22.01 Thread Unread & Resume — IN_REVIEW
 
