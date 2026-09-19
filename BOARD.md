@@ -49,10 +49,19 @@ IN_REVIEW | S-10.15.01 | F-10.15 | Reference-only shared channel pins, current r
 IN_REVIEW | S-10.16.01 | F-10.16 | Private reference-only Saved messages, membership/message scoped FKs, current visible-channel filtering, read-only Save support, audit-free personal traffic, same-lifecycle retract cleanup, exact deep links and WorkOS UI are implementation-staged; executable PostgreSQL/backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.17.01 | F-10.17 | Set-based first-unread ID, same-origin exact-message recovery, stable accessible root/thread divider/jump, regressions/docs/UAT staged; executable backend/frontend/verifier and authenticated WorkOS UAT remain outstanding
 IN_REVIEW | S-10.18.01 | F-10.18 | Epoch-safe participant DM read cursors, set-based unread/first-target summary, exact participant-only recovery, badges/divider/jump, migration/tests/docs staged; executable verification/UAT outstanding
-BACKLOG | S-10.19.01 | F-10.19 | Stable sequence-cursor older-message pagination for native channels and participant-only DMs
+IN_PROGRESS | S-10.19.01 | F-10.19 | Stable sequence-cursor older-message pagination for native channels and participant-only DMs pulled after READY audit
 BACKLOG | S-10.20.01 | F-10.20 | Author-owned participant-private DM edit/retract lifecycle with private revision history
 
 
+
+
+### S-10.19.01 Conversation History Pagination — IN_PROGRESS
+
+Sprint goal: let authorised users load older native-channel root history and participant-visible DM history with stable sequence cursors, no OFFSET scans and no permission widening.
+
+Ready evidence is in `DEFINITION_OF_READY.md`; implementation/acceptance scope is in `docs/planning/increment-35.md`.
+
+Formal state: `IN_PROGRESS`. WIP=1. S-10.20 remains BACKLOG until this slice moves out of implementation.
 
 ### S-10.18.01 DM Unread & Resume — IN_REVIEW
 
