@@ -1,5 +1,19 @@
 # Changelog
 
+### Increment 40 — Workspace Teams
+
+- Added organisation-scoped `NativeTeam` metadata with stable UUID/slug, description, active/archive lifecycle and optimistic revision.
+- Added creator or Owner/Admin Team management while creation reuses the current native-chat writer role boundary.
+- Added content-free Team lifecycle audit events.
+- Added migration `20260920_0038` and registered the model in Alembic's explicit metadata imports.
+- Added server-side Team loading and a shared workspace Team manager.
+- Existing visible channels remain under **Unassigned channels** until explicit group/channel navigation is introduced by S-10.25.
+- OQ-009 prevents Team metadata from inheriting/replacing channel ACLs; OQ-010 keeps participant-private DMs outside shared Team hierarchy.
+- Added same-origin WorkOS create/edit/archive/restore templates plus tenant, stale-revision, guest/manager and ResourceGrant-invariance contracts.
+
+Verification is not claimed as passed. `S-10.24.01` remains `IN_REVIEW`.
+
+
 ### Increment 39 — Participant-Private DM Reactions
 
 - Added private `DirectMessageReaction` rows with the same five-value allowlist as native channel reactions.
