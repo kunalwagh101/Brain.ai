@@ -125,6 +125,8 @@ mkdir -p \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/members/[userId]' \
   'app/api/brain/organizations/[organizationId]/direct-messages' \
   'app/api/brain/organizations/[organizationId]/direct-messages/[conversationId]/messages' \
+  'app/api/brain/organizations/[organizationId]/direct-messages/[conversationId]/messages/[messageId]' \
+  'app/api/brain/organizations/[organizationId]/direct-messages/[conversationId]/read' \
   'app/api/brain/organizations/[organizationId]/activity/[notificationId]/read' \
   'app/api/brain/organizations/[organizationId]/activity/read-all' \
   'app/api/brain/organizations/[organizationId]/activity/preferences' \
@@ -158,6 +160,8 @@ cp docs/workos-activation/app-api-brain-native-members-route.ts.template 'app/ap
 cp docs/workos-activation/app-api-brain-native-member-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/members/[userId]/route.ts'
 cp docs/workos-activation/app-api-brain-direct-messages-route.ts.template 'app/api/brain/organizations/[organizationId]/direct-messages/route.ts'
 cp docs/workos-activation/app-api-brain-direct-message-route.ts.template 'app/api/brain/organizations/[organizationId]/direct-messages/[conversationId]/messages/route.ts'
+cp docs/workos-activation/app-api-brain-direct-message-exact-route.ts.template 'app/api/brain/organizations/[organizationId]/direct-messages/[conversationId]/messages/[messageId]/route.ts'
+cp docs/workos-activation/app-api-brain-direct-message-read-route.ts.template 'app/api/brain/organizations/[organizationId]/direct-messages/[conversationId]/read/route.ts'
 cp docs/workos-activation/app-api-brain-activity-read-route.ts.template 'app/api/brain/organizations/[organizationId]/activity/[notificationId]/read/route.ts'
 cp docs/workos-activation/app-api-brain-activity-read-all-route.ts.template 'app/api/brain/organizations/[organizationId]/activity/read-all/route.ts'
 cp docs/workos-activation/app-api-brain-activity-preferences-route.ts.template 'app/api/brain/organizations/[organizationId]/activity/preferences/route.ts'
@@ -193,3 +197,5 @@ echo "Complete UAT/F-10.13.md before marking S-10.13.01 DONE or accepted."
 echo "Complete UAT/F-10.14.md before marking S-10.14.01 DONE or accepted."
 echo "Complete UAT/F-10.15.md before marking S-10.15.01 DONE or accepted."
 echo "Complete UAT/F-10.16.md before marking S-10.16.01 DONE or accepted."
+echo "Complete UAT/F-10.17.md before marking S-10.17.01 DONE or accepted."
+echo "Complete UAT/F-10.18.md before marking S-10.18.01 DONE or accepted."
