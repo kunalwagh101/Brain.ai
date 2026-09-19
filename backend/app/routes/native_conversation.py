@@ -20,6 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agent_models import AgentDefinition, AgentRun
+from app.auth import get_current_user
 from app.database import get_db
 from app.evidence_ingestion import (
     MAX_EVIDENCE_BYTES,
@@ -190,6 +191,31 @@ class ChannelAttachmentUploadRead(BaseModel):
     retrieval_available: bool
     source_visibility: str
     native_channel_id: uuid.UUID | None
+
+
+def _saved_user_id(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    current_user: User,
+) -> uuid.UUID:
+    if current_user.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied",
+        )
+    membership = db.scalar(
+        select(Membership.id).where(
+            Membership.organization_id == organization_id,
+            Membership.user_id == current_user.id,
+        )
+    )
+    if membership is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found",
+        )
+    return current_user.id
 
 
 def _request_id(request: Request) -> str | None:
@@ -494,17 +520,22 @@ async def upload_channel_attachment(
 )
 def list_saved(
     organization_id: uuid.UUID,
-    authorization: Annotated[AuthorizationContext, Depends(_read)],
+    current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
 ) -> list[SavedMessageRead]:
+    user_id = _saved_user_id(
+        db,
+        organization_id=organization_id,
+        current_user=current_user,
+    )
     rows = list_saved_messages(
         db,
         organization_id=organization_id,
-        user_id=authorization.user_id,
+        user_id=user_id,
         limit=limit,
     )
-    return _save_reads(db, rows, authorization.user_id)
+    return _save_reads(db, rows, user_id)
 
 
 @router.put(
@@ -515,30 +546,35 @@ def save_native_message(
     organization_id: uuid.UUID,
     channel_id: uuid.UUID,
     message_id: uuid.UUID,
-    authorization: Annotated[AuthorizationContext, Depends(_read)],
+    current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ) -> SavedMessageRead:
+    user_id = _saved_user_id(
+        db,
+        organization_id=organization_id,
+        current_user=current_user,
+    )
     try:
         save = save_message(
             db,
             organization_id=organization_id,
             channel_id=channel_id,
             message_id=message_id,
-            user_id=authorization.user_id,
+            user_id=user_id,
         )
         _, message = visible_message(
             db,
             organization_id=organization_id,
             channel_id=channel_id,
             message_id=message_id,
-            user_id=authorization.user_id,
+            user_id=user_id,
         )
     except NativeChatError as exc:
         _raise_chat_error(exc)
     return _save_reads(
         db,
         [(save, message)],
-        authorization.user_id,
+        user_id,
     )[0]
 
 
@@ -550,16 +586,21 @@ def unsave_native_message(
     organization_id: uuid.UUID,
     channel_id: uuid.UUID,
     message_id: uuid.UUID,
-    authorization: Annotated[AuthorizationContext, Depends(_read)],
+    current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ) -> Response:
+    user_id = _saved_user_id(
+        db,
+        organization_id=organization_id,
+        current_user=current_user,
+    )
     try:
         unsave_message(
             db,
             organization_id=organization_id,
             channel_id=channel_id,
             message_id=message_id,
-            user_id=authorization.user_id,
+            user_id=user_id,
         )
     except NativeChatError as exc:
         _raise_chat_error(exc)
