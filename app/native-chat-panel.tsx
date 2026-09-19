@@ -603,20 +603,13 @@ export function NativeChatPanel({
         if (!response.ok) throw new Error(`thread_deep_link_${response.status}`);
         const replies = await response.json() as NativeMessage[];
       setThreadReplies(replies);
-      if (focusMessageId) {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            document.getElementById(`message-${focusMessageId}`)?.scrollIntoView({
-              block: "center",
-            });
-          });
-        });
-      }
+      requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           document.getElementById(`message-${requestedMessage.id}`)?.scrollIntoView({
             block: "center",
           });
         });
+      });
       })
       .catch(() => {
         if (!controller.signal.aborted) {
@@ -877,7 +870,17 @@ export function NativeChatPanel({
         setStatus({ kind: "error", text: safeMessageError(response.status) });
         return;
       }
-      setThreadReplies(await response.json() as NativeMessage[]);
+      const replies = await response.json() as NativeMessage[];
+      setThreadReplies(replies);
+      if (focusMessageId) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            document.getElementById(`message-${focusMessageId}`)?.scrollIntoView({
+              block: "center",
+            });
+          });
+        });
+      }
     } catch {
       setStatus({ kind: "error", text: "The thread could not reach the secure Brain route." });
     } finally {
