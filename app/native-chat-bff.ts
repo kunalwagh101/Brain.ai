@@ -8,6 +8,7 @@ import {
   listNativeReplies,
   listNativeSavedMessages,
   markNativeChannelRead,
+  markNativeThreadRead,
   retractNativeMessage,
   revokeNativeChannelMember,
   sendNativeMessage,
@@ -519,6 +520,26 @@ export async function handleNativeThreadListBff(
     rootMessageId,
     limit,
     beforeSequence,
+  );
+}
+
+export async function handleNativeThreadReadBff(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  rootMessageId: string,
+  body: unknown,
+) {
+  await requireChatReader(accessToken, organizationId);
+  normalizedUuid(channelId, "channelId");
+  normalizedUuid(rootMessageId, "rootMessageId");
+  const input = parseNativeReadInput(body);
+  return markNativeThreadRead(
+    accessToken,
+    organizationId,
+    channelId,
+    rootMessageId,
+    input.through_message_id,
   );
 }
 
