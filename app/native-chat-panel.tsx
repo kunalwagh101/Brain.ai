@@ -573,7 +573,13 @@ export function NativeChatPanel({
   }, [channel.id, initialHasOlderHistory, initialHistoryBeforeSequence]);
 
   useEffect(() => {
-    setRootMessages(messages);
+    setRootMessages((current) => {
+      const merged = new Map(current.map((message) => [message.id, message]));
+      for (const message of messages) merged.set(message.id, message);
+      return [...merged.values()].sort(
+        (left, right) => left.message_sequence - right.message_sequence,
+      );
+    });
     setThreadRoot((current) => {
       if (!current) return current;
       return messages.find((message) => message.id === current.id) ?? current;
