@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type {
   NativeAttachment,
@@ -558,6 +558,34 @@ export function NativeChatPanel({
   );
   const typingText = typingLabel(presence.typing_users);
 
+  const persistThreadRead = useCallback(async (
+    rootId: string,
+    throughMessageId: string,
+  ) => {
+    if (!conversationEndpoint || threadMarkedThroughRef.current === throughMessageId) return;
+    try {
+      const response = await fetch(
+        `${conversationEndpoint}/messages/${encodeURIComponent(rootId)}/thread-read`,
+        {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ through_message_id: throughMessageId }),
+        },
+      );
+      if (response.ok) {
+        threadMarkedThroughRef.current = throughMessageId;
+        router.refresh();
+      } else if (response.status === 403 || response.status === 404) {
+        setThreadRoot(null);
+        setThreadReplies([]);
+        router.refresh();
+      }
+    } catch {
+      // Read progress is best-effort; later open/live refresh retries safely.
+    }
+  }, [conversationEndpoint, router]);
+
   useEffect(() => {
     activeChannelIdRef.current = channel.id;
     setBody("");
@@ -638,7 +666,7 @@ export function NativeChatPanel({
       setThreadReplies(replies);
       setThreadBeforeSequence(replies[0]?.message_sequence ?? null);
       setThreadHasOlderHistory(replies.length >= 100);
-      void persistThreadRead(root.id, replies.at(-1)?.id ?? root.id);
+      void persistThreadRead(root.id, replies[replies.length - 1]?.id ?? root.id);
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           document.getElementById(`message-${requestedMessage.id}`)?.scrollIntoView({
@@ -655,7 +683,7 @@ export function NativeChatPanel({
       .finally(() => setThreadLoading(false));
 
     return () => controller.abort();
-  }, [conversationEndpoint, requestedMessage, rootMessages]);
+  }, [conversationEndpoint, persistThreadRead, requestedMessage, rootMessages]);
 
   useEffect(() => {
     if (!threadRootId) return;
@@ -706,7 +734,7 @@ export function NativeChatPanel({
             setThreadBeforeSequence(refreshed[0].message_sequence);
             setThreadHasOlderHistory(refreshed.length >= 100);
           }
-          const latest = refreshed.at(-1);
+          const latest = refreshed[refreshed.length - 1];
           if (latest) void persistThreadRead(threadRootId, latest.id);
         }
       } catch {
@@ -728,7 +756,7 @@ export function NativeChatPanel({
       document.removeEventListener("visibilitychange", wake);
       window.removeEventListener("online", wake);
     };
-  }, [conversationEndpoint, router, threadBeforeSequence, threadRootId]);
+  }, [conversationEndpoint, persistThreadRead, router, threadBeforeSequence, threadRootId]);
 
   useEffect(() => {
     if (!firstUnreadMessageId) return;
@@ -949,34 +977,6 @@ export function NativeChatPanel({
     }
   }
 
-  async function persistThreadRead(
-    rootId: string,
-    throughMessageId: string,
-  ) {
-    if (!conversationEndpoint || threadMarkedThroughRef.current === throughMessageId) return;
-    try {
-      const response = await fetch(
-        `${conversationEndpoint}/messages/${encodeURIComponent(rootId)}/thread-read`,
-        {
-          method: "POST",
-          credentials: "same-origin",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ through_message_id: throughMessageId }),
-        },
-      );
-      if (response.ok) {
-        threadMarkedThroughRef.current = throughMessageId;
-        router.refresh();
-      } else if (response.status === 403 || response.status === 404) {
-        setThreadRoot(null);
-        setThreadReplies([]);
-        router.refresh();
-      }
-    } catch {
-      // Read progress is best-effort UI state; a later open/live refresh retries safely.
-    }
-  }
-
   function focusThreadUnreadDivider(messageId: string) {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -1071,7 +1071,7 @@ export function NativeChatPanel({
       setThreadReplies(replies);
       setThreadBeforeSequence(replies[0]?.message_sequence ?? null);
       setThreadHasOlderHistory(replies.length >= 100);
-      const throughId = replies.at(-1)?.id ?? message.id;
+      const throughId = replies[replies.length - 1]?.id ?? message.id;
       void persistThreadRead(message.id, throughId);
       if (focusMessageId) {
         requestAnimationFrame(() => {
