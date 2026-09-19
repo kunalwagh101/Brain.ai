@@ -628,6 +628,7 @@ def list_pins(
             channel_id=channel_id,
             user_id=authorization.user_id,
             limit=limit,
+            before_sequence=before_sequence,
         )
     except NativeChatError as exc:
         _raise_chat_error(exc)
@@ -873,6 +874,7 @@ def list_replies(
     authorization: Annotated[AuthorizationContext, Depends(_read)],
     db: Annotated[Session, Depends(get_db)],
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    before_sequence: Annotated[int | None, Query(ge=1)] = None,
 ) -> list[ConversationMessageRead]:
     try:
         _, replies = list_thread_replies(
