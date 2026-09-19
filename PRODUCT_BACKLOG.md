@@ -372,6 +372,27 @@ Acceptance: Given a current participant and visible non-retracted DM message in 
 Dependencies: S-10.06.02 participant-safe DMs, S-10.20.01 DM lifecycle, OQ-008, S-10.04.01. Blocking risk: repository implementation can reach IN_REVIEW; DONE requires PostgreSQL migration, privacy/idempotency tests, frontend/verifier execution and authenticated two-user UAT. Size: M. Leading indicator: DM reaction success with zero cross-participant metadata leakage. Business value: E-10. Priority: P1.  
 Tasks: T-10.23.01.a private reaction schema/migration; T-10.23.01.b participant/epoch-safe add/remove/aggregate service; T-10.23.01.c API/BFF/UI; T-10.23.01.d privacy/idempotency/retract/retention tests; T-10.23.01.e UAT/demo/traceability.
 
+#### F-10.24 Workspace teams
+**S-10.24.01 — Organise the workspace into real Teams without changing channel access**  
+As a Brain user, I want shared Teams such as Sales, Frontend, Backend, AI or Full-stack, so that the workspace matches the company structure instead of showing one flat channel list.  
+Acceptance: Given a current organisation member, when Teams are listed, then active team metadata is organisation-scoped, contains no message/DM/evidence content and does not imply access to any channel; Given a current role with native-chat write permission, when a valid unique team name/optional description is submitted, then exactly one active Team is created with a stable ID/slug, creator, revision and audit event; Given the team creator or Owner/Admin, when name/description is changed with the expected revision, then the update is atomic and stale revisions fail with conflict; Given an authorised manager archives or restores an eligible Team, then lifecycle state/timestamps/revision update atomically and the action never deletes channels, messages, evidence, DMs or grants; Given any non-manager, guest, cross-tenant user or removed member attempts a mutation, then it fails closed without widening access; Given team metadata is rendered, then the sidebar shows Teams as real navigation containers and keeps existing visible channels available in an explicit unassigned area until S-10.25 assigns them; Given browser mutations execute, then they use bounded same-origin WorkOS routes with no reusable backend token; Given migration rollback, then only Team metadata is removed and existing collaboration content remains untouched.  
+Dependencies: S-10.02.01 workspace shell, S-10.04.01 server-session boundary, S-10.06.01 channel authority, OQ-009/OQ-010 engineering-safe boundaries. Blocking risk: repository implementation can reach IN_REVIEW; DONE requires PostgreSQL migration round-trip, backend/frontend/verifier execution and authenticated role/tenant browser UAT. Size: M. Leading indicator: successful team create/edit/archive rate with zero channel-permission changes. Business value: E-10. Priority: P1.  
+Tasks: T-10.24.01.a team schema/migration; T-10.24.01.b permission-aware lifecycle service; T-10.24.01.c API/BFF/UI/sidebar; T-10.24.01.d authz/concurrency/rollback tests; T-10.24.01.e UAT/demo/traceability.
+
+#### F-10.25 Team channel groups
+**S-10.25.01 — Create channel groups inside Teams and move channels without changing ACLs**  
+As a Brain collaborator, I want subfolders/channel groups inside Teams, so that large teams can organise many chats like Slack/Discord without turning navigation structure into a security boundary.  
+Acceptance: Given an active Team, when an authorised team manager creates or edits a valid unique group, then exactly one organisation/team-scoped group with optimistic revision is stored; Given a visible channel manager assigns or moves a channel to an active Team/group, then only navigation references change and the channel visibility, NativeChannelMembership rows, ResourceGrants, evidence grants, unread state and Search access remain unchanged; Given a group belongs to another Team/organisation, is archived or the actor cannot manage the channel/target Team, then assignment fails closed; Given a group is archived, then its currently visible channels remain reachable under the parent Team's ungrouped section rather than disappearing or changing permissions; Given a restricted channel is hidden from the current user, then Teams/groups never reveal that channel ID/name through counts, membership or assignment reads; Given the workspace renders, then channels appear under Team → Group hierarchy while unassigned channels remain visible in a fallback section; DMs remain in the separate participant-private section under OQ-010; Given browser mutations execute, then same-origin WorkOS routes validate bounded IDs/names and expose no bearer token; Given rollback, then group and channel-navigation references can be removed without deleting channel/message/evidence content.  
+Dependencies: S-10.24.01 Teams, S-10.06.01 channel ACL, OQ-009/OQ-010. Blocking risk: repository implementation can reach IN_REVIEW; DONE requires PostgreSQL migration round-trip, move/revocation/tenant tests, frontend/verifier execution and authenticated hierarchy UAT. Size: L. Leading indicator: team/group navigation completion with zero ACL/grant deltas. Business value: E-10. Priority: P1.  
+Tasks: T-10.25.01.a group + channel-navigation schema/migration; T-10.25.01.b group lifecycle and safe assignment service; T-10.25.01.c typed API/BFF; T-10.25.01.d nested sidebar + management UX; T-10.25.01.e ACL-invariance/tenant/archive tests; T-10.25.01.f UAT/demo/traceability.
+
+#### F-10.26 Channel administration
+**S-10.26.01 — Manage channel identity, lifecycle and restricted member access from the workspace**  
+As a channel manager, I want to maintain channel settings and member access without database/API work, so that Brain channels stay usable as the company changes.  
+Acceptance: Given the channel creator or Owner/Admin, when name/description is edited with expected revision, then channel identity updates atomically, slug uniqueness is enforced, the current Work Graph track label/navigation metadata is updated, historical message/canonical evidence is not rewritten, and stale revisions fail with conflict; Given an authorised manager archives a channel, then it becomes read-only and leaves the default active sidebar while existing authorised history/evidence remains permission-filtered and recoverable; Given an authorised manager restores it, then posting follows the existing channel ACL again; Given a restricted-channel manager changes an existing member between read/write, then the membership and current ResourceGrant/evidence grant access are updated consistently without revoking the member; Given visibility is requested to change between organisation/restricted, then S-10.26 rejects it because safe visibility conversion is not part of this story; Given non-manager/revoked/cross-tenant actors attempt settings/member-access mutations, then they fail closed; Given archived channels exist, then authorised managers have an explicit Archived channels surface to restore them without making archived channels part of the normal active list; Given browser mutations execute, then bounded same-origin WorkOS routes use no browser bearer token; Given rollback, then the settings revision column can be removed without deleting channels/content and archive/name state remains representable by existing fields.  
+Dependencies: S-10.25.01 hierarchy, S-10.06.01 restricted members, S-10.12.01 immutable message history, S-10.04.01. Blocking risk: repository implementation can reach IN_REVIEW; DONE requires migration/backend/frontend/verifier execution plus authenticated creator/Admin/member archive/permission UAT. Size: L. Leading indicator: channel-admin workflow success with zero stale overwrite, permission widening or content loss. Business value: E-10. Priority: P1.  
+Tasks: T-10.26.01.a settings revision migration; T-10.26.01.b lifecycle/rename + Work Graph consistency; T-10.26.01.c restricted member read/write update consistency; T-10.26.01.d same-origin BFF/settings/archived UI; T-10.26.01.e concurrency/authz/grant-invariance tests; T-10.26.01.f UAT/demo/traceability.
+
 ## Requirements -> Backlog coverage
 
 | Requirement | Backlog IDs |
@@ -388,8 +409,8 @@ Tasks: T-10.23.01.a private reaction schema/migration; T-10.23.01.b participant/
 | Project progress | S-07.01.01, S-10.03.01 |
 | AI/API access visibility | S-06.03.01, S-10.08.01 |
 | AI/API usage/cost visibility | S-06.02.01, S-10.03.01 |
-| Slack/Discord-style company workspace | S-10.02.01, S-10.03.01, S-10.06.01 |
-| Human communication | S-10.01.01, S-10.06.01, S-10.06.02, S-10.14.01, S-10.15.01, S-10.16.01 |
+| Slack/Discord-style company workspace | S-10.02.01, S-10.03.01, S-10.06.01, S-10.24.01, S-10.25.01 |
+| Human communication | S-10.01.01, S-10.06.01, S-10.06.02, S-10.14.01, S-10.15.01, S-10.16.01, S-10.24.01, S-10.25.01, S-10.26.01 |
 | Participant-only private collaboration | S-10.06.02, S-10.14.01, S-10.18.01, S-10.19.01, S-10.20.01, S-10.23.01 |
 | Tenant/channel-scoped message threads | S-10.06.01 |
 | Exact-member mentions without identity guessing | S-10.06.01 |
@@ -409,7 +430,7 @@ Tasks: T-10.23.01.a private reaction schema/migration; T-10.23.01.b participant/
 | Citations / no unsupported claims | S-05.02.01, S-10.03.01 |
 | Data provenance | S-03.01.01, S-03.02.01, S-10.05.01, S-10.13.01 |
 | Identity resolution | S-03.03.01 |
-| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01, S-10.17.01, S-10.18.01, S-10.19.01, S-10.20.01, S-10.21.01, S-10.22.01, S-10.23.01 |
+| Security/auth/authz | S-01.02.01, S-01.03.01, S-09.02.01, S-10.04.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.11.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01, S-10.17.01, S-10.18.01, S-10.19.01, S-10.20.01, S-10.21.01, S-10.22.01, S-10.23.01, S-10.24.01, S-10.25.01, S-10.26.01 |
 | Validation/data integrity/idempotency | S-03.01.01, S-03.02.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01, S-10.17.01, S-10.18.01, S-10.19.01, S-10.20.01, S-10.21.01, S-10.22.01, S-10.23.01 |
 | Observability | S-09.01.01 |
 | Migrations/rollback/backup | S-09.03.01, S-10.06.01, S-10.06.02, S-10.09.01, S-10.12.01, S-10.13.01, S-10.14.01, S-10.15.01, S-10.16.01, S-10.18.01, S-10.20.01, S-10.22.01, S-10.23.01 |
@@ -440,6 +461,9 @@ Tasks: T-10.23.01.a private reaction schema/migration; T-10.23.01.b participant/
 | DM participant navigation without organisation-wide DM-content search | S-10.06.02, S-10.11.01 |
 | CI and lie-detector verifier | S-09.03.01 |
 | Agile/Scrum/Kanban artifacts | S-09.03.01 |
+
+| Workspace → Teams → channel groups → channels hierarchy | S-10.24.01, S-10.25.01 |
+| Channel settings/archive/member-access administration | S-10.26.01 |
 
 Orphan requirements: **0**.
 
