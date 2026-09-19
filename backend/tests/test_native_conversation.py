@@ -277,7 +277,9 @@ def test_unread_state_is_per_user_excludes_own_and_never_moves_back(
     _as(member)
     member_summary = client.get(summary_url)
     assert owner_summary.json()[0]["unread_count"] == 0
+    assert owner_summary.json()[0]["first_unread_message_id"] is None
     assert member_summary.json()[0]["unread_count"] == 2
+    assert member_summary.json()[0]["first_unread_message_id"] == first["id"]
     assert member_summary.json()[0]["latest_message_id"] == second["id"]
 
     read_url = (
@@ -293,6 +295,7 @@ def test_unread_state_is_per_user_excludes_own_and_never_moves_back(
         json={"through_message_id": first["id"]},
     )
     assert read_second.json()["unread_count"] == 0
+    assert read_second.json()["first_unread_message_id"] is None
     assert stale_read.json()["last_read_at"] == read_second.json()["last_read_at"]
 
     third = _root(
@@ -306,7 +309,53 @@ def test_unread_state_is_per_user_excludes_own_and_never_moves_back(
     _as(member)
     latest_summary = client.get(summary_url).json()[0]
     assert latest_summary["unread_count"] == 1
+    assert latest_summary["first_unread_message_id"] == third["id"]
     assert latest_summary["latest_message_id"] == third["id"]
+
+
+def test_first_unread_can_be_a_thread_reply(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, _ = _seed(db_session, "unread-thread")
+    channel = _channel(client, organization, owner)
+    root = _root(
+        client,
+        organization,
+        channel["id"],
+        owner,
+        "Read this root first.",
+        "unread-thread-root",
+    ).json()
+
+    _as(member)
+    read_url = (
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/read"
+    )
+    marked = client.post(read_url, json={"through_message_id": root["id"]})
+    assert marked.status_code == 200
+
+    reply = _reply(
+        client,
+        organization,
+        channel["id"],
+        root["id"],
+        owner,
+        "This reply should be the first unread item.",
+        "unread-thread-reply",
+    ).json()
+
+    _as(member)
+    summary = client.get(
+        f"/api/v1/organizations/{organization.id}/native-conversation/channels"
+    )
+    assert summary.status_code == 200
+    channel_summary = next(
+        row for row in summary.json() if row["channel_id"] == channel["id"]
+    )
+    assert channel_summary["unread_count"] == 1
+    assert channel_summary["first_unread_message_id"] == reply["id"]
 
 
 def test_revoked_restricted_member_gets_no_conversation_content(
