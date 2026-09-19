@@ -632,3 +632,187 @@ def test_thread_reply_history_uses_stable_sequence_cursor(
         item["id"] for item in first.json()
     }.isdisjoint({item["id"] for item in second.json()})
     assert invalid.status_code == 422
+
+def test_thread_unread_state_is_independent_monotonic_and_excludes_own_replies(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, _ = _seed(db_session, "thread-unread")
+    channel = _channel(client, organization, owner)
+    root = _root(
+        client,
+        organization,
+        channel["id"],
+        owner,
+        "Thread unread root",
+        "thread-unread-root",
+    ).json()
+    first = _reply(
+        client,
+        organization,
+        channel["id"],
+        root["id"],
+        member,
+        "First reply before thread follow",
+        "thread-unread-first",
+    ).json()
+
+    _as(owner)
+    roots_endpoint = (
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/messages"
+    )
+    root_before = client.get(roots_endpoint)
+    assert root_before.status_code == 200
+    row = next(item for item in root_before.json() if item["id"] == root["id"])
+    assert row["thread_unread_count"] == 0
+    assert row["thread_first_unread_reply_id"] is None
+    assert row["thread_latest_reply_id"] == first["id"]
+
+    read_endpoint = (
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/messages/{root['id']}/thread-read"
+    )
+    followed = client.post(
+        read_endpoint,
+        json={"through_message_id": first["id"]},
+    )
+    assert followed.status_code == 200
+    assert followed.json()["unread_count"] == 0
+
+    second = _reply(
+        client,
+        organization,
+        channel["id"],
+        root["id"],
+        member,
+        "Unread reply from member",
+        "thread-unread-second",
+    ).json()
+    mine = _reply(
+        client,
+        organization,
+        channel["id"],
+        root["id"],
+        owner,
+        "Owner reply does not count unread",
+        "thread-unread-mine",
+    ).json()
+
+    _as(owner)
+    after = client.get(roots_endpoint)
+    row = next(item for item in after.json() if item["id"] == root["id"])
+    assert row["thread_unread_count"] == 1
+    assert row["thread_first_unread_reply_id"] == second["id"]
+    assert row["thread_latest_reply_id"] == mine["id"]
+
+    latest = client.post(
+        read_endpoint,
+        json={"through_message_id": mine["id"]},
+    )
+    stale = client.post(
+        read_endpoint,
+        json={"through_message_id": first["id"]},
+    )
+    assert latest.status_code == 200
+    assert latest.json()["unread_count"] == 0
+    assert stale.status_code == 200
+    assert stale.json()["unread_count"] == 0
+
+    other_root = _root(
+        client,
+        organization,
+        channel["id"],
+        owner,
+        "Other root",
+        "thread-unread-other-root",
+    ).json()
+    other_reply = _reply(
+        client,
+        organization,
+        channel["id"],
+        other_root["id"],
+        member,
+        "Other reply",
+        "thread-unread-other-reply",
+    ).json()
+    _as(owner)
+    cross_root = client.post(
+        read_endpoint,
+        json={"through_message_id": other_reply["id"]},
+    )
+    assert cross_root.status_code == 404
+
+
+def test_retracted_reply_is_removed_from_thread_unread_attention(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, _ = _seed(db_session, "thread-unread-retract")
+    channel = _channel(client, organization, owner)
+    root = _root(
+        client,
+        organization,
+        channel["id"],
+        owner,
+        "Retraction root",
+        "thread-retract-root",
+    ).json()
+    baseline = _reply(
+        client,
+        organization,
+        channel["id"],
+        root["id"],
+        member,
+        "Baseline",
+        "thread-retract-baseline",
+    ).json()
+
+    _as(owner)
+    read_endpoint = (
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/messages/{root['id']}/thread-read"
+    )
+    assert client.post(
+        read_endpoint,
+        json={"through_message_id": baseline["id"]},
+    ).status_code == 200
+
+    unread = _reply(
+        client,
+        organization,
+        channel["id"],
+        root["id"],
+        member,
+        "Temporary unread reply",
+        "thread-retract-unread",
+    ).json()
+    _as(owner)
+    roots_endpoint = (
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/messages"
+    )
+    row = next(
+        item for item in client.get(roots_endpoint).json()
+        if item["id"] == root["id"]
+    )
+    assert row["thread_unread_count"] == 1
+
+    _as(member)
+    retracted = client.request(
+        "DELETE",
+        (
+            f"/api/v1/organizations/{organization.id}/native-conversation/"
+            f"channels/{channel['id']}/messages/{unread['id']}"
+        ),
+        json={"expected_revision": unread["revision"]},
+    )
+    assert retracted.status_code == 200
+
+    _as(owner)
+    row = next(
+        item for item in client.get(roots_endpoint).json()
+        if item["id"] == root["id"]
+    )
+    assert row["thread_unread_count"] == 0
+    assert row["thread_first_unread_reply_id"] is None
