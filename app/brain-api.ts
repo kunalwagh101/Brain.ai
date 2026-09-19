@@ -91,6 +91,7 @@ export type NativeChannel = {
   created_at: string;
   updated_at: string;
   archived_at: string | null;
+  settings_revision: number;
   member_count: number;
   can_post: boolean;
   can_manage: boolean;
@@ -702,10 +703,60 @@ export function assignNativeChannelNavigation(
 export function listNativeChannels(
   accessToken: string,
   organizationId: string,
+  includeArchived = false,
 ): Promise<NativeChannel[]> {
+  const suffix = includeArchived ? "?include_archived=true" : "";
   return brainApiFetch(
     accessToken,
-    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-channels`,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-channels${suffix}`,
+  );
+}
+
+export function updateNativeChannelSettings(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  input: {
+    name: string;
+    description: string | null;
+    expected_revision: number;
+  },
+): Promise<NativeChannel> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-channels/${encodeURIComponent(channelId)}/settings`,
+    { method: "PATCH", body: JSON.stringify(input) },
+  );
+}
+
+export function setNativeChannelArchived(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  expectedRevision: number,
+  archived: boolean,
+): Promise<NativeChannel> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-channels/${encodeURIComponent(channelId)}/${archived ? "archive" : "restore"}`,
+    {
+      method: "POST",
+      body: JSON.stringify({ expected_revision: expectedRevision }),
+    },
+  );
+}
+
+export function updateNativeChannelMemberAccess(
+  accessToken: string,
+  organizationId: string,
+  channelId: string,
+  userId: string,
+  access: "read" | "write",
+): Promise<NativeChannelMember> {
+  return brainApiFetch(
+    accessToken,
+    `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-channels/${encodeURIComponent(channelId)}/members/${encodeURIComponent(userId)}`,
+    { method: "PUT", body: JSON.stringify({ access }) },
   );
 }
 
