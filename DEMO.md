@@ -629,3 +629,20 @@ python scripts/verify_board.py
 Expected: only the original current-epoch author can edit/retract; stale expected revisions return conflict; retraction emits a safe participant tombstone and disappears from unread attention; no company-wide evidence/search/audit record is created; private revisions cascade under existing private-message retention; nonparticipants and old visibility epochs fail closed; browser mutation stays same-origin and token-free.
 
 Final browser acceptance follows `UAT/F-10.20.md`. Do not mark DONE/PASSED without executed migration/tests/verifier and authenticated lifecycle UAT.
+
+## Increment 37 — Thread History Pagination
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.21.01 is `IN_REVIEW`, not DONE.
+
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_native_conversation.py::test_thread_reply_history_uses_stable_sequence_cursor
+cd ..
+node --test tests/thread-pagination-contract.test.mjs tests/conversation-pagination-contract.test.mjs
+npm run lint
+npm run build
+python scripts/verify_board.py
+```
+
+Expected: reply pages remain exact-root scoped, use `message_sequence < before_sequence`, never OFFSET, merge without duplicates, survive live refresh and fail closed after permission revocation. Final manual acceptance follows `UAT/F-10.21.md`.
