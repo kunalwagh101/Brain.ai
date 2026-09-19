@@ -466,7 +466,7 @@ Baseline: root/channel history now has stable sequence paging, but `list_thread_
 
 Architecture: reuse `NativeMessage.message_sequence`; add optional positive `before_sequence` to the existing reply GET, query the exact `thread_root_id`, order descending/limit/reverse, and expose a bounded same-origin BFF GET. Client maintains a contiguous thread-history cursor, merges by message ID/sequence, and merges live refresh rather than replacing history.
 
-Security: every page reuses `visible_message` root/channel authorization. A revoked/hidden/retracted root fails closed. No schema or content copy is needed.
+Security: every page reuses `visible_message` root/channel authorization. Revoked/hidden channel access fails closed. A retracted root remains readable only under the existing S-10.12 tombstone contract so historical replies can survive; posting remains disabled. No schema or content copy is needed.
 
 Rollback: remove the cursor query parameter and Load older replies state; no persisted data changes.
 
