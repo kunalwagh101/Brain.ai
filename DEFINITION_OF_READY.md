@@ -431,3 +431,29 @@ Rollback: remove query parameters, GET BFF handlers and Load older controls. No 
 Leading indicators: duplicate/gap count = 0; inaccessible historical page exposure = 0; successful load-older completion rate; bounded page size maintained.
 
 Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires focused pagination/access tests, frontend source/build checks, verifier and authenticated long-history/revocation UAT.
+
+## Increment 36 readiness record — S-10.20.01
+
+Decision: `READY` for repository implementation on 2026-09-19; S-10.19 left implementation WIP first.
+
+Problem and baseline: participant-only DMs are immutable after send. Users cannot correct a typo or retract a mistaken private message. Reusing native-channel lifecycle wholesale would violate DM privacy because channel lifecycle creates organisation-wide evidence/audit semantics that OQ-008 explicitly forbids for DMs.
+
+AI decision: AI is not needed. This is deterministic author authority, optimistic concurrency and private retention.
+
+Architecture decision: extend `DirectMessage` with monotonic `revision`, `edited_at` and `deleted_at`. Add append-only `DirectMessageRevision` rows scoped to the original private message. Before every accepted edit/retract, snapshot the prior body/hash/length/revision. Do not create RawEvent, CanonicalEvent, SearchDocument, Work Graph or SecurityAuditEvent records.
+
+Authority: only the original author may edit/retract, and only while they are a current authorised participant who can still see that message in their current visibility epoch. Owner/Admin/Executive role alone gives no override. A reactivated participant cannot mutate an old hidden message.
+
+Concurrency: request carries `expected_revision`; service locks the message where supported and returns conflict on mismatch. Successful edit/retract increments exactly once.
+
+Retraction: current participant reads return a tombstone with empty body/hash and no edit/retract affordance. The private row retains internal plaintext only until the existing `private_message_days` policy purges it; revision rows cascade with the private message. Legal hold already blocks that purge. Retracted messages are excluded from DM unread/latest/first-unread summaries.
+
+Browser/security: same-origin WorkOS PATCH/DELETE routes validate bounded JSON, UUIDs and expected revision; reusable bearer tokens stay server-side.
+
+Migration/rollback: migration `20260919_0035` adds lifecycle columns, private revision table and scoped constraints. Downgrade is a maintenance rollback: removing `deleted_at` would make retracted stored bodies visible again to old code, so rollback requires draining traffic/backup and deploying pre-lifecycle code only with explicit acceptance of that semantic loss.
+
+Open questions: none changes this slice because OQ-008 already fixes participant-only privacy, no privileged content override and private-message retention. Edit time windows, moderator overrides, DM attachments/reactions and hard-delete/eDiscovery workflows remain separate product decisions.
+
+Leading indicators: unauthorised mutation = 0; stale overwrite = 0; retracted body exposure = 0; organisation-wide DM lifecycle evidence/audit rows = 0.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires PostgreSQL migration round-trip, concurrency/privacy/retention tests, frontend build/source contracts, verifier and authenticated two-user WorkOS lifecycle UAT.
