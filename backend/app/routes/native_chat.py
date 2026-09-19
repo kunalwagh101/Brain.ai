@@ -70,6 +70,8 @@ class NativeChannelRead(BaseModel):
     name: str
     slug: str
     description: str | None
+    team_id: uuid.UUID | None
+    channel_group_id: uuid.UUID | None
     visibility: NativeChannelVisibility
     status: NativeChannelStatus
     created_by_user_id: uuid.UUID
@@ -176,6 +178,8 @@ def _channel_read(
         name=channel.name,
         slug=channel.slug,
         description=channel.description,
+        team_id=channel.team_id,
+        channel_group_id=channel.channel_group_id,
         visibility=channel.visibility,
         status=channel.status,
         created_by_user_id=channel.created_by_user_id,
