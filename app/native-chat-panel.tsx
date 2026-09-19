@@ -476,6 +476,8 @@ function MessageCard({
 export function NativeChatPanel({
   channel,
   messages,
+  initialHistoryBeforeSequence,
+  initialHasOlderHistory,
   pins,
   savedMessageIds,
   requestedMessage,
@@ -487,6 +489,8 @@ export function NativeChatPanel({
 }: {
   channel: NativeChannel;
   messages: NativeMessage[];
+  initialHistoryBeforeSequence: number | null;
+  initialHasOlderHistory: boolean;
   pins: NativeMessagePin[];
   savedMessageIds: string[];
   requestedMessage: NativeMessage | null;
@@ -503,6 +507,11 @@ export function NativeChatPanel({
   const messageRetryKey = useRef<string | null>(null);
   const threadRetryKey = useRef<{ rootId: string; key: string } | null>(null);
   const [rootMessages, setRootMessages] = useState(messages);
+  const [historyBeforeSequence, setHistoryBeforeSequence] = useState(
+    initialHistoryBeforeSequence,
+  );
+  const [hasOlderHistory, setHasOlderHistory] = useState(initialHasOlderHistory);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [pinRows, setPinRows] = useState(pins);
   const [pinsOpen, setPinsOpen] = useState(false);
   const [pinWorking, setPinWorking] = useState<string | null>(null);
@@ -556,9 +565,12 @@ export function NativeChatPanel({
     setComposerFocused(false);
     setThreadFocused(false);
     setPinsOpen(false);
+    setHistoryBeforeSequence(initialHistoryBeforeSequence);
+    setHasOlderHistory(initialHasOlderHistory);
+    setHistoryLoading(false);
     messageRetryKey.current = null;
     threadRetryKey.current = null;
-  }, [channel.id]);
+  }, [channel.id, initialHasOlderHistory, initialHistoryBeforeSequence]);
 
   useEffect(() => {
     setRootMessages(messages);
@@ -706,6 +718,53 @@ export function NativeChatPanel({
     }).catch(() => undefined);
     return () => controller.abort();
   }, [channel.latest_message_id, channel.unread_count, conversationEndpoint, router]);
+
+  async function loadOlderHistory() {
+    if (
+      !conversationEndpoint
+      || !hasOlderHistory
+      || historyLoading
+      || historyBeforeSequence === null
+    ) return;
+    setHistoryLoading(true);
+    setStatus({ kind: "idle" });
+    try {
+      const params = new URLSearchParams({
+        limit: "50",
+        before_sequence: String(historyBeforeSequence),
+      });
+      const response = await fetch(
+        `${conversationEndpoint}/messages?${params.toString()}`,
+        { credentials: "same-origin", cache: "no-store" },
+      );
+      if (response.status === 403 || response.status === 404) {
+        router.refresh();
+        return;
+      }
+      if (!response.ok) {
+        setStatus({ kind: "error", text: safeMessageError(response.status) });
+        return;
+      }
+      const page = await response.json() as NativeMessage[];
+      if (!page.length) {
+        setHasOlderHistory(false);
+        return;
+      }
+      setRootMessages((current) => {
+        const merged = new Map(current.map((message) => [message.id, message]));
+        for (const message of page) merged.set(message.id, message);
+        return [...merged.values()].sort(
+          (left, right) => left.message_sequence - right.message_sequence,
+        );
+      });
+      setHistoryBeforeSequence(page[0].message_sequence);
+      setHasOlderHistory(page.length === 50);
+    } catch {
+      setStatus({ kind: "error", text: "Older channel history could not be loaded safely." });
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
 
   function keepUploadedAttachments(
     uploaded: NativeAttachment[],
@@ -1407,6 +1466,16 @@ export function NativeChatPanel({
       <div className={styles.conversation} data-thread-open={Boolean(threadRoot) || undefined}>
         <div className={styles.channelPane}>
           <div className={styles.feed} role="log" aria-live="polite" aria-label={`${channel.name} messages`}>
+            {hasOlderHistory ? (
+              <button
+                className={styles.loadOlder}
+                disabled={historyLoading}
+                onClick={() => void loadOlderHistory()}
+                type="button"
+              >
+                {historyLoading ? "Loading older…" : "Load older messages"}
+              </button>
+            ) : null}
             {rootMessages.length ? rootMessages.map((message) => (
               <Fragment key={message.id}>
                 {message.id === firstUnreadMessageId ? (
