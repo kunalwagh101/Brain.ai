@@ -505,6 +505,147 @@ def _can_manage_members(
     }
 
 
+def update_channel_settings(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    actor_user_id: uuid.UUID,
+    actor_role: MembershipRole,
+    expected_revision: int,
+    name: str,
+    description: str | None,
+    request_id: str | None = None,
+) -> NativeChannel:
+    query = select(NativeChannel).where(
+        NativeChannel.id == channel_id,
+        NativeChannel.organization_id == organization_id,
+    )
+    if db.bind is not None and db.bind.dialect.name == "postgresql":
+        query = query.with_for_update()
+    channel = db.scalar(query)
+    if channel is None or not _can_manage_members(
+        channel,
+        actor_user_id=actor_user_id,
+        actor_role=actor_role,
+    ):
+        raise NativeChatError("channel_not_found", "Channel not found")
+    if expected_revision < 1 or channel.settings_revision != expected_revision:
+        raise NativeChatConflictError(
+            "channel_settings_revision_conflict",
+            "Channel settings changed since they were loaded",
+        )
+
+    normalized_name = _normalize_channel_name(name)
+    normalized_description = _normalize_description(description)
+    slug = _slugify(normalized_name)
+    track = (
+        db.get(WorkGraphNode, channel.work_graph_node_id)
+        if channel.work_graph_node_id is not None
+        else None
+    )
+    if track is None or track.organization_id != organization_id:
+        raise NativeChatConflictError(
+            "channel_track_missing",
+            "Channel Work Graph track is unavailable",
+        )
+
+    channel.name = normalized_name
+    channel.slug = slug
+    channel.description = normalized_description
+    channel.settings_revision += 1
+    track.display_name = normalized_name
+    track.attributes = {
+        **(track.attributes or {}),
+        "channel_slug": slug,
+        "native_channel_id": str(channel.id),
+    }
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise NativeChatConflictError(
+            "channel_slug_conflict",
+            "A Brain channel with this name already exists",
+        ) from exc
+    db.refresh(channel)
+    append_audit_event(
+        db,
+        organization_id=organization_id,
+        event_key=(
+            f"native_chat.channel.settings_updated:"
+            f"{channel.id}:{channel.settings_revision}"
+        ),
+        event_type="native_chat.channel.settings_updated",
+        outcome="succeeded",
+        actor_user_id=actor_user_id,
+        resource_type="native_channel",
+        resource_id=channel.id,
+        request_id=request_id,
+        metadata={
+            "settings_revision": channel.settings_revision,
+            "channel_slug": channel.slug,
+        },
+    )
+    return channel
+
+
+def set_channel_archived(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    actor_user_id: uuid.UUID,
+    actor_role: MembershipRole,
+    expected_revision: int,
+    archived: bool,
+    request_id: str | None = None,
+) -> NativeChannel:
+    query = select(NativeChannel).where(
+        NativeChannel.id == channel_id,
+        NativeChannel.organization_id == organization_id,
+    )
+    if db.bind is not None and db.bind.dialect.name == "postgresql":
+        query = query.with_for_update()
+    channel = db.scalar(query)
+    if channel is None or not _can_manage_members(
+        channel,
+        actor_user_id=actor_user_id,
+        actor_role=actor_role,
+    ):
+        raise NativeChatError("channel_not_found", "Channel not found")
+    if expected_revision < 1 or channel.settings_revision != expected_revision:
+        raise NativeChatConflictError(
+            "channel_settings_revision_conflict",
+            "Channel settings changed since they were loaded",
+        )
+    next_status = NativeChannelStatus.ARCHIVED if archived else NativeChannelStatus.ACTIVE
+    if channel.status == next_status:
+        return channel
+    channel.status = next_status
+    channel.archived_at = datetime.now(UTC) if archived else None
+    channel.settings_revision += 1
+    db.commit()
+    db.refresh(channel)
+    action = "archived" if archived else "restored"
+    append_audit_event(
+        db,
+        organization_id=organization_id,
+        event_key=(
+            f"native_chat.channel.{action}:"
+            f"{channel.id}:{channel.settings_revision}"
+        ),
+        event_type=f"native_chat.channel.{action}",
+        outcome="succeeded",
+        actor_user_id=actor_user_id,
+        resource_type="native_channel",
+        resource_id=channel.id,
+        request_id=request_id,
+        metadata={"settings_revision": channel.settings_revision},
+    )
+    return channel
+
+
 def can_manage_channel(
     channel: NativeChannel,
     *,
