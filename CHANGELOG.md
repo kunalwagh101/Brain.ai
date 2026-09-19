@@ -1,5 +1,18 @@
 # Changelog
 
+### Increment 34 — DM Unread & Resume
+
+- Added one monotonic last-read sequence per participant to the existing 1:1 DM conversation aggregate; no generic employer-visible read-history table was introduced.
+- Reactivation resets only the restored participant's cursor to immediately before the new visibility floor, preventing old private history from returning as unread.
+- Added set-based DM unread/latest/first-unread summaries that exclude the current user's own messages.
+- Added exact participant-only DM message reads plus monotonic mark-read API/BFF routes.
+- Added unread badges in both workspace and DM navigation, one accessible New messages divider, and Jump to unread with exact-message recovery for targets outside the initial window.
+- Kept normal DM unread/read activity out of organisation-wide SecurityAuditEvent history and outside Search/Ask Brain/Work Graph.
+- Added migration `20260919_0034`, epoch/revocation/monotonic backend regressions, frontend/security contracts, UAT, demo and traceability.
+
+Verification is not claimed as passed. `S-10.18.01` remains `IN_REVIEW` pending PostgreSQL migration round-trip, executable backend/frontend/verifier evidence and authenticated WorkOS UAT.
+
+
 ### Increment 33 — First-Unread Divider & Jump to Unread
 
 - Extended the existing per-user native-channel unread summary with an exact `first_unread_message_id`; no second unread table, cache or migration was introduced.
