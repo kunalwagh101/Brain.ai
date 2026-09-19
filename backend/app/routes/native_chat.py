@@ -80,6 +80,7 @@ class NativeChannelRead(BaseModel):
     archived_at: datetime | None
     member_count: int
     can_post: bool
+    can_manage: bool
     can_manage_members: bool
 
 
@@ -191,6 +192,7 @@ def _channel_read(
             role_has_permission(authorization.role, Permission.NATIVE_CHAT_WRITE)
             and can_write_channel(db, channel, user_id=authorization.user_id)
         ),
+        can_manage=_can_manage(channel, authorization),
         can_manage_members=(
             channel.visibility == NativeChannelVisibility.RESTRICTED
             and _can_manage(channel, authorization)
