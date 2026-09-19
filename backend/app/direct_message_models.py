@@ -124,6 +124,12 @@ class DirectMessage(Base):
             name="uq_direct_message_conversation_sequence",
         ),
         UniqueConstraint(
+            "organization_id",
+            "conversation_id",
+            "id",
+            name="uq_direct_message_scope_id",
+        ),
+        UniqueConstraint(
             "conversation_id",
             "idempotency_key",
             name="uq_direct_message_conversation_idempotency",
@@ -147,6 +153,52 @@ class DirectMessage(Base):
     body_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     body_char_count: Mapped[int] = mapped_column(Integer, nullable=False)
     idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+class DirectMessageRevision(Base):
+    __tablename__ = "direct_message_revisions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "conversation_id", "message_id"],
+            [
+                "direct_messages.organization_id",
+                "direct_messages.conversation_id",
+                "direct_messages.id",
+            ],
+            ondelete="CASCADE",
+            name="fk_direct_message_revision_message_scope",
+        ),
+        UniqueConstraint(
+            "message_id",
+            "revision",
+            name="uq_direct_message_revision_message_revision",
+        ),
+        CheckConstraint(
+            "revision >= 1 AND body_char_count > 0 AND action IN ('edit', 'retract')",
+            name="ck_direct_message_revision_bounds",
+        ),
+        Index(
+            "ix_direct_message_revision_org_conversation_created",
+            "organization_id",
+            "conversation_id",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    conversation_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    message_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    action: Mapped[str] = mapped_column(String(16), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    body_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    body_char_count: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
