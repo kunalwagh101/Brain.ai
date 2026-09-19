@@ -115,6 +115,11 @@ mkdir -p \
   'app/api/brain/organizations/[organizationId]/native-teams/[teamId]' \
   'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/archive' \
   'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/restore' \
+  'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/groups' \
+  'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/groups/[groupId]' \
+  'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/groups/[groupId]/archive' \
+  'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/groups/[groupId]/restore' \
+  'app/api/brain/organizations/[organizationId]/native-teams/channel-assignment/[channelId]' \
   'app/api/brain/organizations/[organizationId]/native-channels' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/pins' \
@@ -156,6 +161,11 @@ cp docs/workos-activation/app-api-brain-native-teams-route.ts.template 'app/api/
 cp docs/workos-activation/app-api-brain-native-team-route.ts.template 'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/route.ts'
 cp docs/workos-activation/app-api-brain-native-team-lifecycle-route.ts.template 'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/archive/route.ts'
 cp docs/workos-activation/app-api-brain-native-team-lifecycle-route.ts.template 'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/restore/route.ts'
+cp docs/workos-activation/app-api-brain-native-team-groups-route.ts.template 'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/groups/route.ts'
+cp docs/workos-activation/app-api-brain-native-team-group-route.ts.template 'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/groups/[groupId]/route.ts'
+cp docs/workos-activation/app-api-brain-native-team-group-lifecycle-route.ts.template 'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/groups/[groupId]/archive/route.ts'
+cp docs/workos-activation/app-api-brain-native-team-group-lifecycle-route.ts.template 'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/groups/[groupId]/restore/route.ts'
+cp docs/workos-activation/app-api-brain-native-channel-assignment-route.ts.template 'app/api/brain/organizations/[organizationId]/native-teams/channel-assignment/[channelId]/route.ts'
 cp docs/workos-activation/app-api-brain-native-channels-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/route.ts'
 cp docs/workos-activation/app-api-brain-native-messages-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/route.ts'
 cp docs/workos-activation/app-api-brain-native-pins-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/pins/route.ts'
@@ -217,3 +227,4 @@ echo "Complete UAT/F-10.21.md before marking S-10.21.01 DONE or accepted."
 echo "Complete UAT/F-10.22.md before marking S-10.22.01 DONE or accepted."
 echo "Complete UAT/F-10.23.md before marking S-10.23.01 DONE or accepted."
 echo "Complete UAT/F-10.24.md before marking S-10.24.01 DONE or accepted."
+echo "Complete UAT/F-10.25.md before marking S-10.25.01 DONE or accepted."
