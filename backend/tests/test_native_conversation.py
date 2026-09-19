@@ -286,6 +286,14 @@ def test_unread_state_is_per_user_excludes_own_and_never_moves_back(
         f"/api/v1/organizations/{organization.id}/native-conversation/"
         f"channels/{channel['id']}/read"
     )
+    read_first = client.post(
+        read_url,
+        json={"through_message_id": first["id"]},
+    )
+    assert read_first.json()["unread_count"] == 1
+    assert read_first.json()["first_unread_message_id"] == second["id"]
+    assert read_first.json()["latest_message_id"] == second["id"]
+
     read_second = client.post(
         read_url,
         json={"through_message_id": second["id"]},
