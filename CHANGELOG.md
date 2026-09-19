@@ -1,5 +1,20 @@
 # Changelog
 
+### Increment 33 — First-Unread Divider & Jump to Unread
+
+- Extended the existing per-user native-channel unread summary with an exact `first_unread_message_id`; no second unread table, cache or migration was introduced.
+- Kept unread calculation set-based across visible channels by using a windowed count + sequence rank, avoiding per-channel N+1 queries.
+- Preserved existing semantics: the current user's own human-authored messages and retracted messages do not become unread targets.
+- Added a same-origin WorkOS GET to the existing exact permission-aware message route so older roots and thread replies can be recovered without exposing a browser bearer token or creating another content store.
+- Added one accessible **New messages** divider plus **Jump to unread** for native channels, including exact thread opening and focus/scroll behaviour.
+- Preserved the captured first-unread boundary during the existing immediate mark-read/router refresh without changing the authoritative monotonic server read cursor.
+- Supported valid unread replies under retracted thread roots while clearing a stale boundary when the unread target itself is retracted.
+- Added backend root/thread/retraction regressions, a frontend/query/security source contract, Increment 33 planning, UAT, demo and traceability artifacts.
+- Direct-message first-unread state, independent thread cursors, unread-history analytics, push notifications and a new pagination subsystem remain explicit later scope.
+
+Verification is not claimed as passed. `S-10.17.01` remains `IN_REVIEW` pending focused backend/frontend execution, delivery verifier and authenticated WorkOS multi-user root/thread/old-window/revocation UAT.
+
+
 ## Unreleased
 
 ### Increment 32 — Personal Saved Messages
