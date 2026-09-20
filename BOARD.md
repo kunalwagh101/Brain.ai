@@ -56,7 +56,7 @@ IN_REVIEW | S-10.22.01 | F-10.22 | Tenant/root/user thread read state, set-based
 IN_REVIEW | S-10.23.01 | F-10.23 | Private allow-listed/idempotent DM reactions, aggregate-only reads, retention/privacy-safe WorkOS UI/tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.24.01 | F-10.24 | Revisioned navigation-only Teams, server UI, same-origin lifecycle, migration/tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.25.01 | F-10.25 | Revisioned Team groups, ACL-neutral channel placement, nested fallbacks, migration/tests/docs staged; executable verification/UAT outstanding
-IN_PROGRESS | S-10.26.01 | F-10.26 | Channel identity/archive/member-access administration pulled after READY audit
+IN_REVIEW | S-10.26.01 | F-10.26 | Optimistic channel identity, archive/restore, restricted-member read/write administration, WorkOS routes/tests/docs staged; executable verification/UAT outstanding
 
 
 
@@ -64,13 +64,13 @@ IN_PROGRESS | S-10.26.01 | F-10.26 | Channel identity/archive/member-access admi
 
 
 
-### S-10.26.01 Channel Administration — IN_PROGRESS
+### S-10.26.01 Channel Administration — IN_REVIEW
 
 Sprint goal: make channel identity, archive/restore and restricted-member read/write access manageable from the workspace without rewriting collaboration history or weakening ACLs.
 
 Ready evidence is in `DEFINITION_OF_READY.md`; implementation scope is in `docs/planning/increment-42.md`.
 
-Formal state: `IN_PROGRESS`. WIP=1.
+Implementation staged: optimistic settings revision + current Work Graph identity sync, archive/read-only/restore lifecycle, manager-only archived-channel recovery, existing restricted-member read/write ResourceGrant propagation, same-origin WorkOS settings/lifecycle/member routes, migration `20260920_0040`, focused backend/frontend security regressions, UAT/demo/changelog/traceability and retrospective. Formal state: `IN_REVIEW`; no executable PASS/UAT is claimed. WIP returns to zero.
 
 ### S-10.25.01 Team Channel Groups — IN_REVIEW
 
