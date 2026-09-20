@@ -121,6 +121,9 @@ mkdir -p \
   'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/groups/[groupId]/restore' \
   'app/api/brain/organizations/[organizationId]/native-teams/channel-assignment/[channelId]' \
   'app/api/brain/organizations/[organizationId]/native-channels' \
+  'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/settings' \
+  'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/archive' \
+  'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/restore' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/pins' \
   'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/attachments/uploads' \
@@ -167,6 +170,9 @@ cp docs/workos-activation/app-api-brain-native-team-group-lifecycle-route.ts.tem
 cp docs/workos-activation/app-api-brain-native-team-group-lifecycle-route.ts.template 'app/api/brain/organizations/[organizationId]/native-teams/[teamId]/groups/[groupId]/restore/route.ts'
 cp docs/workos-activation/app-api-brain-native-channel-assignment-route.ts.template 'app/api/brain/organizations/[organizationId]/native-teams/channel-assignment/[channelId]/route.ts'
 cp docs/workos-activation/app-api-brain-native-channels-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/route.ts'
+cp docs/workos-activation/app-api-brain-native-channel-settings-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/settings/route.ts'
+cp docs/workos-activation/app-api-brain-native-channel-lifecycle-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/archive/route.ts'
+cp docs/workos-activation/app-api-brain-native-channel-lifecycle-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/restore/route.ts'
 cp docs/workos-activation/app-api-brain-native-messages-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/messages/route.ts'
 cp docs/workos-activation/app-api-brain-native-pins-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/pins/route.ts'
 cp docs/workos-activation/app-api-brain-native-attachment-upload-route.ts.template 'app/api/brain/organizations/[organizationId]/native-channels/[channelId]/attachments/uploads/route.ts'
@@ -228,3 +234,4 @@ echo "Complete UAT/F-10.22.md before marking S-10.22.01 DONE or accepted."
 echo "Complete UAT/F-10.23.md before marking S-10.23.01 DONE or accepted."
 echo "Complete UAT/F-10.24.md before marking S-10.24.01 DONE or accepted."
 echo "Complete UAT/F-10.25.md before marking S-10.25.01 DONE or accepted."
+echo "Complete UAT/F-10.26.md before marking S-10.26.01 DONE or accepted."
