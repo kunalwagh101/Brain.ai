@@ -734,3 +734,27 @@ python scripts/verify_board.py
 ```
 
 Expected: group lifecycle is tenant/team scoped and revisioned; channel moves require channel + target-Team authority; navigation moves do not change visibility, memberships or ResourceGrants; archived group/Team fallbacks keep every already-authorised channel reachable; browser mutation stays same-origin. Final browser acceptance follows `UAT/F-10.25.md`.
+
+## Increment 42 — Channel Administration
+
+Status: **IMPLEMENTATION STAGED; EXECUTABLE ACCEPTANCE PENDING.** S-10.26.01 is `IN_REVIEW`, not DONE.
+
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_native_workspace.py tests/test_native_chat.py tests/test_native_conversation.py
+alembic heads
+# with disposable PostgreSQL configured:
+alembic upgrade 20260920_0040
+alembic downgrade 20260920_0039
+alembic upgrade 20260920_0040
+cd ..
+node --test tests/channel-administration-contract.test.mjs tests/native-channel-groups-contract.test.mjs tests/native-teams-contract.test.mjs
+npm run lint
+npm run build
+python scripts/verify_board.py
+```
+
+Expected: creator/Owner/Admin rename succeeds and stale settings revisions conflict; the current Work Graph track follows channel identity without rewriting historical evidence; visibility conversion is rejected; archive makes the channel read-only and removes it from active navigation; restore reuses the existing ACL; restricted member Read ↔ Read & write changes update matching membership/ResourceGrant access; non-managers/cross-tenant actors fail closed; browser mutations remain same-origin/token-free.
+
+Final authenticated acceptance follows `UAT/F-10.26.md`.
