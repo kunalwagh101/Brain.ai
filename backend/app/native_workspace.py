@@ -118,14 +118,13 @@ def create_team(
     )
     db.add(row)
     try:
-        db.commit()
+        db.flush()
     except IntegrityError as exc:
         db.rollback()
         raise NativeWorkspaceConflictError(
             "team_slug_conflict",
             "A Team with this name already exists",
         ) from exc
-    db.refresh(row)
     append_audit_event(
         db,
         organization_id=organization_id,
@@ -138,6 +137,7 @@ def create_team(
         request_id=request_id,
         metadata={"team_slug": row.slug},
     )
+    db.refresh(row)
     return row
 
 
@@ -177,14 +177,13 @@ def update_team(
     team.description = _normalize_description(description)
     team.revision += 1
     try:
-        db.commit()
+        db.flush()
     except IntegrityError as exc:
         db.rollback()
         raise NativeWorkspaceConflictError(
             "team_slug_conflict",
             "A Team with this name already exists",
         ) from exc
-    db.refresh(team)
     append_audit_event(
         db,
         organization_id=organization_id,
@@ -197,6 +196,7 @@ def update_team(
         request_id=request_id,
         metadata={"revision": team.revision, "team_slug": team.slug},
     )
+    db.refresh(team)
     return team
 
 
@@ -235,8 +235,6 @@ def set_team_archived(
     team.status = next_status
     team.archived_at = datetime.now(UTC) if archived else None
     team.revision += 1
-    db.commit()
-    db.refresh(team)
     action = "archived" if archived else "restored"
     append_audit_event(
         db,
@@ -250,6 +248,7 @@ def set_team_archived(
         request_id=request_id,
         metadata={"revision": team.revision},
     )
+    db.refresh(team)
     return team
 
 def list_channel_groups(
@@ -361,14 +360,13 @@ def create_channel_group(
     )
     db.add(row)
     try:
-        db.commit()
+        db.flush()
     except IntegrityError as exc:
         db.rollback()
         raise NativeWorkspaceConflictError(
             "group_slug_conflict",
             "A channel group with this name already exists in this Team",
         ) from exc
-    db.refresh(row)
     append_audit_event(
         db,
         organization_id=organization_id,
@@ -381,6 +379,7 @@ def create_channel_group(
         request_id=request_id,
         metadata={"team_id": str(team_id), "group_slug": row.slug},
     )
+    db.refresh(row)
     return row
 
 
@@ -414,14 +413,13 @@ def update_channel_group(
     group.slug = _slugify(normalized_name)
     group.revision += 1
     try:
-        db.commit()
+        db.flush()
     except IntegrityError as exc:
         db.rollback()
         raise NativeWorkspaceConflictError(
             "group_slug_conflict",
             "A channel group with this name already exists in this Team",
         ) from exc
-    db.refresh(group)
     append_audit_event(
         db,
         organization_id=organization_id,
@@ -434,6 +432,7 @@ def update_channel_group(
         request_id=request_id,
         metadata={"team_id": str(team_id), "revision": group.revision},
     )
+    db.refresh(group)
     return group
 
 
@@ -468,8 +467,6 @@ def set_channel_group_archived(
     group.status = next_status
     group.archived_at = datetime.now(UTC) if archived else None
     group.revision += 1
-    db.commit()
-    db.refresh(group)
     action = "archived" if archived else "restored"
     append_audit_event(
         db,
@@ -483,6 +480,7 @@ def set_channel_group_archived(
         request_id=request_id,
         metadata={"team_id": str(team_id), "revision": group.revision},
     )
+    db.refresh(group)
     return group
 
 
@@ -540,8 +538,7 @@ def assign_channel_navigation(
         return channel
     channel.team_id = team_id
     channel.channel_group_id = group_id
-    db.commit()
-    db.refresh(channel)
+    db.flush()
     append_audit_event(
         db,
         organization_id=organization_id,
@@ -560,4 +557,5 @@ def assign_channel_navigation(
             "channel_group_id": str(group_id) if group_id else None,
         },
     )
+    db.refresh(channel)
     return channel
