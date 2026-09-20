@@ -561,14 +561,13 @@ def update_channel_settings(
         "native_channel_id": str(channel.id),
     }
     try:
-        db.commit()
+        db.flush()
     except IntegrityError as exc:
         db.rollback()
         raise NativeChatConflictError(
             "channel_slug_conflict",
             "A Brain channel with this name already exists",
         ) from exc
-    db.refresh(channel)
     append_audit_event(
         db,
         organization_id=organization_id,
@@ -587,6 +586,7 @@ def update_channel_settings(
             "channel_slug": channel.slug,
         },
     )
+    db.refresh(channel)
     return channel
 
 
@@ -625,8 +625,6 @@ def set_channel_archived(
     channel.status = next_status
     channel.archived_at = datetime.now(UTC) if archived else None
     channel.settings_revision += 1
-    db.commit()
-    db.refresh(channel)
     action = "archived" if archived else "restored"
     append_audit_event(
         db,
@@ -643,6 +641,7 @@ def set_channel_archived(
         request_id=request_id,
         metadata={"settings_revision": channel.settings_revision},
     )
+    db.refresh(channel)
     return channel
 
 
@@ -733,8 +732,7 @@ def upsert_channel_member(
         access=access,
         granted_by_user_id=actor_user_id,
     )
-    db.commit()
-    db.refresh(membership)
+    db.flush()
 
     append_audit_event(
         db,
@@ -750,6 +748,7 @@ def upsert_channel_member(
         request_id=request_id,
         metadata={"user_id": str(user_id), "access": access.value},
     )
+    db.refresh(membership)
     return membership
 
 
@@ -799,7 +798,7 @@ def revoke_channel_member(
 
     membership.revoked_at = datetime.now(UTC)
     _revoke_channel_grants(db, channel=channel, user_id=user_id)
-    db.commit()
+    db.flush()
     append_audit_event(
         db,
         organization_id=organization_id,
