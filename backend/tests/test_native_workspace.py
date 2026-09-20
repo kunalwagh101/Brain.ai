@@ -5,9 +5,17 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.main import app
-from app.models import Membership, MembershipRole, Organization, ResourceGrant, User
+from app.models import (
+    Membership,
+    MembershipRole,
+    Organization,
+    ResourceAccessLevel,
+    ResourceGrant,
+    User,
+)
 from app.native_chat_models import NativeChannel, NativeChannelMembership
 from app.native_workspace_models import NativeChannelGroup, NativeTeam
+from app.work_graph_models import WorkGraphNode
 
 
 def _seed(db: Session, suffix: str):
@@ -461,3 +469,218 @@ def test_channel_group_team_scope_and_stale_revision_fail_closed(
         json={"name": "No Authority"},
     )
     assert denied_create.status_code == 404
+
+def test_channel_administration_is_revisioned_read_only_when_archived_and_syncs_track(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, other, _ = _seed(db_session, "channel-admin")
+
+    _as(member)
+    created = client.post(
+        f"/api/v1/organizations/{organization.id}/native-channels",
+        json={
+            "name": "launch-room",
+            "description": "Original description",
+            "visibility": "organization",
+        },
+    )
+    assert created.status_code == 201
+    channel = created.json()
+    assert channel["settings_revision"] == 1
+    assert channel["can_manage"] is True
+
+    _as(other)
+    denied = client.patch(
+        f"/api/v1/organizations/{organization.id}/native-channels/{channel['id']}/settings",
+        json={
+            "name": "stolen-name",
+            "description": None,
+            "expected_revision": 1,
+        },
+    )
+    assert denied.status_code == 404
+
+    _as(owner)
+    edited = client.patch(
+        f"/api/v1/organizations/{organization.id}/native-channels/{channel['id']}/settings",
+        json={
+            "name": "release-room",
+            "description": "Release coordination",
+            "expected_revision": 1,
+        },
+    )
+    assert edited.status_code == 200
+    edited_body = edited.json()
+    assert edited_body["name"] == "release-room"
+    assert edited_body["slug"] == "release-room"
+    assert edited_body["settings_revision"] == 2
+
+    stored = db_session.get(NativeChannel, uuid.UUID(channel["id"]))
+    assert stored is not None
+    assert stored.work_graph_node_id is not None
+    track = db_session.get(WorkGraphNode, stored.work_graph_node_id)
+    assert track is not None
+    assert track.display_name == "release-room"
+    assert track.attributes["channel_slug"] == "release-room"
+
+    stale = client.patch(
+        f"/api/v1/organizations/{organization.id}/native-channels/{channel['id']}/settings",
+        json={
+            "name": "stale-name",
+            "description": None,
+            "expected_revision": 1,
+        },
+    )
+    assert stale.status_code == 409
+
+    visibility_change = client.patch(
+        f"/api/v1/organizations/{organization.id}/native-channels/{channel['id']}/settings",
+        json={
+            "name": "release-room",
+            "description": "No visibility conversion",
+            "expected_revision": edited_body["settings_revision"],
+            "visibility": "restricted",
+        },
+    )
+    assert visibility_change.status_code == 422
+
+    archived = client.post(
+        f"/api/v1/organizations/{organization.id}/native-channels/{channel['id']}/archive",
+        json={"expected_revision": edited_body["settings_revision"]},
+    )
+    assert archived.status_code == 200
+    archived_body = archived.json()
+    assert archived_body["status"] == "archived"
+    assert archived_body["can_post"] is False
+    assert archived_body["archived_at"] is not None
+
+    active_channels = client.get(
+        f"/api/v1/organizations/{organization.id}/native-channels"
+    )
+    archived_channels = client.get(
+        f"/api/v1/organizations/{organization.id}/native-channels",
+        params={"include_archived": "true"},
+    )
+    assert all(item["id"] != channel["id"] for item in active_channels.json())
+    assert any(item["id"] == channel["id"] for item in archived_channels.json())
+
+    still_readable = client.get(
+        f"/api/v1/organizations/{organization.id}/native-channels/{channel['id']}"
+    )
+    assert still_readable.status_code == 200
+    assert still_readable.json()["status"] == "archived"
+
+    blocked_post = client.post(
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/messages",
+        headers={"Idempotency-Key": "archived-channel-write"},
+        json={"body": "must not post while archived"},
+    )
+    assert blocked_post.status_code in {403, 404, 409}
+
+    restored = client.post(
+        f"/api/v1/organizations/{organization.id}/native-channels/{channel['id']}/restore",
+        json={"expected_revision": archived_body["settings_revision"]},
+    )
+    assert restored.status_code == 200
+    assert restored.json()["status"] == "active"
+    assert restored.json()["can_post"] is True
+
+    allowed_post = client.post(
+        f"/api/v1/organizations/{organization.id}/native-conversation/"
+        f"channels/{channel['id']}/messages",
+        headers={"Idempotency-Key": "restored-channel-write"},
+        json={"body": "posting works after restore"},
+    )
+    assert allowed_post.status_code == 201
+
+
+def test_restricted_member_access_updates_membership_and_resource_grants_consistently(
+    db_session: Session,
+    client,
+) -> None:
+    organization, owner, member, _, _ = _seed(db_session, "member-access")
+    _as(owner)
+    created = client.post(
+        f"/api/v1/organizations/{organization.id}/native-channels",
+        json={
+            "name": "restricted-admin",
+            "description": "permission test",
+            "visibility": "restricted",
+        },
+    )
+    assert created.status_code == 201
+    channel_id = uuid.UUID(created.json()["id"])
+
+    invited = client.post(
+        f"/api/v1/organizations/{organization.id}/native-channels/{channel_id}/members",
+        json={"email": member.email, "access": "read"},
+    )
+    assert invited.status_code == 200
+    assert invited.json()["access"] == "read"
+
+    membership = db_session.scalar(
+        select(NativeChannelMembership).where(
+            NativeChannelMembership.organization_id == organization.id,
+            NativeChannelMembership.channel_id == channel_id,
+            NativeChannelMembership.user_id == member.id,
+            NativeChannelMembership.revoked_at.is_(None),
+        )
+    )
+    assert membership is not None
+    assert membership.access == ResourceAccessLevel.READ
+
+    channel = db_session.get(NativeChannel, channel_id)
+    assert channel is not None
+    assert channel.work_graph_node_id is not None
+
+    def track_grant_access():
+        row = db_session.scalar(
+            select(ResourceGrant).where(
+                ResourceGrant.organization_id == organization.id,
+                ResourceGrant.resource_type == "work_graph.node",
+                ResourceGrant.resource_id == str(channel.work_graph_node_id),
+                ResourceGrant.user_id == member.id,
+            )
+        )
+        return None if row is None else row.access
+
+    assert track_grant_access() == ResourceAccessLevel.READ
+
+    promoted = client.put(
+        f"/api/v1/organizations/{organization.id}/native-channels/{channel_id}/members/{member.id}",
+        json={"access": "write"},
+    )
+    assert promoted.status_code == 200
+    assert promoted.json()["access"] == "write"
+    db_session.expire_all()
+    membership = db_session.scalar(
+        select(NativeChannelMembership).where(
+            NativeChannelMembership.organization_id == organization.id,
+            NativeChannelMembership.channel_id == channel_id,
+            NativeChannelMembership.user_id == member.id,
+            NativeChannelMembership.revoked_at.is_(None),
+        )
+    )
+    assert membership is not None
+    assert membership.access == ResourceAccessLevel.WRITE
+    assert track_grant_access() == ResourceAccessLevel.WRITE
+
+    demoted = client.put(
+        f"/api/v1/organizations/{organization.id}/native-channels/{channel_id}/members/{member.id}",
+        json={"access": "read"},
+    )
+    assert demoted.status_code == 200
+    db_session.expire_all()
+    membership = db_session.scalar(
+        select(NativeChannelMembership).where(
+            NativeChannelMembership.organization_id == organization.id,
+            NativeChannelMembership.channel_id == channel_id,
+            NativeChannelMembership.user_id == member.id,
+            NativeChannelMembership.revoked_at.is_(None),
+        )
+    )
+    assert membership is not None
+    assert membership.access == ResourceAccessLevel.READ
+    assert track_grant_access() == ResourceAccessLevel.READ
