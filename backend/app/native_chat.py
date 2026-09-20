@@ -493,6 +493,14 @@ def create_channel(
     return channel
 
 
+def _append_native_chat_audit_event(db: Session, **kwargs):
+    try:
+        return append_audit_event(db, **kwargs)
+    except Exception:
+        db.rollback()
+        raise
+
+
 def _can_manage_members(
     channel: NativeChannel,
     *,
@@ -568,7 +576,7 @@ def update_channel_settings(
             "channel_slug_conflict",
             "A Brain channel with this name already exists",
         ) from exc
-    append_audit_event(
+    _append_native_chat_audit_event(
         db,
         organization_id=organization_id,
         event_key=(
@@ -626,7 +634,7 @@ def set_channel_archived(
     channel.archived_at = datetime.now(UTC) if archived else None
     channel.settings_revision += 1
     action = "archived" if archived else "restored"
-    append_audit_event(
+    _append_native_chat_audit_event(
         db,
         organization_id=organization_id,
         event_key=(
@@ -734,7 +742,7 @@ def upsert_channel_member(
     )
     db.flush()
 
-    append_audit_event(
+    _append_native_chat_audit_event(
         db,
         organization_id=organization_id,
         event_key=(
@@ -799,7 +807,7 @@ def revoke_channel_member(
     membership.revoked_at = datetime.now(UTC)
     _revoke_channel_grants(db, channel=channel, user_id=user_id)
     db.flush()
-    append_audit_event(
+    _append_native_chat_audit_event(
         db,
         organization_id=organization_id,
         event_key=(
