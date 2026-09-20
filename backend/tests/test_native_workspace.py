@@ -577,7 +577,7 @@ def test_channel_administration_is_revisioned_read_only_when_archived_and_syncs_
         headers={"Idempotency-Key": "archived-channel-write"},
         json={"body": "must not post while archived"},
     )
-    assert blocked_post.status_code in {403, 404, 409}
+    assert blocked_post.status_code == 404
 
     restored = client.post(
         f"/api/v1/organizations/{organization.id}/native-channels/{channel['id']}/restore",
