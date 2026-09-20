@@ -30,6 +30,14 @@ class NativeWorkspaceConflictError(NativeWorkspaceError):
     pass
 
 
+def _append_audit_event(db: Session, **kwargs):
+    try:
+        return append_audit_event(db, **kwargs)
+    except Exception:
+        db.rollback()
+        raise
+
+
 def _normalize_name(value: str) -> str:
     name = " ".join(value.strip().split())
     if not name or len(name) > MAX_TEAM_NAME_CHARS:
@@ -125,7 +133,7 @@ def create_team(
             "team_slug_conflict",
             "A Team with this name already exists",
         ) from exc
-    append_audit_event(
+    _append_audit_event(
         db,
         organization_id=organization_id,
         event_key=f"native_workspace.team.created:{row.id}",
@@ -184,7 +192,7 @@ def update_team(
             "team_slug_conflict",
             "A Team with this name already exists",
         ) from exc
-    append_audit_event(
+    _append_audit_event(
         db,
         organization_id=organization_id,
         event_key=f"native_workspace.team.updated:{team.id}:{team.revision}",
@@ -236,7 +244,7 @@ def set_team_archived(
     team.archived_at = datetime.now(UTC) if archived else None
     team.revision += 1
     action = "archived" if archived else "restored"
-    append_audit_event(
+    _append_audit_event(
         db,
         organization_id=organization_id,
         event_key=f"native_workspace.team.{action}:{team.id}:{team.revision}",
@@ -367,7 +375,7 @@ def create_channel_group(
             "group_slug_conflict",
             "A channel group with this name already exists in this Team",
         ) from exc
-    append_audit_event(
+    _append_audit_event(
         db,
         organization_id=organization_id,
         event_key=f"native_workspace.group.created:{row.id}",
@@ -420,7 +428,7 @@ def update_channel_group(
             "group_slug_conflict",
             "A channel group with this name already exists in this Team",
         ) from exc
-    append_audit_event(
+    _append_audit_event(
         db,
         organization_id=organization_id,
         event_key=f"native_workspace.group.updated:{group.id}:{group.revision}",
@@ -468,7 +476,7 @@ def set_channel_group_archived(
     group.archived_at = datetime.now(UTC) if archived else None
     group.revision += 1
     action = "archived" if archived else "restored"
-    append_audit_event(
+    _append_audit_event(
         db,
         organization_id=organization_id,
         event_key=f"native_workspace.group.{action}:{group.id}:{group.revision}",
@@ -539,7 +547,7 @@ def assign_channel_navigation(
     channel.team_id = team_id
     channel.channel_group_id = group_id
     db.flush()
-    append_audit_event(
+    _append_audit_event(
         db,
         organization_id=organization_id,
         event_key=(
