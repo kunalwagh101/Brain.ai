@@ -10,6 +10,7 @@
 - Channel visibility conversion is explicitly rejected; organisation↔restricted migration remains separate scope.
 - Added same-origin WorkOS settings/archive/restore activation routes plus bounded BFF validation.
 - Added migration `20260920_0040`, backend authority/concurrency/archive/grant regressions, frontend/security source contracts and dedicated UAT.
+- Hardened channel settings/lifecycle and restricted-member access so the business mutation and required audit event commit atomically; an audit persistence failure now rolls back the channel/member/grant change, with explicit negative regressions.
 
 Verification is not claimed as passed. `S-10.26.01` remains `IN_REVIEW`.
 
@@ -23,6 +24,7 @@ Verification is not claimed as passed. `S-10.26.01` remains `IN_REVIEW`.
 - Archived group channels fall back to Team **Ungrouped**; archived-Team channels fall back to global **Unassigned channels**.
 - DMs remain a separate participant-private section under OQ-010.
 - Added migration `20260920_0039`, same-origin WorkOS group/assignment routes, management UI and ACL-invariance/tenant/stale-revision contracts.
+- Hardened group lifecycle and channel-placement mutations so navigation changes cannot persist if their audit event fails.
 
 Verification is not claimed as passed. `S-10.25.01` remains `IN_REVIEW`.
 
@@ -37,6 +39,7 @@ Verification is not claimed as passed. `S-10.25.01` remains `IN_REVIEW`.
 - Existing visible channels remain under **Unassigned channels** until explicit group/channel navigation is introduced by S-10.25.
 - OQ-009 prevents Team metadata from inheriting/replacing channel ACLs; OQ-010 keeps participant-private DMs outside shared Team hierarchy.
 - Added same-origin WorkOS create/edit/archive/restore templates plus tenant, stale-revision, guest/manager and ResourceGrant-invariance contracts.
+- Hardened Team lifecycle mutations so Team state and its required audit event are one transaction; audit failure rolls the Team change back, with a dedicated regression.
 
 Verification is not claimed as passed. `S-10.24.01` remains `IN_REVIEW`.
 
