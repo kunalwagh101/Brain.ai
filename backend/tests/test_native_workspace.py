@@ -1,8 +1,12 @@
 import uuid
 
+import pytest
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+import app.native_chat as native_chat_module
+import app.native_workspace as native_workspace_module
 from app.auth import get_current_user
 from app.main import app
 from app.models import (
@@ -684,3 +688,110 @@ def test_restricted_member_access_updates_membership_and_resource_grants_consist
     assert membership is not None
     assert membership.access == ResourceAccessLevel.READ
     assert track_grant_access() == ResourceAccessLevel.READ
+
+
+def test_team_creation_rolls_back_when_audit_persistence_fails(
+    db_session: Session,
+    client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    organization, _, member, _, _ = _seed(db_session, "team-audit-rollback")
+    _as(member)
+
+    def fail_audit(*args, **kwargs):
+        raise RuntimeError("audit unavailable")
+
+    monkeypatch.setattr(native_workspace_module, "append_audit_event", fail_audit)
+
+    with pytest.raises(RuntimeError, match="audit unavailable"):
+        client.post(
+            f"/api/v1/organizations/{organization.id}/native-teams",
+            json={"name": "Must Roll Back", "description": "No orphan mutation"},
+        )
+
+    assert db_session.scalar(
+        select(func.count(NativeTeam.id)).where(
+            NativeTeam.organization_id == organization.id,
+            NativeTeam.slug == "must-roll-back",
+        )
+    ) == 0
+
+
+def test_channel_settings_and_member_access_roll_back_when_audit_fails(
+    db_session: Session,
+    client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    organization, owner, member, _, _ = _seed(db_session, "channel-audit-rollback")
+    _as(owner)
+    created = client.post(
+        f"/api/v1/organizations/{organization.id}/native-channels",
+        json={
+            "name": "audit-safe-channel",
+            "description": "before",
+            "visibility": "restricted",
+        },
+    )
+    assert created.status_code == 201
+    channel_id = uuid.UUID(created.json()["id"])
+
+    invited = client.post(
+        f"/api/v1/organizations/{organization.id}/native-channels/{channel_id}/members",
+        json={"email": member.email, "access": "read"},
+    )
+    assert invited.status_code == 200
+
+    def fail_audit(*args, **kwargs):
+        raise RuntimeError("audit unavailable")
+
+    monkeypatch.setattr(native_chat_module, "append_audit_event", fail_audit)
+
+    with pytest.raises(RuntimeError, match="audit unavailable"):
+        client.patch(
+            f"/api/v1/organizations/{organization.id}/native-channels/{channel_id}/settings",
+            json={
+                "name": "must-not-stick",
+                "description": "after",
+                "expected_revision": created.json()["settings_revision"],
+            },
+        )
+
+    db_session.expire_all()
+    channel = db_session.get(NativeChannel, channel_id)
+    assert channel is not None
+    assert channel.name == "audit-safe-channel"
+    assert channel.description == "before"
+    assert channel.settings_revision == created.json()["settings_revision"]
+
+    with pytest.raises(RuntimeError, match="audit unavailable"):
+        client.put(
+            f"/api/v1/organizations/{organization.id}/native-channels/"
+            f"{channel_id}/members/{member.id}",
+            json={"access": "write"},
+        )
+
+    db_session.expire_all()
+    membership = db_session.scalar(
+        select(NativeChannelMembership).where(
+            NativeChannelMembership.organization_id == organization.id,
+            NativeChannelMembership.channel_id == channel_id,
+            NativeChannelMembership.user_id == member.id,
+            NativeChannelMembership.revoked_at.is_(None),
+        )
+    )
+    assert membership is not None
+    assert membership.access == ResourceAccessLevel.READ
+
+    channel = db_session.get(NativeChannel, channel_id)
+    assert channel is not None
+    assert channel.work_graph_node_id is not None
+    grant = db_session.scalar(
+        select(ResourceGrant).where(
+            ResourceGrant.organization_id == organization.id,
+            ResourceGrant.resource_type == "work_graph.node",
+            ResourceGrant.resource_id == str(channel.work_graph_node_id),
+            ResourceGrant.user_id == member.id,
+        )
+    )
+    assert grant is not None
+    assert grant.access == ResourceAccessLevel.READ
