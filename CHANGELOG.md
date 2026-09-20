@@ -1,5 +1,18 @@
 # Changelog
 
+### Increment 42 — Channel Administration
+
+- Added optimistic `settings_revision` for Brain-native channel settings/lifecycle mutations.
+- Channel creator or Owner/Admin can rename/update description; current Work Graph track identity follows the new name/slug without rewriting historical message/evidence records.
+- Added archive/restore lifecycle: archived channels leave the default active navigation and become non-postable while authorised history remains readable.
+- Added manager-only Archived channels restore surface.
+- Reused the existing restricted-channel member PUT path for Read ↔ Read & write changes so membership and current Work Graph/evidence ResourceGrants stay consistent.
+- Channel visibility conversion is explicitly rejected; organisation↔restricted migration remains separate scope.
+- Added same-origin WorkOS settings/archive/restore activation routes plus bounded BFF validation.
+- Added migration `20260920_0040`, backend authority/concurrency/archive/grant regressions, frontend/security source contracts and dedicated UAT.
+
+Verification is not claimed as passed. `S-10.26.01` remains `IN_REVIEW`.
+
 ### Increment 41 — Team Channel Groups
 
 - Added revisioned `NativeChannelGroup` metadata scoped to a Team.
