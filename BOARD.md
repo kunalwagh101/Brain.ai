@@ -16,8 +16,8 @@ DONE | S-03.02.01 | F-03.02 | Engineering evidence in TRACEABILITY.md; Slack/Git
 DONE | S-03.03.01 | F-03.03 | Engineering evidence in TRACEABILITY.md; real provider identity + frontend/manual UAT remains pending
 DONE | S-04.01.01 | F-04.01 | Engineering evidence in TRACEABILITY.md; real Slack/GitHub graph + frontend/manual UAT remains pending
 BACKLOG | S-04.02.01 | F-04.02 | Depends on work graph + retrieval evaluation
-BACKLOG | S-05.01.01 | F-05.01 | Depends on RBAC + canonical evidence
-BACKLOG | S-05.02.01 | F-05.02 | OQ-005 before provider contract is frozen
+IN_REVIEW | S-05.01.01 | F-05.01 | Implementation/docs/tests exist; GitHub Actions cannot start a runner, so no passing verification evidence yet
+BACKLOG | S-05.02.01 | F-05.02 | OQ-005 before generation provider contract is frozen
 BACKLOG | S-06.01.01 | F-06.01 | Depends on RBAC
 BACKLOG | S-06.02.01 | F-06.02 | Depends on AI provider registry/gateway
 BACKLOG | S-06.03.01 | F-06.03 | Depends on RBAC + integration secret-reference model
@@ -32,20 +32,24 @@ DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external
 
 ## Sprint planning
 
-Increment 7 goal: **represent people, projects, tracks, work items and canonical evidence as a typed tenant-scoped graph in PostgreSQL, with every relationship carrying explicit state, confidence and provenance so deterministic/manual facts remain distinguishable from inference.**
+Increment 8 goal: **make authorised Slack/GitHub evidence searchable by keyword and semantic similarity without ever allowing restricted evidence to enter an unauthorised result set, while preserving source provenance and live revocation semantics.**
 
-Vertical slice: typed graph nodes/edges -> canonical evidence/person projection -> source-identity to Brain-user resolution edges -> explicit project/track/work-item creation -> verified/inferred edge rules -> bounded tenant-scoped traversal -> restricted-evidence fail-closed behavior -> idempotency/tests/migration/docs/UAT.
+Vertical slice: canonical/raw evidence -> durable search projection -> permission predicate using current integration/channel/resource authorization -> PostgreSQL full-text baseline -> provider-neutral embeddings -> pgvector semantic candidates -> hybrid ranking -> provenance-bearing search API -> revoked/deleted evidence removal -> evaluation/tests/migration/worker/docs/UAT.
 
 Rules for this increment:
 
-- PostgreSQL relationship tables only; no Neo4j/graph database dependency.
-- Source identity person nodes and Brain user person nodes remain distinct; a `resolves_to` edge links them when identity resolution is current.
-- Canonical evidence becomes a graph node by stable canonical-event ID; original evidence/provenance remains in canonical storage.
-- Project/track/work-item relationships are explicit/manual unless a deterministic source rule exists. The LLM may not create a verified edge.
-- Every edge has a relation type, state (`verified` or `inferred`), confidence and provenance.
-- Inferred edges are visibly distinguishable and cannot silently become verified.
-- Cross-tenant endpoints/edges are rejected. Restricted source evidence is fail-closed unless the current source/resource authorization proves access; role alone does not override an explicit restricted-resource ACL.
-- Graph nodes store references/minimal metadata, not copied message/code content.
+- PostgreSQL remains the retrieval store; no external vector database is added.
+- `pgvector` is added only because semantic retrieval now requires vector similarity.
+- Search projection is rebuildable derived state. Raw/canonical evidence remains authoritative.
+- Source content is whitelisted into the search projection; arbitrary raw JSON is never blindly indexed.
+- Permission filtering is part of the database candidate predicate before search result content is loaded/returned.
+- Live integration status, live Slack channel authorization/membership and current resource grants override historical ACL provenance.
+- Owner/Admin role does not bypass restricted-resource grants.
+- Deleted source objects are removed from derived retrieval content; revoked integrations/resources disappear at query time.
+- Embedding generation uses a provider-neutral HTTP contract configured by the operator. F-05.01 does not choose the later RAG generation provider from OQ-005.
+- Connector ingestion must not depend on embedding-provider availability. A durable database-backed indexing worker handles derived indexing/retries.
+- Semantic degradation is explicit in the API response; it is never silently described as hybrid search.
+- Real-provider recall/latency and frontend/manual acceptance remain UAT evidence, not assumptions.
 
 ## Increment 7 review
 
@@ -97,10 +101,11 @@ Rules for this increment:
 
 ## Session-open self-audit
 
-- Ten stories are engineering-DONE; user acceptance remains independently tracked in UAT.md.
-- Current WIP count: 0.
-- Work Graph is a projection/reference layer, not a replacement for canonical/raw evidence.
-- No inferred edge is allowed to masquerade as verified evidence.
-- Restricted evidence traversal uses current source/resource authorization and fails closed without a matching access basis; role alone is not a bypass.
-- F-04.01 remains UAT_PENDING until realistic backend and frontend/manual validation is recorded.
-- No new story is marked IN_PROGRESS in this closure commit.
+- Ten stories are engineering-DONE; external/user acceptance remains independently tracked in UAT.md.
+- Current WIP count: 0; `S-05.01.01` is now IN_REVIEW, not DONE.
+- Increment 7 Work Graph is merged on `main` at `ddd12921ec7ac025dc21de41275b8532c811ab24`.
+- F-05.01 dependencies S-01.03.01 and S-03.02.01 are engineering-DONE.
+- Existing Work Graph authorization semantics are reused rather than replaced.
+- OQ-005 does not block retrieval shape because this increment does not freeze a generation provider; embeddings are operator-configured behind a provider-neutral contract.
+- Existing frontend still contains preview/sample state. No fake search wiring will be used to claim frontend acceptance.
+- Repeated Backend CI / Delivery Verifier attempts for Increment 8 failed before runner startup (`runner_id=0`, no steps). There is no passing test output, so engineering-DONE is prohibited by the Definition of Done.

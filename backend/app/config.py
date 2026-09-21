@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     github_client_id: str | None = None
     github_callback_url: str | None = None
     github_app_secret_ref: str | None = None
+    embedding_api_url: str | None = None
+    embedding_model: str | None = None
+    embedding_secret_ref: str | None = None
+    embedding_timeout_seconds: float = 8.0
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -67,6 +71,14 @@ class Settings(BaseSettings):
                 "BRAIN_GITHUB_CALLBACK_URL and BRAIN_GITHUB_APP_SECRET_REF must be "
                 "configured together"
             )
+
+        embedding_values = (self.embedding_api_url, self.embedding_model)
+        if any(embedding_values) and not all(embedding_values):
+            raise ValueError(
+                "BRAIN_EMBEDDING_API_URL and BRAIN_EMBEDDING_MODEL must be configured together"
+            )
+        if self.embedding_timeout_seconds <= 0 or self.embedding_timeout_seconds > 30:
+            raise ValueError("BRAIN_EMBEDDING_TIMEOUT_SECONDS must be > 0 and <= 30")
 
         if self.environment.lower() == "production":
             if self.app_secret == "dev-only-change-me":
