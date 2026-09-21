@@ -16,7 +16,7 @@ DONE | S-03.02.01 | F-03.02 | Engineering evidence in TRACEABILITY.md; Slack/Git
 DONE | S-03.03.01 | F-03.03 | Engineering evidence in TRACEABILITY.md; real provider identity + frontend/manual UAT remains pending
 DONE | S-04.01.01 | F-04.01 | Engineering evidence in TRACEABILITY.md; real Slack/GitHub graph + frontend/manual UAT remains pending
 BACKLOG | S-04.02.01 | F-04.02 | Depends on work graph + retrieval evaluation
-BACKLOG | S-05.01.01 | F-05.01 | Depends on RBAC + canonical evidence
+IN_PROGRESS | S-05.01.01 | F-05.01 | Increment 8: permission-first canonical evidence retrieval
 BACKLOG | S-05.02.01 | F-05.02 | OQ-005 before provider contract is frozen
 BACKLOG | S-06.01.01 | F-06.01 | Depends on RBAC
 BACKLOG | S-06.02.01 | F-06.02 | Depends on AI provider registry/gateway
@@ -32,20 +32,22 @@ DEFERRED | S-10.01.01 | F-10.01 | Revisit after E-01 through E-05 prove external
 
 ## Sprint planning
 
-Increment 7 goal: **represent people, projects, tracks, work items and canonical evidence as a typed tenant-scoped graph in PostgreSQL, with every relationship carrying explicit state, confidence and provenance so deterministic/manual facts remain distinguishable from inference.**
+Increment 8 goal: **let a Brain user retrieve company evidence only when the same current source/resource permissions would allow that evidence elsewhere, with revocations taking effect before snippets or provenance are returned.**
 
-Vertical slice: typed graph nodes/edges -> canonical evidence/person projection -> source-identity to Brain-user resolution edges -> explicit project/track/work-item creation -> verified/inferred edge rules -> bounded tenant-scoped traversal -> restricted-evidence fail-closed behavior -> idempotency/tests/migration/docs/UAT.
+Vertical slice: canonical search-document projection -> automatic canonicalisation indexing -> PostgreSQL full-text retrieval -> Work Graph evidence authorization reuse -> provenance-bearing result contract -> revoked Slack/GitHub access tests -> historical reconciliation -> semantic retrieval design without bypassing the future governed AI gateway -> CI/evaluation/docs/UAT.
 
 Rules for this increment:
 
-- PostgreSQL relationship tables only; no Neo4j/graph database dependency.
-- Source identity person nodes and Brain user person nodes remain distinct; a `resolves_to` edge links them when identity resolution is current.
-- Canonical evidence becomes a graph node by stable canonical-event ID; original evidence/provenance remains in canonical storage.
-- Project/track/work-item relationships are explicit/manual unless a deterministic source rule exists. The LLM may not create a verified edge.
-- Every edge has a relation type, state (`verified` or `inferred`), confidence and provenance.
-- Inferred edges are visibly distinguishable and cannot silently become verified.
-- Cross-tenant endpoints/edges are rejected. Restricted source evidence is fail-closed unless the current source/resource authorization proves access; role alone does not override an explicit restricted-resource ACL.
-- Graph nodes store references/minimal metadata, not copied message/code content.
+- Permission checks happen before result content/snippets are returned to a caller, LLM or downstream tool.
+- Search is always tenant-scoped; hidden candidates do not contribute a returned total/count that can leak their existence.
+- Current source/resource authorization is authoritative. Historical event ACL snapshots are evidence, not current entitlement.
+- Restricted GitHub evidence requires an explicit grant; Owner/Admin role is not an ACL bypass.
+- Private Slack retrieval uses current authorised channel membership resolved to the Brain user.
+- Search results must include canonical/source provenance so later Ask Brain citations have an evidence anchor.
+- One search document is a rebuildable projection of one canonical event. Raw/canonical evidence remains authoritative.
+- PostgreSQL full-text search is used for the lexical production path; SQLite has a deterministic test fallback only.
+- Do not call lexical search semantic search. No external embedding/model path may bypass the governed AI gateway. Semantic retrieval remains inside S-05.01.01 until a production-safe provider/model path is deliberately resolved.
+- No search subsystem may become a second broader permission system; it reuses Work Graph evidence visibility for the current slice.
 
 ## Increment 7 review
 
@@ -98,9 +100,9 @@ Rules for this increment:
 ## Session-open self-audit
 
 - Ten stories are engineering-DONE; user acceptance remains independently tracked in UAT.md.
-- Current WIP count: 0.
-- Work Graph is a projection/reference layer, not a replacement for canonical/raw evidence.
-- No inferred edge is allowed to masquerade as verified evidence.
-- Restricted evidence traversal uses current source/resource authorization and fails closed without a matching access basis; role alone is not a bypass.
-- F-04.01 remains UAT_PENDING until realistic backend and frontend/manual validation is recorded.
-- No new story is marked IN_PROGRESS in this closure commit.
+- Current WIP count: 1 (`S-05.01.01`).
+- Work Graph is engineering-DONE and merged to main; F-04.01 remains UAT_PENDING.
+- Permission-aware retrieval is the only active product story.
+- S-04.02 Decision/Blocker Memory is not started because it depends on retrieval evaluation.
+- Search cannot return restricted content before the current permission check succeeds.
+- Semantic search is not claimed by the initial lexical slice; S-05.01.01 remains IN_PROGRESS until that production-safe requirement is resolved and verified.
