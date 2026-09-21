@@ -52,3 +52,9 @@ pytest
 - Permission checks must happen before retrieval or LLM access.
 
 The current frontend still contains preview/sample data. It is intentionally not presented as live company evidence. The next slice replaces preview identity/state with real organisation and authentication flows.
+
+## License
+
+Brain.ai is open source under the Apache License 2.0.
+
+You may use, modify, and distribute the software under the terms of the `LICENSE` file. The Apache 2.0 license also includes an explicit patent grant from contributors and requires preservation of applicable notices.
