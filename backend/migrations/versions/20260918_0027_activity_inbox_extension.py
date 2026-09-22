@@ -46,7 +46,11 @@ def _check_values(column: str, values: tuple[str, ...]) -> str:
 
 def upgrade() -> None:
     op.drop_constraint("ck_activity_notification_kind", "activity_notifications", type_="check")
-    op.drop_constraint("ck_activity_notification_resource_type", "activity_notifications", type_="check")
+    op.drop_constraint(
+        "ck_activity_notification_resource_type",
+        "activity_notifications",
+        type_="check",
+    )
     op.create_check_constraint(
         "ck_activity_notification_kind",
         "activity_notifications",
@@ -71,8 +75,18 @@ def upgrade() -> None:
         sa.Column("agent_run_events", sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.Column("project_updates", sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.Column("integration_failures", sa.Boolean(), nullable=False, server_default=sa.true()),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
