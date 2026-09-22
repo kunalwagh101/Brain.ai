@@ -1,5 +1,12 @@
 # Changelog
 
+### Engineering acceptance — S-10.01.01 / S-10.06.01 / S-10.06.02
+
+- Marked Brain-native channels/messages, Slack/Discord-quality conversation UX and participant-safe direct messages engineering-DONE after the current executable gates resolved the older review-only state.
+- Release Gate `35789299001` passed Ruff, all 385 backend tests, the production frontend build, 138 source-contract tests, repository verification, PostgreSQL upgrade/downgrade/forward recovery, backup/restore, production-image build and readiness smoke on code head `10a9028685f67ec6db923d3371a67df13276d044`.
+- The DM suite includes participant-only access, revocable visibility epochs, retention/legal-hold behavior and the organisation-wide Search exclusion regression for DM-only content.
+- Official WorkOS activation and authenticated multi-user browser/privacy/responsive/accessibility UAT remain `UAT_PENDING`; engineering-DONE is not an external acceptance claim.
+
 ### Engineering acceptance — S-05.01.01 / S-06.01.01 / S-09.02.01
 
 - Marked S-05.01.01 permission-aware Search engineering-DONE after current authorisation, revocation/deletion, provenance and retrieval-evaluation contracts resolved against the implementation.
