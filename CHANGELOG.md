@@ -1,5 +1,15 @@
 # Changelog
 
+### Engineering acceptance — S-05.01.01 / S-06.01.01 / S-09.02.01
+
+- Marked S-05.01.01 permission-aware Search engineering-DONE after current authorisation, revocation/deletion, provenance and retrieval-evaluation contracts resolved against the implementation.
+- Marked S-06.01.01 AI Provider Registry & Gateway engineering-DONE after provider/model/user/organisation attribution, safe provider failure and secret-reference contracts resolved.
+- Marked S-09.02.01 Audit, Retention & Deletion engineering-DONE after append-only audit, legal-hold, deterministic retention/deletion and reconstruction-suppression contracts resolved.
+- Fresh Backend CI rerun on the underlying code commit `af9358c5f6d20079160c7fa77c4d771772d54703`: Ruff passed; `384 passed, 2 warnings in 34.25s`.
+- The same code commit's Release Gate passed PostgreSQL migration upgrade/downgrade/forward recovery, backup/restore, production-image build and readiness smoke.
+- Realistic deployed/browser/provider/customer-policy acceptance remains `UAT_PENDING`; engineering-DONE is not a claim of external feature acceptance.
+
+
 ### Increment 42 — Channel Administration
 
 - Added optimistic `settings_revision` for Brain-native channel settings/lifecycle mutations.
