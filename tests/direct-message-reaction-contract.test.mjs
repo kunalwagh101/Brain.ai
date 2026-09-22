@@ -28,7 +28,7 @@ test("DM reaction aggregation is batched and exposes no participant list", () =>
   assert.match(body, /func\.count\(\)/);
   assert.match(body, /reacted_by_me/);
   assert.match(routes, /reactions: list\[DirectReactionRead\]/);
-  assert.doesNotMatch(routes, /reacted_by|reaction_users|user_ids.*reaction/i);
+  assert.doesNotMatch(routes, /reacted_by(?!_me)|reaction_users|user_ids.*reaction/i);
   assert.match(routes, /reaction_map = direct_message_reaction_summaries/);
 });
 
