@@ -20,8 +20,8 @@ from app.routes.ai_usage import router as ai_usage_router
 from app.routes.api_registry import router as api_registry_router
 from app.routes.api_registry_usage import router as api_registry_usage_router
 from app.routes.ask_brain import router as ask_brain_router
-from app.routes.collaboration_presence import router as collaboration_presence_router
 from app.routes.auth import router as auth_router
+from app.routes.collaboration_presence import router as collaboration_presence_router
 from app.routes.data_governance import router as data_governance_router
 from app.routes.decision_memory import router as decision_memory_router
 from app.routes.direct_messages import router as direct_messages_router
