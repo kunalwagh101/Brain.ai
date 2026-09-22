@@ -49,7 +49,9 @@ test("workspace renders Teams and keeps every visible channel in unassigned fall
   assert.match(production, /listNativeTeams\(accessToken, organization\.id, true\)/);
   assert.match(shell, /<span>Teams<\/span>/);
   assert.match(shell, /Unassigned channels/);
-  assert.match(shell, /nativeChannels\.map/);
+  assert.match(shell, /globalUnassignedChannels = nativeChannels\.filter/);
+  assert.match(shell, /globalUnassignedChannels\.map/);
+  assert.match(shell, /activeGroupsByTeam/);
   assert.match(shell, /<NativeTeamManager/);
   assert.match(shell, /Direct messages/);
 });
