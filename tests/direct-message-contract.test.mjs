@@ -95,7 +95,7 @@ test("native dm privacy decision excludes organisation-wide AI/retrieval", () =>
   assert.match(questions, /OQ-008 Brain-native direct-message privacy — RESOLVED 2026-09-16/);
   assert.match(questions, /excluded from organisation-wide Search, Ask Brain, Decision Memory, Project Command Centre and Executive Overview/);
   assert.match(questions, /private_message_days/);
-  assert.match(questions, /Normal DM creation and sends do not create organisation-wide per-message\/per-conversation audit records/);
+  assert.match(questions, /normal DM creation and sends do not create organisation-wide per-message\/per-conversation audit records/i);
 });
 
 test("private dm retention is an independent governance class", () => {
