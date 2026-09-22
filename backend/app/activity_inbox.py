@@ -1,5 +1,4 @@
 import uuid
-from dataclasses import asdict
 from datetime import UTC, datetime
 
 from sqlalchemy import or_, select, update
