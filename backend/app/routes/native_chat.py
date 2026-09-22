@@ -481,7 +481,11 @@ def list_channel_members(
     return [_member_read(db, membership) for membership in memberships]
 
 
-@router.post("/{channel_id}/members", response_model=NativeChannelMemberRead)
+@router.post(
+    "/{channel_id}/members",
+    response_model=NativeChannelMemberRead,
+    status_code=status.HTTP_201_CREATED,
+)
 def invite_channel_member(
     organization_id: uuid.UUID,
     channel_id: uuid.UUID,
