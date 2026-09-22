@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, JSON, String, UniqueConstraint, func
+from sqlalchemy import JSON, DateTime, Enum, ForeignKey, Index, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models import Base
