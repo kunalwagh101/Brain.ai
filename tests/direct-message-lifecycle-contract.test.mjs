@@ -29,7 +29,7 @@ test("DM lifecycle service is author and current-epoch scoped with optimistic co
   const lifecycle = service.slice(lifecycleStart, sendStart);
 
   assert.match(lifecycle, /message\.author_user_id != user_id/);
-  assert.match(lifecycle, /message\.sequence >= visible_from_sequence/);
+  assert.match(lifecycle, /DirectMessage\.sequence >= visible_from_sequence/);
   assert.match(lifecycle, /expected_revision != message\.revision/);
   assert.match(lifecycle, /DirectMessageRevision/);
   assert.match(lifecycle, /action="edit"/);
