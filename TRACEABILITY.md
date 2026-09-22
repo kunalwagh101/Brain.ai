@@ -144,7 +144,7 @@ S-06.01.01 is engineering-DONE on commit `af9358c5f6d20079160c7fa77c4d771772d547
 
 S-06.02.01 intentionally has no EVIDENCE block yet. S-06.01 is now engineering-DONE. The usage ledger models ordinary/cached/output token usage and optional cached pricing. Invalid/missing required billing dimensions fail closed to `unknown`, and request-scoped cost audit supports independent recomputation. Real provider usage/cost reconciliation remains an external acceptance blocker, so S-06.02 remains BLOCKED.
 
-S-10.01.01 is engineering-DONE. Release Gate `35789299001` passed native-channel authorization/persistence/evidence projection regressions, the production frontend build/source contracts, repository verifier and PostgreSQL migration recovery on code commit `10a9028685f67ec6db923d3371a67df13276d044`. Authenticated WorkOS/browser UAT remains `UAT_PENDING`.
+S-10.01.01 is engineering-DONE. Release Gate `35789299001` passed native-channel authorization/persistence/evidence projection regressions, the production frontend build/source contracts, repository verifier and PostgreSQL migration recovery on code commit `10a9028685f67ec6db923d3371a67df13276d044`. Board, traceability, changelog and UAT records are now aligned; authenticated WorkOS/browser UAT remains `UAT_PENDING`.
 
 S-06.03.01 intentionally has no EVIDENCE block yet. Tenant-scoped API service/grant inventory, secret-reference lifecycle, owner/scope/environment history, rotation, fail-closed revocation, expiry cleanup, internal usage observation, tests/docs/UAT and Executive Overview API-usage drill-down are staged. Relevant API registry contracts run in the Executive Overview acceptance stage. Executable verification remains outstanding, so the story remains IN_REVIEW.
 
