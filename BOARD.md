@@ -64,29 +64,29 @@ DONE | S-10.26.01 | F-10.26 | Engineering verified on Release Gate 35786803759; 
 
 
 
-### S-10.26.01 Channel Administration — IN_REVIEW
+### S-10.26.01 Channel Administration — DONE
 
 Sprint goal: make channel identity, archive/restore and restricted-member read/write access manageable from the workspace without rewriting collaboration history or weakening ACLs.
 
 Ready evidence is in `DEFINITION_OF_READY.md`; implementation scope is in `docs/planning/increment-42.md`.
 
-Implementation staged: optimistic settings revision + current Work Graph identity sync, archive/read-only/restore lifecycle, manager-only archived-channel recovery, existing restricted-member read/write ResourceGrant propagation, same-origin WorkOS settings/lifecycle/member routes, migration `20260920_0040`, focused backend/frontend security regressions, UAT/demo/changelog/traceability and retrospective. Formal state: `IN_REVIEW`; no executable PASS/UAT is claimed. WIP returns to zero.
+Engineering verified: optimistic settings revision + current Work Graph identity sync, archive/read-only/restore lifecycle, manager-only archived-channel recovery, existing restricted-member read/write ResourceGrant propagation, same-origin WorkOS settings/lifecycle/member routes, migration `20260920_0040`, and focused backend/frontend security regressions all passed automated verification. Formal engineering state: `DONE`. Authenticated WorkOS UAT remains `UAT_PENDING`.
 
-### S-10.25.01 Team Channel Groups — IN_REVIEW
+### S-10.25.01 Team Channel Groups — DONE
 
 Sprint goal: add Team → group → channel navigation while proving that navigation moves do not change any collaboration/evidence authorization state.
 
 Ready evidence is in `DEFINITION_OF_READY.md`; implementation scope is in `docs/planning/increment-41.md`.
 
-Implementation staged: group/navigation schema, revisioned group lifecycle, channel + target-Team management gates, same-origin API/BFF/UI, nested Team/Ungrouped/Unassigned rendering and explicit ACL/grant-invariance tests/docs. Formal state: `IN_REVIEW`; no executable PASS/UAT is claimed. WIP returns to zero; S-10.26 may now be pulled.
+Engineering verified: group/navigation schema, revisioned group lifecycle, channel + target-Team management gates, same-origin API/BFF/UI, nested Team/Ungrouped/Unassigned rendering, ACL/grant invariance and audit rollback all passed automated verification. Formal engineering state: `DONE`. Authenticated WorkOS hierarchy/ACL UAT remains `UAT_PENDING`.
 
-### S-10.24.01 Workspace Teams — IN_REVIEW
+### S-10.24.01 Workspace Teams — DONE
 
 Sprint goal: add real shared Team navigation containers without creating a new authorization boundary or hiding existing channels.
 
 Ready evidence is in `DEFINITION_OF_READY.md`; implementation scope is in `docs/planning/increment-40.md`. OQ-009/OQ-010 preserve unresolved inheritance/DM-group semantics.
 
-Implementation staged: Team model/migration/service/API, optimistic creator/Owner/Admin lifecycle, Alembic registration, server-loaded Team navigation, Unassigned channel fallback, same-origin WorkOS UI/routes, ACL-invariance/security tests and UAT/demo/changelog/traceability. Formal state: `IN_REVIEW`; no executable PASS/UAT is claimed. WIP returns to zero; S-10.25 may now be pulled.
+Engineering verified: Team model/migration/service/API, optimistic creator/Owner/Admin lifecycle, Alembic registration, server-loaded Team navigation, Unassigned channel fallback, same-origin WorkOS UI/routes, ACL invariance and audit rollback all passed automated verification. Formal engineering state: `DONE`. Authenticated WorkOS Team UAT remains `UAT_PENDING`.
 
 ### S-10.23.01 Participant-Private DM Reactions — IN_REVIEW
 
