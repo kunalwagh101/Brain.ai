@@ -496,6 +496,15 @@ export function DirectMessagePanel({
             </header>
 
             <div className={styles.messages} aria-live="polite">
+              {firstUnreadMessageId ? (
+                <button
+                  className={styles.loadOlder}
+                  onClick={() => void jumpToUnread()}
+                  type="button"
+                >
+                  Jump to unread
+                </button>
+              ) : null}
               {hasOlderHistory ? (
                 <button
                   className={styles.loadOlder}
