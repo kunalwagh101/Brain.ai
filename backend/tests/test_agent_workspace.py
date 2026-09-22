@@ -152,7 +152,9 @@ def test_workspace_run_is_project_scoped_and_requester_private(
             f"/api/v1/organizations/{organization.id}/agent-workspace/runs",
             json={
                 "agent_definition_id": str(definition.id),
-                "objective": "Inspect the visible backend project and propose the next governed work item.",
+                "objective": (
+                    "Inspect the visible backend project and propose the next governed work item."
+                ),
                 "project_node_id": str(project.id),
             },
         )
