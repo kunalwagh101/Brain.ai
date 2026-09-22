@@ -22,7 +22,7 @@
 - Added migration `20260920_0040`, backend authority/concurrency/archive/grant regressions, frontend/security source contracts and dedicated UAT.
 - Hardened channel settings/lifecycle and restricted-member access so the business mutation and required audit event commit atomically; an audit persistence failure now rolls back the channel/member/grant change, with explicit negative regressions.
 
-Verification is not claimed as passed. `S-10.26.01` remains `IN_REVIEW`.
+Engineering verification passed on code commit `ed0c701685ad` via Release Gate `35786803759`: 385 backend tests passed, frontend production build passed with 138/139 source-contract tests passing and 1 skipped, repository verifier passed, PostgreSQL migration round-trip and backup/restore passed, and production readiness smoke passed. Authenticated WorkOS UAT remains `UAT_PENDING`.
 
 ### Increment 41 — Team Channel Groups
 
@@ -36,7 +36,7 @@ Verification is not claimed as passed. `S-10.26.01` remains `IN_REVIEW`.
 - Added migration `20260920_0039`, same-origin WorkOS group/assignment routes, management UI and ACL-invariance/tenant/stale-revision contracts.
 - Hardened group lifecycle and channel-placement mutations so navigation changes cannot persist if their audit event fails.
 
-Verification is not claimed as passed. `S-10.25.01` remains `IN_REVIEW`.
+Engineering verification passed on code commit `ed0c701685ad` via Release Gate `35786803759`: 385 backend tests passed, frontend production build passed with 138/139 source-contract tests passing and 1 skipped, repository verifier passed, PostgreSQL migration round-trip and backup/restore passed, and production readiness smoke passed. Authenticated WorkOS UAT remains `UAT_PENDING`.
 
 
 ### Increment 40 — Workspace Teams
@@ -51,7 +51,7 @@ Verification is not claimed as passed. `S-10.25.01` remains `IN_REVIEW`.
 - Added same-origin WorkOS create/edit/archive/restore templates plus tenant, stale-revision, guest/manager and ResourceGrant-invariance contracts.
 - Hardened Team lifecycle mutations so Team state and its required audit event are one transaction; audit failure rolls the Team change back, with a dedicated regression.
 
-Verification is not claimed as passed. `S-10.24.01` remains `IN_REVIEW`.
+Engineering verification passed on code commit `ed0c701685ad` via Release Gate `35786803759`: 385 backend tests passed, frontend production build passed with 138/139 source-contract tests passing and 1 skipped, repository verifier passed, PostgreSQL migration round-trip and backup/restore passed, and production readiness smoke passed. Authenticated WorkOS UAT remains `UAT_PENDING`.
 
 
 ### Increment 39 — Participant-Private DM Reactions

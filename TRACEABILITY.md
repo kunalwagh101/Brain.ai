@@ -52,9 +52,9 @@ This file is the engineering evidence index. A row is completed only after its s
 | S-10.21.01 | E-10 | stable thread-reply history pagination | `backend/tests/test_native_conversation.py::test_thread_reply_history_uses_stable_sequence_cursor` + `tests/thread-pagination-contract.test.mjs` + `UAT/F-10.21.md` | existing NativeMessage sequence + bounded before_sequence reply GET/BFF + merge-safe Load older replies and live refresh; no migration | IN_REVIEW |
 | S-10.22.01 | E-10 | independent per-thread unread and resume | `backend/tests/test_native_conversation.py::test_thread_unread_state_is_independent_monotonic_and_excludes_own_replies` + `backend/tests/test_native_conversation.py::test_retracted_reply_is_removed_from_thread_unread_attention` + `tests/thread-unread-contract.test.mjs` + `UAT/F-10.22.md` | tenant/root/user scoped NativeThreadReadState + set-based unread/first-target summaries + monotonic thread-read route + root badge/divider/jump UI + migration `20260920_0036` | IN_REVIEW |
 | S-10.23.01 | E-10 | participant-private DM reactions | `backend/tests/test_direct_message_reactions.py` + `tests/direct-message-reaction-contract.test.mjs` + `UAT/F-10.23.md` | private DirectMessageReaction rows + participant/current-epoch idempotent mutations + batch aggregate count/reacted-by-me read model + same-origin WorkOS UI + migration `20260920_0037` | IN_REVIEW |
-| S-10.24.01 | E-10 | navigation-only Workspace Teams | `backend/tests/test_native_workspace.py::test_team_lifecycle_is_tenant_scoped_revisioned_and_manager_only` + `backend/tests/test_native_workspace.py::test_team_metadata_never_changes_channel_or_resource_grants` + `backend/tests/test_native_workspace.py::test_team_creation_rolls_back_when_audit_persistence_fails` + `tests/native-teams-contract.test.mjs` + `UAT/F-10.24.md` | NativeTeam revisioned metadata + creator/Owner/Admin lifecycle + atomic Team/audit transaction + server-loaded Team navigation + Unassigned channels fallback + same-origin WorkOS mutations + migration `20260920_0038` | IN_REVIEW |
-| S-10.25.01 | E-10 | Team channel groups with ACL-neutral channel placement | `backend/tests/test_native_workspace.py::test_channel_group_moves_preserve_acl_and_resource_grants` + `backend/tests/test_native_workspace.py::test_channel_group_team_scope_and_stale_revision_fail_closed` + `tests/native-channel-groups-contract.test.mjs` + `UAT/F-10.25.md` | NativeChannelGroup revisioned metadata + nullable NativeChannel team/group navigation refs + channel/Team-manager assignment gate + atomic group/navigation audit transaction + nested Team/Ungrouped/Unassigned UI + same-origin WorkOS routes + migration `20260920_0039` | IN_REVIEW |
-| S-10.26.01 | E-10 | channel identity/lifecycle/restricted-member administration | `backend/tests/test_native_workspace.py::test_channel_administration_is_revisioned_read_only_when_archived_and_syncs_track` + `backend/tests/test_native_workspace.py::test_restricted_member_access_updates_membership_and_resource_grants_consistently` + `backend/tests/test_native_workspace.py::test_channel_settings_and_member_access_roll_back_when_audit_fails` + `tests/channel-administration-contract.test.mjs` + `UAT/F-10.26.md` | optimistic channel settings revision + current Work Graph identity sync + archive/read-only/restore lifecycle + existing member read/write grant propagation + atomic business/audit rollback + same-origin WorkOS settings/UI + migration `20260920_0040` | IN_REVIEW |
+| S-10.24.01 | E-10 | navigation-only Workspace Teams | `backend/tests/test_native_workspace.py::test_team_lifecycle_is_tenant_scoped_revisioned_and_manager_only` + `backend/tests/test_native_workspace.py::test_team_metadata_never_changes_channel_or_resource_grants` + `backend/tests/test_native_workspace.py::test_team_creation_rolls_back_when_audit_persistence_fails` + `tests/native-teams-contract.test.mjs` + `UAT/F-10.24.md` | NativeTeam revisioned metadata + creator/Owner/Admin lifecycle + atomic Team/audit transaction + server-loaded Team navigation + Unassigned channels fallback + same-origin WorkOS mutations + migration `20260920_0038` | DONE |
+| S-10.25.01 | E-10 | Team channel groups with ACL-neutral channel placement | `backend/tests/test_native_workspace.py::test_channel_group_moves_preserve_acl_and_resource_grants` + `backend/tests/test_native_workspace.py::test_channel_group_team_scope_and_stale_revision_fail_closed` + `backend/tests/test_native_workspace.py::test_channel_group_and_navigation_roll_back_when_audit_persistence_fails` + `tests/native-channel-groups-contract.test.mjs` + `UAT/F-10.25.md` | NativeChannelGroup revisioned metadata + nullable NativeChannel team/group navigation refs + channel/Team-manager assignment gate + atomic group/navigation audit transaction + nested Team/Ungrouped/Unassigned UI + same-origin WorkOS routes + migration `20260920_0039` | DONE |
+| S-10.26.01 | E-10 | channel identity/lifecycle/restricted-member administration | `backend/tests/test_native_workspace.py::test_channel_administration_is_revisioned_read_only_when_archived_and_syncs_track` + `backend/tests/test_native_workspace.py::test_restricted_member_access_updates_membership_and_resource_grants_consistently` + `backend/tests/test_native_workspace.py::test_channel_settings_and_member_access_roll_back_when_audit_fails` + `tests/channel-administration-contract.test.mjs` + `UAT/F-10.26.md` | optimistic channel settings revision + current Work Graph identity sync + archive/read-only/restore lifecycle + existing member read/write grant propagation + atomic business/audit rollback + same-origin WorkOS settings/UI + migration `20260920_0040` | DONE |
 
 EVIDENCE S-01.01.01
 tests: backend/tests/test_organizations.py::test_cross_tenant_organization_read_returns_not_found
@@ -224,3 +224,25 @@ result: 384 passed, 2 warnings in 34.25s; Ruff passed; Release Gate PostgreSQL m
 code: backend/app/data_governance.py:126-1050
 commit: af9358c5f6d20079160c7fa77c4d771772d54703
 
+
+
+EVIDENCE S-10.24.01
+tests: backend/tests/test_native_workspace.py::test_team_lifecycle_is_tenant_scoped_revisioned_and_manager_only
+command: cd backend && pytest -q tests/test_native_workspace.py::test_team_lifecycle_is_tenant_scoped_revisioned_and_manager_only
+result: passed in Release Gate 35786803759; full backend suite 385 passed, 2 warnings in 34.45s; frontend build/contracts 138 passed, 0 failed
+code: backend/app/native_workspace.py:108-261
+commit: ed0c701685ad01bd12a58389d9ec351d44d6d2fc
+
+EVIDENCE S-10.25.01
+tests: backend/tests/test_native_workspace.py::test_channel_group_and_navigation_roll_back_when_audit_persistence_fails
+command: cd backend && pytest -q tests/test_native_workspace.py::test_channel_group_and_navigation_roll_back_when_audit_persistence_fails
+result: passed in Release Gate 35786803759; full backend suite 385 passed, 2 warnings in 34.45s; frontend build/contracts 138 passed, 0 failed
+code: backend/app/native_workspace.py:262-570
+commit: ed0c701685ad01bd12a58389d9ec351d44d6d2fc
+
+EVIDENCE S-10.26.01
+tests: backend/tests/test_native_workspace.py::test_channel_administration_is_revisioned_read_only_when_archived_and_syncs_track
+command: cd backend && pytest -q tests/test_native_workspace.py::test_channel_administration_is_revisioned_read_only_when_archived_and_syncs_track
+result: passed in Release Gate 35786803759; full backend suite 385 passed, 2 warnings in 34.45s; frontend build/contracts 138 passed, 0 failed
+code: backend/app/native_chat.py:516-763
+commit: ed0c701685ad01bd12a58389d9ec351d44d6d2fc

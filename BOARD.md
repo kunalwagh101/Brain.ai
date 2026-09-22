@@ -54,9 +54,9 @@ IN_REVIEW | S-10.20.01 | F-10.20 | Author/current-epoch DM edit/retract, optimis
 IN_REVIEW | S-10.21.01 | F-10.21 | Stable before_sequence thread pagination, merge-safe Load older replies/live refresh, tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.22.01 | F-10.22 | Tenant/root/user thread read state, set-based unread/first target, monotonic mark-read, badge/divider/jump, migration/tests/docs staged; executable verification/UAT outstanding
 IN_REVIEW | S-10.23.01 | F-10.23 | Private allow-listed/idempotent DM reactions, aggregate-only reads, retention/privacy-safe WorkOS UI/tests/docs staged; executable verification/UAT outstanding
-IN_REVIEW | S-10.24.01 | F-10.24 | Revisioned navigation-only Teams, atomic audit rollback, server UI, same-origin lifecycle, migration/tests/docs staged; executable verification/UAT outstanding
-IN_REVIEW | S-10.25.01 | F-10.25 | Revisioned Team groups, ACL-neutral placement, atomic audit rollback, nested fallbacks, migration/tests/docs staged; executable verification/UAT outstanding
-IN_REVIEW | S-10.26.01 | F-10.26 | Optimistic channel identity, archive/restore, restricted-member read/write administration, atomic audit rollback, WorkOS routes/tests/docs staged; executable verification/UAT outstanding
+DONE | S-10.24.01 | F-10.24 | Engineering verified on Release Gate 35786803759; navigation-only Teams, atomic audit rollback and migration/build contracts passed; authenticated WorkOS UAT remains UAT_PENDING
+DONE | S-10.25.01 | F-10.25 | Engineering verified on Release Gate 35786803759; ACL-neutral Team groups/navigation and audit rollback contracts passed; authenticated WorkOS UAT remains UAT_PENDING
+DONE | S-10.26.01 | F-10.26 | Engineering verified on Release Gate 35786803759; channel settings/archive/member-access and atomic rollback contracts passed; authenticated WorkOS UAT remains UAT_PENDING
 
 
 
