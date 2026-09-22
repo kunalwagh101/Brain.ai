@@ -18,7 +18,6 @@ from app.data_governance_models import (
     SecurityAuditEvent,
 )
 from app.direct_message_models import DirectConversation, DirectMessage
-from app.native_chat_models import NativeMessageRevision
 from app.models import (
     CanonicalEvent,
     IntegrationConnection,
@@ -28,6 +27,7 @@ from app.models import (
     SourceIdentityObservation,
     SourceIdentityState,
 )
+from app.native_chat_models import NativeMessageRevision
 from app.search_models import SearchDocument
 
 MAX_RETENTION_BATCH = 500
