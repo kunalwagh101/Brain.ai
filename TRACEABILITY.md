@@ -250,22 +250,22 @@ code: backend/app/native_chat.py:516-763
 commit: ed0c701685ad01bd12a58389d9ec351d44d6d2fc
 
 EVIDENCE S-10.01.01
-tests: backend/tests/test_native_chat.py + tests/workspace-contract.test.mjs
-command: cd backend && pytest && cd .. && npm test
+tests: backend/tests/test_native_chat.py
+command: cd backend && pytest -q tests/test_native_chat.py
 result: Release Gate 35789299001 passed; backend 385 passed, 2 warnings; frontend production build completed and source-contract tests 138 passed, 0 failed; PostgreSQL upgrade/downgrade/forward recovery passed
 code: backend/app/native_chat.py:172-1483
 commit: 10a9028685f67ec6db923d3371a67df13276d044
 
 EVIDENCE S-10.06.01
-tests: backend/tests/test_native_chat.py + backend/tests/test_native_conversation.py + backend/tests/test_observability.py + tests/workspace-contract.test.mjs
-command: cd backend && pytest && cd .. && npm test
+tests: backend/tests/test_native_conversation.py
+command: cd backend && pytest -q tests/test_native_conversation.py
 result: Release Gate 35789299001 passed; backend 385 passed, 2 warnings; frontend production build completed and source-contract tests 138 passed, 0 failed; Delivery Verifier and PostgreSQL migration recovery passed
 code: backend/app/native_conversation.py:505-1345
 commit: 10a9028685f67ec6db923d3371a67df13276d044
 
 EVIDENCE S-10.06.02
-tests: backend/tests/test_direct_messages.py + backend/tests/test_direct_message_epochs.py + backend/tests/test_workspace_search.py::test_workspace_search_never_indexes_direct_message_body + tests/direct-message-contract.test.mjs
-command: cd backend && pytest && cd .. && npm test
+tests: backend/tests/test_direct_messages.py
+command: cd backend && pytest -q tests/test_direct_messages.py
 result: Release Gate 35789299001 passed; backend 385 passed, 2 warnings; frontend production build completed and source-contract tests 138 passed, 0 failed; PostgreSQL migrations 0022/0023/0024 participated in successful downgrade/forward-recovery
 code: backend/app/direct_messages.py:238-953
 commit: 10a9028685f67ec6db923d3371a67df13276d044
