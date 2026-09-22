@@ -845,6 +845,13 @@ def retract_direct_message(
             "Direct message revision changed",
         )
     _snapshot_direct_message(db, message=message, action="retract")
+    db.execute(
+        delete(DirectMessageReaction).where(
+            DirectMessageReaction.organization_id == organization_id,
+            DirectMessageReaction.conversation_id == conversation_id,
+            DirectMessageReaction.message_id == message_id,
+        )
+    )
     now = datetime.now(UTC)
     message.revision += 1
     message.deleted_at = now
