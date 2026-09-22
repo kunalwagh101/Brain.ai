@@ -916,6 +916,7 @@ def list_replies(
             root_message_id=root_message_id,
             user_id=authorization.user_id,
             limit=limit,
+            before_sequence=before_sequence,
         )
     except NativeChatError as exc:
         _raise_chat_error(exc)
