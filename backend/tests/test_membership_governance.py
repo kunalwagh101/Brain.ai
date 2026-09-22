@@ -29,10 +29,26 @@ def _seed(db: Session):
     db.add_all([owner, owner_two, admin, member, organization])
     db.flush()
     memberships = {
-        "owner": Membership(organization_id=organization.id, user_id=owner.id, role=MembershipRole.OWNER),
-        "owner_two": Membership(organization_id=organization.id, user_id=owner_two.id, role=MembershipRole.OWNER),
-        "admin": Membership(organization_id=organization.id, user_id=admin.id, role=MembershipRole.ADMIN),
-        "member": Membership(organization_id=organization.id, user_id=member.id, role=MembershipRole.MEMBER),
+        "owner": Membership(
+            organization_id=organization.id,
+            user_id=owner.id,
+            role=MembershipRole.OWNER,
+        ),
+        "owner_two": Membership(
+            organization_id=organization.id,
+            user_id=owner_two.id,
+            role=MembershipRole.OWNER,
+        ),
+        "admin": Membership(
+            organization_id=organization.id,
+            user_id=admin.id,
+            role=MembershipRole.ADMIN,
+        ),
+        "member": Membership(
+            organization_id=organization.id,
+            user_id=member.id,
+            role=MembershipRole.MEMBER,
+        ),
     }
     db.add_all(list(memberships.values()))
     db.commit()
