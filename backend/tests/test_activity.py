@@ -199,7 +199,7 @@ def test_restricted_channel_revocation_hides_existing_activity(
         f"/api/v1/organizations/{organization.id}/native-channels/{channel['id']}/members",
         json={"email": member.email, "access": "write"},
     )
-    assert invited.status_code == 200
+    assert invited.status_code == 201
     _root(
         client,
         organization,
