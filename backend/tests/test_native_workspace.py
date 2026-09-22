@@ -190,7 +190,7 @@ def test_team_metadata_never_changes_channel_or_resource_grants(
         f"/api/v1/organizations/{organization.id}/native-channels/{channel_id}/members",
         json={"email": member.email, "access": "read"},
     )
-    assert invitation.status_code == 200
+    assert invitation.status_code == 201
 
     channel_count_before = int(
         db_session.scalar(
@@ -307,7 +307,7 @@ def test_channel_group_moves_preserve_acl_and_resource_grants(
         f"{channel_id}/members",
         json={"email": member.email, "access": "read"},
     )
-    assert invited.status_code == 200
+    assert invited.status_code == 201
 
     memberships_before = set(
         db_session.execute(
@@ -620,7 +620,7 @@ def test_restricted_member_access_updates_membership_and_resource_grants_consist
         f"/api/v1/organizations/{organization.id}/native-channels/{channel_id}/members",
         json={"email": member.email, "access": "read"},
     )
-    assert invited.status_code == 200
+    assert invited.status_code == 201
     assert invited.json()["access"] == "read"
 
     membership = db_session.scalar(
@@ -738,7 +738,7 @@ def test_channel_settings_and_member_access_roll_back_when_audit_fails(
         f"/api/v1/organizations/{organization.id}/native-channels/{channel_id}/members",
         json={"email": member.email, "access": "read"},
     )
-    assert invited.status_code == 200
+    assert invited.status_code == 201
 
     def fail_audit(*args, **kwargs):
         raise RuntimeError("audit unavailable")
