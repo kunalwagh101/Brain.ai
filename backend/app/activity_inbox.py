@@ -28,7 +28,6 @@ from app.project_status_models import ProjectProgressItem
 from app.work_graph import node_visible_to_user
 from app.work_graph_models import WorkGraphNode
 
-
 SYSTEM_KINDS = frozenset(
     {
         ActivityKind.CHANNEL_ACTIVITY,
