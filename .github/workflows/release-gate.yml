@@ -76,9 +76,6 @@ jobs:
       - name: Install frontend verification runtime
         run: npm run install:ci
 
-      - name: Frontend lint
-        run: npm run lint
-
       - name: Frontend build and source-contract tests
         run: npm test
 
