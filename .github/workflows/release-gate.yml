@@ -67,6 +67,21 @@ jobs:
         working-directory: backend
         run: pytest
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install frontend verification runtime
+        run: npm run install:ci
+
+      - name: Frontend lint
+        run: npm run lint
+
+      - name: Frontend build and source-contract tests
+        run: npm test
+
       - name: Verify delivery state
         run: python scripts/verify_board.py
 
