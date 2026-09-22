@@ -41,7 +41,11 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["actor_user_id"], ["users.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["channel_id"], ["native_channels.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["native_message_id"], ["native_messages.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["direct_conversation_id"], ["direct_conversations.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["direct_conversation_id"],
+            ["direct_conversations.id"],
+            ondelete="CASCADE",
+        ),
         sa.ForeignKeyConstraint(["direct_message_id"], ["direct_messages.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
