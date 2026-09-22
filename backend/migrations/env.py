@@ -62,9 +62,7 @@ _MANUALLY_MANAGED_INDEXES = {"ix_search_documents_search_vector"}
 def _include_object(object_, name, type_, reflected, compare_to):  # noqa: ANN001, ANN202, ARG001
     # Functional PostgreSQL indexes created with raw SQL are not represented in
     # portable SQLAlchemy metadata. Keep Alembic from treating them as drift.
-    if type_ == "index" and reflected and name in _MANUALLY_MANAGED_INDEXES:
-        return False
-    return True
+    return not (type_ == "index" and reflected and name in _MANUALLY_MANAGED_INDEXES)
 
 
 def run_migrations_offline() -> None:
