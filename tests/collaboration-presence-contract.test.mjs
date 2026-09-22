@@ -35,7 +35,7 @@ test("presence service keeps fixed short leases and no normal audit trail", () =
   assert.match(service, /PRESENCE_TTL_SECONDS = 75/);
   assert.match(service, /TYPING_TTL_SECONDS = 8/);
   assert.match(service, /CollaborationContextKind\.CHANNEL/);
-  assert.match(service, /CollaborationContextKind\.DM/);
+  assert.match(service, /DM = "dm"/);
   assert.match(service, /participant_a_revoked_at\.is_\(None\)/);
   assert.match(service, /participant_b_revoked_at\.is_\(None\)/);
   assert.match(service, /NativeChannelMembership\.revoked_at\.is_\(None\)/);
