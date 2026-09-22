@@ -39,8 +39,11 @@ test("retraction removes current search mentions reactions and unread contributi
   const service = read("backend/app/native_conversation.py");
   const activity = read("backend/app/activity.py");
   const inbox = read("backend/app/activity_inbox.py");
-  assert.match(service, /document\.is_deleted = True/);
-  assert.match(service, /document\.content = ""/);
+  const search = read("backend/app/search.py");
+  assert.match(service, /project_search_document\(db, canonical, commit=False\)/);
+  assert.match(search, /def _hide_deleted_object_versions/);
+  assert.match(search, /document\.is_deleted = True/);
+  assert.match(search, /document\.content = ""/);
   assert.match(service, /delete\(NativeMessageMention\)/);
   assert.match(service, /delete\(NativeMessageReaction\)/);
   assert.match(service, /NativeMessage\.deleted_at\.is_\(None\)/);
@@ -105,7 +108,7 @@ test("message edits append canonical evidence instead of rewriting provenance", 
   assert.match(service, /RawEvent\(/);
   assert.match(service, /CanonicalEvent\(/);
   assert.match(service, /supersedes_canonical_event_id/);
-  assert.match(service, /native-message:\$\{message\.id\}:revision:/);
+  assert.match(service, /native-message:\{message\.id\}:revision:\{message\.revision\}/);
   assert.match(service, /project_canonical_event\(db, canonical, commit=False\)/);
   assert.match(service, /project_search_document\(db, canonical, commit=False\)/);
   assert.match(service, /create_manual_edge\([\s\S]*commit=False/);
