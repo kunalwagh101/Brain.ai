@@ -421,17 +421,35 @@ def invoke_ai(
         try:
             credentials = secret_store.load_connection_secret(provider.secret_ref)
         except SecretStoreError as exc:
-            _mark_failed(db, record, code="credential_unavailable", started=started, **failure_fields)
+            _mark_failed(
+                db,
+                record,
+                code="credential_unavailable",
+                started=started,
+                **failure_fields,
+            )
             raise AIInvocationError(request_id=record.id, code="credential_unavailable") from exc
         api_key = credentials.get("api_key")
         if not isinstance(api_key, str) or not api_key:
-            _mark_failed(db, record, code="invalid_provider_credentials", started=started, **failure_fields)
+            _mark_failed(
+                db,
+                record,
+                code="invalid_provider_credentials",
+                started=started,
+                **failure_fields,
+            )
             raise AIInvocationError(request_id=record.id, code="invalid_provider_credentials")
 
         runtime = adapter or adapter_for(provider.adapter_kind)
         timeout = timeout_seconds or get_settings().ai_provider_timeout_seconds
         if timeout <= 0 or timeout > 120:
-            _mark_failed(db, record, code="invalid_gateway_timeout", started=started, **failure_fields)
+            _mark_failed(
+                db,
+                record,
+                code="invalid_gateway_timeout",
+                started=started,
+                **failure_fields,
+            )
             raise AIInvocationError(request_id=record.id, code="invalid_gateway_timeout")
         try:
             result = runtime.invoke(
