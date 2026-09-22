@@ -794,3 +794,73 @@ def test_channel_settings_and_member_access_roll_back_when_audit_fails(
     )
     assert grant is not None
     assert grant.access == ResourceAccessLevel.READ
+
+
+def test_channel_group_and_navigation_roll_back_when_audit_persistence_fails(
+    db_session: Session,
+    client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    organization, owner, _, _, _ = _seed(db_session, "group-audit-rollback")
+    _as(owner)
+
+    team_response = client.post(
+        f"/api/v1/organizations/{organization.id}/native-teams",
+        json={"name": "Audit Safe Team"},
+    )
+    assert team_response.status_code == 201
+    team = team_response.json()
+
+    group_response = client.post(
+        f"/api/v1/organizations/{organization.id}/native-teams/{team['id']}/groups",
+        json={"name": "API"},
+    )
+    assert group_response.status_code == 201
+    group = group_response.json()
+
+    channel_response = client.post(
+        f"/api/v1/organizations/{organization.id}/native-channels",
+        json={
+            "name": "audit-safe-navigation",
+            "visibility": "organization",
+        },
+    )
+    assert channel_response.status_code == 201
+    channel_id = uuid.UUID(channel_response.json()["id"])
+
+    def fail_audit(*args, **kwargs):
+        raise RuntimeError("audit unavailable")
+
+    monkeypatch.setattr(native_workspace_module, "append_audit_event", fail_audit)
+
+    with pytest.raises(RuntimeError, match="audit unavailable"):
+        client.patch(
+            f"/api/v1/organizations/{organization.id}/native-teams/"
+            f"{team['id']}/groups/{group['id']}",
+            json={
+                "name": "Must Not Stick",
+                "expected_revision": group["revision"],
+            },
+        )
+
+    db_session.expire_all()
+    stored_group = db_session.get(NativeChannelGroup, uuid.UUID(group["id"]))
+    assert stored_group is not None
+    assert stored_group.name == "API"
+    assert stored_group.revision == group["revision"]
+
+    with pytest.raises(RuntimeError, match="audit unavailable"):
+        client.patch(
+            f"/api/v1/organizations/{organization.id}/native-teams/"
+            f"channel-assignment/{channel_id}",
+            json={
+                "team_id": team["id"],
+                "channel_group_id": group["id"],
+            },
+        )
+
+    db_session.expire_all()
+    stored_channel = db_session.get(NativeChannel, channel_id)
+    assert stored_channel is not None
+    assert stored_channel.team_id is None
+    assert stored_channel.channel_group_id is None
