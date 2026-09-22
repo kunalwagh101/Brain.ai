@@ -156,9 +156,21 @@ def read_activity(
         )
         if kind_enabled(preferences, item.kind)
     ]
+    dedup_chat_items = [
+        item
+        for item in list_activity(
+            db,
+            organization_id=organization_id,
+            user_id=authorization.user_id,
+            limit=500,
+            unread_only=False,
+            materialize=False,
+        )
+        if kind_enabled(preferences, item.kind)
+    ]
     unread_system_items = _deduplicate_channel_summaries(
         db,
-        unread_chat_items,
+        dedup_chat_items,
         list_system_activity(
             db,
             organization_id=organization_id,
