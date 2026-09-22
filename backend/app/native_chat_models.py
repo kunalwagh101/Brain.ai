@@ -244,6 +244,13 @@ class NativeMessage(Base):
             "channel_id",
             "created_at",
         ),
+        Index(
+            "ix_native_message_thread_created",
+            "organization_id",
+            "channel_id",
+            "thread_root_id",
+            "message_sequence",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)

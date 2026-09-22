@@ -143,7 +143,9 @@ class DirectMessage(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    organization_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
     conversation_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
     author_user_id: Mapped[uuid.UUID] = mapped_column(
