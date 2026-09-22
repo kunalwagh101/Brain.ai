@@ -17,7 +17,7 @@ from app.models import (
     User,
 )
 from app.native_chat_models import NativeChannel, NativeChannelMembership
-from app.native_workspace_models import NativeTeam
+from app.native_workspace_models import NativeChannelGroup, NativeTeam
 from app.work_graph_models import WorkGraphNode
 
 
