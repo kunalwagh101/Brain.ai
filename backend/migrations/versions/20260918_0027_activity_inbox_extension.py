@@ -105,7 +105,11 @@ def downgrade() -> None:
     op.drop_table("activity_preferences")
 
     op.drop_constraint("ck_activity_notification_kind", "activity_notifications", type_="check")
-    op.drop_constraint("ck_activity_notification_resource_type", "activity_notifications", type_="check")
+    op.drop_constraint(
+        "ck_activity_notification_resource_type",
+        "activity_notifications",
+        type_="check",
+    )
     op.create_check_constraint(
         "ck_activity_notification_kind",
         "activity_notifications",
