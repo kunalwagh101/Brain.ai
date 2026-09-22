@@ -295,7 +295,7 @@ Verification is not yet claimed. `S-10.09.01` is `IN_REVIEW`: current GitHub-hos
 - Hardened structured logging so a caller-provided field cannot overwrite a reserved `LogRecord` attribute and crash ingestion/message projection.
 - Added focused backend security/idempotency/read-order tests, frontend source contracts, architecture/rollback documentation, manual UAT and demo commands.
 
-Local automated checks passed on 2026-09-13: repository-wide Ruff, all 299 backend tests, 24 focused conversation tests, frontend lint/build, 12 frontend tests with 1 intentional unauthenticated skip, and PostgreSQL offline migration compilation. The delivery verifier was not completed after the product owner directed the run to be skipped; no verifier PASS is claimed. S-10.06.01 remains `IN_REVIEW` until the verifier, live PostgreSQL upgrade/downgrade, official WorkOS activation and authenticated responsive/keyboard browser UAT pass.
+Local automated checks passed on 2026-09-13: repository-wide Ruff, all 299 backend tests, 24 focused conversation tests, frontend lint/build, 12 frontend tests with 1 intentional unauthenticated skip, and PostgreSQL offline migration compilation. At that point the delivery verifier had not completed, so S-10.06.01 correctly remained `IN_REVIEW`. The later engineering-acceptance entry above supersedes that state after verifier and live PostgreSQL recovery passed; official WorkOS/authenticated responsive/keyboard browser UAT remains `UAT_PENDING`.
 
 ### Increment 21 — Permission-aware Executive Overview
 
