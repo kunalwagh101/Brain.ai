@@ -26,7 +26,7 @@ test("WorkOS activation validates the reviewed production redirect boundary", ()
   const activation = read("scripts/activate-workos-authkit.sh");
   assert.match(activation, /redirect\.pathname !== "\/auth\/callback"/);
   assert.match(activation, /redirect\.search/);
-  assert.match(activation, /redirect\.username \|\| redirect\.password \|\| redirect\.hash/);
+  assert.match(activation, /parsed\.username \|\| parsed\.password \|\| parsed\.hash/);
   assert.match(activation, /Production NEXT_PUBLIC_WORKOS_REDIRECT_URI must use HTTPS/);
   assert.match(activation, /Production BRAIN_API_BASE_URL must use HTTPS/);
 });
