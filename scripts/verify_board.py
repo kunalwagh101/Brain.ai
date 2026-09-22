@@ -125,6 +125,7 @@ def verify_done(
         command_environment["PATH"] = os.pathsep.join(
             (str(local_venv_bin), command_environment.get("PATH", ""))
         )
+    command_results: dict[str, tuple[int, str] | None] = {}
 
     for story in sorted(done):
         block = evidence.get(story)
@@ -156,23 +157,30 @@ def verify_done(
         if "passed" not in result.lower():
             fail(errors, f"DONE {story} evidence result does not claim a passing run")
 
-        try:
-            completed = subprocess.run(
-                command,
-                cwd=ROOT,
-                shell=True,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                env=command_environment,
-                timeout=300,
-                check=False,
-            )
-        except subprocess.TimeoutExpired:
+        if command not in command_results:
+            try:
+                completed = subprocess.run(
+                    command,
+                    cwd=ROOT,
+                    shell=True,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    env=command_environment,
+                    timeout=300,
+                    check=False,
+                )
+                command_results[command] = (completed.returncode, completed.stdout)
+            except subprocess.TimeoutExpired:
+                command_results[command] = None
+
+        cached = command_results[command]
+        if cached is None:
             fail(errors, f"DONE {story} test command timed out: {command}")
             continue
-        if completed.returncode != 0:
-            tail = "\n".join(completed.stdout.splitlines()[-20:])
+        returncode, output = cached
+        if returncode != 0:
+            tail = "\n".join(output.splitlines()[-20:])
             fail(errors, f"DONE {story} named test command failed:\n{tail}")
 
     return tested, total
