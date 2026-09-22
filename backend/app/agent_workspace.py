@@ -1,6 +1,7 @@
 import hashlib
 import json
 import uuid
+from contextlib import suppress
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -227,15 +228,13 @@ def create_workspace_run(
         )
     except (DataGovernanceError, SQLAlchemyError) as exc:
         db.rollback()
-        try:
+        with suppress(AgentRuntimeError, DataGovernanceError, SQLAlchemyError):
             cancel_agent_run(
                 db,
                 organization_id=organization_id,
                 run_id=run.id,
                 user_id=requested_by_user_id,
             )
-        except (AgentRuntimeError, DataGovernanceError, SQLAlchemyError):
-            pass
         raise AgentWorkspaceError(
             "workspace_context_binding_failed",
             "Agent workspace run could not be bound safely",
