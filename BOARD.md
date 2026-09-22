@@ -419,7 +419,7 @@ Formal state: `BLOCKED`. Its S-07.01.01 and S-06.02.01 dependencies are not DONE
 
 The product owner clarified on 2026-09-11 that Brain's requested frontend is a Slack/Discord-style company workspace. The earlier single deferred native-chat story did not adequately represent that requirement. `PRODUCT_BACKLOG.md` separates the P0 workspace frontend from P1 native collaboration.
 
-The board WIP rule remains binding. Repository-staged stories that are waiting on external/authenticated acceptance stay `BLOCKED` or `IN_REVIEW` rather than consuming implementation WIP. `S-10.06.02` and `S-10.08.01` have now moved to `IN_REVIEW`; there is no active `IN_PROGRESS` E-10 story until the next backlog/dependency pull is explicitly selected.
+The board WIP rule remains binding. Engineering-DONE stories may still carry separate `UAT_PENDING` acceptance, while stories lacking executable engineering evidence stay `BLOCKED` or `IN_REVIEW`. `S-10.06.02` is engineering-DONE and `S-10.08.01` remains `IN_REVIEW`; there is no active `IN_PROGRESS` E-10 story until the next backlog/dependency pull is explicitly selected.
 
 ### S-10.02.01 Workspace Shell and Navigation — BLOCKED
 
