@@ -30,13 +30,13 @@ IN_REVIEW | S-09.01.01 | F-09.01 | Observability implementation/tests/docs/UAT a
 DONE | S-09.02.01 | F-09.02 | Engineering verification passed on commit af9358c5f6d20079160c7fa77c4d771772d54703: audit/retention/deletion tests, Ruff + 384 backend tests, PostgreSQL migration rollback/forward recovery and backup/restore Release Gate; deployed UAT remains UAT_PENDING
 BLOCKED | S-09.03.01 | F-09.03 | Release/rollback/restore work plus a concrete Render staging Blueprint are staged; real deployment/recovery exercise and OQ-007 production topology remain unresolved
 BLOCKED | S-09.04.01 | F-09.04 | Performance/cost benchmark work is staged; external dependency: a real Ask Brain staging target and provider credentials
-IN_REVIEW | S-10.01.01 | F-10.01 | Native channel/message persistence, evidence projection, restricted memberships, API/BFF/UI and tests are implemented; executable CI, migration and authenticated browser UAT evidence remain pending
+DONE | S-10.01.01 | F-10.01 | Engineering verified on Release Gate 35789299001: native channel/message persistence, evidence projection, restricted membership, frontend contracts and PostgreSQL migration recovery passed; authenticated WorkOS/browser UAT remains UAT_PENDING
 BLOCKED | S-10.02.01 | F-10.02 | Workspace shell, real organisation switching, navigation API/client, responsive controls, tests/docs/UAT are staged; external dependency: official WorkOS activation and authenticated browser acceptance
 BLOCKED | S-10.03.01 | F-10.03 | Project/memory/company-pulse/evidence surfaces, runtime discovery and citation-first Ask Brain UI are staged; external dependency: live authenticated WorkOS/Ask Brain browser acceptance
 BLOCKED | S-10.04.01 | F-10.04 | Official WorkOS Next.js 16 templates, guarded install/activation scripts and BFF security contract are staged; external dependency: real WorkOS configuration plus authenticated browser execution
 BLOCKED | S-10.05.01 | F-10.05 | Repository implementation is staged; external S-10.04 WorkOS activation plus executable backend/browser acceptance remain pending
-IN_REVIEW | S-10.06.01 | F-10.06 | Ruff, 299 backend tests and frontend build/tests pass locally; verifier was skipped by product-owner direction, and live PostgreSQL/WorkOS/browser UAT remain pending
-IN_REVIEW | S-10.06.02 | F-10.06 | Participant-only Brain-native DMs, sequence-based revocable visibility epochs, privacy-safe UI/BFF, migrations 0022/0023/0024, explicit private-message retention and regression/UAT contracts are implementation-staged; current-commit Ruff/Pytest/PostgreSQL/frontend/WorkOS browser verification has not executed
+DONE | S-10.06.01 | F-10.06 | Engineering verified on Release Gate 35789299001: backend conversation regressions, frontend build/contracts, delivery verifier and PostgreSQL migration recovery passed; authenticated WorkOS multi-user UAT remains UAT_PENDING
+DONE | S-10.06.02 | F-10.06 | Engineering verified on Release Gate 35789299001: participant-only DM privacy, revocable visibility epochs, retention, frontend contracts and migrations 0022/0023/0024 passed automated verification; authenticated WorkOS multi-user UAT remains UAT_PENDING
 IN_REVIEW | S-10.07.01 | F-10.07 | Governed developer/agent workspace, project/channel context binding, approvals, context-aware tool execution, ephemeral final output and privacy/security contracts are implementation-staged; executable verification and authenticated browser UAT remain pending
 IN_REVIEW | S-10.08.01 | F-10.08 | Owner/Admin governance center now covers member/integration lifecycle, AI provider/model bootstrap and credential rotation, API service/grant bootstrap, owner/scope/environment/credential lifecycle and safe same-origin WorkOS BFF contracts; executable/backend/browser verification remains outstanding
 IN_REVIEW | S-10.09.01 | F-10.09 | Unified personal Activity & Notifications inbox is implementation-staged across collaboration, agent, project/blocker and integration events with reference-only persistence, current-permission rechecks, exact deep links, personal read/unread state, preferences, same-origin BFF UI and migration-branch convergence; executable backend/frontend/verifier/PostgreSQL/WorkOS browser evidence remains outstanding
@@ -494,7 +494,7 @@ Still required before review/acceptance:
 
 Formal state: `BLOCKED`, matching the fixed board row. No executable PASS or browser UAT is claimed.
 
-### S-10.06.01 Slack/Discord-quality Brain conversations — IN_REVIEW
+### S-10.06.01 Slack/Discord-quality Brain conversations — DONE
 
 Implemented and locally verified on 2026-09-13:
 
@@ -510,11 +510,11 @@ Implemented and locally verified on 2026-09-13:
 - safe bounded JSON, identifier/role validation and cross-site mutation rejection;
 - focused backend tests, frontend source-contract tests, frontend lint/build and PostgreSQL offline migration compilation.
 
-Repository-wide Ruff and all 299 backend tests also pass. The full frontend build/test run reports 12 passed and 1 intentional unauthenticated skip. The delivery verifier was not completed after the product owner directed execution to be skipped; no verifier PASS is claimed.
+Fresh engineering acceptance now supersedes the older local-only evidence: Release Gate `35789299001` passed Ruff, all 385 backend tests, the production frontend build and 138 source-contract tests, the delivery verifier, PostgreSQL upgrade/downgrade/forward recovery, backup/restore and the production readiness smoke.
 
-Formal state: `IN_REVIEW`. The session-open audit found that this story had been pulled without a dedicated Definition-of-Ready record while S-10.01 was still `IN_REVIEW`; that process drift is now recorded in `DEFINITION_OF_READY.md`. No accepted S-10.06.01 scope was silently removed. Final DONE remains blocked on a delivery-verifier PASS, real PostgreSQL upgrade/downgrade exercise, official S-10.04 WorkOS activation and the authenticated desktop/mobile/keyboard UAT in `UAT/F-10.06.md`.
+Formal engineering state: `DONE`. The earlier pull-before-Ready process drift remains recorded in `DEFINITION_OF_READY.md`; it does not erase the now-complete executable evidence. Official S-10.04 WorkOS activation and authenticated desktop/mobile/keyboard UAT in `UAT/F-10.06.md` remain `UAT_PENDING` and are not represented as passed.
 
-### S-10.06.02 Participant-safe Brain-native direct messages — IN_REVIEW
+### S-10.06.02 Participant-safe Brain-native direct messages — DONE
 
 Implementation staged:
 
@@ -534,7 +534,7 @@ Implementation staged:
 - same-origin WorkOS BFF templates with bounded JSON, session/membership revalidation and cross-site rejection;
 - backend/frontend regression contracts and `UAT/F-10.06.02.md`.
 
-Formal state: `IN_REVIEW`. The implementation, migrations and acceptance contracts are review-ready, but current-commit Ruff/Pytest/frontend execution, live PostgreSQL `0022/0023/0024` upgrade/downgrade/re-upgrade, unique-sentinel Search/Ask Brain negative test and authenticated WorkOS multi-user browser UAT have not executed. Latest GitHub-hosted Backend CI still failed before any step executed (`steps: null`), so no PASS/DONE evidence exists.
+Formal engineering state: `DONE`. Release Gate `35789299001` passed the full backend suite, frontend build/source contracts, delivery verifier and live PostgreSQL upgrade/downgrade/forward recovery across DM migrations `0022`/`0023`/`0024`; the full backend suite includes the direct-message isolation/epoch regressions and the workspace-search DM-body exclusion regression. Authenticated WorkOS multi-user browser/privacy UAT remains `UAT_PENDING`.
 
 ### S-10.07.01 Developer & Agent Workspace — IN_REVIEW
 
