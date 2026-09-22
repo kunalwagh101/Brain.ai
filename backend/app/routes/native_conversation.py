@@ -61,8 +61,8 @@ from app.native_conversation import (
     pin_message,
     remove_reaction,
     retract_message,
-    thread_unread_summaries,
     save_message,
+    thread_unread_summaries,
     unpin_message,
     unsave_message,
     visible_message,
@@ -661,7 +661,6 @@ def list_pins(
             channel_id=channel_id,
             user_id=authorization.user_id,
             limit=limit,
-            before_sequence=before_sequence,
         )
     except NativeChatError as exc:
         _raise_chat_error(exc)
