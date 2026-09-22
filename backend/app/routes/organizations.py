@@ -482,3 +482,51 @@ def list_resource_grants(
             .order_by(ResourceGrant.created_at, ResourceGrant.id)
         )
     )
+
+@router.delete(
+    "/{organization_id}/resource-grants/{grant_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_resource_grant(
+    organization_id: uuid.UUID,
+    grant_id: uuid.UUID,
+    access: AclManager,
+    db: Annotated[Session, Depends(get_db)],
+) -> None:
+    grant = db.scalar(
+        select(ResourceGrant).where(
+            ResourceGrant.id == grant_id,
+            ResourceGrant.organization_id == organization_id,
+        )
+    )
+    if grant is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Resource grant not found",
+        )
+
+    target_user_id = grant.user_id
+    resource_type = grant.resource_type
+    resource_id = grant.resource_id
+    grant_access = grant.access.value
+    db.delete(grant)
+    db.flush()
+    try:
+        audit_acl_change(
+            action="deleted",
+            organization_id=organization_id,
+            actor_user_id=access.user_id,
+            target_user_id=target_user_id,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            access=grant_access,
+            db=db,
+            required=True,
+        )
+    except (DataGovernanceError, SQLAlchemyError) as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Resource grant deletion could not be audited",
+        ) from exc
+
