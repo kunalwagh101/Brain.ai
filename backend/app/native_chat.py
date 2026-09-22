@@ -746,7 +746,8 @@ def upsert_channel_member(
         db,
         organization_id=organization_id,
         event_key=(
-            f"native_chat.member.granted:{channel.id}:{user_id}:{membership.id}"
+            f"native_chat.member.granted:{channel.id}:{user_id}:{membership.id}:"
+            f"{request_id or uuid.uuid4()}"
         ),
         event_type="native_chat.member.granted",
         outcome="succeeded",
@@ -811,7 +812,8 @@ def revoke_channel_member(
         db,
         organization_id=organization_id,
         event_key=(
-            f"native_chat.member.revoked:{channel.id}:{user_id}:{membership.id}"
+            f"native_chat.member.revoked:{channel.id}:{user_id}:{membership.id}:"
+            f"{request_id or uuid.uuid4()}"
         ),
         event_type="native_chat.member.revoked",
         outcome="succeeded",
