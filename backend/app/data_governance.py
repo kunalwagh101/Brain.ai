@@ -17,7 +17,12 @@ from app.data_governance_models import (
     RetentionRunStatus,
     SecurityAuditEvent,
 )
-from app.direct_message_models import DirectConversation, DirectMessage
+from app.direct_message_models import (
+    DirectConversation,
+    DirectMessage,
+    DirectMessageReaction,
+    DirectMessageRevision,
+)
 from app.models import (
     CanonicalEvent,
     IntegrationConnection,
@@ -840,6 +845,18 @@ def _purge_private_messages(
     message_ids = list(db.scalars(_skip_locked(query, db)))
     if not message_ids:
         return 0
+    db.execute(
+        delete(DirectMessageReaction).where(
+            DirectMessageReaction.organization_id == organization_id,
+            DirectMessageReaction.message_id.in_(message_ids),
+        )
+    )
+    db.execute(
+        delete(DirectMessageRevision).where(
+            DirectMessageRevision.organization_id == organization_id,
+            DirectMessageRevision.message_id.in_(message_ids),
+        )
+    )
     result = db.execute(
         delete(DirectMessage).where(
             DirectMessage.organization_id == organization_id,
