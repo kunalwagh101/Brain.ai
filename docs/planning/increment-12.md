@@ -41,3 +41,42 @@ Give security/admin users a tenant-scoped inventory of external API access with 
 - Network traffic discovery without an authorised integration
 - Provider invoice reconciliation (F-06.02)
 - Agent tool execution/approval policy (F-08.01)
+
+## Verification work order — 2026-09-24
+
+Mode: **CHECK** — implementation already exists; this pass verifies and closes engineering evidence only.
+
+Role: **Senior full-stack engineer / systems architect**. Operating tier: **architect**.
+
+Scope:
+- verify the existing external API registry lifecycle, authorization, credential-reference and usage contracts;
+- do not add a generic HTTP proxy, traffic discovery or plaintext credential persistence;
+- keep real secret-store/calling-system/frontend acceptance as `UAT_PENDING`.
+
+Files under review:
+- `backend/app/api_registry.py`
+- `backend/app/api_registry_credentials.py`
+- `backend/app/api_registry_models.py`
+- `backend/app/api_registry_worker.py`
+- `backend/app/routes/api_registry.py`
+- `backend/app/routes/api_registry_usage.py`
+- `backend/migrations/versions/20260907_0013_api_registry.py`
+- `backend/tests/test_api_registry.py`
+- `backend/tests/test_api_registry_worker.py`
+- `backend/tests/test_api_registry_usage_route.py`
+- `backend/tests/test_secrets.py`
+- `docs/API_REGISTRY.md`
+- `UAT/F-06.03.md`
+
+Required verification:
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_api_registry.py tests/test_api_registry_worker.py tests/test_api_registry_usage_route.py tests/test_secrets.py
+pytest -q
+cd ..
+python scripts/verify_board.py
+```
+
+Release evidence must also exercise PostgreSQL migration upgrade/downgrade/forward recovery. A green automated run may support engineering `DONE`; it must not be presented as real credential/provider/frontend UAT.
+

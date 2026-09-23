@@ -49,3 +49,39 @@ Make Brain incidents diagnosable from correlated, secret-safe telemetry and defi
 - Using tenant-configurable organisation/user/integration/provider/model values as Prometheus labels.
 - Claiming exact SLO compliance before representative production traffic exists.
 - Distributed tracing across third-party SaaS systems that do not propagate Brain trace context.
+
+## Verification work order — 2026-09-24
+
+Mode: **CHECK** — implementation already exists; this pass verifies and closes engineering evidence only.
+
+Role: **Senior full-stack engineer / systems architect**. Operating tier: **architect**.
+
+Scope:
+- verify the existing logging, metrics, tracing, health/readiness and alert/runbook contracts;
+- do not select a monitoring vendor or claim measured production SLO compliance;
+- keep deployed telemetry, alert firing and browser correlation acceptance as `UAT_PENDING`.
+
+Files under review:
+- `backend/app/observability.py`
+- `backend/app/health.py`
+- `backend/app/integrations.py`
+- `backend/app/raw_events.py`
+- `backend/app/ai_provider_registry.py`
+- `backend/tests/test_observability.py`
+- `ops/prometheus/brain-alerts.yml`
+- `docs/OBSERVABILITY.md`
+- `docs/runbooks/OBSERVABILITY.md`
+- `UAT/F-09.01.md`
+
+Required verification:
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_observability.py
+pytest -q
+cd ..
+python scripts/verify_board.py
+```
+
+A green automated run may support engineering `DONE`; it must not be presented as deployed monitoring/alert/SLO UAT.
+

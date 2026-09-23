@@ -47,3 +47,38 @@ The story can be implemented now. It cannot be marked engineering-DONE in this p
 ## Final state for this pass
 
 `IN_REVIEW`, not `DONE`. No test, migration, deployment, parser-quality or real-file acceptance result is claimed until the named executable and manual UAT gates run.
+
+## Verification work order — 2026-09-24
+
+Mode: **CHECK** — implementation already exists; this pass verifies and closes engineering evidence only.
+
+Role: **Senior full-stack engineer / systems architect**. Operating tier: **architect**.
+
+Scope:
+- verify the existing generic meeting/document evidence vertical slice against its accepted backlog contract;
+- do not add provider-specific connectors, OCR, audio/video transcription or new ACL semantics;
+- keep realistic deployed/manual acceptance as `UAT_PENDING`.
+
+Files under review:
+- `backend/app/evidence_ingestion.py`
+- `backend/app/evidence_models.py`
+- `backend/app/routes/evidence.py`
+- `backend/migrations/versions/20260910_0017_generic_evidence_sources.py`
+- `backend/tests/test_evidence_ingestion.py`
+- `backend/tests/test_ask_brain_generic_evidence.py`
+- `backend/tests/test_decision_memory_generic_evidence.py`
+- `docs/GENERIC_EVIDENCE.md`
+- `UAT/F-02.04.md`
+
+Required verification:
+```bash
+cd backend
+ruff check app tests migrations
+pytest -q tests/test_evidence_ingestion.py tests/test_ask_brain_generic_evidence.py tests/test_decision_memory_generic_evidence.py
+pytest -q
+cd ..
+python scripts/verify_board.py
+```
+
+Release evidence must also exercise PostgreSQL migration upgrade/downgrade/forward recovery. A green automated run may support engineering `DONE`; it must not be presented as deployed/manual UAT.
+
