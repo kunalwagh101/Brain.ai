@@ -73,4 +73,4 @@ The canonical event also carries the chunk text and immutable source/chunk prove
 
 ## Verification status
 
-Implementation, migration, tests and UAT instructions can be staged without calling the feature `DONE`. The project owner has deferred the current local pytest/Render execution pass. Therefore S-02.04.01 remains `IN_REVIEW` until the repository test/lint/verifier commands actually run successfully and representative-file/manual UAT is recorded.
+S-02.04.01 is engineering-DONE on verified branch commit `8be45dd4d96a87d9fa5a3cf9a385f8cd3ca6349f`. Backend CI `35930622742` passed Ruff and all 385 backend tests; Delivery Verifier `35930622825` passed; Release Gate `35930622874` passed PostgreSQL migration rollback/forward recovery, backup/restore, frontend verification, production image build and readiness smoke. Representative-file/deployed/manual UAT remains `UAT_PENDING`, so the feature is not externally PASSED/accepted.
