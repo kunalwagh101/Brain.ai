@@ -273,23 +273,23 @@ code: backend/app/direct_messages.py:238-953
 commit: 10a9028685f67ec6db923d3371a67df13276d044
 
 EVIDENCE S-05.02.01
-tests: backend/tests/test_ask_brain.py + backend/tests/test_ask_brain_evaluation.py + backend/tests/test_ask_brain_contract_hardening.py
+tests: backend/tests/test_ask_brain.py
 command: cd backend && pytest
-result: 385 passed, 2 warnings in 34.75s; Ruff passed; Delivery Verifier and Release Gate passed on run set 35791088677/35791088713/35791088646
+result: 385 passed; Ruff passed; Delivery Verifier and Release Gate passed on run set 35791088677/35791088713/35791088646
 code: backend/app/ask_brain.py:18-325
 commit: d6a7f974c4f02e0b6232e7ccbee5dcab98f0a689
 
 EVIDENCE S-06.02.01
-tests: backend/tests/test_ai_usage.py + backend/tests/test_ai_usage_reconciliation.py + backend/tests/test_ai_cost_routes.py
+tests: backend/tests/test_ai_usage.py
 command: cd backend && pytest
-result: 385 passed, 2 warnings in 34.75s; Ruff passed; Delivery Verifier and Release Gate passed on run set 35791088677/35791088713/35791088646
+result: 385 passed; Ruff passed; Delivery Verifier and Release Gate passed on run set 35791088677/35791088713/35791088646
 code: backend/app/ai_usage.py:68-726
 commit: d6a7f974c4f02e0b6232e7ccbee5dcab98f0a689
 
 EVIDENCE S-08.01.01
-tests: backend/tests/test_agent_policy.py + backend/tests/test_agent_runtime.py + backend/tests/test_agent_routes.py + backend/tests/test_agent_kill_switch.py + backend/tests/test_agent_maintenance.py
+tests: backend/tests/test_agent_runtime.py
 command: cd backend && pytest
-result: 385 passed, 2 warnings in 34.75s; Ruff passed; Delivery Verifier and Release Gate passed on run set 35791088677/35791088713/35791088646
+result: 385 passed; Ruff passed; Delivery Verifier and Release Gate passed on run set 35791088677/35791088713/35791088646
 code: backend/app/agent_runtime.py:100-990
 commit: d6a7f974c4f02e0b6232e7ccbee5dcab98f0a689
 
