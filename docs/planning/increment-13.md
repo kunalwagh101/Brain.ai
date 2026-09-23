@@ -85,3 +85,8 @@ python scripts/verify_board.py
 
 A green automated run may support engineering `DONE`; it must not be presented as deployed monitoring/alert/SLO UAT.
 
+## Engineering closure — 2026-09-24
+
+Status: **DONE (engineering)**. Deployed telemetry, alert firing, representative SLO measurement and browser/manual correlation remain **UAT_PENDING**.
+
+Evidence baseline: commit `8be45dd4d96a87d9fa5a3cf9a385f8cd3ca6349f`; Backend CI `35930622742` passed Ruff + 385 backend tests; Delivery Verifier `35930622825` passed; Release Gate `35930622874` passed the full release checks. The closure Delivery Verifier re-runs the focused observability test command recorded in TRACEABILITY.md.
