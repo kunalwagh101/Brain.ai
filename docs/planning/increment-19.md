@@ -10,7 +10,7 @@ A permitted Brain user can upload a meeting transcript or document and have it b
 
 Core dependencies S-02.01.01 and S-03.01.01 are engineering-DONE. OQ-004 is resolved to a generic Brain-managed upload adapter before any vendor-specific meeting/document connector.
 
-The story can be implemented now. It cannot be marked engineering-DONE in this pass because the project owner explicitly deferred the current executable pytest/Render verification cycle.
+The story was implemented in the earlier pass. The project owner has now explicitly requested completion of the executable engineering verification cycle; deployed/manual UAT remains separate.
 
 ## Acceptance mapping
 
@@ -40,13 +40,13 @@ The story can be implemented now. It cannot be marked engineering-DONE in this p
 - T-02.04.01.d Organisation/restricted authorization and idempotency — **STAGED**
 - T-02.04.01.e Governed physical source-object deletion/revocation behavior — **STAGED**
 - T-02.04.01.f Upload/list/read/delete API — **STAGED**
-- T-02.04.01.g Security/regression tests — **STAGED, NOT EXECUTED**
+- T-02.04.01.g Security/regression tests — **VERIFIED**
 - T-02.04.01.h Operator/security/UAT documentation — **STAGED**
-- T-02.04.01.i Execute Ruff/Pytest/migration/verifier and representative deployed UAT — **DEFERRED BY PROJECT OWNER**
+- T-02.04.01.i Ruff/Pytest/migration/verifier — **VERIFIED**; representative deployed/manual UAT — **UAT_PENDING**
 
 ## Final state for this pass
 
-`IN_REVIEW`, not `DONE`. No test, migration, deployment, parser-quality or real-file acceptance result is claimed until the named executable and manual UAT gates run.
+`DONE` for engineering on verified commit `8be45dd4d96a87d9fa5a3cf9a385f8cd3ca6349f`. Backend CI `35930622742`, Delivery Verifier `35930622825` and Release Gate `35930622874` passed. Representative real-file/deployed/browser acceptance remains `UAT_PENDING`; no production acceptance claim is made.
 
 ## Verification work order — 2026-09-24
 
