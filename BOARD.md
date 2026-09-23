@@ -19,13 +19,13 @@ DONE | S-03.03.01 | F-03.03 | Engineering evidence in TRACEABILITY.md; real prov
 DONE | S-04.01.01 | F-04.01 | Engineering evidence in TRACEABILITY.md; real Slack/GitHub graph + frontend/manual UAT remains pending
 BLOCKED | S-04.02.01 | F-04.02 | S-05.01.01 dependency is engineering-DONE; backend implementation is staged and hardened for generic evidence + human-authoritative review; external dependency: representative real-evidence precision evaluation/UAT
 DONE | S-05.01.01 | F-05.01 | Engineering verification passed on commit af9358c5f6d20079160c7fa77c4d771772d54703: Ruff + 384 backend tests, Delivery Verifier and Release Gate; realistic deployed/browser UAT remains UAT_PENDING
-BLOCKED | S-05.02.01 | F-05.02 | S-05.01.01 dependency is engineering-DONE; backend RAG implementation is staged including generic evidence integration, strict output contract and cache-aware exact cost; external dependency: real AI provider staging/evaluation/performance and WorkOS browser UAT
+DONE | S-05.02.01 | F-05.02 | Engineering verified on commit d6a7f974c4f02e0b6232e7ccbee5dcab98f0a689: permission-aware RAG, fail-closed grounding/citations/evaluation contracts and AI cost integration passed automated verification; real provider/evaluation/performance and WorkOS browser acceptance remain UAT_PENDING
 DONE | S-06.01.01 | F-06.01 | Engineering verification passed on commit af9358c5f6d20079160c7fa77c4d771772d54703: governed provider/model attribution, safe failures, secret-reference handling, Ruff + 384 backend tests; real-provider UAT remains UAT_PENDING
-BLOCKED | S-06.02.01 | F-06.02 | S-06.01.01 dependency is engineering-DONE; cache-aware usage/cost/budget implementation and request-scoped cost audit are staged; external dependency: real provider usage/cost reconciliation
+DONE | S-06.02.01 | F-06.02 | Engineering verified on commit d6a7f974c4f02e0b6232e7ccbee5dcab98f0a689: deterministic nano-USD costing, unknown-cost handling, attribution, reconciliation, deduplicated alerts and hard-budget blocking passed automated verification; real-provider reconciliation remains UAT_PENDING
 IN_REVIEW | S-06.03.01 | F-06.03 | External API registry/lifecycle/expiry implementation is staged; executable passing verification remains outstanding
 BLOCKED | S-07.01.01 | F-07.01 | Evidence-backed project-status backend, deterministic structured progress, migration, tests/docs/UAT are staged; external dependency: production frontend UAT, after S-04.02.01 completion
 BLOCKED | S-07.02.01 | F-07.02 | Permission-aware executive overview, AI spend/budget risk, API activity, provenance, tests/docs/UAT are staged; external dependency: production frontend UAT, after S-07.01.01 + S-06.02.01
-BLOCKED | S-08.01.01 | F-08.01 | S-06.01.01 and S-09.02.01 dependencies are engineering-DONE; governed agent runtime is staged; external dependency: real tool/provider safety UAT
+DONE | S-08.01.01 | F-08.01 | Engineering verified on commit d6a7f974c4f02e0b6232e7ccbee5dcab98f0a689: deny-by-default tool policy, requester isolation, approval-gated high-risk mutation, kill switch and audit contracts passed automated verification; real provider/PostgreSQL concurrency/tool safety UAT remains UAT_PENDING
 IN_REVIEW | S-09.01.01 | F-09.01 | Observability implementation/tests/docs/UAT are staged; executable passing verification remains outstanding
 DONE | S-09.02.01 | F-09.02 | Engineering verification passed on commit af9358c5f6d20079160c7fa77c4d771772d54703: audit/retention/deletion tests, Ruff + 384 backend tests, PostgreSQL migration rollback/forward recovery and backup/restore Release Gate; deployed UAT remains UAT_PENDING
 BLOCKED | S-09.03.01 | F-09.03 | Release/rollback/restore work plus a concrete Render staging Blueprint are staged; real deployment/recovery exercise and OQ-007 production topology remain unresolved
@@ -365,9 +365,9 @@ Staged now:
 - two-phase deployed evaluation separating automatic retrieval/security checks from human semantic claim-citation review;
 - OQ-005 resolution: OpenAI API + `gpt-5.6-terra` first candidate, conditional on all acceptance gates;
 - cache-aware token/cost accounting, request-scoped exact-cost audit and Render staging bootstrap/runbooks;
-- generic-evidence and strict-output regression tests written but not executed.
+- generic-evidence, strict-output, permission, citation, evaluation-gate and runtime-discovery regressions execute in the passing backend suite.
 
-Formal state: `BLOCKED`. S-05.01.01 is engineering-`DONE`; the remaining blockers are real provider compatibility, retrieval/RAG evaluation, human citation review, staging performance and authenticated WorkOS browser acceptance.
+Formal state: engineering-`DONE`. Real provider compatibility, representative retrieval/RAG evaluation, human citation review, staging performance and authenticated WorkOS browser acceptance remain `UAT_PENDING` and are required before any PASSED/production-accepted claim.
 
 ### S-04.02.01 Decision and Blocker Memory
 
@@ -413,7 +413,7 @@ Staged now:
 - no employee productivity/worth/activity ranking and no productivity-score field exists in the API contract;
 - backend contract/security tests, `docs/EXECUTIVE_OVERVIEW.md`, Increment 21 planning and `UAT/F-07.02.md` are staged.
 
-Formal state: `BLOCKED`. Its S-07.01.01 and S-06.02.01 dependencies are not DONE, and no executable backend, reconciliation, permission/revocation, frontend or accessibility UAT has run.
+Formal state: `BLOCKED`. S-06.02.01 is engineering-`DONE`; S-07.01.01 remains not DONE, and Executive Overview still lacks its own reconciliation, permission/revocation, frontend and accessibility UAT.
 
 ## Frontend delivery train — E-10
 
@@ -577,7 +577,7 @@ Formal state: `IN_REVIEW`. The implementation scope is now review-ready, includi
 
 `S-05.01.01` is engineering-`DONE` on commit `af9358c5f6d20079160c7fa77c4d771772d54703`. Backend CI passed Ruff and 384 backend tests, Delivery Verifier passed, and Release Gate passed PostgreSQL migration/rollback/forward-recovery, backup/restore, production-image build and readiness smoke. Its automated contracts cover tenant isolation, live permission filtering, revocation/deletion disappearance, provenance and >=90% synthetic retrieval recall. Realistic deployed/authenticated browser acceptance remains `UAT_PENDING`.
 
-With S-05.01.01, S-06.01.01 and S-09.02.01 engineering-DONE, the remaining dependent gates are external/feature-specific: real OpenAI/Terra compatibility and cache-aware exact-cost smoke, representative Ask Brain retrieval/RAG evaluation, human citation review, staging performance, decision-memory precision/UAT, project-status permission/revocation UAT, Executive Overview permission/cost/budget/API reconciliation UAT, governed-agent tool/provider safety UAT, and the official WorkOS authenticated frontend/manual paths.
+With S-05.01.01, S-05.02.01, S-06.01.01, S-06.02.01, S-08.01.01 and S-09.02.01 engineering-DONE, the remaining gates are feature acceptance/UAT or separate downstream stories: real provider compatibility and exact-cost reconciliation, representative Ask Brain evaluation and human citation review, staging performance, decision-memory precision/UAT, project-status UAT, Executive Overview UAT, governed-agent PostgreSQL concurrency/tool/provider safety UAT, and official WorkOS authenticated frontend/manual paths.
 
 Production quality gates remain: retrieval recall >=90%, zero forbidden evidence exposure/grounding-contract failures, every exact generated claim-citation pair human reviewed, semantic citation correctness >=98%, Decision/Blocker precision >=90% on the agreed representative set, and Ask Brain p95 <10 seconds on the accepted staging runtime.
 
