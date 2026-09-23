@@ -1,5 +1,12 @@
 # Changelog
 
+### Engineering acceptance — S-02.04.01 / S-06.03.01 / S-09.01.01
+
+- Marked generic meeting/document evidence, External API Registry, and Observability & SLOs engineering-DONE after their acceptance/security contracts were verified.
+- Verification baseline commit `8be45dd4d96a87d9fa5a3cf9a385f8cd3ca6349f`: Backend CI `35930622742` passed Ruff and `385 passed, 1 warning in 29.09s`; Delivery Verifier `35930622825` passed; Release Gate `35930622874` passed frontend verification, PostgreSQL upgrade/downgrade/forward recovery, backup/restore, production-image build and readiness smoke.
+- Real document/provider/secret-store/monitoring/browser acceptance remains `UAT_PENDING`; engineering-DONE is not a PASSED/production-accepted claim.
+
+
 ### Engineering acceptance — S-05.02.01 / S-06.02.01 / S-08.01.01
 
 - Marked Ask Brain engineering-DONE after permission-aware retrieval, fail-closed grounded output/citation contracts, no-evidence behavior, evaluation-gate enforcement and runtime/cost integration passed the automated suite.
