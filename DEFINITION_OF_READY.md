@@ -35,7 +35,7 @@ Current verification: 24 focused backend tests, 11 frontend source-contract test
 
 Decision: `BLOCKED`. The project owner explicitly directed implementation to continue against the staged upstream contracts, so the Executive Overview backend is present on `increment-10-ai-provider-gateway`; formal Ready is not satisfied while S-07.01.01 and S-06.02.01 are not engineering-DONE.
 
-Dependencies: S-07.01.01 Project Command Centre = staged but BLOCKED by S-04.02.01 and the deferred S-05.01.01 acceptance gate. S-06.02.01 Usage/Cost/Budgets = staged but BLOCKED while S-06.01.01 lacks executable verification. S-06.03.01 provides the trusted external API usage contract but also remains IN_REVIEW.
+Dependencies: S-07.01.01 Project Command Centre = staged but BLOCKED by S-04.02.01 and the deferred S-05.01.01 acceptance gate. S-06.02.01 Usage/Cost/Budgets = staged but BLOCKED while S-06.01.01 lacks executable verification. S-06.03.01 provides the trusted external API usage contract and is engineering-DONE; real-caller/frontend UAT remains pending.
 
 Data/contracts known: permission-filtered S-07.01 project snapshots, human-confirmed S-04.02 decision/blocker memory, exact/incomplete S-06.02 AI request cost accounting, enabled budget policy snapshots, S-06.03 API usage observations and `audit.read` provide the required backend contracts.
 
@@ -71,7 +71,7 @@ Unblock condition: S-04.02.01 becomes engineering-DONE; project-status backend/m
 
 ## Increment 19 readiness record — S-02.04.01
 
-Decision: `READY` before implementation and now `IN_REVIEW`. Its backlog dependencies S-02.01.01 and S-03.01.01 are engineering-DONE, and OQ-004 was resolved to generic governed upload first.
+Decision: `READY` before implementation and now engineering `DONE`; realistic deployed/manual acceptance remains `UAT_PENDING`. Its backlog dependencies S-02.01.01 and S-03.01.01 are engineering-DONE, and OQ-004 was resolved to generic governed upload first.
 
 Data/contracts known: IntegrationConnection, RawEvent, CanonicalEvent, Work Graph evidence, SearchDocument, ResourceGrant, retention/deletion and security audit contracts are reused rather than duplicated.
 
@@ -81,7 +81,7 @@ Input boundary: 10 MB source limit, 1,000,000 extracted-character limit, bounded
 
 Idempotency/rollback: optional organisation-scoped idempotency keys must not be reusable for different/non-active evidence. Source SHA-256 and chunk SHA-256 preserve immutable addressing. Migration `20260910_0017` removes only generic-source registry persistence; Raw/Canonical/Search/Work Graph derived lifecycle must be handled by the normal data-governance path before destructive rollback in a real environment.
 
-Current verification: implementation, migration, tests, docs and UAT are staged; executable pytest/migration/real-data/browser evidence is intentionally not claimed in this pass.
+Current verification: Backend CI 35930622742, Delivery Verifier 35930622825 and Release Gate 35930622874 passed on verified branch commit `8be45dd4d96a87d9fa5a3cf9a385f8cd3ca6349f`. Real-data/browser acceptance remains `UAT_PENDING`.
 
 ## Increment 18 readiness record — S-05.02.01
 
