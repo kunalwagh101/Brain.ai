@@ -80,3 +80,8 @@ python scripts/verify_board.py
 
 Release evidence must also exercise PostgreSQL migration upgrade/downgrade/forward recovery. A green automated run may support engineering `DONE`; it must not be presented as real credential/provider/frontend UAT.
 
+## Engineering closure — 2026-09-24
+
+Status: **DONE (engineering)**. Real secret-manager, real calling-system and frontend/manual validation remain **UAT_PENDING**.
+
+Evidence baseline: commit `8be45dd4d96a87d9fa5a3cf9a385f8cd3ca6349f`; Backend CI `35930622742` passed Ruff + 385 backend tests; Delivery Verifier `35930622825` passed; Release Gate `35930622874` passed PostgreSQL migration recovery, backup/restore, frontend verification, production image build and readiness smoke. The closure Delivery Verifier re-runs the focused API-registry test command recorded in TRACEABILITY.md.
