@@ -1,5 +1,14 @@
 # Changelog
 
+### Engineering acceptance — S-05.02.01 / S-06.02.01 / S-08.01.01
+
+- Marked Ask Brain engineering-DONE after permission-aware retrieval, fail-closed grounded output/citation contracts, no-evidence behavior, evaluation-gate enforcement and runtime/cost integration passed the automated suite.
+- Marked AI Usage/Cost/Budgets engineering-DONE after exact integer nano-USD accounting, explicit unknown-cost states, attribution, reconciliation, deduplicated alerts and hard-budget blocking passed automated verification.
+- Repaired S-08.01 traceability from `pending` to its real governed-agent implementation/tests/migration/docs and marked the runtime engineering-DONE after deny-by-default, high-risk approval, requester isolation, kill-switch and audit contracts passed.
+- Baseline code commit `d6a7f974c4f02e0b6232e7ccbee5dcab98f0a689`: Ruff passed; `385 passed, 2 warnings in 34.75s`; Delivery Verifier and Release Gate passed, including PostgreSQL migration rollback/forward recovery and backup/restore.
+- Real provider/data evaluation, invoice reconciliation, PostgreSQL advisory-lock concurrency, live permission-loss/budget behavior and authenticated WorkOS/browser flows remain `UAT_PENDING`; engineering-DONE is not a PASSED/production-accepted claim.
+
+
 ### Engineering acceptance — S-10.01.01 / S-10.06.01 / S-10.06.02
 
 - Marked Brain-native channels/messages, Slack/Discord-quality conversation UX and participant-safe direct messages engineering-DONE after the current executable gates resolved the older review-only state.
