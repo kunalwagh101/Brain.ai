@@ -12,7 +12,7 @@ DONE | S-01.03.01 | F-01.03 | Engineering evidence in TRACEABILITY.md; UAT remai
 DONE | S-02.01.01 | F-02.01 | Engineering evidence in TRACEABILITY.md; real-data/frontend UAT remains pending
 DONE | S-02.02.01 | F-02.02 | Engineering evidence in TRACEABILITY.md; real Slack + frontend UAT remains pending
 DONE | S-02.03.01 | F-02.03 | Engineering evidence in TRACEABILITY.md; real GitHub + frontend UAT remains pending
-IN_REVIEW | S-02.04.01 | F-02.04 | Generic governed file/transcript ingestion, migration, tests, docs and UAT are staged; executable verification is intentionally not claimed in this pass
+DONE | S-02.04.01 | F-02.04 | Engineering verified on 8be45dd4d96a87d9fa5a3cf9a385f8cd3ca6349f: Backend CI 35930622742 passed Ruff + 385 backend tests; Release Gate 35930622874 passed migration recovery/backup/restore/image/readiness; deployed/manual UAT remains UAT_PENDING
 DONE | S-03.01.01 | F-03.01 | Engineering evidence in TRACEABILITY.md; realistic raw-data inspection UAT remains pending
 DONE | S-03.02.01 | F-03.02 | Engineering evidence in TRACEABILITY.md; Slack/GitHub real-data + frontend UAT remains pending
 DONE | S-03.03.01 | F-03.03 | Engineering evidence in TRACEABILITY.md; real provider identity + frontend/manual UAT remains pending
@@ -22,11 +22,11 @@ DONE | S-05.01.01 | F-05.01 | Engineering verification passed on commit af9358c5
 DONE | S-05.02.01 | F-05.02 | Engineering verified on commit d6a7f974c4f02e0b6232e7ccbee5dcab98f0a689: permission-aware RAG, fail-closed grounding/citations/evaluation contracts and AI cost integration passed automated verification; real provider/evaluation/performance and WorkOS browser acceptance remain UAT_PENDING
 DONE | S-06.01.01 | F-06.01 | Engineering verification passed on commit af9358c5f6d20079160c7fa77c4d771772d54703: governed provider/model attribution, safe failures, secret-reference handling, Ruff + 384 backend tests; real-provider UAT remains UAT_PENDING
 DONE | S-06.02.01 | F-06.02 | Engineering verified on commit d6a7f974c4f02e0b6232e7ccbee5dcab98f0a689: deterministic nano-USD costing, unknown-cost handling, attribution, reconciliation, deduplicated alerts and hard-budget blocking passed automated verification; real-provider reconciliation remains UAT_PENDING
-IN_REVIEW | S-06.03.01 | F-06.03 | External API registry/lifecycle/expiry implementation is staged; executable passing verification remains outstanding
+DONE | S-06.03.01 | F-06.03 | Engineering verified on 8be45dd4d96a87d9fa5a3cf9a385f8cd3ca6349f: tenant/credential lifecycle contracts are covered by the green suite; real secret-store/caller/frontend UAT remains UAT_PENDING
 BLOCKED | S-07.01.01 | F-07.01 | Evidence-backed project-status backend, deterministic structured progress, migration, tests/docs/UAT are staged; external dependency: production frontend UAT, after S-04.02.01 completion
 BLOCKED | S-07.02.01 | F-07.02 | Permission-aware executive overview, AI spend/budget risk, API activity, provenance, tests/docs/UAT are staged; external dependency: production frontend UAT, after S-07.01.01 + S-06.02.01
 DONE | S-08.01.01 | F-08.01 | Engineering verified on commit d6a7f974c4f02e0b6232e7ccbee5dcab98f0a689: deny-by-default tool policy, requester isolation, approval-gated high-risk mutation, kill switch and audit contracts passed automated verification; real provider/PostgreSQL concurrency/tool safety UAT remains UAT_PENDING
-IN_REVIEW | S-09.01.01 | F-09.01 | Observability implementation/tests/docs/UAT are staged; executable passing verification remains outstanding
+DONE | S-09.01.01 | F-09.01 | Engineering verified on 8be45dd4d96a87d9fa5a3cf9a385f8cd3ca6349f: redaction/metrics/tracing/health contracts are covered by the green suite; deployed telemetry/alert/SLO/browser UAT remains UAT_PENDING
 DONE | S-09.02.01 | F-09.02 | Engineering verification passed on commit af9358c5f6d20079160c7fa77c4d771772d54703: audit/retention/deletion tests, Ruff + 384 backend tests, PostgreSQL migration rollback/forward recovery and backup/restore Release Gate; deployed UAT remains UAT_PENDING
 BLOCKED | S-09.03.01 | F-09.03 | Release/rollback/restore work plus a concrete Render staging Blueprint are staged; real deployment/recovery exercise and OQ-007 production topology remain unresolved
 BLOCKED | S-09.04.01 | F-09.04 | Performance/cost benchmark work is staged; external dependency: a real Ask Brain staging target and provider credentials
