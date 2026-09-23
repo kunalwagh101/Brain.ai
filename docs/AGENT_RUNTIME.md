@@ -181,4 +181,4 @@ Alembic revision `20260909_0015` creates:
 - Planner output is not yet an Ask-Brain citation contract; F-05.02 remains responsible for evidence-backed RAG answer-quality acceptance.
 - Agent-level cost roll-up is not a separate ledger dimension yet. Planner calls are still fully attributed through the underlying AI request records.
 - Real PostgreSQL advisory-lock behavior, real provider behavior, budget exhaustion, permission changes during a run and frontend approval UX require deployed UAT.
-- S-06.01.01 and S-09.02.01 are not yet engineering-DONE because executable CI is blocked. Therefore S-08.01.01 must not be marked DONE/PASSED yet.
+- S-06.01.01 and S-09.02.01 are engineering-DONE. S-08.01.01 is also engineering-DONE under the repository DoD; real PostgreSQL concurrency, provider/budget/permission-loss and frontend approval checks remain `UAT_PENDING` before any PASSED/production-accepted claim.
