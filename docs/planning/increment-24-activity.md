@@ -115,3 +115,16 @@ python scripts/verify_board.py
 ```
 
 **DONE WHEN** — automated checks and migration recovery pass, S-10.07/S-10.08 and other upstream contracts are satisfied, and authenticated multi-user WorkOS UAT in `UAT/F-10.09.md` passes. If the external WorkOS/UAT dependency or S-07.01 remains unresolved, leave this story non-DONE and name the blocker.
+
+## CHECK verification result — 2026-09-24
+
+Automated repository verification completed successfully on head `1476b2d09625211b6ece309abe4fb0bade52a955`:
+
+- Backend CI `35982630115`: Ruff passed; 385 backend tests passed.
+- Delivery Verifier `35982630159`: repository state passed.
+- Release Gate `35982629961`: backend suite passed; frontend build/source contracts passed with 138 passed, 0 failed and 1 skipped.
+- PostgreSQL exercised the Activity notification branch, merge revision and inbox extension, including downgrade from `20260918_0027` to `0026` and forward recovery to head.
+- Backup/restore, production-image build and readiness smoke passed.
+- No production-code defect was exposed, so no speculative implementation change was made.
+
+Final state for this pass: **BLOCKED**, not DONE. External/dependency blockers are S-10.07/S-10.08 accepted browser/secret-store evidence, blocked S-07.01, and official WorkOS authenticated multi-user browser UAT required by `UAT/F-10.09.md`.
