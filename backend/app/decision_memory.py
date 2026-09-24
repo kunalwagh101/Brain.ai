@@ -235,7 +235,11 @@ def project_memory_candidates(
     )
     for candidate in existing:
         key = (candidate.kind, candidate.fingerprint)
-        if key not in emitted_keys and candidate.state == MemoryState.CANDIDATE:
+        if (
+            key not in emitted_keys
+            and candidate.state == MemoryState.CANDIDATE
+            and not _candidate_has_human_history(db, candidate.id)
+        ):
             candidate.state = MemoryState.SUPERSEDED
 
     created = 0
@@ -269,12 +273,13 @@ def project_memory_candidates(
 
         candidate.search_document_id = document.id
         candidate.work_graph_node_id = document.work_graph_node_id
-        if not _candidate_has_human_history(db, candidate.id):
+        has_human_history = _candidate_has_human_history(db, candidate.id)
+        if not has_human_history:
             candidate.summary = item.summary
             candidate.confidence = item.confidence
         candidate.extraction_method = EXTRACTION_METHOD
         candidate.extraction_version = EXTRACTION_VERSION
-        if candidate.state == MemoryState.SUPERSEDED:
+        if candidate.state == MemoryState.SUPERSEDED and not has_human_history:
             candidate.state = MemoryState.CANDIDATE
 
     now = datetime.now(UTC)
@@ -424,6 +429,29 @@ def get_visible_memory_candidate(
     )
 
 
+def _locked_visible_memory_candidate(
+    db: Session,
+    *,
+    organization_id: uuid.UUID,
+    user_id: uuid.UUID,
+    candidate_id: uuid.UUID,
+) -> DecisionMemoryCandidate | None:
+    return db.scalar(
+        select(DecisionMemoryCandidate)
+        .where(
+            DecisionMemoryCandidate.id == candidate_id,
+            DecisionMemoryCandidate.id.in_(
+                _visible_candidate_ids(
+                    db,
+                    organization_id=organization_id,
+                    user_id=user_id,
+                )
+            ),
+        )
+        .with_for_update()
+    )
+
+
 def _transition_state(
     candidate: DecisionMemoryCandidate,
     action: MemoryReviewAction,
@@ -471,7 +499,7 @@ def review_memory_candidate(
     reason: str,
     summary: str | None,
 ) -> DecisionMemoryCandidate:
-    candidate = get_visible_memory_candidate(
+    candidate = _locked_visible_memory_candidate(
         db,
         organization_id=organization_id,
         user_id=user_id,
@@ -509,6 +537,7 @@ def review_memory_candidate(
             previous_summary=previous_summary,
             new_summary=new_summary,
             reason=normalized_reason,
+            created_at=datetime.now(UTC),
         )
     )
     db.commit()

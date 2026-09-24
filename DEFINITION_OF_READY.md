@@ -13,38 +13,541 @@ A story may enter `READY` only when all conditions below are true. `IN_PROGRESS`
 - Out-of-scope items are explicit; nothing is silently removed from scope.
 - Tasks are small engineering steps and the story remains an independently shippable vertical slice.
 
+## Increment 24 readiness record — S-10.06.01
+
+Decision: `NOT READY` under the formal dependency rule when it was pulled, now `IN_REVIEW`. The session-open audit on 2026-09-13 found no dedicated Ready record while S-10.01.01 remained `IN_REVIEW`. This is recorded process drift, not silently reclassified as compliant. The project owner directed work to continue, so the already-active item was finished rather than pulling another story.
+
+Dependencies: S-10.01.01 supplies the usable NativeChannel/NativeMessage, permission, restricted-membership and evidence-projection contracts but is not engineering-DONE. S-10.04.01 remains the named external dependency for official WorkOS package activation and authenticated browser acceptance.
+
+Data/contracts known: one existing NativeMessage store, exact organisation Membership email, current `can_read_channel`/`can_write_channel`, per-message evidence projection, five explicit reactions, one root-only thread link and a per-channel numeric message sequence define the complete shape. No AI model, fuzzy identity rule, second chat store or browser-held backend token is permitted.
+
+Open questions: none changes S-10.06.01. OQ-002 applies only to the separate S-10.06.02 direct-message privacy policy. Presence/WebSockets, voice/video, editing/deletion, attachments and external notifications are explicit out-of-scope items, not hidden assumptions.
+
+Security/data integrity: every service entry rechecks current organisation/channel visibility; revoked restricted access returns no conversation content; composite foreign keys bind thread, mention, reaction and read rows to one tenant/channel/message; reactions are allow-listed in service and database; messages and reactions are idempotent; the read cursor advances only by atomic message sequence; browser mutations require an authenticated same-origin BFF route with bounded JSON and safe errors.
+
+Migration/rollback: migration `20260912_0020` deterministically backfills existing message order, advances each channel counter, then adds scoped constraints and conversation tables. Rollback requires stopping message writes, exporting conversation relationship/read data if it must survive, downgrading to `20260912_0019`, deploying code that does not read the removed columns/tables, and verifying root message/evidence integrity.
+
+Leading indicators: zero tenant/revocation disclosures; correct per-user unread counts; thread/reaction idempotency; active channel participation and unread-to-read conversion. No production latency, adoption or cost result is invented before real measurement.
+
+Current verification: 24 focused backend tests, 11 frontend source-contract tests, frontend lint/build and PostgreSQL offline migration compilation passed locally on 2026-09-13. Live PostgreSQL upgrade/downgrade, official WorkOS activation and authenticated browser accessibility/responsive UAT remain open; therefore the story cannot enter DONE.
+
+## Increment 21 readiness record — S-07.02.01
+
+Decision: `BLOCKED`. The project owner explicitly directed implementation to continue against the staged upstream contracts, so the Executive Overview backend is present on `increment-10-ai-provider-gateway`; formal Ready is not satisfied while S-07.01.01 and S-06.02.01 are not engineering-DONE.
+
+Dependencies: S-07.01.01 Project Command Centre = staged but BLOCKED by S-04.02.01 and the deferred S-05.01.01 acceptance gate. S-06.02.01 Usage/Cost/Budgets = staged but BLOCKED while S-06.01.01 lacks executable verification. S-06.03.01 provides the trusted external API usage contract and is engineering-DONE; real-caller/frontend UAT remains pending.
+
+Data/contracts known: permission-filtered S-07.01 project snapshots, human-confirmed S-04.02 decision/blocker memory, exact/incomplete S-06.02 AI request cost accounting, enabled budget policy snapshots, S-06.03 API usage observations and `audit.read` provide the required backend contracts.
+
+Security boundary: the endpoint requires `audit.read`; organisation membership is checked before execution; project visibility still uses current Work Graph/resource authorization; Executive role alone does not reveal restricted projects; Work-Graph-scoped budget warnings are returned only when their target node is visible; API usage drill-down never returns secret references or credential values.
+
+Metric integrity: every executive metric family carries source/calculation provenance. Project progress/status reuses the deterministic S-07.01 calculation; only human-confirmed memory contributes to confirmed decision/blocker counts; AI spend uses the S-06.02 nano-USD cost ledger and keeps unknown successful-request cost explicit; external API usage comes from trusted observations. Because no reviewed external-API tariff/cost ledger exists, API monetary spend is `null` with `cost_status=not_modelled` rather than guessed from call count or latency.
+
+Employee-scoring boundary: no employee productivity, worth, activity ranking or inferred performance score is calculated. `employee_productivity_score` is explicitly null. User-level cost attribution, where available for governance, must not be relabelled as employee performance.
+
+Persistence/rollback: S-07.02 is a read model and introduces no new persistence table or migration. Rollback removes the executive service/routes/docs without modifying project-status, decision-memory, AI cost/budget or API registry source records. The separate organisation-wide API-usage drill-down is also read-only.
+
+Current verification: service/routes, source-provenance contracts, permission-aware budget filtering, tests, docs and UAT are staged. No pytest, Render, real cost reconciliation, restricted-project UAT, browser UAT or accessibility run is claimed in this pass.
+
+Unblock condition: S-07.01.01 and S-06.02.01 become engineering-DONE in dependency order; Executive Overview backend contracts execute successfully; restricted-project/budget non-disclosure UAT passes; AI spend and budget math reconcile to source ledgers; API usage reconciles while monetary API cost remains explicitly unavailable unless a reviewed tariff model is later added; and the production WorkOS frontend/manual/accessibility path passes.
+
+## Increment 20 readiness record — S-07.01.01
+
+Decision: `BLOCKED`. The project owner explicitly directed implementation to continue against the existing upstream contracts, so the backend slice is staged on `increment-10-ai-provider-gateway`; formal Ready is not satisfied while S-04.02.01 is not engineering-DONE.
+
+Dependencies: S-04.01.01 Work Graph = engineering-DONE. S-04.02.01 Decision/Blocker Memory = usable staged contract but formally BLOCKED by the deferred S-05.01.01 verification.
+
+Data/contracts known: Work Graph project/work-item/evidence nodes, permission-aware node traversal, Search authorization, decision/blocker candidate/review state, audit events and explicit structured progress rows provide the required inputs.
+
+Security boundary: a project/work item must be visible through Work Graph authorization; project evidence is discovered only through permission-aware graph traversal and is intersected again with the live permission-aware Search query before source metadata/provenance is returned. Restricted evidence may disappear without hiding the public project itself. The dashboard must not disclose hidden-resource existence through counts, titles, memory or percentage inputs.
+
+Progress contract: percentage is calculated only from visible explicitly configured `ProjectProgressItem` rows. No configured work returns `progress_percent=null`; Brain does not infer completion from commits, messages, evidence volume, employee activity or AI output. Candidate blockers do not change project status until human-confirmed.
+
+Persistence/rollback: migration `20260910_0018` adds only `project_progress_items`; Work Graph, Search and decision-memory remain independent sources of truth. Downgrade removes the structured progress rows without rewriting upstream evidence.
+
+Current verification: model/service/router/migration/tests/docs/UAT are staged. No pytest, PostgreSQL migration exercise, real permission/revocation UAT or frontend/manual UAT is claimed in this pass.
+
+Unblock condition: S-04.02.01 becomes engineering-DONE; project-status backend/migration tests execute successfully; realistic permission/revocation and deterministic-progress UAT passes; and the production authenticated frontend/manual path passes.
+
+## Increment 19 readiness record — S-02.04.01
+
+Decision: `READY` before implementation and now engineering `DONE`; realistic deployed/manual acceptance remains `UAT_PENDING`. Its backlog dependencies S-02.01.01 and S-03.01.01 are engineering-DONE, and OQ-004 was resolved to generic governed upload first.
+
+Data/contracts known: IntegrationConnection, RawEvent, CanonicalEvent, Work Graph evidence, SearchDocument, ResourceGrant, retention/deletion and security audit contracts are reused rather than duplicated.
+
+Security boundary: organisation membership and `resource.write` guard upload; organisation/restricted visibility is retained on source/chunk/canonical/search/work-graph data; restricted chunks use existing Work Graph grants; source reads are permission-aware; deleted/revoked evidence must become unavailable to retrieval.
+
+Input boundary: 10 MB source limit, 1,000,000 extracted-character limit, bounded PDF pages/DOCX expansion, deterministic 6,000-character chunks with overlap, and explicit supported text-bearing formats. OCR/audio/video transcription/provider sync remain out of scope for this first adapter.
+
+Idempotency/rollback: optional organisation-scoped idempotency keys must not be reusable for different/non-active evidence. Source SHA-256 and chunk SHA-256 preserve immutable addressing. Migration `20260910_0017` removes only generic-source registry persistence; Raw/Canonical/Search/Work Graph derived lifecycle must be handled by the normal data-governance path before destructive rollback in a real environment.
+
+Current verification: Backend CI 35930622742, Delivery Verifier 35930622825 and Release Gate 35930622874 passed on verified branch commit `8be45dd4d96a87d9fa5a3cf9a385f8cd3ca6349f`. Real-data/browser acceptance remains `UAT_PENDING`.
+
+## Increment 18 readiness record — S-05.02.01
+
+Decision: `BLOCKED`. Production code/tests/docs/deployment tooling are staged on the existing `increment-10-ai-provider-gateway` branch because the project owner explicitly asked to continue the story, but formal Ready and Done are not satisfied.
+
+Dependencies: S-05.01.01 Permission-Aware Retrieval has a usable implementation contract but remains `IN_REVIEW` without executable passing verification. On 2026-09-10 the project owner explicitly deferred running its pytest verification locally and on Render until later. F-06.01 governed AI gateway is staged and provider-neutral but also lacks executable passing verification.
+
+Data/contracts known: authorised `SearchDocument` retrieval, live integration/resource authorization, source provenance, generic meeting/document search evidence, governed tenant-scoped provider/model configuration, secret references, AI request budgets, optional Work Graph attribution, organisation/runtime discovery, and request-scoped AI cost audit provide the required engineering contracts.
+
+Open questions: OQ-005 was resolved on 2026-09-10. The first production runtime candidate is OpenAI API with `gpt-5.6-terra`, conditional on the same real quality, security, compatibility, latency and exact-cost gates defined for this story. OQ-007 still owns the final production runtime/image-registry/managed-database topology; the checked-in Render Blueprint is a staging candidate, not that production decision.
+
+Security boundary: source authorization executes inside permission-aware retrieval before content is selected; no evidence means no provider call; evidence is bounded and treated as untrusted prompt data; provider output must match the exact top-level/claim JSON contract; every accepted claim must cite one or more server-issued evidence IDs; missing/unknown citations or unexpected fields fail closed; returned citation excerpts are bounded and come only from already-authorised context; provider credentials remain inside the existing secret store/gateway; generation is capped at 8,192 output tokens even if a generic provider configuration permits more.
+
+Cost boundary: Terra's reviewed ordinary input, cached input and output rates are represented separately. Provider-reported cached token usage is persisted. If a distinct cached rate applies but cached usage is unavailable, or if cached usage is invalid, Brain resolves the request cost as `unknown` rather than guessing. The staging bootstrap verifies the exact request ID and independently recomputes input/output/total cost from the request-scoped ledger.
+
+Evaluation boundary: automatic retrieval relevance cannot be called semantic citation correctness. Phase 1 measures retrieval recall, forbidden evidence and grounding-contract safety. Phase 2 requires a human to judge every exact generated claim-citation pair from the same run. The report, sensitive review packet and review template are bound by evaluation run ID plus SHA-256. Only the final scorer's `production_passed=true` can satisfy the >=98% citation-correctness gate. Real labelled datasets and evaluation artifacts remain under gitignored `.local/` and `.evaluation/` paths.
+
+State/idempotency: Ask Brain adds no mutable answer store. Answers are transient. Existing AI request metadata/cost records remain authoritative for provider execution. Repeated questions may invoke the provider again and are independently governed by current permissions/budgets.
+
+Rollback: code-only removal of the Ask Brain route/service/evaluation tooling plus the defined migration downgrade for cached-input accounting if required. Search documents, raw/canonical evidence and historical AI request ledgers are not rewritten by feature rollback.
+
+Leading indicators: unauthorised evidence exposure = 0; retrieval recall >=90%; human-reviewed semantic citation correctness >=98%; AI answer p95 <10 seconds; provider/model total/cached/output usage and exact request cost recorded before production acceptance.
+
+Current verification: backend implementation/tests/runbooks/Render staging configuration are staged, including generic-evidence integration and strict model-output contract regression coverage. No new local pytest or Render verification is claimed in this pass per the owner's explicit deferral. Real Terra compatibility/cost smoke, labelled retrieval/RAG evaluation, human semantic citation review, staging performance, official WorkOS frontend build and browser/manual UAT remain unexecuted external acceptance gates.
+
+Unblock condition: the project owner later executes and records passing S-05.01.01 verification; Ask Brain/gateway/cost tests plus Ruff/verifier pass; Terra compatibility and exact cache-aware cost smoke pass; real two-phase evaluation passes >=90% retrieval recall and >=98% human-reviewed semantic citation correctness with zero forbidden evidence/grounding-contract failures; staging p95/error/cost is recorded; official WorkOS frontend integration builds; and authenticated frontend/manual UAT passes.
+
 ## Increment 9 readiness record — S-04.02.01
 
-Decision: `BLOCKED` on 2026-09-07. The implementation is being staged on a stacked branch because the user explicitly asked to begin the next feature, but the story does not satisfy formal Ready while S-05.01.01 remains `IN_REVIEW` without executable passing verification.
+Decision: `BLOCKED`. The implementation is staged because the project owner explicitly asked to continue implementation despite the upstream acceptance gate, but formal Ready remains unsatisfied while S-05.01.01 is `IN_REVIEW` without executable passing verification.
 
 Dependencies: S-04.01.01 Work Graph = engineering-DONE. S-05.01.01 Permission-Aware Retrieval = usable implementation contract but not engineering-DONE; this is the blocking dependency.
 
-Data/contracts known: `CanonicalEvent`, `SearchDocument`, Work Graph evidence, integration/channel/resource authorisation and the current retrieval predicate provide the evidence/provenance/access inputs.
+Data/contracts known: `CanonicalEvent`, `SearchDocument`, Work Graph evidence, generic meeting/document evidence, integration/channel/resource authorisation and the current retrieval predicate provide the evidence/provenance/access inputs.
 
 Open questions: OQ-005 does not block the deterministic `explicit-markers-v1` extractor because this increment does not choose an LLM provider. Any future model-backed extractor must preserve the same candidate/review contract and undergo its own data-policy/evaluation gate.
 
-Security boundary: machine candidates are derived only from whitelisted search evidence; user-facing reads reuse the live retrieval authorisation boundary; role alone cannot widen restricted evidence access; cross-tenant access fails closed.
+Security boundary: machine candidates are derived from Search evidence; user-facing reads reuse the live retrieval authorisation boundary; role alone cannot widen restricted evidence access; cross-tenant access fails closed.
 
-State/idempotency: machine output starts only as `candidate`; statement fingerprints plus extraction version/content digest prevent unchanged replay; stale unreviewed machine candidates become `superseded`; human review appends immutable before/after history.
+State/idempotency: machine output starts only as `candidate`; statement fingerprints plus extraction version/content digest prevent unchanged replay; stale unreviewed machine candidates may become `superseded`; candidates with human review history are not silently rewritten or superseded by re-extraction; human review locks the candidate row before transition and appends immutable before/after history.
 
 Rollback: migration `20260907_0010` removes decision-memory candidate/extraction/review tables only. Raw/canonical/search/work-graph evidence remains. Human review history must be exported before downgrade if it must survive the rollback itself.
 
 Leading indicators: unauthorised memory retrieval failures = 0; synthetic explicit-marker precision instrumentation >=90%; representative labelled decision and blocker precision each >=90% before production acceptance.
 
-Unblock condition: S-05.01.01 receives truthful executable passing verification and is moved to engineering-DONE; then S-04.02.01 may be reevaluated for READY/IN_PROGRESS against this record.
+Current verification: existing decision-memory tests plus generic transcript/human-authority regression contracts are staged but are not claimed as executed in this pass.
+
+Unblock condition: S-05.01.01 receives truthful executable passing verification and is moved to engineering-DONE; then S-04.02.01 must pass its own executable tests, realistic permission/revocation UAT and representative >=90% precision gate before DONE.
 
 ## Increment 8 readiness record — S-05.01.01
 
-Decision: `READY` then pulled to `IN_PROGRESS` on 2026-09-07.
+Decision: `READY` then pulled to `IN_PROGRESS` on 2026-09-07; current board state is `IN_REVIEW`.
 
 Dependencies: S-01.03.01 RBAC/resource ACL = engineering-DONE; S-03.02.01 canonical event model = engineering-DONE; S-04.01.01 Work Graph authorization semantics = engineering-DONE and reused.
 
 Data/contracts known: `CanonicalEvent`, immutable `RawEvent`, `IntegrationConnection`, `SlackChannelAuthorization`, `SourceIdentity`, `ResourceGrant`, and Work Graph evidence nodes provide the source/provenance/access inputs.
 
-Open questions: OQ-005 is about the later RAG generation provider and does not change this retrieval storage/API shape. Embeddings use an operator-configured provider-neutral HTTP contract, so no provider business rule is invented here.
+Open questions: OQ-005 was a later RAG generation-provider question and did not change this retrieval storage/API shape. Embeddings use an operator-configured provider-neutral HTTP contract.
 
 Security boundary: organisation membership is checked first; current source/resource authorization is applied inside the search candidate predicate before result content is selected; role alone cannot bypass restricted-resource access.
 
 Rollback: search projection and embeddings are derived/rebuildable. Migration downgrade removes only derived retrieval tables/indexes; raw/canonical evidence remains intact.
 
 Leading indicators: unauthorised retrieval failures = 0; synthetic retrieval evaluation >=90% recall target; real-provider recall and p95 latency recorded in UAT before production acceptance.
+
+Current verification note: the project owner explicitly deferred local pytest and Render execution verification on 2026-09-10. This is a deferred acceptance gate, not a passing result; S-05.01.01 remains `IN_REVIEW` until evidence is captured.
+
+
+## Increment 26 readiness record — S-10.10.01
+
+Decision: `READY` for repository implementation on 2026-09-18, then eligible to pull under the board WIP limit.
+
+Problem and baseline: Brain's production workspace already has permission-aware server reads plus secure same-origin mutations, but collaboration changes are visible only after a mutation-triggered or manual `router.refresh()`. A second user posting, replying, reacting or sending a DM does not reliably appear in an already-open browser session without manual refresh. Baseline automatic cross-user refresh success is therefore 0%.
+
+AI decision: AI is not needed. This is deterministic delivery/state invalidation. An LLM or agent would add latency, cost and security risk without improving correctness.
+
+Architecture decision: do not add WebSockets, Redis, a message broker or a second event store before measured need. Reuse the existing permission-aware FastAPI reads behind the WorkOS server-session BFF. The browser receives only an opaque stable revision plus safe counters, polls adaptively while visible, slows while hidden/offline, and calls `router.refresh()` only when the revision changes. This keeps current server-side authorization as the source of truth and leaves the browser contract replaceable by SSE/WebSockets later without changing product semantics.
+
+Dependencies: S-10.06.01 conversation contracts, S-10.06.02 participant-only DM contracts and S-10.09.01 Activity contracts are implementation-staged in `IN_REVIEW`. S-10.04 remains externally blocked on real WorkOS activation; that blocks final authenticated browser acceptance, not repository implementation shape.
+
+Data/contracts known: current visible channel list, per-channel unread state, selected channel root-message affordances, participant-visible DM conversation/message state and the permission-filtered Activity summary. No new persistent data or migration is required.
+
+Open questions: none that changes the repository implementation shape. The 5-second visible-tab target is an engineering UX/SLO target for this slice, not a legal/business policy. WebSocket/SSE adoption is explicitly deferred until measured polling load or sub-second product requirements justify it.
+
+Security boundary: browser calls only same-origin WorkOS routes; reusable FastAPI/WorkOS bearer tokens stay server-side; live responses expose no message/DM bodies or secrets; every underlying read reuses current tenant/resource/participant authorization; membership loss or source revocation fails closed on the next check.
+
+Reliability/cost boundary: visible tabs poll at a bounded 4-second base interval; hidden tabs slow to 30 seconds; failures back off exponentially up to 30 seconds; offline state pauses aggressive checks; identical revisions do not refresh the React server tree. No new dependency or long-lived server connection is introduced.
+
+Rollback: remove the live client/BFF/template integration. Existing channel/DM/Activity state is unchanged because the feature persists no business data.
+
+Leading indicators: authorised state change detected <=5 seconds in visible-tab UAT; unnecessary refreshes on identical revision = 0; browser bearer-token exposure = 0; revoked-source stale rendering after next check = 0.
+
+Done boundary: repository implementation may move to `IN_REVIEW` after source-contract tests/docs are staged. `DONE` still requires executable frontend gates/verifier plus official WorkOS authenticated multi-user browser timing, revoke, offline/backoff and accessibility UAT.
+
+
+## Increment 27 readiness record — S-10.11.01
+
+Decision: `READY` for repository implementation on 2026-09-18, then eligible to pull under the board WIP limit.
+
+Problem and baseline: the workspace visually labels Ask Brain with a `⌘K` affordance, but there is no actual global search/quick-switcher interaction. Users must scan channels/projects/DMs manually, and permission-aware Search is not exposed as a fast workspace navigation primitive. Baseline keyboard search-to-open capability is 0.
+
+AI decision: no new AI is needed. Existing permission-aware keyword search is the correct baseline for fast deterministic navigation. Hybrid/embedding search remains available to Ask Brain and explicit retrieval flows, but a command palette should not depend on embedding-provider latency or availability.
+
+Architecture decision: reuse S-05.01 SearchDocument and current source authorization. Use already-loaded workspace navigation for instant local channel/project/track/DM-person matching. For content/evidence queries >=2 characters, use a same-origin WorkOS BFF that calls the existing FastAPI `/search?mode=keyword` endpoint server-side. Do not build a second index.
+
+Privacy boundary: Brain-native channel messages are already projected to permission-aware SearchDocument through the native-chat evidence path. Direct-message bodies are deliberately excluded from organisation-wide Search/Ask Brain and remain excluded here. Only DM counterpart metadata already visible to the participant may be locally matched for navigation.
+
+Dependencies: S-05.01.01 provides the search contract but remains `IN_REVIEW` pending executable acceptance. S-10.02.01, S-10.06.01 and S-10.06.02 provide workspace navigation/channel/DM contracts. S-10.04 remains the external authenticated-browser gate.
+
+Open questions: none that changes this slice. Fuzzy people-directory search, message-edit search semantics and participant-scoped AI over DMs are separate future scope and must not be silently absorbed.
+
+Security boundary: all remote search executes server-side with the current WorkOS token and existing Brain authorization. Client code never receives a reusable bearer token. BFF input is bounded and normalised. Restricted/revoked evidence is filtered by the existing live authorization predicate on every search request.
+
+Performance boundary: local navigation filtering is immediate. Remote keyword search is debounced at 250 ms, requires >=2 characters, is capped at 12 results and may be cancelled when the query changes. No search request is issued for an empty query.
+
+Rollback: remove the client dialog/BFF/template wiring. SearchDocument and existing retrieval behaviour are unchanged.
+
+Leading indicators: keyboard-open works; median search-to-target time falls; unauthorised result exposure = 0; organisation-wide DM-content search results = 0; browser bearer-token exposure = 0.
+
+Done boundary: repository implementation may move to `IN_REVIEW` after source contracts/docs are staged. `DONE` requires executable frontend/search/verifier evidence plus official WorkOS authenticated browser UAT for keyboard, revocation, private-source isolation and exact Brain-message navigation.
+
+
+## Increment 28 readiness record — S-10.12.01
+
+Decision: `READY` for repository implementation on 2026-09-18, then eligible to pull under the board WIP limit.
+
+Problem and baseline: Brain-native channel messages currently support create/read/thread/mention/reaction/unread but have no author correction or retraction lifecycle. A mistaken message therefore remains current conversation/search content forever unless data is changed outside the product.
+
+AI decision: AI is not needed. This is deterministic state, authorization, concurrency and evidence-governance work.
+
+Architecture decision: extend the existing `NativeMessage` aggregate with monotonic revision, edited/deleted timestamps and an append-only `NativeMessageRevision` history table. Each successful edit/retraction appends a new native RawEvent + CanonicalEvent, links the prior revision snapshot to its previous evidence IDs, retires the prior SearchDocument version, and points the current message/search projection at the new canonical revision. No RawEvent/CanonicalEvent is rewritten. SecurityAuditEvent records mutation metadata/hashes only. Do not create a second chat store.
+
+Authority rule: only the original human author may edit/retract, and they must still have current write access to the channel. Organisation role alone never grants a content override. Agent-authored messages are immutable to humans. This is the least-privilege baseline; moderation/admin override is explicitly out of scope, not silently inferred.
+
+Concurrency: client sends `expected_revision`. The service row-locks the message where supported and rejects stale revisions with HTTP 409. Successful mutation increments revision exactly once.
+
+Deletion semantics: S-10.12 “delete” is a user-facing retraction, not a data-governance hard-delete request. Current APIs expose a tombstone and no plaintext/hash/mentions/reactions; all SearchDocument versions for the message are retired and emptied; unread counts ignore retracted messages. A new immutable retraction RawEvent/CanonicalEvent records the lifecycle action while prior canonical evidence stays unchanged. Revision-history plaintext obeys the existing derived-content retention policy and legal hold. Existing thread replies remain attached to a retracted root; no new reply/reaction/edit is allowed on a retracted message.
+
+Mention/Activity semantics: mention rows are reconciled to the edited current body, including removal. Activity visibility for a mention rechecks that the recipient is still mentioned and that the message is not retracted. Retraction hides message-derived mention/reaction/thread-reply Activity entries from current inbox presentation without deleting the audit record.
+
+Dependencies: current S-10.06 conversation model, S-10.09 Activity reference model, S-10.10 live invalidation and S-10.11 exact-message path are implementation-staged; S-10.04 remains the external authenticated-browser acceptance gate.
+
+Open questions: none that changes this repository slice. Edit-time windows, administrator moderation, retention-driven physical deletion and DM lifecycle are explicitly separate policy/features.
+
+Security/privacy boundary: mutation requires tenant membership, current channel write permission and exact original human author match; hidden/cross-tenant/non-author cases fail closed. Audit/revision metadata never logs plaintext body. Browser mutations remain same-origin and token-free.
+
+Rollback: downgrade removes message lifecycle columns and revision rows only. Original raw/canonical evidence is preserved. Before downgrade, currently edited visible message bodies remain in `native_messages`; retracted rows retain stored body internally but lose the lifecycle marker, so rollback is operationally destructive to retraction semantics and must be treated as a maintenance rollback with export/backup. This limitation must be stated in migration/demo evidence.
+
+Leading indicators: unauthorised lifecycle mutation = 0; stale edit overwrite = 0; retracted content in current Search/Activity/unread = 0; revision/audit hash coverage = 100%.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. `DONE` requires migration forward/downgrade/re-forward evidence, focused concurrency/security tests, frontend build/source contracts, verifier, and authenticated multi-user WorkOS browser UAT.
+
+
+## Increment 29 readiness record — S-10.13.01
+
+Decision: `READY` for repository implementation on 2026-09-18, then eligible to pull under the board WIP limit.
+
+Problem and baseline: Brain already has governed evidence upload/browse/Search and native channel messaging, but the two workflows are disconnected. Users cannot share a governed file directly inside the conversation where the work is happening.
+
+AI decision: AI is not needed. This is deterministic file ingestion, authorization, relational linking and UX work. Existing Search/Ask Brain consumes the resulting evidence automatically.
+
+Architecture decision: reuse `EvidenceSource` and the existing generic evidence ingestion pipeline. Add nullable native-channel scope to evidence plus an append-only message-to-evidence relation. Do not create a second attachment blob/table containing file bytes. Evidence bytes remain stored only in the existing governed EvidenceSource.
+
+Visibility decision: organisation-channel uploads use organisation evidence visibility. Restricted-channel uploads are marked restricted and carry a native channel ID. Direct Evidence visibility rechecks current native-channel membership. Search/Work Graph continue using ResourceGrant; channel membership add/remove extends the existing channel evidence-node grant scope to attachment evidence nodes. A frozen source ACL is not trusted as the live restricted-channel authorization source.
+
+Message decision: up to five attachment source IDs may be linked to a root/reply. The source must be ACTIVE, same organisation, and either organisation-visible or scoped to the exact selected native channel. File-only messages are allowed; empty-without-attachments remains invalid. Duplicate source IDs are rejected/deduplicated deterministically.
+
+Lifecycle decision: message retraction hides attachment cards from conversation output but does not delete EvidenceSource. Deleting evidence uses the existing audited evidence lifecycle; attachment cards for a now-deleted source expose only safe unavailable metadata, never removed content. Message edits do not silently add/remove attachments in this slice.
+
+Failure decision: upload and message-send remain two explicit operations because existing evidence ingestion owns its own committed lifecycle. If upload succeeds and message send fails, Brain preserves the uploaded channel-scoped source and client source ID for retry; it never rolls back or reuploads a valid governed source behind the user's back.
+
+Open questions: none that changes this slice. Arbitrary binary/media preview, DM attachments, per-attachment removal and drag/drop pasteboard UX are explicit later features.
+
+Security/privacy boundary: backend revalidates organisation, current channel write access and source/channel scope; browser uses bounded same-origin WorkOS routes; no reusable token, raw extracted text or file bytes are returned inside normal message JSON.
+
+Rollback: migration removes message-attachment relations and native-channel scope metadata only; underlying EvidenceSource rows/content are never deleted by downgrade. Because pre-S-10.13 message constraints forbid zero-length bodies, downgrade explicitly refuses to run while attachment-only messages or revisions exist. Operators must export/migrate those rows first rather than silently corrupting data.
+
+Leading indicators: restricted-file leakage = 0; duplicate attachment relations = 0; successful upload-to-message-link rate; attachment evidence appears in authorised Search/Ask Brain.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires PostgreSQL migration round-trip, focused backend tests, frontend lint/build/source contracts, verifier and authenticated WorkOS multi-user channel upload/revocation/deletion/retry UAT.
+
+
+## Increment 30 readiness record — S-10.14.01
+
+Decision: `READY` for repository implementation on 2026-09-19; board WIP is zero before pull.
+
+Problem and baseline: Brain conversations now have channels, participant-only DMs, threads, mentions, reactions, unread state, Activity, live message refresh, search, lifecycle and governed files. The remaining live-collaboration gap is transient presence: users cannot tell whether an authorised teammate is online or typing.
+
+AI decision: AI is not needed. Presence and typing are deterministic lease/authorization/UI state.
+
+Architecture decision: use PostgreSQL short-lived lease rows because the current product already depends on PostgreSQL and no measured traffic justifies Redis/WebSockets/SSE. One organisation/user presence lease has only `expires_at`. One typing lease has organisation/user plus exactly one native channel or direct conversation and `expires_at`. No draft content, keystrokes, cursor data, IP/user-agent or historical event row is persisted. Expired leases are ignored by reads and purged opportunistically by normal heartbeat/typing writes, so polling remains read-only. This is intentionally ephemeral operational state, not company intelligence.
+
+Presence semantics: a visible online-capable browser renews presence every 30 seconds for a 75-second lease. Hidden/offline tabs stop renewing, so status expires naturally. The API never exposes an exact last-seen timestamp. Channel presence returns only users who currently retain access to that exact channel. DM presence returns only the other participant and only to a currently authorised participant.
+
+Typing semantics: non-empty composer input refreshes a context-specific lease no more than once every 3 seconds; lease duration is 8 seconds. Clearing/sending/changing context/hiding/unmounting triggers best-effort DELETE, but expiry is the correctness guarantee. Current user is excluded from typing results.
+
+Privacy/security boundary: no organisation role provides DM presence override. Restricted-channel visibility uses current native-channel access. Browser requests are same-origin WorkOS BFF calls and reusable backend tokens never enter client code. Presence/typing mutations are not organisation-wide audit events because creating behavioural surveillance metadata would violate the purpose of ephemeral collaboration state.
+
+Concurrency/idempotency: unique organisation/user presence and unique user/context typing rows are upserted/updated rather than appended. Repeated heartbeats do not create history.
+
+Migration/rollback: migration `20260919_0031` adds only ephemeral lease tables and scoped foreign keys. Downgrade drops only those tables and changes no messages, channels, DMs, evidence or audit records.
+
+Dependencies: S-10.06.01 and S-10.06.02 provide current access predicates; S-10.10.01 provides the existing live-collaboration client pattern; S-10.04 remains the external authenticated browser acceptance gate. These usable contracts are implementation-staged even though final executable acceptance remains pending.
+
+Open questions: none changes this repository slice. Durable last-seen timestamps, away/manual status, custom status text, mobile push/background presence, group-DM presence and Redis/WebSocket scale-out are explicit later scope and require measured/product need.
+
+Leading indicators: visible online/typing state appears/disappears within lease targets; unauthorised presence/typing exposure = 0; typing network calls remain throttled rather than per-keystroke; durable history rows = 0.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. `DONE` requires PostgreSQL migration round-trip, focused expiry/concurrency/revocation tests, frontend lint/build/source contracts, verifier and authenticated two-user WorkOS browser timing/privacy UAT.
+
+
+## Increment 31 readiness record — S-10.15.01
+
+Decision: `READY` for repository implementation on 2026-09-19; board WIP is zero before pull.
+
+Problem and baseline: Brain now supports live channel/thread collaboration, search, message lifecycle, governed files and presence, but important channel context still disappears into chronology unless users remember what to search for.
+
+AI decision: AI is not needed. Pinning is deterministic reference, authorization and UI state.
+
+Architecture decision: add one lightweight `NativeMessagePin` reference table keyed by organisation/channel/message. It stores only who pinned and when. It never copies message body, attachments, evidence excerpts or revision history. Pin reads materialise through the existing permission-aware `NativeMessage` read model.
+
+Permission decision: current channel readers may list pins. Current channel writers may pin/unpin any visible non-retracted message in that exact channel, including agent-authored messages and thread replies. Pinning is channel metadata, not message authorship mutation. Organisation role alone never widens restricted-channel access.
+
+Lifecycle decision: edits preserve the pin because the message identity is stable. Retraction deletes the active pin inside the same message lifecycle transaction before commit. No pin survives as a pointer to a tombstone.
+
+Concurrency/idempotency: unique channel/message constraint makes pin retries/concurrent writes converge to one row. Unpin is idempotent.
+
+UI decision: the channel header gets a bounded Pins control/panel. Pinned rows show pin metadata plus the existing safe message representation. Root pins can be read directly; reply pins reopen their existing root thread using current message/thread APIs. No new search/index/deep-link subsystem is introduced.
+
+Live-update decision: selected-channel live revision includes only ordered pin identifiers/timestamps (structural metadata), never message plaintext. This lets remote pin/unpin/retract refresh the channel.
+
+Audit decision: pin/unpin is ordinary collaboration metadata, not a security/governance mutation, so no new SecurityAuditEvent stream is created. Existing message lifecycle/security controls remain unchanged.
+
+Migration/rollback: migration `20260919_0032` adds/drops only pin references. Downgrade never deletes messages, evidence, attachments, revisions or audits.
+
+Open questions: none changes this slice. Personal save-for-later/starred items, arbitrary channel bookmarks, custom pin permission roles and pin notifications are explicit later scope.
+
+Leading indicators: duplicate pin rows = 0; inaccessible pin leakage = 0; successful pin-list/open rate.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires PostgreSQL migration round-trip, focused backend pin/idempotency/revoke/retract tests, frontend lint/build/source contracts, verifier and authenticated WorkOS multi-user pin/revoke/retract/thread UAT.
+
+
+## Increment 32 readiness record — S-10.16.01
+
+Decision: `READY` for repository implementation on 2026-09-19; board WIP is zero before pull.
+
+Problem and baseline: Brain now supports shared channel pins, but users still lack a private way to mark a message for their own follow-up without changing shared channel state.
+
+AI decision: AI is not needed. Save-for-later is deterministic personal reference, authorization and navigation state.
+
+Architecture decision: add one lightweight `NativeMessageSave` reference table keyed by organisation/user/message. It stores channel identity and saved timestamp only; it never copies body, attachments, evidence excerpts or revisions. Saved reads materialise through the existing permission-aware message read model.
+
+Privacy decision: saved state belongs only to the saving user. No owner/admin/executive/audit override exposes another user's saves. Current channel access is rechecked on every read.
+
+Revocation decision: access loss hides the saved item immediately but does not need to delete the content-free reference. If access is later restored and the message still exists, the private saved reference may reappear. This preserves user intent without retaining message content.
+
+Lifecycle decision: edits preserve the save because message identity is stable. Retraction deletes all saves for that message in the same lifecycle transaction, so no personal list points to a tombstone.
+
+Concurrency/idempotency: unique user/message storage plus IntegrityError recovery makes repeated/concurrent save requests converge to one row. Unsave is idempotent.
+
+Scope decision: S-10.16 covers Brain-native channel roots and thread replies only. DM saves are explicit later scope because private-message retention/privacy semantics are separate.
+
+UI decision: add a personal Saved surface to the workspace and Save/Unsave actions on visible channel roots/replies. Opening a saved reply reuses the existing exact message/thread navigation path.
+
+Audit decision: save/unsave is private personal metadata, not a governance/security event, so it must not create organisation-wide SecurityAuditEvent history.
+
+Migration/rollback: migration `20260919_0033` adds/drops only saved-reference rows and changes no message/evidence/audit content.
+
+Open questions: none changes this repository slice. Reminders/due dates, notes on saved items, DM saves, bulk actions and automatic task creation are later features.
+
+Leading indicators: cross-user saved-state leakage = 0; revoked-content leakage = 0; duplicate save rows = 0; saved-to-open success rate.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires PostgreSQL migration round-trip, focused privacy/idempotency/revoke/retract tests, frontend lint/build/source contracts, verifier and authenticated WorkOS multi-user Saved UAT.
+
+## Increment 33 readiness record — S-10.17.01
+
+Decision: `READY` for repository implementation on 2026-09-19; board WIP is zero before pull.
+
+Problem and baseline: Brain already stores a monotonic per-user/channel read cursor and unread count, but the workspace immediately marks the selected channel read and gives the user no durable visual boundary showing where unread activity began. Users must visually rescan the conversation, and old/thread unread targets can sit outside the initially rendered root-message window.
+
+AI decision: AI is not needed. First-unread location is deterministic sequence, authorization and UI-navigation state.
+
+Architecture decision: extend the existing unread summary with one permission-safe `first_unread_message_id`. Compute count plus first unread in one bounded set-based query over all visible channels, retaining the existing bounded read-state/latest-message queries and avoiding N+1 work. Do not create a new unread table, cache, index or migration. The client captures the initial boundary for the open channel before its existing mark-read refresh can erase server unread state. If the target is not already rendered, reuse the exact permission-aware message read through the existing same-origin message route; a reply opens its owning thread.
+
+Authority/privacy: unread computation keeps the existing rules: current tenant/channel visibility, non-retracted messages only and own human-authored messages excluded. Exact jump recovery revalidates current organisation membership in the BFF and current channel visibility in the backend. Restricted-channel revocation fails closed. No message body is added to unread summaries.
+
+Lifecycle semantics: message retraction already removes the message from unread counts. If a captured target is later observed as retracted, the client clears the stale boundary rather than presenting a deleted item as unread. Edits keep message identity and therefore keep the boundary valid.
+
+Browser/security boundary: browser requests remain same-origin with WorkOS session validation; no reusable backend bearer token is exposed. The GET method added to the existing message lifecycle route is read-only and uses the current permission-aware backend message read.
+
+Performance boundary: unread summary remains set-based across all visible channels. No per-channel lookup loop may be introduced. Jump recovery performs network work only when the exact unread target is not already present in the DOM.
+
+Open questions: none changes this slice. Direct-message unread boundaries, independent per-thread cursors, unread-history analytics, push/mobile notification behaviour and infinite-history pagination are explicit non-scope rather than invented behaviour.
+
+Dependencies: S-10.06.01 provides monotonic read state; S-10.10.01 provides refresh behaviour; S-10.11.01 provides exact message identity/navigation; S-10.12.01 provides retraction semantics; S-10.04 remains the external authenticated-browser gate. These contracts are implementation-staged even though final executable acceptance remains pending.
+
+Leading indicators: jump reaches the exact first unread target; unauthorised/retracted target exposure = 0; unread summary stays bounded with zero N+1 queries; divider count per open channel = at most one.
+
+Rollback: remove the added summary field, GET BFF handler/template method and divider/jump UI. No schema or persisted read/message/evidence state changes, so there is no data rollback.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires focused backend unread/revocation/retraction tests, frontend source-contract tests/build, delivery verifier, and authenticated WorkOS multi-user root/thread/old-window/revocation UAT.
+
+## Increment 34 readiness record — S-10.18.01
+
+Decision: `READY` for repository implementation on 2026-09-19; board WIP was zero before pull.
+
+Problem and baseline: Brain DMs already have participant-only visibility epochs and monotonic message sequences, but no per-participant read cursor, unread badge, first-unread identity or resume action. Channel unread state cannot be reused because DM access is pair-private and reactivation intentionally starts a new visibility epoch.
+
+AI decision: AI is not needed. This is deterministic participant state, sequence arithmetic, authorization and UI.
+
+Architecture decision: extend `DirectConversation` with one last-read sequence per participant. Keep it inside the existing 1:1 conversation row rather than adding a generic read-state table. On new/reactivated visibility, set the participant read cursor immediately before that participant's visible floor. Compute unread count/first unread/latest visible message from `DirectMessage.sequence` with bounded set-based queries over the current user's visible conversations. Own messages never count as unread.
+
+Privacy/authority: only a current active participant with DM permission can list unread state, read an exact message or mark read. Owner/Admin/Executive status alone gives no access. The route/API returns IDs/counts only beyond the already-authorised message representation; it creates no organisation-wide audit/history.
+
+Epoch safety: read cursors are clamped to the participant visibility epoch. Revocation blocks the participant immediately. Re-initiation resets only the reactivated participant's cursor to `visible_from_sequence - 1`; earlier private history remains inaccessible and cannot become unread again.
+
+Browser/security: unread badges arrive in the existing server-rendered conversation list. The selected DM captures its initial first-unread ID before mark-read refresh. Exact recovery/read mutations use same-origin WorkOS routes, UUID validation and server-held bearer tokens only.
+
+Migration/rollback: migration `20260919_0034` adds two integer read-cursor columns, backfills each to `visible_from_sequence - 1`, adds sequence-bound checks and removes only those columns on downgrade. No DM content is deleted.
+
+Open questions: none changes this slice. Group DMs, push notifications, read receipts visible to the other participant and per-message "seen" indicators are separate social/privacy features and are not inferred.
+
+Leading indicators: unread count correctness, exact jump success, stale/backward read movement = 0, cross-participant unread leakage = 0, earlier-epoch unread resurrection = 0.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires PostgreSQL migration round-trip, focused epoch/revocation/monotonic tests, frontend source contracts/build, verifier and authenticated two-user WorkOS UAT.
+
+## Increment 35 readiness record — S-10.19.01
+
+Decision: `READY` for repository implementation on 2026-09-19; S-10.18 left implementation WIP first.
+
+Problem and baseline: native channels currently return only the latest bounded root-message window and DMs return only the latest bounded private-message window. Exact deep links can recover one old message, but users cannot browse normal older history. Timestamp/offset pagination would be unstable under concurrent sends and DM epoch changes.
+
+AI decision: AI is not needed. This is deterministic sequence-cursor retrieval and UI state.
+
+Architecture decision: reuse existing monotonic `NativeMessage.message_sequence` and `DirectMessage.sequence`. Add optional positive `before_sequence` query parameters to existing list endpoints. Each query orders by sequence descending, applies `sequence < before_sequence`, takes a bounded limit, then returns chronological order. No OFFSET scans, cache, new table or migration.
+
+Authorization: every page request executes the same current channel/participant authorization as the initial list. DM pages additionally enforce the participant's current `visible_from_sequence`; old epochs remain inaccessible. Restricted-channel or DM revocation fails closed on the next page request.
+
+Browser boundary: add authenticated same-origin GET handling to the existing channel and DM message routes. Client Load older controls request the sequence of the oldest currently rendered item, merge by message ID, sort by sequence, and stop when a page returns fewer than the requested page size. Existing first-unread/exact target/open-thread state is not reset.
+
+Performance: default client page size is 50; backend allows only bounded 1–200 channel roots and 1–200 DM messages for browser pagination. Sequence comparisons use existing conversation/channel sequence keys; no offset pagination or full-history transfer.
+
+Open questions: none changes this slice. Automatic infinite-scroll-on-observer, virtualised rendering and thread-reply pagination are explicit later optimisations; S-10.19 starts with an accessible explicit Load older control for channel roots and 1:1 DM messages.
+
+Rollback: remove query parameters, GET BFF handlers and Load older controls. No persisted state changed.
+
+Leading indicators: duplicate/gap count = 0; inaccessible historical page exposure = 0; successful load-older completion rate; bounded page size maintained.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires focused pagination/access tests, frontend source/build checks, verifier and authenticated long-history/revocation UAT.
+
+## Increment 36 readiness record — S-10.20.01
+
+Decision: `READY` for repository implementation on 2026-09-19; S-10.19 left implementation WIP first.
+
+Problem and baseline: participant-only DMs are immutable after send. Users cannot correct a typo or retract a mistaken private message. Reusing native-channel lifecycle wholesale would violate DM privacy because channel lifecycle creates organisation-wide evidence/audit semantics that OQ-008 explicitly forbids for DMs.
+
+AI decision: AI is not needed. This is deterministic author authority, optimistic concurrency and private retention.
+
+Architecture decision: extend `DirectMessage` with monotonic `revision`, `edited_at` and `deleted_at`. Add append-only `DirectMessageRevision` rows scoped to the original private message. Before every accepted edit/retract, snapshot the prior body/hash/length/revision. Do not create RawEvent, CanonicalEvent, SearchDocument, Work Graph or SecurityAuditEvent records.
+
+Authority: only the original author may edit/retract, and only while they are a current authorised participant who can still see that message in their current visibility epoch. Owner/Admin/Executive role alone gives no override. A reactivated participant cannot mutate an old hidden message.
+
+Concurrency: request carries `expected_revision`; service locks the message where supported and returns conflict on mismatch. Successful edit/retract increments exactly once.
+
+Retraction: current participant reads return a tombstone with empty body/hash and no edit/retract affordance. The private row retains internal plaintext only until the existing `private_message_days` policy purges it; revision rows cascade with the private message. Legal hold already blocks that purge. Retracted messages are excluded from DM unread/latest/first-unread summaries.
+
+Browser/security: same-origin WorkOS PATCH/DELETE routes validate bounded JSON, UUIDs and expected revision; reusable bearer tokens stay server-side.
+
+Migration/rollback: migration `20260919_0035` adds lifecycle columns, private revision table and scoped constraints. Downgrade is a maintenance rollback: removing `deleted_at` would make retracted stored bodies visible again to old code, so rollback requires draining traffic/backup and deploying pre-lifecycle code only with explicit acceptance of that semantic loss.
+
+Open questions: none changes this slice because OQ-008 already fixes participant-only privacy, no privileged content override and private-message retention. Edit time windows, moderator overrides, DM attachments/reactions and hard-delete/eDiscovery workflows remain separate product decisions.
+
+Leading indicators: unauthorised mutation = 0; stale overwrite = 0; retracted body exposure = 0; organisation-wide DM lifecycle evidence/audit rows = 0.
+
+Done boundary: repository implementation may reach `IN_REVIEW`. DONE requires PostgreSQL migration round-trip, concurrency/privacy/retention tests, frontend build/source contracts, verifier and authenticated two-user WorkOS lifecycle UAT.
+
+## Increment 37 readiness record — S-10.21.01
+
+Decision: `READY` for repository implementation on 2026-09-20; board WIP was zero before pull.
+
+Baseline: root/channel history now has stable sequence paging, but `list_thread_replies` still returns only a bounded first/recent set with no cursor. The thread panel refresh replaces the reply list, so any future loaded history would be lost.
+
+Architecture: reuse `NativeMessage.message_sequence`; add optional positive `before_sequence` to the existing reply GET, query the exact `thread_root_id`, order descending/limit/reverse, and expose a bounded same-origin BFF GET. Client maintains a contiguous thread-history cursor, merges by message ID/sequence, and merges live refresh rather than replacing history.
+
+Security: every page reuses `visible_message` root/channel authorization. Revoked/hidden channel access fails closed. A retracted root remains readable only under the existing S-10.12 tombstone contract so historical replies can survive; posting remains disabled. No schema or content copy is needed.
+
+Rollback: remove the cursor query parameter and Load older replies state; no persisted data changes.
+
+Done boundary: source implementation may reach IN_REVIEW. DONE still needs executable backend/frontend/verifier evidence plus authenticated long-thread/revocation UAT.
+
+## Increment 38 readiness record — S-10.22.01
+
+Decision: `READY` for repository implementation on 2026-09-20; S-10.21 left implementation WIP first.
+
+Baseline: channel read state is monotonic but global to the channel. Opening a channel can therefore clear channel unread while a user still has unread replies in specific threads. Thread history already has stable sequence paging, so an independent thread cursor can reuse the same message sequence safely.
+
+Architecture: add `NativeThreadReadState` keyed by organisation/channel/root/user with last-read message ID/sequence/time. State is created when a user opens a visible thread; until then the root has no personal thread-unread badge. Set-based root summaries return unread count, latest reply ID and first unread reply ID only for roots with an existing personal state. Current-user replies and retracted replies do not count. Mark-read validates that the through-message is the root or one of its replies and advances monotonically.
+
+UI: root reply affordance shows thread unread count; opening captures the root's first-unread reply, loads/paginates replies, then advances the persisted thread cursor through the latest reply. The mounted pane preserves one New replies divider/Jump to unread boundary for that open session.
+
+Security/rollback: current channel visibility is rechecked on every summary/read action. Restricted revocation immediately removes access. Migration adds only thread read-state rows; downgrade drops only that table.
+
+Done boundary: repository implementation may reach IN_REVIEW. DONE requires PostgreSQL migration round-trip, backend/frontend/verifier execution and authenticated two-user thread unread/revocation UAT.
+
+## Increment 39 readiness record — S-10.23.01
+
+Decision: `READY` for repository implementation on 2026-09-20; S-10.22 left implementation WIP first.
+
+Baseline: channel reactions already provide a proven five-reaction/idempotent UX, but DMs intentionally use separate participant-private persistence and cannot reuse channel reaction tables or organisation-wide activity/audit semantics.
+
+Architecture: add `DirectMessageReaction` scoped by organisation/conversation/message/user with the same allowlist (👍 ❤️ 🎉 👀 ✅), unique message/user/reaction and cascade from the private DM message. Batch reaction aggregates are materialised into DM read models as count + reacted-by-me only; participant identity lists are never returned. Add/remove validates current DM participation and current visibility epoch through the existing participant message read path and rejects retracted messages.
+
+Privacy: normal private reaction changes create no RawEvent, CanonicalEvent, SearchDocument, Work Graph, Activity item or organisation-wide SecurityAuditEvent. Owner/Admin/Executive status alone grants no access. Retraction/private-message retention removes reaction rows by cascade.
+
+Browser/security: bounded same-origin WorkOS PUT/DELETE route with allow-list validation and server-held bearer token only.
+
+Migration/rollback: migration `20260920_0037` adds only private reaction rows; downgrade removes only those rows/table and changes no DM content.
+
+Done boundary: repository implementation may reach IN_REVIEW. DONE requires PostgreSQL migration round-trip, privacy/idempotency tests, frontend execution/verifier and authenticated two-user WorkOS UAT.
+
+## Increment 40 readiness record — S-10.24.01
+
+Decision: `READY` for repository implementation on 2026-09-20; board WIP was zero before pull.
+
+Problem evidence: the product requirement is Workspace → Teams → channel groups → channels/DMs, but the current production sidebar renders one flat Brain channels section. Native channel ACLs already work and must not be weakened by navigation hierarchy.
+
+Architecture: add organisation-scoped `NativeTeam` metadata with unique slug, active/archived lifecycle and optimistic `revision`. Team metadata is navigation-only. Listing a Team never grants channel, evidence, Search, Work Graph or DM access. Existing channel list remains authoritative and unassigned until S-10.25 introduces explicit navigation references.
+
+Authority: current native-chat writers may create Teams. Team creator or organisation Owner/Admin may edit/archive/restore. This reuses the existing channel-manager authority pattern rather than inventing a broader role. Team visibility itself is organisation metadata; it contains no private source/body/participant data.
+
+Ambiguities: OQ-009 records that team/group membership does not currently inherit restricted-channel access. OQ-010 keeps participant-private DMs outside shared containers until a privacy-safe rule is explicitly accepted.
+
+Rollback: migration removes only Team rows/table; no channel/message/evidence/DM row is changed.
+
+Done boundary: repository implementation may reach IN_REVIEW. DONE requires PostgreSQL migration round-trip, focused backend/frontend/verifier execution and authenticated member/creator/Admin/tenant UAT.
+
+## Increment 41 readiness record — S-10.25.01
+
+Decision: `READY` for repository implementation on 2026-09-20; S-10.24 left implementation WIP first.
+
+Baseline: Teams now exist as navigation-only organisation metadata, but every visible channel still sits in the Unassigned fallback. The original product hierarchy needs Team → channel group → channel nesting.
+
+Architecture: add revisioned `NativeChannelGroup` rows scoped to one Team plus nullable navigation references on `NativeChannel` (`team_id`, `channel_group_id`). These references are not read by `can_read_channel`, `can_write_channel`, Search/evidence ACL code or direct-message code. Group list/navigation must materialise only channels already returned by the existing permission-aware channel list.
+
+Authority: Team creator or Owner/Admin manages groups. Channel assignment additionally requires existing channel-manager authority (channel creator or Owner/Admin). Assignment to a group requires an active same-organisation Team/group pair. Unassigning is allowed by the same channel authority.
+
+Archive behavior: an archived group is removed from active nested navigation; its visible channels fall back to that Team's Ungrouped section. An archived Team causes its channels to fall back to global Unassigned channels until restored. No content or permission row is changed.
+
+Security invariants: OQ-009 remains authoritative—navigation hierarchy never grants access. OQ-010 keeps DMs separate. Hidden restricted channels are never enumerated through Team/group reads; hierarchy is composed in the frontend from the already-authorised channel list.
+
+Rollback: drop channel navigation FKs/columns and group table only; no channel/message/evidence/DM data is deleted.
+
+Done boundary: repository implementation may reach IN_REVIEW. DONE requires PostgreSQL migration round-trip, ACL-invariance/tenant/archive backend tests, frontend/verifier execution and authenticated hierarchy UAT.
+
+## Increment 42 readiness record — S-10.26.01
+
+Decision: `READY` for repository implementation on 2026-09-20; S-10.25 left implementation WIP first.
+
+Baseline: native channels already store name/slug/description/status/archive timestamp and restricted member access, but the production workspace only creates channels, invites/removes restricted members and cannot safely edit channel identity, archive/restore a channel or change an existing member between read/write. Existing message lifecycle and evidence projections must not be rewritten by channel settings.
+
+Architecture: add optimistic `settings_revision` to `NativeChannel`. Settings mutation locks the channel, verifies creator-or-Owner/Admin authority and expected revision, edits only name/slug/description/status/settings timestamps plus current Work Graph track display metadata. Historical RawEvent/CanonicalEvent/SearchDocument/message revisions remain immutable. Visibility conversion between organisation/restricted is explicitly rejected/not exposed.
+
+Archive behavior: archive makes the channel read-only through the existing `can_write_channel` status check and removes it from the normal active list. A separate permission-filtered archived-channel read surface lets authorised managers restore it. Archive does not revoke current readers, delete content, remove evidence grants or modify Team/group placement.
+
+Restricted member access: existing `upsert_channel_member` already updates the membership access level and propagates matching Work Graph/evidence ResourceGrant access. S-10.26 exposes that existing PUT path through the reviewed BFF/UI rather than inventing a second permission implementation.
+
+Rollback: drop `settings_revision` only. Existing name/description/status/archive fields remain representable and no channel/message/evidence row is deleted.
+
+Done boundary: repository implementation may reach IN_REVIEW. DONE requires migration round-trip, rename/archive/grant-consistency/concurrency/backend tests, frontend/verifier execution and authenticated creator/Admin/member browser UAT.

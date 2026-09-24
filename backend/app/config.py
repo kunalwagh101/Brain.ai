@@ -36,10 +36,25 @@ class Settings(BaseSettings):
     embedding_model: str | None = None
     embedding_secret_ref: str | None = None
     embedding_timeout_seconds: float = 8.0
+    ai_provider_allowed_hosts: str = ""
+    ai_provider_timeout_seconds: float = 30.0
+    log_level: str = "INFO"
+    metrics_enabled: bool = True
+    metrics_bearer_token: str | None = None
+    otel_service_name: str = "brain-api"
+    otel_exporter_otlp_endpoint: str | None = None
 
     @property
     def allowed_origins(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def allowed_ai_provider_hosts(self) -> set[str]:
+        return {
+            host.strip().lower()
+            for host in self.ai_provider_allowed_hosts.split(",")
+            if host.strip()
+        }
 
     @property
     def auth_audience(self) -> str | None:
@@ -79,6 +94,12 @@ class Settings(BaseSettings):
             )
         if self.embedding_timeout_seconds <= 0 or self.embedding_timeout_seconds > 30:
             raise ValueError("BRAIN_EMBEDDING_TIMEOUT_SECONDS must be > 0 and <= 30")
+        if self.ai_provider_timeout_seconds <= 0 or self.ai_provider_timeout_seconds > 120:
+            raise ValueError("BRAIN_AI_PROVIDER_TIMEOUT_SECONDS must be > 0 and <= 120")
+        if self.log_level.upper() not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
+            raise ValueError("BRAIN_LOG_LEVEL must be a standard logging level")
+        if not self.otel_service_name.strip():
+            raise ValueError("BRAIN_OTEL_SERVICE_NAME must not be empty")
 
         if self.environment.lower() == "production":
             if self.app_secret == "dev-only-change-me":
@@ -91,6 +112,14 @@ class Settings(BaseSettings):
                 raise ValueError("BRAIN_AWS_REGION is required in production")
             if not self.secrets_prefix.strip("/"):
                 raise ValueError("BRAIN_SECRETS_PREFIX must not be empty in production")
+            if self.metrics_enabled and not self.metrics_bearer_token:
+                raise ValueError(
+                    "BRAIN_METRICS_BEARER_TOKEN is required when metrics are enabled in production"
+                )
+            if self.otel_exporter_otlp_endpoint and not self.otel_exporter_otlp_endpoint.startswith(
+                "https://"
+            ):
+                raise ValueError("Production OTLP export must use HTTPS")
         return self
 
 

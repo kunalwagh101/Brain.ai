@@ -1,0 +1,198 @@
+.panel {
+  display: grid;
+  gap: 18px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.eyebrow {
+  margin: 0 0 5px;
+  color: #818b9a;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.header h2,
+.result h3 {
+  margin: 0;
+}
+
+.form {
+  display: grid;
+  gap: 10px;
+}
+
+.form label {
+  color: #aeb6c4;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.textarea,
+.select {
+  width: 100%;
+  border: 1px solid #343b49;
+  border-radius: 10px;
+  background: #11141b;
+  color: #eef1f7;
+  font: inherit;
+}
+
+.textarea {
+  min-height: 102px;
+  resize: vertical;
+  padding: 12px 13px;
+  line-height: 1.5;
+}
+
+.select {
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.textarea:focus-visible,
+.select:focus-visible,
+.button:focus-visible,
+.citation:focus-visible {
+  outline: 2px solid #8d82ff;
+  outline-offset: 2px;
+}
+
+.button {
+  justify-self: start;
+  min-height: 40px;
+  border: 0;
+  border-radius: 9px;
+  padding: 0 15px;
+  background: #6d5dfc;
+  color: #fff;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.button:disabled,
+.textarea:disabled,
+.select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.notice,
+.error,
+.insufficient {
+  margin: 0;
+  border-radius: 10px;
+  padding: 11px 12px;
+  color: #a4adba;
+  background: #12161e;
+  border: 1px solid #2f3541;
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.error {
+  color: #f1a3aa;
+  border-color: #6a3d43;
+  background: #26171a;
+}
+
+.insufficient strong {
+  color: #e7ebf2;
+}
+
+.result {
+  display: grid;
+  gap: 13px;
+  border-top: 1px solid #2b313c;
+  padding-top: 16px;
+}
+
+.answer {
+  margin: 0;
+  color: #dce2eb;
+  line-height: 1.65;
+}
+
+.claims {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.claims > li {
+  padding-left: 4px;
+  color: #d6dce6;
+}
+
+.claims p {
+  margin: 0 0 8px;
+  line-height: 1.55;
+}
+
+.citations {
+  display: grid;
+  gap: 7px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.citation {
+  border: 1px solid #303745;
+  border-radius: 9px;
+  background: #11151c;
+  overflow: hidden;
+}
+
+.citation summary {
+  cursor: pointer;
+  padding: 9px 11px;
+  color: #bfc7d3;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.citationBody {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid #2b313c;
+  padding: 10px 11px 12px;
+}
+
+.citationBody p {
+  color: #929cab;
+  font-size: 12px;
+}
+
+.provenance {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 5px 10px;
+  margin: 0;
+  font-size: 11px;
+}
+
+.provenance dt {
+  color: #778291;
+}
+
+.provenance dd {
+  min-width: 0;
+  margin: 0;
+  color: #aeb7c5;
+  overflow-wrap: anywhere;
+}
+
+.uncertainty {
+  margin: 0;
+  color: #a9b2bf;
+  font-size: 12px;
+}

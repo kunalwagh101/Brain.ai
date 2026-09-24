@@ -1,0 +1,52 @@
+services:
+  - type: web
+    name: brain-api-staging
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: increment-10-ai-provider-gateway
+    dockerfilePath: ./backend/Dockerfile.staging
+    dockerContext: ./backend
+    dockerCommand: >-
+      /bin/sh -c 'set -eu; alembic upgrade head; BRAIN_TEST_DATABASE_URL="${BRAIN_DATABASE_URL}" python run_acceptance_chain.py --require-postgres --report /tmp/brain-acceptance-postgres.json; exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000} --proxy-headers'
+    healthCheckPath: /health/ready
+    envVars:
+      - key: BRAIN_ENVIRONMENT
+        value: production
+      - key: BRAIN_DATABASE_URL
+        fromDatabase:
+          name: brain-staging-db
+          property: connectionString
+      - key: BRAIN_CORS_ORIGINS
+        sync: false
+      - key: BRAIN_APP_SECRET
+        generateValue: true
+      - key: BRAIN_WORKOS_CLIENT_ID
+        sync: false
+      - key: BRAIN_AWS_REGION
+        sync: false
+      - key: BRAIN_SECRETS_PREFIX
+        value: brain
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: BRAIN_AI_PROVIDER_ALLOWED_HOSTS
+        value: api.openai.com
+      - key: BRAIN_AI_PROVIDER_TIMEOUT_SECONDS
+        value: "30"
+      - key: BRAIN_METRICS_ENABLED
+        value: "true"
+      - key: BRAIN_METRICS_BEARER_TOKEN
+        generateValue: true
+      - key: BRAIN_LOG_LEVEL
+        value: INFO
+      - key: BRAIN_OTEL_SERVICE_NAME
+        value: brain-api-staging
+
+databases:
+  - name: brain-staging-db
+    plan: free
+    region: singapore
+    databaseName: brain
+    user: brain

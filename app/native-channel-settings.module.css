@@ -1,0 +1,75 @@
+.settings,
+.archived {
+  margin: 0.7rem 0;
+  padding: 0.65rem;
+  border: 1px solid rgba(128, 128, 128, 0.28);
+  border-radius: 0.7rem;
+}
+
+.settings > summary,
+.archived > summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.settings form,
+.archived > div {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.65rem;
+}
+
+.settings label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.settings input {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+}
+
+.settings form > div {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.settings p {
+  margin: 0;
+  font-size: 0.78rem;
+  opacity: 0.8;
+}
+
+.archived article {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.45rem 0;
+}
+
+.archived article span {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.archived article small {
+  opacity: 0.72;
+}
+
+.error {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+}
+
+.settings button:focus-visible,
+.settings input:focus-visible,
+.settings summary:focus-visible,
+.archived button:focus-visible,
+.archived summary:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}

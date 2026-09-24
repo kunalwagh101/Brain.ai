@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import Membership, MembershipRole, ResourceAccessLevel, ResourceGrant, User
+from app.observability import bind_organization_context
 from app.security_audit import audit_authorization_decision
 
 
@@ -22,7 +23,13 @@ class Permission(StrEnum):
     RESOURCE_ACL_MANAGE = "resource_acl.manage"
     INTEGRATION_MANAGE = "integration.manage"
     IDENTITY_MANAGE = "identity.manage"
+    NATIVE_CHAT_WRITE = "native_chat.write"
     AI_USE = "ai.use"
+    AI_MANAGE = "ai.manage"
+    AGENT_USE = "agent.use"
+    AGENT_MANAGE = "agent.manage"
+    API_MANAGE = "api.manage"
+    DATA_GOVERNANCE_MANAGE = "data_governance.manage"
     AUDIT_READ = "audit.read"
 
 
@@ -36,7 +43,9 @@ ROLE_PERMISSIONS: dict[MembershipRole, frozenset[Permission]] = {
             Permission.ORGANIZATION_READ,
             Permission.MEMBERSHIP_READ,
             Permission.RESOURCE_READ,
+            Permission.NATIVE_CHAT_WRITE,
             Permission.AI_USE,
+            Permission.AGENT_USE,
             Permission.AUDIT_READ,
         }
     ),
@@ -46,7 +55,9 @@ ROLE_PERMISSIONS: dict[MembershipRole, frozenset[Permission]] = {
             Permission.MEMBERSHIP_READ,
             Permission.RESOURCE_READ,
             Permission.RESOURCE_WRITE,
+            Permission.NATIVE_CHAT_WRITE,
             Permission.AI_USE,
+            Permission.AGENT_USE,
         }
     ),
     MembershipRole.MEMBER: frozenset(
@@ -55,7 +66,9 @@ ROLE_PERMISSIONS: dict[MembershipRole, frozenset[Permission]] = {
             Permission.MEMBERSHIP_READ,
             Permission.RESOURCE_READ,
             Permission.RESOURCE_WRITE,
+            Permission.NATIVE_CHAT_WRITE,
             Permission.AI_USE,
+            Permission.AGENT_USE,
         }
     ),
     MembershipRole.GUEST: frozenset(
@@ -85,6 +98,7 @@ def authorize_organization(
     user: User,
     permission: Permission,
 ) -> AuthorizationContext:
+    bind_organization_context(organization_id)
     if user.status != "active":
         audit_authorization_decision(
             allowed=False,
@@ -92,6 +106,7 @@ def authorize_organization(
             actor_user_id=user.id,
             permission=permission.value,
             reason="inactive_user",
+            db=db,
         )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
 
@@ -108,6 +123,7 @@ def authorize_organization(
             actor_user_id=user.id,
             permission=permission.value,
             reason="not_a_member",
+            db=db,
         )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
 
@@ -118,6 +134,7 @@ def authorize_organization(
             actor_user_id=user.id,
             permission=permission.value,
             reason="role_denied",
+            db=db,
         )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
 
@@ -127,6 +144,7 @@ def authorize_organization(
         actor_user_id=user.id,
         permission=permission.value,
         reason="role_allowed",
+        db=db,
     )
     return AuthorizationContext(
         organization_id=organization_id,
@@ -198,6 +216,7 @@ def authorize_resource(
             reason="missing_resource_grant",
             resource_type=resource_type,
             resource_id=resource_id,
+            db=db,
         )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
 
@@ -209,6 +228,7 @@ def authorize_resource(
         reason="resource_grant_allowed",
         resource_type=resource_type,
         resource_id=resource_id,
+        db=db,
     )
     return context
 

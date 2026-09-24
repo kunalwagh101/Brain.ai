@@ -1,0 +1,70 @@
+import { withAuth } from "@workos-inc/authkit-nextjs";
+import { NextRequest, NextResponse } from "next/server";
+import { AdminCenterBffError, handleAdminCenterAction } from "../../../../../../admin-center-bff";
+import { BrainApiError } from "../../../../../../brain-api";
+
+// Large enough for bounded JSON credentials such as PEM/service-account material,
+// while still preventing an admin mutation route from becoming an unbounded body sink.
+const MAX_BODY_BYTES = 32 * 1024;
+const SAFE_UPSTREAM_STATUSES = new Set([400, 401, 403, 404, 409, 413, 415, 422, 429, 503]);
+
+function json(body: object, status: number) {
+  return NextResponse.json(body, {
+    status,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
+
+function requireSameOrigin(request: NextRequest) {
+  const fetchSite = request.headers.get("sec-fetch-site")?.toLowerCase();
+  if (fetchSite === "cross-site") {
+    throw new AdminCenterBffError(403, "Cross-site admin mutation denied");
+  }
+  const origin = request.headers.get("origin");
+  if (origin && origin !== request.nextUrl.origin) {
+    throw new AdminCenterBffError(403, "Cross-origin admin mutation denied");
+  }
+}
+
+async function readJson(request: NextRequest): Promise<unknown> {
+  requireSameOrigin(request);
+  const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+  if (!contentType.startsWith("application/json")) {
+    throw new AdminCenterBffError(415, "Content-Type must be application/json");
+  }
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+    throw new AdminCenterBffError(413, "Request body is too large");
+  }
+  const raw = await request.text();
+  if (new TextEncoder().encode(raw).byteLength > MAX_BODY_BYTES) {
+    throw new AdminCenterBffError(413, "Request body is too large");
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new AdminCenterBffError(400, "Request body must be valid JSON");
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ organizationId: string }> },
+) {
+  const auth = await withAuth();
+  if (!auth.user || !auth.accessToken) return json({ detail: "Authentication required" }, 401);
+  try {
+    const { organizationId } = await context.params;
+    await handleAdminCenterAction(auth.accessToken, organizationId, await readJson(request));
+    return json({ ok: true }, 200);
+  } catch (error) {
+    if (error instanceof AdminCenterBffError) {
+      return json({ detail: "Invalid admin action" }, error.status);
+    }
+    if (error instanceof BrainApiError) {
+      const status = SAFE_UPSTREAM_STATUSES.has(error.status) ? error.status : 502;
+      return json({ detail: "Brain admin action failed safely" }, status);
+    }
+    return json({ detail: "Brain admin action failed safely" }, 500);
+  }
+}

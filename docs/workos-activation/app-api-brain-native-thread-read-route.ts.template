@@ -1,0 +1,37 @@
+import { withAuth } from "@workos-inc/authkit-nextjs";
+import { NextRequest } from "next/server";
+import { handleNativeThreadReadBff } from "../../../../../../../../../native-chat-bff";
+import {
+  nativeChatJson,
+  nativeChatRouteError,
+  readNativeChatJson,
+  rejectCrossSiteMutation,
+} from "../../../../../../../../../native-chat-route";
+
+type Params = Promise<{
+  organizationId: string;
+  channelId: string;
+  rootMessageId: string;
+}>;
+
+export async function POST(request: NextRequest, context: { params: Params }) {
+  const crossSite = rejectCrossSiteMutation(request);
+  if (crossSite) return crossSite;
+  const auth = await withAuth();
+  if (!auth.user || !auth.accessToken) {
+    return nativeChatJson({ detail: "Authentication required" }, 401);
+  }
+  try {
+    const { organizationId, channelId, rootMessageId } = await context.params;
+    const result = await handleNativeThreadReadBff(
+      auth.accessToken,
+      organizationId,
+      channelId,
+      rootMessageId,
+      await readNativeChatJson(request, 2 * 1024),
+    );
+    return nativeChatJson(result, 200);
+  } catch (error) {
+    return nativeChatRouteError(error, "Native thread read request");
+  }
+}

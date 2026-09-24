@@ -1,8 +1,13 @@
+import logging
 from datetime import UTC, datetime
 
+from opentelemetry import trace
 from sqlalchemy.orm import Session
 
 from app.models import IntegrationConnection, IntegrationHealth, IntegrationStatus
+from app.observability import log_event, record_connector_sync
+
+logger = logging.getLogger("brain.connector")
 
 
 class IntegrationNotSyncableError(RuntimeError):
@@ -22,6 +27,34 @@ def ensure_connection_can_sync(connection: IntegrationConnection) -> None:
         raise IntegrationNotSyncableError("Integration connection is not active")
 
 
+def _emit_sync_telemetry(
+    connection: IntegrationConnection,
+    *,
+    succeeded: bool,
+    error_code: str | None,
+) -> None:
+    record_connector_sync(provider=connection.provider, succeeded=succeeded)
+    log_event(
+        logger,
+        logging.INFO if succeeded else logging.ERROR,
+        "connector.sync.succeeded" if succeeded else "connector.sync.failed",
+        organization_id=connection.organization_id,
+        integration_id=connection.id,
+        provider=connection.provider,
+        error_code=error_code,
+    )
+    span = trace.get_current_span()
+    if span.get_span_context().is_valid:
+        span.add_event(
+            "connector.sync.succeeded" if succeeded else "connector.sync.failed",
+            {
+                "brain.integration_id": str(connection.id),
+                "brain.provider": connection.provider,
+                "brain.error_code": error_code or "",
+            },
+        )
+
+
 def record_sync_success(
     db: Session,
     connection: IntegrationConnection,
@@ -35,6 +68,7 @@ def record_sync_success(
     connection.last_error_code = None
     db.commit()
     db.refresh(connection)
+    _emit_sync_telemetry(connection, succeeded=True, error_code=None)
     return connection
 
 
@@ -52,4 +86,5 @@ def record_sync_failure(
     connection.last_error_code = normalized
     db.commit()
     db.refresh(connection)
+    _emit_sync_telemetry(connection, succeeded=False, error_code=normalized)
     return connection

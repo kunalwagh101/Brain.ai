@@ -1,0 +1,9 @@
+import { authkitProxy } from "@workos-inc/authkit-nextjs";
+
+export default authkitProxy();
+
+// Keep the matcher narrow. AuthKit must run where withAuth() is used, but static
+// assets must not be intercepted by a broad catch-all proxy.
+export const config = {
+  matcher: ["/", "/api/brain/:path*", "/sign-in", "/auth/callback"],
+};

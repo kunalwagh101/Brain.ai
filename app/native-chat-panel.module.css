@@ -1,0 +1,1100 @@
+.chat {
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+  border: 1px solid #2a303b;
+  border-radius: 12px;
+  background: #11151c;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #292f3a;
+}
+
+.header h2,
+.header p {
+  margin-top: 0;
+}
+
+.header h2 {
+  margin-bottom: 5px;
+}
+
+.header p:last-child {
+  margin-bottom: 0;
+  color: #8d97a5;
+}
+
+.eyebrow {
+  margin: 0 0 3px;
+  color: #747e8d;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.channelMeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.channelMeta span,
+.agentBadge,
+.projection {
+  border: 1px solid #39404c;
+  border-radius: 999px;
+  padding: 4px 7px;
+  color: #9da6b4;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.pinsButton,
+.jumpUnreadButton {
+  min-height: 26px;
+  border: 1px solid #4a456f;
+  border-radius: 999px;
+  background: #211f38;
+  color: #c4befd;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pinsButton:hover,
+.pinsButton:focus-visible,
+.jumpUnreadButton:hover,
+.jumpUnreadButton:focus-visible {
+  border-color: #8075f0;
+  color: #fff;
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+}
+
+.jumpUnreadButton {
+  border: 1px solid #6b5b35;
+  border-radius: 999px;
+  background: #2a2317;
+  color: #f1cb83;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.firstUnreadDivider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 18px 5px;
+  color: #f0b85d;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  scroll-margin-block: 5rem;
+}
+
+.firstUnreadDivider::before,
+.firstUnreadDivider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #7b5930;
+}
+
+.firstUnreadDivider:focus-visible {
+  outline: 2px solid #d9a24e;
+  outline-offset: -2px;
+}
+
+.agentBadge {
+  border-color: #514993;
+  color: #b8afff;
+}
+
+.channelCreate {
+  padding: 12px 16px;
+  border-bottom: 1px solid #292f3a;
+  background: #0f131a;
+}
+
+.channelCreate > button,
+.channelCreate form > button {
+  border: 1px solid #3d4554;
+  border-radius: 8px;
+  background: #252b38;
+  color: #edf0f5;
+  padding: 7px 11px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.channelCreate > button:focus-visible,
+.channelCreate form > button:focus-visible {
+  outline: 2px solid #5148a8;
+  outline-offset: 2px;
+}
+
+.channelCreate form {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr 1fr auto;
+  align-items: end;
+  gap: 9px;
+  margin-top: 10px;
+}
+
+.channelCreate label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #909aa8;
+  font-size: 10px;
+}
+
+.channelCreate input,
+.channelCreate select {
+  min-width: 0;
+  min-height: 36px;
+  border: 1px solid #343b48;
+  border-radius: 8px;
+  background: #151a22;
+  color: #edf0f5;
+  padding: 7px 9px;
+  font: inherit;
+}
+
+.channelCreate input:focus-visible,
+.channelCreate select:focus-visible {
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+  border-color: #776bf7;
+}
+
+.loadOlder {
+  align-self: center;
+  margin: 6px 12px 10px;
+  border: 1px solid #3b4350;
+  border-radius: 999px;
+  background: #181d26;
+  color: #aeb6c2;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.loadOlder:hover,
+.loadOlder:focus-visible {
+  border-color: #7469e8;
+  color: #fff;
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+}
+
+.loadOlder:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+.feed {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0;
+  max-height: 620px;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.pinsPanel {
+  border-bottom: 1px solid #292f3a;
+  background: #0f131a;
+  padding: 12px 16px;
+}
+
+.pinsPanel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+
+.pinsPanel h3,
+.pinsPanel p {
+  margin: 0;
+}
+
+.pinsPanel > header > span {
+  min-width: 26px;
+  border: 1px solid #3c4350;
+  border-radius: 999px;
+  color: #9ca5b2;
+  padding: 3px 7px;
+  text-align: center;
+  font-size: 9px;
+}
+
+.pinList {
+  display: grid;
+  gap: 7px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.pinList article {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border: 1px solid #303744;
+  border-radius: 8px;
+  background: #121720;
+}
+
+.pinList article > div:first-child {
+  min-width: 0;
+}
+
+.pinList strong {
+  display: block;
+  color: #dfe4eb;
+  font-size: 11px;
+}
+
+.pinList small {
+  display: block;
+  margin-top: 2px;
+  color: #788291;
+  font-size: 9px;
+}
+
+.pinList p {
+  margin-top: 5px;
+  color: #aeb6c2;
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pinList article > div:last-child {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.pinList button {
+  min-height: 29px;
+  border: 1px solid #3a4250;
+  border-radius: 7px;
+  background: #181d26;
+  color: #bbc3ce;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.pinList button:hover,
+.pinList button:focus-visible {
+  border-color: #7469e8;
+  color: #fff;
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+}
+
+.pinList button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.pinsEmpty {
+  color: #788291;
+  font-size: 10px;
+}
+
+.conversation {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 520px;
+}
+
+.conversation[data-thread-open="true"] {
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 42%);
+}
+
+.channelPane,
+.threadPane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.channelPane .feed,
+.threadFeed {
+  min-height: 280px;
+}
+
+.message {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 18px;
+}
+
+.message:hover {
+  background: #151a22;
+}
+
+.messageContent {
+  min-width: 0;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #29303d;
+  color: #d8dde5;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.avatar[data-agent="true"] {
+  background: #302b59;
+  color: #c9c2ff;
+}
+
+.messageMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.messageMeta strong {
+  color: #edf0f5;
+  font-size: 13px;
+}
+
+.messageMeta time {
+  color: #727c8b;
+  font-size: 10px;
+}
+
+.editedMarker {
+  color: #7f8998;
+  font-size: 10px;
+  font-style: italic;
+}
+
+.message[data-deleted="true"] {
+  opacity: .78;
+}
+
+.tombstone {
+  margin: 5px 0 0;
+  color: #7f8998;
+  font-style: italic;
+}
+
+.projection[data-status="failed"] {
+  border-color: #6a3f45;
+  color: #e6949c;
+}
+
+.body {
+  margin: 4px 0 0;
+  color: #c8ced7;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mention {
+  border-radius: 4px;
+  background: #343064;
+  color: #ddd9ff;
+  padding: 1px 3px;
+}
+
+.attachments {
+  display: grid;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.attachments > a {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 1px solid #303744;
+  border-radius: 9px;
+  background: #10151d;
+  color: #dce2ea;
+  text-decoration: none;
+}
+
+.attachments > a:hover,
+.attachments > a:focus-visible {
+  border-color: #645bd0;
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+}
+
+.attachments > a[data-unavailable="true"] {
+  opacity: .62;
+  cursor: default;
+}
+
+.attachments > a > span:nth-child(2) {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.attachments strong,
+.attachments small,
+.attachments em {
+  overflow-wrap: anywhere;
+}
+
+.attachments strong {
+  font-size: 11px;
+}
+
+.attachments small {
+  color: #7f8998;
+  font-size: 9px;
+}
+
+.attachments em {
+  color: #9891f4;
+  font-size: 9px;
+  font-style: normal;
+}
+
+.messageActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.messageActions button,
+.threadHeader button,
+.memberManager button {
+  min-height: 28px;
+  border: 1px solid #343b48;
+  border-radius: 7px;
+  background: #181d26;
+  color: #aeb6c2;
+  padding: 3px 7px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.messageActions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.messageActions button small {
+  color: inherit;
+  font-size: 10px;
+}
+
+.messageActions button:hover,
+.messageActions button:focus-visible,
+.threadHeader button:hover,
+.threadHeader button:focus-visible,
+.memberManager button:hover,
+.memberManager button:focus-visible {
+  border-color: #7469e8;
+  color: #fff;
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+}
+
+.messageActions button[data-active="true"] {
+  border-color: #645bd0;
+  background: #2b2850;
+  color: #e1ddff;
+}
+
+.messageActions button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.editForm {
+  display: grid;
+  gap: 7px;
+  margin-top: 6px;
+}
+
+.editForm label {
+  color: #8f99a7;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.editForm textarea {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  border: 1px solid #353c49;
+  border-radius: 8px;
+  background: #11161e;
+  color: #edf0f5;
+  padding: 9px;
+  font: inherit;
+  line-height: 1.45;
+}
+
+.editForm textarea:focus-visible {
+  border-color: #776bf7;
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+}
+
+.editForm > div,
+.retractConfirm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.editForm > div > span {
+  margin-right: auto;
+  color: #747e8d;
+  font-size: 10px;
+}
+
+.editForm button,
+.retractConfirm button {
+  min-height: 30px;
+  border: 1px solid #3a4250;
+  border-radius: 7px;
+  background: #181d26;
+  color: #c2c9d3;
+  padding: 4px 9px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.editForm button:focus-visible,
+.retractConfirm button:focus-visible {
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+}
+
+.retractConfirm {
+  margin-top: 8px;
+  padding: 8px 9px;
+  border: 1px solid #55373d;
+  border-radius: 8px;
+  background: #1a1215;
+}
+
+.retractConfirm span {
+  flex: 1 1 240px;
+  color: #d6b3b7;
+  font-size: 11px;
+}
+
+.lifecycleError {
+  margin: 7px 0 0;
+  color: #ef9aa2;
+  font-size: 11px;
+}
+
+.threadButton {
+  margin-left: 3px;
+  color: #a9a0ff !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+}
+
+.provenance {
+  margin-top: 7px;
+}
+
+.provenance summary {
+  cursor: pointer;
+  color: #788291;
+  font-size: 10px;
+}
+
+.provenance dl {
+  margin: 7px 0 0;
+  padding: 8px;
+  border: 1px solid #272d37;
+  border-radius: 8px;
+  background: #0d1117;
+}
+
+.provenance dl div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.provenance dt {
+  color: #747f8d;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.provenance dd {
+  min-width: 0;
+  margin: 0;
+  color: #aeb6c2;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 180px;
+  color: #7e8998;
+  text-align: center;
+}
+
+.empty strong {
+  color: #bac1cb;
+}
+
+.composer {
+  padding: 12px 16px 14px;
+  border-top: 1px solid #292f3a;
+  background: #0e1218;
+}
+
+.composer label {
+  display: block;
+  margin-bottom: 6px;
+  color: #8f99a7;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.composer textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 72px;
+  border: 1px solid #353c49;
+  border-radius: 9px;
+  background: #151a22;
+  color: #edf0f5;
+  padding: 10px;
+  font: inherit;
+  line-height: 1.45;
+}
+
+.composer textarea:focus-visible {
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+  border-color: #776bf7;
+}
+
+.composerFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.composer span {
+  color: #747e8d;
+  font-size: 10px;
+}
+
+.composerHint {
+  margin: 5px 0 0;
+  color: #747e8d;
+  font-size: 10px;
+}
+
+.typingStatus {
+  margin: 0;
+  padding: 5px 16px 0;
+  color: #9e97f2;
+  font-size: 10px;
+  min-height: 18px;
+}
+
+.pendingAttachments {
+  display: grid;
+  gap: 6px;
+  margin-top: 9px;
+  padding: 8px;
+  border: 1px solid #2f3643;
+  border-radius: 8px;
+  background: #11161e;
+}
+
+.pendingAttachments > span {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.pendingAttachments > span > span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #cbd2dc;
+}
+
+.pendingAttachments small {
+  color: #7f8998;
+  font-size: 9px;
+}
+
+.pendingAttachments p {
+  margin: 2px 0 0;
+  color: #747e8d;
+  font-size: 9px;
+}
+
+.attachButton {
+  position: relative;
+  display: inline-flex !important;
+  align-items: center;
+  margin: 0 !important;
+  min-height: 34px;
+  border: 1px solid #3a4250;
+  border-radius: 8px;
+  background: #181d26;
+  color: #c5ccd6 !important;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.attachButton:hover,
+.attachButton:focus-within {
+  border-color: #645bd0;
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+}
+
+.attachButton input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.attachButton:has(input:disabled) {
+  opacity: .5;
+  cursor: default;
+}
+
+.composer button {
+  border: 1px solid #6157ca;
+  border-radius: 8px;
+  background: #5148a8;
+  color: #fff;
+  padding: 7px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.composer button:disabled,
+.channelCreate form > button:disabled {
+  opacity: .5;
+  cursor: default;
+}
+
+.notice,
+.error {
+  margin: 12px 16px 14px;
+  padding: 11px 12px;
+  border: 1px solid #343b48;
+  border-radius: 8px;
+  background: #151a22;
+  color: #8f99a7;
+  line-height: 1.45;
+}
+
+.memberManager {
+  border-bottom: 1px solid #292f3a;
+  padding: 11px 16px;
+  background: #0f131a;
+}
+
+.memberManager > summary {
+  color: #aeb6c2;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.memberManager form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 150px auto;
+  align-items: end;
+  gap: 9px;
+  margin-top: 11px;
+}
+
+.memberManager label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #8f99a7;
+  font-size: 10px;
+}
+
+.memberManager input,
+.memberManager select {
+  min-height: 36px;
+  border: 1px solid #343b48;
+  border-radius: 7px;
+  background: #151a22;
+  color: #edf0f5;
+  padding: 6px 8px;
+  font: inherit;
+}
+
+.memberList {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.memberList > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 9px;
+  border: 1px solid #292f3a;
+  border-radius: 7px;
+}
+
+.memberList > div > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.memberList small {
+  color: #7f8998;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.threadPane {
+  max-height: 720px;
+  border-left: 1px solid #292f3a;
+  background: #0e1218;
+}
+
+.threadHeader {
+  min-height: 63px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #292f3a;
+}
+
+.threadHeader h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.threadHeader h3:focus { outline: none; }
+.threadHeader small { color: #7f8998; }
+.threadHeader button { min-width: 30px; font-size: 20px; }
+
+.threadFeed {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0 8px;
+}
+
+.threadFeed .message {
+  grid-template-columns: 32px minmax(0, 1fr);
+  padding-inline: 13px;
+}
+
+.threadFeed .avatar {
+  width: 30px;
+  height: 30px;
+}
+
+.replyDivider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 7px 13px;
+  color: #858f9e;
+  font-size: 10px;
+}
+
+.replyDivider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #2a303b;
+}
+
+.threadStatus {
+  padding: 10px 14px;
+  color: #7f8998;
+  font-size: 11px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 1100px) {
+  .conversation[data-thread-open="true"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .threadPane {
+    max-height: 620px;
+    border-top: 1px solid #292f3a;
+    border-left: 0;
+  }
+}
+
+.error {
+  border-color: #694148;
+  color: #e6a0a7;
+}
+
+@media (max-width: 900px) {
+  .channelCreate form {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .header {
+    flex-direction: column;
+  }
+
+  .channelMeta {
+    justify-content: flex-start;
+  }
+
+  .channelCreate form {
+    grid-template-columns: 1fr;
+  }
+
+  .memberManager form {
+    grid-template-columns: 1fr;
+  }
+
+  .message {
+    padding-inline: 12px;
+  }
+
+  .provenance dl div {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+.message:target {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+  scroll-margin-block: 5rem;
+}
+
+
+.threadHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.threadHeaderActions button {
+  border: 1px solid #3b4350;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  padding: 0.3rem 0.55rem;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.threadHeaderActions button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+
+.memberAccessActions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.memberAccessActions select {
+  min-height: 30px;
+  border: 1px solid currentColor;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.memberAccessActions select:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}

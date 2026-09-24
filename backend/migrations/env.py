@@ -3,8 +3,51 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from app import (
+    activity_models,
+    agent_models,
+    agent_workspace_models,
+    ai_gateway_models,
+    ai_usage_models,
+    api_registry_models,
+    collaboration_presence_models,
+    data_governance_models,
+    decision_memory_models,
+    direct_message_models,
+    evidence_models,
+    native_chat_models,
+    native_conversation_models,
+    native_workspace_models,
+    notification_models,
+    project_status_models,
+    search_models,
+    work_graph_models,
+)
 from app.config import get_settings
 from app.models import Base
+
+# These modules declare tables against the shared Base outside app.models. Keeping explicit
+# references here makes Alembic autogenerate/check compare the complete application schema.
+_MODEL_MODULES = (
+    activity_models,
+    agent_models,
+    agent_workspace_models,
+    ai_gateway_models,
+    ai_usage_models,
+    api_registry_models,
+    collaboration_presence_models,
+    data_governance_models,
+    decision_memory_models,
+    direct_message_models,
+    evidence_models,
+    native_chat_models,
+    native_conversation_models,
+    native_workspace_models,
+    notification_models,
+    project_status_models,
+    search_models,
+    work_graph_models,
+)
 
 config = context.config
 if config.config_file_name is not None:
@@ -13,12 +56,21 @@ if config.config_file_name is not None:
 config.set_main_option("sqlalchemy.url", get_settings().database_url)
 target_metadata = Base.metadata
 
+_MANUALLY_MANAGED_INDEXES = {"ix_search_documents_search_vector"}
+
+
+def _include_object(object_, name, type_, reflected, compare_to):  # noqa: ANN001, ANN202, ARG001
+    # Functional PostgreSQL indexes created with raw SQL are not represented in
+    # portable SQLAlchemy metadata. Keep Alembic from treating them as drift.
+    return not (type_ == "index" and reflected and name in _MANUALLY_MANAGED_INDEXES)
+
 
 def run_migrations_offline() -> None:
     context.configure(
         url=config.get_main_option("sqlalchemy.url"),
         target_metadata=target_metadata,
         literal_binds=True,
+        include_object=_include_object,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
     )
@@ -33,7 +85,12 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            include_object=_include_object,
+        )
         with context.begin_transaction():
             context.run_migrations()
 

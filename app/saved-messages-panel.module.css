@@ -1,0 +1,135 @@
+.saved {
+  border: 1px solid #2a303b;
+  border-radius: 12px;
+  background: #11151c;
+  overflow: hidden;
+}
+
+.saved > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #292f3a;
+}
+
+.saved > header p,
+.saved > header h2 {
+  margin: 0;
+}
+
+.saved > header p {
+  margin-bottom: 3px;
+  color: #747e8d;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.saved > header h2 {
+  color: #edf0f5;
+  font-size: 16px;
+}
+
+.saved > header > span {
+  border: 1px solid #39404c;
+  border-radius: 999px;
+  color: #a4adba;
+  padding: 3px 8px;
+  font-size: 10px;
+}
+
+.list {
+  display: grid;
+  gap: 0;
+}
+
+.list article {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #252b34;
+}
+
+.list article:last-child {
+  border-bottom: 0;
+}
+
+.list article > div:first-child {
+  min-width: 0;
+}
+
+.list small {
+  display: block;
+  margin-bottom: 4px;
+  color: #788291;
+  font-size: 9px;
+}
+
+.list strong {
+  color: #e0e5ec;
+  font-size: 12px;
+}
+
+.list p {
+  margin: 5px 0 0;
+  color: #aeb6c2;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.list article > div:last-child {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.list a,
+.list button {
+  min-height: 30px;
+  border: 1px solid #3a4250;
+  border-radius: 7px;
+  background: #181d26;
+  color: #c1c8d2;
+  padding: 5px 9px;
+  font: inherit;
+  font-size: 9px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.list a:hover,
+.list a:focus-visible,
+.list button:hover,
+.list button:focus-visible {
+  border-color: #7469e8;
+  color: #fff;
+  outline: 2px solid #5148a8;
+  outline-offset: 1px;
+}
+
+.list button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.empty {
+  margin: 0;
+  padding: 18px 16px;
+  color: #7f8998;
+  font-size: 11px;
+}
+
+.error {
+  margin: 0;
+  padding: 10px 16px;
+  border-top: 1px solid #55373d;
+  color: #ef9aa2;
+  font-size: 11px;
+}

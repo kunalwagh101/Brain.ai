@@ -17,12 +17,30 @@ Until both are recorded, external status is `UAT_PENDING` even if CI is green.
 | F-02.01 Integration Framework | DONE | PENDING | PENDING | UAT_PENDING |
 | F-02.02 Slack Connector | DONE | PENDING | PENDING | UAT_PENDING |
 | F-02.03 GitHub Connector | DONE | PENDING | PENDING | UAT_PENDING |
+| F-02.04 Meeting/Document Evidence | IN_REVIEW | PENDING | PENDING | UAT_PENDING |
 | F-03.01 Raw Event Ingestion | DONE | PENDING | PENDING | UAT_PENDING |
 | F-03.02 Canonical Event Model | DONE | PENDING | PENDING | UAT_PENDING |
 | F-03.03 Identity Resolution | DONE | PENDING | PENDING | UAT_PENDING |
 | F-04.01 Work Graph | DONE | PENDING | PENDING | UAT_PENDING |
 | F-04.02 Decision & Blocker Memory | BLOCKED | PENDING | PENDING | UAT_PENDING |
 | F-05.01 Permission-Aware Retrieval | IN_REVIEW | PENDING | PENDING | UAT_PENDING |
+| F-05.02 Ask Brain RAG | BLOCKED | PENDING | PENDING | UAT_PENDING |
+| F-06.01 AI Provider Registry & Gateway | IN_REVIEW | PENDING | PENDING | UAT_PENDING |
+| F-06.02 Usage, Cost & Budgets | BLOCKED | PENDING | PENDING | UAT_PENDING |
+| F-06.03 External API Registry | IN_REVIEW | PENDING | PENDING | UAT_PENDING |
+| F-07.01 Project Command Centre | BLOCKED | PENDING | PENDING | UAT_PENDING |
+| F-07.02 Executive Overview | BLOCKED | PENDING | PENDING | UAT_PENDING |
+| F-08.01 Governed Agent Runtime | BLOCKED | PENDING | PENDING | UAT_PENDING |
+| F-09.01 Observability & SLOs | IN_REVIEW | PENDING | PENDING | UAT_PENDING |
+| F-09.02 Audit, Retention & Deletion | IN_REVIEW | PENDING | PENDING | UAT_PENDING |
+| F-09.03 Deployment, Rollback, Backup & Restore | BLOCKED | PENDING | PENDING | UAT_PENDING |
+| F-09.04 Performance & Cost Budgets | BLOCKED | PENDING | PENDING | UAT_PENDING |
+| F-10.01 Native Channels | IN_REVIEW | PENDING | PENDING | UAT_PENDING |
+| F-10.02 Workspace Shell | BLOCKED | PENDING | PENDING | UAT_PENDING |
+| F-10.03 Intelligence Surfaces | BLOCKED | PENDING | PENDING | UAT_PENDING |
+| F-10.04 WorkOS Auth + BFF | BLOCKED | PENDING | PENDING | UAT_PENDING |
+| F-10.05 Files & Evidence Workspace | BLOCKED | PENDING | PENDING | UAT_PENDING |
+| F-10.06 Conversation UX | IN_REVIEW | PENDING | PENDING | UAT_PENDING |
 
 Detailed scripts live under `UAT/`.
 

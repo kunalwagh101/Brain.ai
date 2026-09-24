@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
@@ -86,15 +87,27 @@ def _event(
     db.add(connection)
     db.flush()
     if provider == "slack":
-        payload = (
-            '{"event":{"channel":"%s","type":"message","text":"%s","ts":"1.0","user":"U1"}}'
-            % (channel_id, text)
+        payload = json.dumps(
+            {
+                "event": {
+                    "channel": channel_id,
+                    "type": "message",
+                    "text": text,
+                    "ts": "1.0",
+                    "user": "U1",
+                }
+            }
         ).encode()
     else:
-        payload = (
-            '{"action":"opened","repository":{"id":%s,"full_name":"acme/repo"},'
-            '"pull_request":{"id":1,"title":"%s","body":"%s"}}'
-            % (repository_id or "1", text, text)
+        payload = json.dumps(
+            {
+                "action": "opened",
+                "repository": {
+                    "id": int(repository_id or "1"),
+                    "full_name": "acme/repo",
+                },
+                "pull_request": {"id": 1, "title": text, "body": text},
+            }
         ).encode()
     raw = RawEvent(
         organization_id=org.id,
@@ -299,20 +312,24 @@ def test_hybrid_semantic_retrieval_and_degraded_fallback(db_session: Session) ->
 
     result = search_documents(
         db_session, organization_id=org.id, user_id=owner.id, query="login",
-        mode=SearchMode.HYBRID, limit=10, embedding_client=FakeEmbeddingClient(), embedding_model="fake-v1",
+        mode=SearchMode.HYBRID, limit=10,
+        embedding_client=FakeEmbeddingClient(), embedding_model="fake-v1",
     )
     assert result.semantic_status == "ready"
     assert [hit.document.id for hit in result.hits] == [document.id]
 
     degraded = search_documents(
         db_session, organization_id=org.id, user_id=owner.id, query="authentication",
-        mode=SearchMode.HYBRID, limit=10, embedding_client=FailingEmbeddingClient(), embedding_model="fake-v1",
+        mode=SearchMode.HYBRID, limit=10,
+        embedding_client=FailingEmbeddingClient(), embedding_model="fake-v1",
     )
     assert degraded.semantic_status == "degraded"
     assert [hit.document.id for hit in degraded.hits] == [document.id]
 
 
-def test_embedding_failure_is_retryable_and_does_not_duplicate_projection(db_session: Session) -> None:
+def test_embedding_failure_is_retryable_and_does_not_duplicate_projection(
+    db_session: Session,
+) -> None:
     org, owner, _ = _seed(db_session, "retry")
     event = _event(
         db_session, org=org, owner=owner, provider="github", visibility="public_repository",

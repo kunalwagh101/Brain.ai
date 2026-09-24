@@ -23,6 +23,26 @@ class SecretStore(Protocol):
         credentials: dict[str, str],
     ) -> str: ...
 
+    def store_ai_provider_secret(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        provider_configuration_id: uuid.UUID,
+        provider: str,
+        credentials: dict[str, str],
+    ) -> str: ...
+
+    def store_api_credential_secret(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        grant_id: uuid.UUID,
+        service_key: str,
+        credentials: dict[str, str],
+    ) -> str: ...
+
+    def replace_secret(self, reference: str, credentials: dict[str, str]) -> None: ...
+
     def load_connection_secret(self, reference: str) -> dict[str, str]: ...
 
     def schedule_delete(self, reference: str) -> None: ...
@@ -46,23 +66,46 @@ class AWSSecretsManagerStore:
             f"{organization_id}/{provider}/{connection_id}"
         )
 
-    def store_connection_secret(
+    def _ai_provider_name(
         self,
         *,
         organization_id: uuid.UUID,
-        connection_id: uuid.UUID,
+        provider_configuration_id: uuid.UUID,
         provider: str,
+    ) -> str:
+        return (
+            f"{self._prefix}/{self._environment}/ai-providers/"
+            f"{organization_id}/{provider}/{provider_configuration_id}"
+        )
+
+    def _api_credential_name(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        grant_id: uuid.UUID,
+        service_key: str,
+    ) -> str:
+        return (
+            f"{self._prefix}/{self._environment}/api-credentials/"
+            f"{organization_id}/{service_key}/{grant_id}"
+        )
+
+    @staticmethod
+    def _serialize(credentials: dict[str, str]) -> str:
+        return json.dumps(credentials, separators=(",", ":"), sort_keys=True)
+
+    def _create_secret(
+        self,
+        *,
+        name: str,
+        description: str,
         credentials: dict[str, str],
     ) -> str:
         try:
             response = self._client.create_secret(
-                Name=self._name(
-                    organization_id=organization_id,
-                    connection_id=connection_id,
-                    provider=provider,
-                ),
-                Description="Brain external integration credential",
-                SecretString=json.dumps(credentials, separators=(",", ":"), sort_keys=True),
+                Name=name,
+                Description=description,
+                SecretString=self._serialize(credentials),
             )
         except (BotoCoreError, ClientError) as exc:
             raise SecretStoreError("Credential storage failed") from exc
@@ -71,6 +114,69 @@ class AWSSecretsManagerStore:
         if not isinstance(reference, str) or not reference:
             raise SecretStoreError("Credential storage returned no secret reference")
         return reference
+
+    def store_connection_secret(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        connection_id: uuid.UUID,
+        provider: str,
+        credentials: dict[str, str],
+    ) -> str:
+        return self._create_secret(
+            name=self._name(
+                organization_id=organization_id,
+                connection_id=connection_id,
+                provider=provider,
+            ),
+            description="Brain external integration credential",
+            credentials=credentials,
+        )
+
+    def store_ai_provider_secret(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        provider_configuration_id: uuid.UUID,
+        provider: str,
+        credentials: dict[str, str],
+    ) -> str:
+        return self._create_secret(
+            name=self._ai_provider_name(
+                organization_id=organization_id,
+                provider_configuration_id=provider_configuration_id,
+                provider=provider,
+            ),
+            description="Brain AI provider credential",
+            credentials=credentials,
+        )
+
+    def store_api_credential_secret(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        grant_id: uuid.UUID,
+        service_key: str,
+        credentials: dict[str, str],
+    ) -> str:
+        return self._create_secret(
+            name=self._api_credential_name(
+                organization_id=organization_id,
+                grant_id=grant_id,
+                service_key=service_key,
+            ),
+            description="Brain governed external API credential",
+            credentials=credentials,
+        )
+
+    def replace_secret(self, reference: str, credentials: dict[str, str]) -> None:
+        try:
+            self._client.put_secret_value(
+                SecretId=reference,
+                SecretString=self._serialize(credentials),
+            )
+        except (BotoCoreError, ClientError) as exc:
+            raise SecretStoreError("Credential rotation failed") from exc
 
     def load_connection_secret(self, reference: str) -> dict[str, str]:
         try:

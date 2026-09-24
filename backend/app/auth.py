@@ -15,6 +15,7 @@ from app.database import get_db
 from app.models import ExternalIdentity, User
 
 _bearer = HTTPBearer(auto_error=False)
+_WORKOS_EMAIL_CLAIM = "urn:brain:user_email"
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,10 +35,59 @@ def get_jwks_client() -> PyJWKClient:
     return PyJWKClient(f"https://api.workos.com/sso/jwks/{client_id}")
 
 
+def _claim_matches(value: object, expected: str) -> bool:
+    if isinstance(value, str):
+        return value == expected
+    if isinstance(value, list):
+        return expected in value and all(isinstance(item, str) for item in value)
+    return False
+
+
+def _validate_workos_application_claims(claims: dict[str, object]) -> None:
+    settings = get_settings()
+    client_id = settings.workos_client_id
+    if not client_id:
+        raise RuntimeError("WorkOS authentication is not configured")
+
+    token_client_id = claims.get("client_id")
+    token_audience = claims.get("aud")
+
+    # Current AuthKit session tokens identify the application with `client_id`.
+    # Keep compatibility with older/custom JWTs that identify it through `aud`,
+    # but never accept a token that is not bound to this configured application.
+    if isinstance(token_client_id, str):
+        if token_client_id != client_id:
+            raise InvalidTokenError("Access token client_id does not match this application")
+    elif not _claim_matches(token_audience, client_id):
+        raise InvalidTokenError("Access token is not bound to this WorkOS application")
+
+    # `BRAIN_WORKOS_AUDIENCE` is an optional additional custom-audience gate.
+    # Standard AuthKit session tokens do not need it; if an operator configures
+    # it, the token must carry a matching aud claim in addition to client_id.
+    expected_audience = (settings.workos_audience or "").strip()
+    if expected_audience and not _claim_matches(token_audience, expected_audience):
+        raise InvalidTokenError("Access token audience does not match configured audience")
+
+
+def _workos_subject_email(claims: dict[str, object]) -> str:
+    # Brain deliberately does not use `act.sub` as the user's email. `act`
+    # represents actor/delegation context and may identify an impersonator.
+    # Configure WorkOS AuthKit's JWT Template with:
+    # {"urn:brain:user_email": {{ user.email }}}
+    value = claims.get(_WORKOS_EMAIL_CLAIM)
+    if not isinstance(value, str):
+        raise InvalidTokenError(
+            f"Verified token is missing required {_WORKOS_EMAIL_CLAIM} claim"
+        )
+    email = value.strip().lower()
+    if "@" not in email or len(email) > 320:
+        raise InvalidTokenError("Verified token contains an invalid Brain user email claim")
+    return email
+
+
 def verify_access_token(token: str) -> AuthPrincipal:
     settings = get_settings()
-    audience = settings.auth_audience
-    if not settings.workos_client_id or not audience:
+    if not settings.workos_client_id:
         raise RuntimeError("WorkOS authentication is not configured")
 
     signing_key = get_jwks_client().get_signing_key_from_jwt(token)
@@ -45,15 +95,16 @@ def verify_access_token(token: str) -> AuthPrincipal:
         token,
         signing_key.key,
         algorithms=["RS256"],
-        audience=audience,
         issuer=settings.workos_issuer,
-        options={"require": ["exp", "sub", "iss", "aud"]},
+        options={
+            "require": ["exp", "sub", "iss"],
+            # AuthKit session tokens use `client_id`; custom/legacy `aud` is
+            # validated explicitly below so both forms remain fail-closed.
+            "verify_aud": False,
+        },
     )
-
-    actor = claims.get("act")
-    email = actor.get("sub") if isinstance(actor, dict) else None
-    if not isinstance(email, str) or "@" not in email:
-        raise InvalidTokenError("Verified token does not contain a usable user email")
+    _validate_workos_application_claims(claims)
+    email = _workos_subject_email(claims)
 
     permissions = claims.get("permissions")
     if not isinstance(permissions, list) or not all(isinstance(item, str) for item in permissions):
@@ -63,7 +114,7 @@ def verify_access_token(token: str) -> AuthPrincipal:
     role = claims.get("role")
     return AuthPrincipal(
         subject=str(claims["sub"]),
-        email=email.strip().lower(),
+        email=email,
         provider_organization_id=org_id if isinstance(org_id, str) else None,
         provider_role=role if isinstance(role, str) else None,
         permissions=tuple(permissions),
