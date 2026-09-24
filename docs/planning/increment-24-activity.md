@@ -63,3 +63,55 @@ The main hidden complexity was migration convergence: workspace notifications an
 Static review also found a first-read race in default Activity preference creation. The code now catches the unique-constraint collision and re-reads the winner, matching the inbox's idempotent materialisation model.
 
 The story remains `IN_REVIEW` because current GitHub-hosted jobs fail before step execution and real PostgreSQL/WorkOS/browser acceptance has not run. Repository presence is not converted into a PASS.
+
+## CHECK closure work order — 2026-09-24
+
+Mode: **CHECK**. Role: **Senior full-stack engineer / systems architect, architect tier**. This is verification/closure work for the already-implemented Activity slice.
+
+### Work order — S-10.09.01 Activity & Notifications
+
+**GOAL** — verify one personal, permission-aware attention queue with exact authorised deep links, personal read state/preferences, reference-only persistence and no copied private/secret content.
+
+**FILES UNDER REVIEW**
+- `backend/app/activity.py`
+- `backend/app/activity_inbox.py`
+- `backend/app/activity_models.py`
+- `backend/app/routes/activity.py`
+- migrations `20260918_0025`, `20260918_0026`, `20260918_0027`
+- `backend/tests/test_activity.py`
+- `backend/tests/test_activity_inbox.py`
+- `app/activity-api.ts`
+- `app/activity-bff.ts`
+- `app/activity-panel.tsx`
+- `app/activity-dock.tsx`
+- `tests/activity-contract.test.mjs`
+- `UAT/F-10.09.md`
+
+**DO NOT TOUCH** — S-10.06 channel/DM privacy semantics, S-08.01 agent policy, S-07.01 project-status meaning, S-10.04 WorkOS session design, or notification source objects merely to make Activity tests pass.
+
+**INTERFACES** — preserve reference-only `ActivityNotification`/preference semantics, current-permission materialisation, exact source links, recipient-scoped mark-one/mark-all, boolean preference updates, and same-origin WorkOS mutations.
+
+**TEST**
+```bash
+cd backend
+pytest -q tests/test_activity.py tests/test_activity_inbox.py tests/test_native_conversation.py tests/test_direct_messages.py
+cd ..
+node --test tests/activity-contract.test.mjs
+```
+
+**MIGRATION / FULL REGRESSION**
+```bash
+cd backend
+alembic heads
+alembic upgrade head
+alembic downgrade 20260918_0026
+alembic upgrade head
+ruff check app tests migrations
+pytest -q
+cd ..
+npm run build
+node --test tests/*.test.mjs
+python scripts/verify_board.py
+```
+
+**DONE WHEN** — automated checks and migration recovery pass, S-10.07/S-10.08 and other upstream contracts are satisfied, and authenticated multi-user WorkOS UAT in `UAT/F-10.09.md` passes. If the external WorkOS/UAT dependency or S-07.01 remains unresolved, leave this story non-DONE and name the blocker.
