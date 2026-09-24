@@ -178,3 +178,18 @@ python scripts/verify_board.py
 ```
 
 **DONE WHEN** — automated commands pass, release/migration recovery stays green, and the real secret-store plus authenticated Owner/Admin/Member browser UAT in `UAT/F-10.08.md` passes. If those external checks cannot run, record the blocker instead of claiming DONE.
+
+## CHECK verification result — 2026-09-24
+
+Automated repository verification completed successfully on head `1476b2d09625211b6ece309abe4fb0bade52a955`:
+
+- Backend CI `35982630115`: Ruff passed; 385 backend tests passed.
+- Delivery Verifier `35982630159`: repository state passed.
+- Release Gate `35982629961`: backend suite passed; frontend build/source contracts passed with 138 passed, 0 failed and 1 skipped; PostgreSQL migration recovery, backup/restore, production image and readiness smoke passed.
+- No production-code defect was exposed, so no speculative implementation change was made.
+
+S-10.07.01 final state for this pass: **BLOCKED**, not DONE. External dependency: official WorkOS activation and authenticated browser UAT required by `UAT/F-10.07.md`.
+
+S-10.08.01 final state for this pass: **BLOCKED**, not DONE. External dependency: official WorkOS Owner/Admin/Member browser UAT and real configured secret-store create/rotate/revoke UAT required by `UAT/F-10.08.md`.
+
+The active package manifest and lockfile do not contain the WorkOS AuthKit packages, so the browser evidence cannot be substituted with a mock or source-only assertion.
