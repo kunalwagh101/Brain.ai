@@ -758,3 +758,35 @@ python scripts/verify_board.py
 Expected: creator/Owner/Admin rename succeeds and stale settings revisions conflict; the current Work Graph track follows channel identity without rewriting historical evidence; visibility conversion is rejected; archive makes the channel read-only and removes it from active navigation; restore reuses the existing ACL; restricted member Read ↔ Read & write changes update matching membership/ResourceGrant access; non-managers/cross-tenant actors fail closed; browser mutations remain same-origin/token-free.
 
 Final authenticated acceptance follows `UAT/F-10.26.md`.
+
+## CHECK closure — S-10.07 / S-10.08 / S-10.09 — 2026-09-24
+
+Repository-side verification was completed without changing production behavior.
+
+Verified baseline head: `1476b2d09625211b6ece309abe4fb0bade52a955`.
+
+```text
+Backend CI 35982630115
+- Ruff: All checks passed
+- Pytest: 385 passed
+
+Delivery Verifier 35982630159
+- PASS: repository delivery state is internally consistent
+
+Release Gate 35982629961
+- backend: 385 passed
+- frontend source contracts: 138 passed, 0 failed, 1 skipped
+- PostgreSQL upgrade/downgrade/forward recovery: passed
+- backup/restore: passed
+- production image + readiness smoke: passed
+```
+
+For S-10.09, Release Gate explicitly exercised the Activity notification migration branch/merge/inbox sequence through revisions `20260918_0025`, `0026`, and `0027`, then downgrade/forward recovery.
+
+Do **not** demo these three as PASSED yet:
+
+- S-10.07 requires official WorkOS activation and authenticated agent-workspace browser UAT.
+- S-10.08 requires official WorkOS Owner/Admin/Member browser UAT plus a real configured secret-store lifecycle test.
+- S-10.09 requires S-10.07/S-10.08 acceptance, S-07.01 unblock, and official WorkOS authenticated multi-user Activity UAT.
+
+The active package manifest/lockfile does not include WorkOS AuthKit, so these external/browser checks were not substituted with mocks.
