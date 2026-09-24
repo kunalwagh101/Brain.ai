@@ -1,5 +1,15 @@
 # Changelog
 
+### CHECK closure — S-10.07.01 / S-10.08.01 / S-10.09.01
+
+- Verified the existing Developer & Agent Workspace, Workspace Administration, and Activity & Notifications implementations without changing production behavior.
+- Head `1476b2d09625211b6ece309abe4fb0bade52a955`: Backend CI `35982630115` passed Ruff and 385 backend tests; Delivery Verifier `35982630159` passed; Release Gate `35982629961` passed 385 backend tests, frontend build/source contracts (138 passed, 0 failed, 1 skipped), PostgreSQL migration recovery, backup/restore, production-image build and readiness smoke.
+- S-10.07.01 is now explicitly BLOCKED on official WorkOS activation and authenticated browser UAT.
+- S-10.08.01 is now explicitly BLOCKED on official WorkOS browser UAT plus real configured secret-store create/rotate/revoke UAT.
+- S-10.09.01 is now explicitly BLOCKED on S-10.07/S-10.08 acceptance, blocked S-07.01, and official WorkOS authenticated multi-user browser UAT.
+- No production code was changed in this closure pass; no PASSED/DONE claim was made where the accepted UAT contract remains unsatisfied.
+
+
 ### Engineering acceptance — S-02.04.01 / S-06.03.01 / S-09.01.01
 
 - Marked generic meeting/document evidence, External API Registry, and Observability & SLOs engineering-DONE after their acceptance/security contracts were verified.
