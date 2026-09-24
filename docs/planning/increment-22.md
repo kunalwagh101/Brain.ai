@@ -94,3 +94,87 @@ The actual `app/page.tsx` remains the labelled preview and no AuthKit imports ar
 - S-10.02.01 may move to `IN_REVIEW` only after frontend lint/build/tests and permission-negative backend contracts execute successfully; DONE also requires authenticated browser navigation/responsive/accessibility UAT.
 - S-10.03.01 may move to `IN_REVIEW` only after its dependencies and frontend contracts execute; DONE requires real project/memory/executive/Ask-Brain reconciliation in `UAT/F-10.03.md`.
 - S-10.04.01 remains `BLOCKED` until official packages/lockfile exist and activation compiles; DONE requires the authenticated browser/security evidence in `UAT/F-10.04.md` and `docs/WORKOS_FRONTEND_ACCEPTANCE.md`.
+
+## CHECK closure work orders — 2026-09-24
+
+Mode: **CHECK**. Role: **Senior full-stack engineer / systems architect, architect tier**. These are verification/closure work orders for already-implemented stories. Production behaviour is DO NOT TOUCH unless an executable check exposes a defect.
+
+### Work order — S-10.07.01 Developer & Agent Workspace
+
+**GOAL** — verify that an authorised engineer can run only governed agents in currently visible project/channel context, see approval-gated actions clearly, and never receive a generic shell or reusable credential.
+
+**FILES UNDER REVIEW**
+- `backend/app/agent_workspace.py`
+- `backend/app/agent_workspace_models.py`
+- `backend/app/routes/agent_workspace.py`
+- `backend/app/routes/agent_workspace_actions.py`
+- `backend/tests/test_agent_workspace.py`
+- `app/agent-workspace-api.ts`
+- `app/agent-workspace-bff.ts`
+- `app/agent-workspace-panel.tsx`
+- `tests/agent-workspace-contract.test.mjs`
+- `UAT/F-10.07.md`
+
+**DO NOT TOUCH** — S-08.01 agent-runtime policy semantics, S-10.02 workspace navigation/auth boundaries, WorkOS activation templates, provider/model business rules, or any database schema unless a failing accepted test proves the current contract is wrong.
+
+**INTERFACES** — preserve the existing `resolve_workspace_context(...)`, `create_workspace_run(...)`, requester-private run reads, `/agent-workspace/runs`, `/advance`, approval, cancel, and same-origin BFF contracts exactly.
+
+**TEST**
+```bash
+cd backend
+pytest -q tests/test_agent_workspace.py tests/test_agent_runtime.py tests/test_agent_routes.py tests/test_agent_kill_switch.py
+cd ..
+node --test tests/agent-workspace-contract.test.mjs
+```
+
+**FULL REGRESSION / RELEASE**
+```bash
+cd backend && ruff check app tests migrations && pytest -q
+cd ..
+npm run build
+node --test tests/*.test.mjs
+python scripts/verify_board.py
+```
+
+**DONE WHEN** — the automated commands pass, migration/release recovery stays green, and the authenticated WorkOS browser UAT in `UAT/F-10.07.md` passes. If WorkOS/browser UAT cannot be executed, do not call the story DONE; record the external blocker.
+
+### Work order — S-10.08.01 Workspace Administration
+
+**GOAL** — verify Owner/Admin governance for members, integrations, AI providers/models and external API grants without exposing stored secrets or allowing role spoofing.
+
+**FILES UNDER REVIEW**
+- `backend/app/routes/admin_center.py`
+- `backend/app/ai_provider_credentials.py`
+- `backend/app/routes/ai_provider_credentials.py`
+- `backend/tests/test_admin_center.py`
+- `backend/tests/test_membership_governance.py`
+- `backend/tests/test_ai_provider_credentials.py`
+- `backend/tests/test_api_registry.py`
+- `app/admin-center-api.ts`
+- `app/admin-center-bff.ts`
+- `app/admin-center-panel.tsx`
+- `tests/admin-center-contract.test.mjs`
+- `UAT/F-10.08.md`
+
+**DO NOT TOUCH** — membership role policy, integration secret lifecycle, S-06.01/S-06.03 credential semantics, WorkOS auth/session design, or database schema unless a failing accepted test proves a defect.
+
+**INTERFACES** — preserve the existing Admin Center aggregate, membership governance routes, AI credential rotation, API-registry lifecycle, exact allow-listed BFF actions, 32 KiB same-origin mutation boundary, and secret-reference-only persistence.
+
+**TEST**
+```bash
+cd backend
+pytest -q tests/test_admin_center.py tests/test_membership_governance.py tests/test_ai_provider_credentials.py tests/test_api_registry.py tests/test_api_registry_worker.py
+cd ..
+node --test tests/admin-center-contract.test.mjs
+```
+
+**FULL REGRESSION / RELEASE**
+```bash
+cd backend && ruff check app tests migrations && pytest -q
+cd ..
+npm run build
+node --test tests/*.test.mjs
+python scripts/verify_board.py
+```
+
+**DONE WHEN** — automated commands pass, release/migration recovery stays green, and the real secret-store plus authenticated Owner/Admin/Member browser UAT in `UAT/F-10.08.md` passes. If those external checks cannot run, record the blocker instead of claiming DONE.
