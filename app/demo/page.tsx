@@ -36,8 +36,8 @@ const navigation: WorkspaceNavigation = {
 };
 const projects: ProjectStatus[] = [
   {
-    project_node_id: "mobile-app", project_name: "Mobile experience", progress_percent: 68,
-    progress_basis: "4 structured work items", status: "in_progress",
+    project_node_id: "mobile-app", project_name: "Mobile experience", progress_percent: 66.67,
+    progress_basis: "visible_configured_work_items", status: "blocked",
     progress_items: [
       { id: "prototype", work_item_node_id: "prototype", work_item_name: "Navigation prototype", state: "done", weight: 2, note: null, updated_at: stamp },
       { id: "accessibility", work_item_node_id: "accessibility", work_item_name: "Accessibility review", state: "in_progress", weight: 1, note: null, updated_at: stamp },
@@ -47,13 +47,13 @@ const projects: ProjectStatus[] = [
     candidate_memories: [],
     evidence: [{ document_id: "doc-d1", canonical_event_id: "event-d1", work_graph_node_id: "mobile-app", source_provider: "Drive", object_type: "document", object_external_id: "research", title: "Navigation research notes", occurred_at: stamp, provenance: {} }],
   },
-  { project_node_id: "launch", project_name: "Autumn launch", progress_percent: 32, progress_basis: "Planning in progress", status: "in_progress", progress_items: [], active_blockers: [], confirmed_decisions: [], candidate_memories: [], evidence: [] },
+  { project_node_id: "launch", project_name: "Autumn launch", progress_percent: null, progress_basis: "unconfigured", status: "unconfigured", progress_items: [], active_blockers: [], confirmed_decisions: [], candidate_memories: [], evidence: [] },
 ];
 const provenance = { metric_key: "sample", source_records: "Sample read model", calculation: "Sample only", source_count: 2, period_start: stamp, period_end: stamp, drilldown_path: null, complete: true };
 const overview: ExecutiveOverview = {
   generated_at: stamp, period_start: stamp, period_end: stamp, visible_project_count: 2,
-  blocked_project_count: 0, in_progress_project_count: 2, done_project_count: 0,
-  not_started_project_count: 0, unconfigured_project_count: 0, active_blocker_count: 1,
+  blocked_project_count: 1, in_progress_project_count: 0, done_project_count: 0,
+  not_started_project_count: 0, unconfigured_project_count: 1, active_blocker_count: 1,
   confirmed_decision_count: 1, portfolio: [], active_blockers: [], confirmed_decisions: [],
   ai_spend: {
     period_start: stamp, period_end: stamp, request_count: 0, succeeded_count: 0, failed_count: 0,

@@ -70,7 +70,7 @@ export function NativeChannelCreate({
   if (!endpoint) {
     return (
       <div className={styles.notice} role="status">
-        Channel creation stays disabled until the authenticated WorkOS same-origin BFF is active.
+        Channel creation is not available in this workspace right now.
       </div>
     );
   }

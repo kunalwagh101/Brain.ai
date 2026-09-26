@@ -1,24 +1,29 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { viewForWorkspaceHash, type WorkspaceView } from "./workspace-view-routes";
 
 const WorkspaceViewContext = createContext<WorkspaceView>("home");
 
 export function WorkspaceViewProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<WorkspaceView>("home");
+  const previousHash = useRef<string | null>(null);
 
   useEffect(() => {
     const sync = () => {
-      setView(viewForWorkspaceHash(window.location.hash));
+      const hash = window.location.hash;
+      const changed = previousHash.current !== null && previousHash.current !== hash;
+      previousHash.current = hash;
+      setView(viewForWorkspaceHash(hash));
       document.querySelectorAll<HTMLDetailsElement>("details[data-brain-mobile-nav]").forEach((details) => { details.open = false; });
       // A deep link can target a section that was hidden when the browser first
       // attempted to scroll. Reveal the screen before retrying the scroll.
       window.requestAnimationFrame(() => {
-        const id = window.location.hash.slice(1);
+        const id = hash.slice(1);
         let decoded = id;
         try { decoded = decodeURIComponent(id); } catch { /* Ignore malformed fragments. */ }
         if (decoded) document.getElementById(decoded)?.scrollIntoView({ block: "start" });
+        if (changed) document.querySelector<HTMLElement>("#brain-workspace-main h1")?.focus({ preventScroll: true });
       });
     };
     sync();
@@ -55,5 +60,5 @@ export function WorkspaceHeading({ channel, direct }: { channel: string | null; 
     admin: "Admin & governance", memory: "Decisions & blockers", ask: "Ask Brain",
     files: "Files & evidence",
   };
-  return <h1 id="home">{labels[view]}</h1>;
+  return <h1 id="home" tabIndex={-1}>{labels[view]}</h1>;
 }

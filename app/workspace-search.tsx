@@ -12,6 +12,7 @@ import type {
   WorkspaceNavigationNode,
 } from "./brain-api";
 import type { DirectConversation } from "./direct-message-api";
+import { resultsForQuery } from "./workspace-search-state";
 import styles from "./workspace-search.module.css";
 
 type WorkspaceSearchPayload = {
@@ -57,8 +58,11 @@ export function WorkspaceSearch({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  const [remote, setRemote] = useState<WorkspaceSearchPayload["items"]>([]);
-  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+  const [remote, setRemote] = useState<{ query: string; items: WorkspaceSearchPayload["items"] } | null>(null);
+  const [state, setState] = useState<{ query: string; status: "idle" | "loading" | "error" }>({ query: "", status: "idle" });
+  const searchKey = `${endpoint ?? ""}::${query.trim()}`;
+  const visibleRemote = resultsForQuery(remote, searchKey);
+  const visibleState = state.query === searchKey ? state.status : "loading";
 
   const localItems = useMemo<LocalItem[]>(() => [
     ...channels.map((channel) => ({
@@ -109,8 +113,8 @@ export function WorkspaceSearch({
   const close = useCallback(() => {
     dialogRef.current?.close();
     setQuery("");
-    setRemote([]);
-    setState("idle");
+    setRemote(null);
+    setState({ query: "", status: "idle" });
   }, []);
 
   useEffect(() => {
@@ -126,15 +130,11 @@ export function WorkspaceSearch({
 
   useEffect(() => {
     const normalized = query.trim();
-    if (!endpoint || normalized.length < 2) {
-      setRemote([]);
-      setState("idle");
-      return;
-    }
+    if (!endpoint || normalized.length < 2) return;
 
     const controller = new AbortController();
+    const requestKey = `${endpoint}::${normalized}`;
     const timer = window.setTimeout(() => {
-      setState("loading");
       const url = new URL(endpoint, window.location.origin);
       url.searchParams.set("q", normalized);
       void fetch(url, {
@@ -148,13 +148,14 @@ export function WorkspaceSearch({
           return response.json() as Promise<WorkspaceSearchPayload>;
         })
         .then((payload) => {
-          setRemote(payload.items);
-          setState("idle");
+          if (controller.signal.aborted) return;
+          setRemote({ query: requestKey, items: payload.items });
+          setState({ query: requestKey, status: "idle" });
         })
         .catch(() => {
           if (!controller.signal.aborted) {
-            setRemote([]);
-            setState("error");
+            setRemote(null);
+            setState({ query: requestKey, status: "error" });
           }
         });
     }, 250);
@@ -196,7 +197,15 @@ export function WorkspaceSearch({
           <input
             autoComplete="off"
             maxLength={120}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setRemote(null);
+              const nextQuery = event.target.value.trim();
+              setState({
+                query: `${endpoint ?? ""}::${nextQuery}`,
+                status: endpoint && nextQuery.length >= 2 ? "loading" : "idle",
+              });
+            }}
             placeholder="Channels, projects, people, messages…"
             ref={inputRef}
             type="search"
@@ -217,26 +226,30 @@ export function WorkspaceSearch({
             </section>
           ) : null}
 
-          {query.trim().length >= 2 ? (
+          {query.trim().length >= 2 && endpoint ? (
             <section aria-labelledby="workspace-search-content">
               <h3 id="workspace-search-content">Messages & evidence</h3>
-              {state === "loading" ? <p role="status">Searching authorised work…</p> : null}
-              {state === "error" ? (
+              {visibleState === "loading" ? <p role="status">Searching authorised work…</p> : null}
+              {visibleState === "error" ? (
                 <p role="alert">Search could not be loaded safely. Try again.</p>
               ) : null}
-              {state === "idle" && remote.length ? remote.map((item) => (
+              {visibleState === "idle" && visibleRemote?.length ? visibleRemote.map((item) => (
                 <a href={item.href} key={item.id} onClick={close}>
                   <strong>{item.title}</strong>
                   <span>{item.excerpt || "No text preview available."}</span>
                   <small>{item.source} · {item.object_type}</small>
                 </a>
               )) : null}
-              {state === "idle" && !remote.length && !filteredLocal.length ? (
+              {visibleState === "idle" && visibleRemote !== null && !visibleRemote.length && !filteredLocal.length ? (
                 <p role="status">No authorised results found.</p>
               ) : null}
             </section>
           ) : (
-            <p className={styles.hint}>Type 2 or more characters to search authorised messages and evidence.</p>
+            <p className={styles.hint}>
+              {endpoint
+                ? "Type 2 or more characters to search authorised messages and evidence."
+                : "Jump to a visible place above. Message and evidence search needs a connected workspace."}
+            </p>
           )}
         </div>
       </dialog>

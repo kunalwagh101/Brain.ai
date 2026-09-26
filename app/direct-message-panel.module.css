@@ -182,10 +182,10 @@
 }
 
 .jumpUnread {
-  border: 1px solid rgba(240, 184, 93, 0.55);
+  border: 1px solid #dfc995;
   border-radius: 999px;
-  background: transparent;
-  color: #f0b85d;
+  background: #fff9eb;
+  color: #84581c;
   padding: 0.35rem 0.6rem;
   font: inherit;
   font-size: 0.72rem;
@@ -275,7 +275,7 @@
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  color: #f0b85d;
+  color: #84581c;
   font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;

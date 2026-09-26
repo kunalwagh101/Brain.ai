@@ -22,12 +22,16 @@ test(
     assert.match(html, /<title>Brain<\/title>/i);
     assert.match(html, /Interactive sample workspace/i);
     assert.match(html, /Example data · Read only · No account or backend connected/i);
+    assert.doesNotMatch(html, /Permission-aware live data/i);
+    assert.doesNotMatch(html, />Signed in</i);
     assert.match(html, /Northstar Studio/i);
     assert.match(html, /activity-center/i);
     assert.match(html, /native-chat/i);
     assert.match(html, /direct-messages/i);
     assert.match(html, /admin-center/i);
     assert.match(html, /project-mobile-app/i);
+    assert.match(html, /67%/);
+    assert.match(html, /Progress not configured/);
     assert.match(
       html,
       /property="og:image"[^>]+brain-control-plane\.waghkunal1997\.chatgpt\.site\/og\.png/i,

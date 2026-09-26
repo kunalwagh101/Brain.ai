@@ -848,6 +848,7 @@
 .topbar { min-height: 90px; border-color: var(--brain-line); margin-bottom: 23px; }
 .topbar p, .eyebrow { color: #668078; font-size: 11px; }
 .topbar h1 { font-size: clamp(21px, 2.3vw, 29px); line-height: 1.2; letter-spacing: -.035em; color: #233147; }
+.topbar h1:focus { outline: 2px solid #277d79; outline-offset: 5px; border-radius: 2px; }
 .liveBadge { background: #e6f1ed; border: 1px solid #c4ddd2; color: #246755; font-size: 11px; }
 .nextBadge { background: #f2f3f2; border-color: #d9dfdb; color: #596878; }
 .welcomeCard, .panel, .roleNotice { border-color: var(--brain-line); background: #fff; border-radius: 13px; box-shadow: 0 2px 12px #23314708; }

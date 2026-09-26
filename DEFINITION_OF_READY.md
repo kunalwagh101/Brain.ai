@@ -15,7 +15,7 @@ A story may enter `READY` only when all conditions below are true. `IN_PROGRESS`
 
 ## Increment 43 readiness record — S-10.27.01–.06
 
-Decision: S-10.27.01 is `IN_REVIEW` because its local prototype (`b3e3ce2`, `f72248c`) already exists and build/frontend contracts ran before this formal record. That is process drift, not retroactive Ready compliance. S-10.27.02–.05 are `BACKLOG` pending product-owner story review, individual state/edge-case inventories and targeted acceptance-test mapping. S-10.27.06 is `BLOCKED` by the external S-10.04.01 official WorkOS configuration and authenticated browser UAT plus completion of the earlier slices. No new story is `IN_PROGRESS`.
+Decision: The product owner reviewed the story set and directed implementation on 2026-09-26. S-10.27.01 was already `IN_REVIEW` because its local prototype (`b3e3ce2`, `f72248c`) existed before this formal record; that is process drift, not retroactive Ready compliance. S-10.27.02–.05 now have integrated frontend implementation and local checks and remain `IN_REVIEW` for real data/role, keyboard and permission acceptance. S-10.27.06 is `BLOCKED` by external S-10.04.01 official WorkOS configuration and authenticated browser UAT plus review of the earlier slices. No story is `IN_PROGRESS`.
 
 Contracts: F-10.02–.26 own the existing tenant, channel/DM, search, evidence, agent and admin models and same-origin BFF APIs. Increment 43 changes composition and presentation only; it adds no migration, backfill, new data authority or browser-held bearer. Authorization, source filtering, audit, approvals and secret policy remain enforced on the server. `docs/planning/increment-43.md` names exact files and tests; `UAT/F-10.27.md` names observable real-user checks and failure/revocation states.
 

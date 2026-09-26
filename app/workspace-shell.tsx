@@ -29,6 +29,7 @@ import { NativeChannelGroupManager } from "./native-channel-group-manager";
 import { ArchivedChannelManager } from "./native-channel-settings";
 import { NativeChatPanel } from "./native-chat-panel";
 import { NativeTeamManager } from "./native-team-manager";
+import { MobileWorkspaceNavigation } from "./mobile-workspace-navigation";
 import { SavedMessagesPanel } from "./saved-messages-panel";
 import { WorkspaceSearch } from "./workspace-search";
 import { WorkspaceHeading, WorkspaceNavLink, WorkspaceScreen, WorkspaceViewProvider } from "./workspace-view";
@@ -38,6 +39,10 @@ function projectProgress(project: ProjectStatus): string {
   return project.progress_percent === null
     ? "Not configured"
     : `${project.progress_percent.toFixed(0)}%`;
+}
+
+function projectStatusLabel(status: string): string {
+  return status.replaceAll("_", " ");
 }
 
 function initials(value: string): string {
@@ -267,10 +272,10 @@ export function WorkspaceShell({
               <span>☆</span> Saved
               {savedMessages.length ? <small>{savedMessages.length}</small> : null}
             </WorkspaceNavLink>
-            <a href="#agent-workspace"><span>⌘</span> Developer & agents</a>
-            <a href="#memory"><span>◇</span> Decisions & blockers</a>
-            <a href="#files"><span>▤</span> Files & evidence</a>
-            {adminCenter ? <a href="#admin-center"><span>⚙</span> Admin & governance</a> : null}
+            <WorkspaceNavLink view="agents" href="#agent-workspace"><span>⌘</span> Developer & agents</WorkspaceNavLink>
+            <WorkspaceNavLink view="memory" href="#memory"><span>◇</span> Decisions & blockers</WorkspaceNavLink>
+            <WorkspaceNavLink view="files" href="#files"><span>▤</span> Files & evidence</WorkspaceNavLink>
+            {adminCenter ? <WorkspaceNavLink view="admin" href="#admin-center"><span>⚙</span> Admin & governance</WorkspaceNavLink> : null}
           </section>
 
           <section>
@@ -414,7 +419,7 @@ export function WorkspaceShell({
               <span>Connected tracks</span><small>{navigation.tracks.length}</small>
             </div>
             {navigation.tracks.length ? navigation.tracks.map((track) => (
-              <a href={`#track-${track.node_id}`} key={track.node_id}>
+              <a href={`#track-${encodeURIComponent(track.node_id)}`} key={track.node_id}>
                 <span>#</span> {track.display_name ?? "Untitled track"}
               </a>
             )) : <p className={styles.emptyNav}>No visible connected tracks</p>}
@@ -427,7 +432,7 @@ export function WorkspaceShell({
             {navigation.projects.length ? navigation.projects.map((project) => {
               const projectStatus = projectById.get(project.node_id);
               return (
-                <a href={`#project-${project.node_id}`} key={project.node_id}>
+                <a href={`#project-${encodeURIComponent(project.node_id)}`} key={project.node_id}>
                   <span className={styles.projectDot} data-status={projectStatus?.status ?? "unconfigured"} />
                   {project.display_name ?? "Untitled project"}
                 </a>
@@ -437,7 +442,7 @@ export function WorkspaceShell({
 
           <section>
             <div className={styles.groupTitle}><span>Intelligence</span></div>
-            <a href="#ask-brain"><span>✦</span> Ask Brain</a>
+            <WorkspaceNavLink view="ask" href="#ask-brain"><span>✦</span> Ask Brain</WorkspaceNavLink>
             <a href="#projects"><span>▣</span> Project Command Centre</a>
             {overview ? <a href="#company-pulse"><span>◉</span> Company pulse</a> : null}
           </section>
@@ -445,7 +450,7 @@ export function WorkspaceShell({
 
         <footer className={styles.userCard}>
           <span>{initials(signedInName)}</span>
-          <div><strong>{signedInName}</strong><small>Signed in</small></div>
+          <div><strong>{signedInName}</strong><small>{demoMode ? "Sample profile" : "Signed in"}</small></div>
           {signOutAction ? (
             <form action={signOutAction}>
               <button className={styles.signOutButton} type="submit">Sign out</button>
@@ -461,7 +466,7 @@ export function WorkspaceShell({
             <WorkspaceHeading channel={selectedNativeChannel?.name ?? null} direct={selectedDirectConversation?.other_display_name ?? null} />
           </div>
           <div className={styles.topbarActions}>
-            <details className={styles.mobileNavigation} data-brain-mobile-nav>
+            <MobileWorkspaceNavigation className={styles.mobileNavigation}>
               <summary>Browse workspace</summary>
               <nav aria-label="Mobile workspace navigation">
                 <a href="#home">Home</a>
@@ -482,7 +487,7 @@ export function WorkspaceShell({
                   <a key={conversation.id} href={`?organizationId=${encodeURIComponent(organization.id)}&dmId=${encodeURIComponent(conversation.id)}#direct-messages`}>{conversation.other_display_name}</a>
                 ))}
               </nav>
-            </details>
+            </MobileWorkspaceNavigation>
             <form className={styles.mobileOrgForm} method="get">
               <label htmlFor="mobile-organization">Organisation</label>
               <select id="mobile-organization" name="organizationId" defaultValue={organization.id}>
@@ -492,7 +497,7 @@ export function WorkspaceShell({
               </select>
               <button type="submit">Switch</button>
             </form>
-            <span className={styles.liveBadge}>Permission-aware live data</span>
+            <span className={styles.liveBadge}>{demoMode ? "Read-only example" : "Permission-aware live data"}</span>
           </div>
         </header>
 
@@ -579,8 +584,8 @@ export function WorkspaceShell({
             <p className={styles.eyebrow}>Brain workspace</p>
             <h2>Everything your role can see, in one operating surface.</h2>
             <p>
-              Native Brain channels, connected tracks and projects share the same tenant and evidence
-              boundaries. Direct messages stay participant-only and outside organisation-wide intelligence.
+              Catch up on conversations, find your projects, and see the evidence behind decisions.
+              Direct messages stay between their participants.
             </p>
           </div>
           <div className={styles.summaryPills}>
@@ -652,13 +657,18 @@ export function WorkspaceShell({
               <article id={`project-${project.project_node_id}`} key={project.project_node_id}>
                 <div className={styles.projectIdentity}>
                   <span>{initials(project.project_name)}</span>
-                  <div><strong>{project.project_name}</strong><small>{project.progress_basis}</small></div>
+                  <div>
+                    <strong>{project.project_name}</strong>
+                    <small>{project.progress_percent === null
+                      ? "Progress not configured"
+                      : `${project.progress_items.length} visible structured work items`}</small>
+                  </div>
                 </div>
                 <div className={styles.projectMeta}>
                   <strong>{projectProgress(project)}</strong>
                   <small>{project.active_blockers.length} blocker(s)</small>
                 </div>
-                <span className={styles.statusChip} data-status={project.status}>{project.status}</span>
+                <span className={styles.statusChip} data-status={project.status}>{projectStatusLabel(project.status)}</span>
                 <details className={styles.projectDetails}>
                   <summary>Structured work & evidence</summary>
                   <div className={styles.projectDetailsGrid}>
@@ -666,7 +676,7 @@ export function WorkspaceShell({
                       <h3>Structured work</h3>
                       {project.progress_items.length ? (
                         <ul>
-                          {project.progress_items.slice(0, 8).map((item) => (
+                          {project.progress_items.map((item) => (
                             <li key={item.id}>
                               <span>{item.work_item_name}</span>
                               <small>{item.state} · weight {item.weight}</small>
@@ -679,7 +689,7 @@ export function WorkspaceShell({
                       <h3>Evidence</h3>
                       {project.evidence.length ? (
                         <ul>
-                          {project.evidence.slice(0, 8).map((item) => (
+                          {project.evidence.map((item) => (
                             <li key={item.document_id}>
                               <span>{item.title}</span>
                               <small>{item.source_provider} · {item.object_type}</small>
@@ -717,7 +727,12 @@ export function WorkspaceShell({
               </fieldset>
             ) : <AdminCenterPanel admin={adminCenter} />}
           </section>
-        ) : null}
+        ) : (
+          <section className={styles.roleNotice} role="status">
+            <strong>Admin is unavailable for this account.</strong>
+            <span>Return to Home or choose a workspace you can access.</span>
+          </section>
+        )}
         </WorkspaceScreen>
 
         <WorkspaceScreen view="memory">
@@ -728,7 +743,7 @@ export function WorkspaceShell({
           <div className={styles.memoryGrid}>
             <div>
               <h3>Blockers</h3>
-              {blockers.length ? blockers.slice(0, 8).map((item) => (
+              {blockers.length ? blockers.map((item) => (
                 <article key={item.id}>
                   <span className={styles.blockerIcon}>!</span>
                   <div>
@@ -741,7 +756,7 @@ export function WorkspaceShell({
             </div>
             <div>
               <h3>Decisions</h3>
-              {decisions.length ? decisions.slice(0, 8).map((item) => (
+              {decisions.length ? decisions.map((item) => (
                 <article key={item.id}>
                   <span className={styles.decisionIcon}>✓</span>
                   <div>
@@ -769,12 +784,11 @@ export function WorkspaceShell({
                   <p className={styles.eyebrow}>Ask Brain</p>
                   <h2>Evidence-backed answers</h2>
                 </div>
-                <span className={styles.nextBadge}>S-10.04</span>
               </header>
               <p className={styles.emptyState}>
-                The live Ask Brain surface is ready for governed runtimes, but the browser mutation stays
-                disabled until the official WorkOS same-origin BFF is installed. Brain will not expose a
-                reusable backend bearer token to make this button work early.
+                {demoMode
+                  ? "Answers are unavailable in this read-only example. Use a connected Brain workspace to ask a question."
+                  : "Ask Brain is unavailable for this account right now. Contact your workspace admin if you need access."}
               </p>
             </>
           )}

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Increment 43 — integrated workspace frontend
+
+- Brought the conversation-first `/demo` shell into the selected product branch with accurate sample status, mobile navigation/focus, permission-denied Admin recovery and clearer project progress states. The sample's blocker/progress totals now reconcile with its structured work.
+- Improved channel-thread focus return, kept a channel draft during same-channel live refresh, and improved DM unread contrast, agent form/button readability and approval context. Removed setup jargon from unavailable user actions.
+- Kept Search suggestions tied to the exact query and organisation endpoint that returned them; older excerpts no longer appear beneath a new query. Added focused result-state and rendered-page checks.
+- Production authentication and real-data acceptance still require official WorkOS activation and the scenarios in `UAT/F-10.27.md`. No release/UAT pass is claimed by the read-only demo.
+
 ### Increment 24 — Slack/Discord-quality Brain conversations
 
 - Added tenant-safe root threads, exact permitted-member `@email` mentions, five allow-listed idempotent reactions and per-user unread state over the existing native message/evidence store.

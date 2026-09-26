@@ -97,17 +97,24 @@ function StepCard({
         </div>
       </header>
       {step.proposal_reason ? <p>{step.proposal_reason}</p> : null}
-      <details>
+      <details open={step.status === "waiting_approval"}>
         <summary>Proposed arguments</summary>
+        {step.status === "waiting_approval" ? (
+          <p>
+            Scope: {run.context.project?.name ?? "No project"}
+            {run.context.channel ? ` · #${run.context.channel.name}` : ""}.
+            {step.approval_expires_at ? ` Approval expires ${formatTime(step.approval_expires_at)}.` : ""}
+          </p>
+        ) : null}
         <pre>{JSON.stringify(step.arguments, null, 2)}</pre>
         <small>Arguments SHA-256: {step.arguments_sha256}</small>
       </details>
       {step.status === "waiting_approval" ? (
         <div className={styles.approvalActions}>
-          <strong>Human approval required before this tool can execute.</strong>
+          <strong>Review the tool input and scope above before deciding.</strong>
           <div>
-            <button disabled={!mutationBase} onClick={() => void decide(false)} type="button">Reject</button>
-            <button className={styles.primaryButton} disabled={!mutationBase} onClick={() => void decide(true)} type="button">Approve</button>
+            <button disabled={!mutationBase} onClick={() => void decide(false)} type="button">Reject step</button>
+            <button className={styles.primaryButton} disabled={!mutationBase} onClick={() => void decide(true)} type="button">Approve step</button>
           </div>
         </div>
       ) : null}
@@ -344,7 +351,7 @@ export function AgentWorkspacePanel({
         </form>
       ) : (
         <div className={styles.notice} role="status">
-          The agent workspace read model is available, but mutations remain disabled until the authenticated WorkOS same-origin BFF is active.
+          You can view agents here, but starting a run is not available in this workspace right now.
         </div>
       )}
 

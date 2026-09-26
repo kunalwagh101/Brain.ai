@@ -33,6 +33,21 @@ The prior long scrolling page exposed every tool at once. The new shell keeps a 
 
 The shell uses a 62px rail, 256px sidebar, and flexible canvas; narrow widths collapse the sidebar into `Browse workspace`. Working copy and conversation bodies have larger type, while timestamps and provenance remain quieter. Focus rings, skip navigation, semantic sections, `aria-current`, reduced-motion support, and visible empty states remain intact.
 
+## Component usage and states
+
+`ProductionWorkspace` loads permission-filtered data and passes it to `WorkspaceShell`. Before authentication is configured, `/demo` supplies labelled example data to the same shell with `demoMode`; it cannot post or upload. The shell's `MobileWorkspaceNavigation` wraps a native disclosure, so its links work with keyboard before hydration and the disclosure closes after a selection. `WorkspaceHeading` receives focus when the active screen changes. A channel thread returns focus to its parent reply control on close.
+
+```tsx
+<MobileWorkspaceNavigation className={styles.mobileNavigation}>
+  <summary>Browse workspace</summary>
+  <nav aria-label="Mobile workspace navigation">
+    <a href="#activity-center">Activity</a>
+  </nav>
+</MobileWorkspaceNavigation>
+```
+
+States to check with actual accounts: no visible channels, archived/revoked channel, no DM or a revoked participant, empty and failed Activity/Search, unknown project progress, no evidence for Ask Brain, role-denied Admin, pending agent approval, mobile browser open/closed and keyboard focus after a thread closes. Search only shows a remote excerpt for the exact query and endpoint that returned it. Permission decisions still come from the server; search results must be rechecked after real access revocation.
+
 ## Reference decisions
 
 - [Slack's sidebar](https://slack.com/help/articles/212596808-Adjust-your-sidebar-preferences) separates Home, Activity, and Later alongside channels and DMs. Its [Activity view](https://slack.com/help/articles/46751260742035-Introducing-the-new-Activity-view-in-Slack) emphasises a single place to take action. Brain adds governance and evidence as first-class, permission-aware destinations.

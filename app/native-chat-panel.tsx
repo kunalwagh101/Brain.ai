@@ -376,7 +376,7 @@ function MessageCard({
               );
             }) : null}
             {onThread && (!deleted || message.reply_count > 0) ? (
-              <button className={styles.threadButton} onClick={() => onThread(message)} type="button">
+              <button className={styles.threadButton} data-brain-thread-open onClick={() => onThread(message)} type="button">
                 {message.reply_count
                   ? `${message.reply_count} ${message.reply_count === 1 ? "reply" : "replies"}${message.thread_unread_count ? ` · ${message.thread_unread_count} unread` : ""}`
                   : "Reply in thread"}
@@ -586,30 +586,6 @@ export function NativeChatPanel({
       // Read progress is best-effort; later open/live refresh retries safely.
     }
   }, [conversationEndpoint, router]);
-
-  useEffect(() => {
-    activeChannelIdRef.current = channel.id;
-    setBody("");
-    setAttachments([]);
-    setThreadRoot(null);
-    setThreadReplies([]);
-    setThreadBeforeSequence(null);
-    setThreadHasOlderHistory(false);
-    setThreadHistoryLoading(false);
-    setThreadFirstUnreadReplyId(null);
-    threadMarkedThroughRef.current = null;
-    setThreadBody("");
-    setThreadAttachments([]);
-    setThreadAttachmentRootId(null);
-    setComposerFocused(false);
-    setThreadFocused(false);
-    setPinsOpen(false);
-    setHistoryBeforeSequence(initialHistoryBeforeSequence);
-    setHasOlderHistory(initialHasOlderHistory);
-    setHistoryLoading(false);
-    messageRetryKey.current = null;
-    threadRetryKey.current = null;
-  }, [channel.id, initialHasOlderHistory, initialHistoryBeforeSequence]);
 
   useEffect(() => {
     setRootMessages((current) => {
@@ -1089,6 +1065,17 @@ export function NativeChatPanel({
     } finally {
       setThreadLoading(false);
     }
+  }
+
+  function closeThread() {
+    const rootId = threadRoot?.id;
+    setThreadFocused(false);
+    setThreadRoot(null);
+    if (rootId) window.requestAnimationFrame(() => {
+      document.getElementById(`message-${rootId}`)
+        ?.querySelector<HTMLButtonElement>("button[data-brain-thread-open]")
+        ?.focus({ preventScroll: true });
+    });
   }
 
   async function loadOlderReplies() {
@@ -1597,7 +1584,7 @@ export function NativeChatPanel({
               </button>
             </form>
           ) : (
-            <p>Member changes stay disabled until the authenticated WorkOS route is active.</p>
+            <p>Member changes are not available in this workspace right now.</p>
           )}
           <div className={styles.memberList}>
             {members.map((member) => (
@@ -1818,7 +1805,7 @@ export function NativeChatPanel({
               </form>
             ) : (
               <div className={styles.notice} role="status">
-                This channel is readable, but sending stays disabled until the authenticated WorkOS route is active.
+                You can read this channel, but sending is not available here right now.
               </div>
             )
           ) : (
@@ -1834,8 +1821,7 @@ export function NativeChatPanel({
             aria-labelledby="thread-heading"
             onKeyDown={(event) => {
               if (event.key === "Escape" && uploadingTarget !== "thread") {
-                setThreadFocused(false);
-                setThreadRoot(null);
+                closeThread();
               }
             }}
           >
@@ -1851,8 +1837,7 @@ export function NativeChatPanel({
                 aria-label="Close thread"
                 disabled={uploadingTarget === "thread"}
                 onClick={() => {
-                  setThreadFocused(false);
-                  setThreadRoot(null);
+                  closeThread();
                 }}
                 type="button"
               >
