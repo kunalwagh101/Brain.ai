@@ -176,7 +176,8 @@ test("reviewed WorkOS activation templates use official AuthKit and bounded BFF 
   assert.match(callback, /handleAuth/);
   assert.match(signIn, /getSignInUrl/);
   assert.match(layout, /AuthKitProvider/);
-  assert.match(page, /withAuth\(\{ ensureSignedIn: true \}\)/);
+  assert.match(page, /withAuth\(\)/);
+  assert.match(page, /if \(!user \|\| !accessToken\) redirect\("\/sign-in"\)/);
   assert.match(page, /signOut/);
   assert.match(page, /ProductionWorkspace/);
   assert.match(page, /enableEvidenceBff/);
@@ -196,7 +197,8 @@ test("root uses a read-only production-shell sample before AuthKit activation an
   const text = await source("app/page.tsx");
 
   if (authkitInstalled) {
-    assert.match(text, /withAuth\(\{ ensureSignedIn: true \}\)/);
+    assert.match(text, /withAuth\(\)/);
+    assert.match(text, /if \(!user \|\| !accessToken\) redirect\("\/sign-in"\)/);
     assert.match(text, /ProductionWorkspace/);
     assert.doesNotMatch(text, /Interactive product preview/);
     return;

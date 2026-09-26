@@ -272,7 +272,7 @@ export function AgentWorkspacePanel({
     <section className={styles.workspace} aria-labelledby="agent-workspace-heading">
       <header className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>Developer & agent workspace</p>
+          <p className={styles.eyebrow}>Agent runs and approvals</p>
           <h2 id="agent-workspace-heading">Governed engineering work</h2>
           <p>Agents work only through approved Brain tools. This surface does not expose a generic terminal, repository credential, or browser-side shell.</p>
         </div>

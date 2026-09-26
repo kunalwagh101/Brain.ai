@@ -1,3 +1,4 @@
+import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -14,7 +15,12 @@ export const metadata: Metadata = {
     description,
     type: "website",
     url: siteUrl,
-    images: [{ url: new URL("/og.png", siteUrl), width: 1200, height: 630, alt: "Brain — Company evidence, with permission" }],
+    images: [{
+      url: new URL("/og.png", siteUrl),
+      width: 1200,
+      height: 630,
+      alt: "Brain — Company evidence, with permission",
+    }],
   },
   twitter: {
     card: "summary_large_image",
@@ -25,5 +31,9 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}</body></html>;
+  return (
+    <html lang="en">
+      <body><AuthKitProvider>{children}</AuthKitProvider></body>
+    </html>
+  );
 }

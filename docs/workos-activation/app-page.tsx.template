@@ -1,4 +1,5 @@
 import { signOut, withAuth } from "@workos-inc/authkit-nextjs";
+import { redirect } from "next/navigation";
 import { ProductionWorkspace } from "./production-workspace";
 
 export default async function Home({
@@ -11,7 +12,8 @@ export default async function Home({
     messageId?: string;
   }>;
 }) {
-  const { user, accessToken } = await withAuth({ ensureSignedIn: true });
+  const { user, accessToken } = await withAuth();
+  if (!user || !accessToken) redirect("/sign-in");
   const params = await searchParams;
   const signedInName = [user.firstName, user.lastName].filter(Boolean).join(" ")
     || user.email

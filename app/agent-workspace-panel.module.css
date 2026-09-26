@@ -12,7 +12,7 @@
 .formGrid select,.objectiveLabel textarea,.resumeBox textarea { min-width:0; border:1px solid #cad9d3; border-radius:8px; background:#ffffff; color:#253247; padding:8px 9px; font:inherit; }
 .objectiveLabel { margin-top:12px; }
 .objectiveLabel textarea,.resumeBox textarea { resize:vertical; line-height:1.45; }
-.formGrid select:focus-visible,.objectiveLabel textarea:focus-visible,.resumeBox textarea:focus-visible,button:focus-visible { outline:2px solid #236a69; outline-offset:2px; }
+.formGrid select:focus-visible,.objectiveLabel textarea:focus-visible,.resumeBox textarea:focus-visible,.workspace button:focus-visible { outline:2px solid #236a69; outline-offset:2px; }
 .agentContract { display:flex; justify-content:space-between; gap:14px; margin-top:12px; padding:12px; border:1px solid #f4f7f4; border-radius:9px; background:#ffffff; }
 .agentContract>div:first-child { display:flex; flex-direction:column; gap:3px; }
 .agentContract small { color:#607084; }
@@ -21,9 +21,9 @@
 .policyList span[data-approval="true"] { border-color:#84581c; color:#84581c; }
 .launchActions { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:10px; }
 .launchActions small { color:#607084; }
-button { border:1px solid #cbd9d2; border-radius:8px; background:#f4f7f4; color:#253247; padding:8px 11px; font:inherit; cursor:pointer; }
-button:disabled { opacity:.55; cursor:default; }
-.primaryButton { border-color:#236a69; background:#236a69; color:#ffffff; }
+.workspace button { border:1px solid #cbd9d2; border-radius:8px; background:#f4f7f4; color:#253247; padding:8px 11px; font:inherit; cursor:pointer; }
+.workspace button:disabled { opacity:.55; cursor:default; }
+.workspace .primaryButton { border-color:#236a69; background:#236a69; color:#ffffff; }
 .notice,.error { margin:0 18px; padding:11px 13px; border:1px solid #dce5df; border-radius:8px; background:#ffffff; color:#536475; }
 .error { border-color:#9b4047; color:#9b4047; }
 .runList { display:flex; flex-direction:column; gap:12px; padding:0 18px 18px; }

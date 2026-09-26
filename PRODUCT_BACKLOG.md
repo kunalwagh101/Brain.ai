@@ -432,6 +432,21 @@ Acceptance: Given the selected branch, when build, frontend contracts, delivery 
 Dependencies: S-10.27.01–.05 and external S-10.04.01 WorkOS configuration/browser acceptance. Size: M. Priority: P0 release gate. Leading indicator: scenario pass rate and zero critical privacy/accessibility defects. Business value: E-10.
 Tasks: T-10.27.06.a CI/local build and contract matrix; T-10.27.06.b authenticated multi-role browser UAT; T-10.27.06.c defect fixes and reruns; T-10.27.06.d evidence/board/traceability/demo update; T-10.27.06.e reviewed branch publication. No release is claimed from a read-only sample.
 
+#### F-10.28 In-browser engineering workspace (proposed, not built)
+**S-10.28.01 — Open an authorised repository in Brain**
+As a developer, I want to open a permitted project and see its branch, files, work item and recent activity together.
+Acceptance: repository access follows a current GitHub/Brain grant; a user without access cannot list files or metadata; the browser shows the exact repository/ref and a clear empty/disconnected state. Dependency: GitHub connector, S-10.04 and tenant-safe project identity. State: BACKLOG.
+
+**S-10.28.02 — Edit code and propose a change**
+As a developer, I want to edit files in an isolated project workspace, review diffs and create a branch/commit or draft PR with my own permission.
+Acceptance: no write occurs from a read-only grant; file revisions and conflicts are explicit; edits stay isolated until reviewed, with audit evidence and rollback. Dependency: S-10.28.01, repository write authorization and safe workspace persistence. State: BACKLOG.
+
+**S-10.28.03 — Run code and governed coding agents**
+As a developer, I want tests and AI coding runs in a resource-limited isolated environment tied to that project.
+Acceptance: per-run CPU/time/egress and secret boundaries are enforced; outputs and failures stream back to the correct user/project; privileged changes require explicit approval; cancelling terminates work and records an outcome. Dependency: S-10.28.02, isolated execution infrastructure and S-08.01 governed agent runtime. State: BACKLOG.
+
+The current Developer & Agent Workspace shows governed runs; it is not a repository editor, interactive terminal or coding sandbox. None of S-10.28.01–.03 has implementation or UAT evidence yet.
+
 ## Requirements -> Backlog coverage
 
 | Requirement | Backlog IDs |
@@ -440,6 +455,7 @@ Tasks: T-10.27.06.a CI/local build and contract matrix; T-10.27.06.b authenticat
 | Production-grade active-user MVP | E-09, S-09.03.01, S-09.04.01, S-10.02.01, S-10.04.01 |
 | Existing Slack users | S-02.02.01 |
 | GitHub/code progress | S-02.03.01, S-07.01.01, S-10.07.01 |
+| Open a project and code inside Brain | S-10.28.01, S-10.28.02, S-10.28.03 |
 | Meetings/video/document evidence | S-02.04.01, S-10.05.01 |
 | ChatGPT/OpenAI, Claude, Grok/xAI and other AI | S-06.01.01, S-06.02.01 |
 | Intake/channel/structure data | S-03.01.01, S-03.02.01, S-10.02.01 |

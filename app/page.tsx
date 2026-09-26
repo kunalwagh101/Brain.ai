@@ -1,3 +1,48 @@
-// Until official WorkOS activation, the public root shows the read-only
-// sample using the production workspace component tree.
-export { default } from "./demo/page";
+import { signOut, withAuth } from "@workos-inc/authkit-nextjs";
+import { redirect } from "next/navigation";
+import { ProductionWorkspace } from "./production-workspace";
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    organizationId?: string;
+    channelId?: string;
+    dmId?: string;
+    messageId?: string;
+  }>;
+}) {
+  const { user, accessToken } = await withAuth();
+  if (!user || !accessToken) redirect("/sign-in");
+  const params = await searchParams;
+  const signedInName = [user.firstName, user.lastName].filter(Boolean).join(" ")
+    || user.email
+    || "Brain user";
+
+  async function signOutAction(formData: FormData) {
+    "use server";
+    void formData;
+    await signOut();
+  }
+
+  return (
+    <ProductionWorkspace
+      accessToken={accessToken}
+      signedInName={signedInName}
+      requestedOrganizationId={params.organizationId ?? null}
+      requestedChannelId={params.channelId ?? null}
+      requestedDirectMessageId={params.dmId ?? null}
+      requestedMessageId={params.messageId ?? null}
+      enableAskBrainBff
+      enableEvidenceBff
+      enableNativeChatBff
+      enableDirectMessageBff
+      enableActivityBff
+      enableAgentWorkspaceBff
+      enableLiveUpdatesBff
+      enableWorkspaceSearchBff
+      enableCollaborationPresenceBff
+      signOutAction={signOutAction}
+    />
+  );
+}

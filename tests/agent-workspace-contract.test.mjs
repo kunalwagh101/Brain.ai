@@ -11,7 +11,7 @@ test("agent workspace is embedded in the permission-aware Brain shell", () => {
   const shell = read("app/workspace-shell.tsx");
   assert.match(production, /getAgentWorkspace\(accessToken, organization\.id\)/);
   assert.match(production, /enableAgentWorkspaceBff/);
-  assert.match(shell, /Developer & agents/);
+  assert.match(shell, /Agent runs/);
   assert.match(shell, /<AgentWorkspacePanel/);
   assert.match(shell, /projects=\{projects\}/);
   assert.match(shell, /channels=\{nativeChannels\}/);

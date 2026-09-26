@@ -8,13 +8,18 @@
   "scripts": {
     "install:ci": "bash scripts/install-ci.sh",
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vite",
-    "build": "bash scripts/build-verified.sh",
-    "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
+    "build": "next build",
+    "start": "next start --hostname 0.0.0.0 --port ${PORT:-10000}",
+    "build:sites": "bash scripts/build-verified.sh",
+    "start:sites": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "npm run build && node --test tests/*.test.mjs",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
   },
   "dependencies": {
+    "@fontsource-variable/source-sans-3": "^5.3.0",
+    "@workos-inc/authkit-nextjs": "^4.3.2",
+    "@workos-inc/node": "^10.14.0",
     "drizzle-orm": "0.45.2",
     "next": "16.2.6",
     "react": "19.2.6",

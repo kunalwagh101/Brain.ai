@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@fontsource-variable/source-sans-3/index.css";
 
 :root {
   color-scheme: light;
@@ -9,7 +10,7 @@
   --brain-muted: #667386;
   --brain-line: #e7e8e5;
   --brain-action: #236a69;
-  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Source Sans 3 Variable", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 * { box-sizing: border-box; }

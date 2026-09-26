@@ -807,8 +807,8 @@
   grid-template-columns: 62px 256px minmax(0, 1fr);
   background: var(--brain-canvas);
   color: var(--brain-ink);
-  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 14px;
+  font-family: "Source Sans 3 Variable", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 15px;
   line-height: 1.5;
 }
 .shell :is(a, button, input, textarea, select, summary):focus-visible {
@@ -816,7 +816,7 @@
   outline-offset: 2px;
 }
 .workspaceRail { background: #222d40; border-right-color: #324055; gap: 14px; position: sticky; top: 0; height: 100vh; }
-.brandMark { background: #e1b890; color: #273347; border-radius: 12px 4px 12px 4px; font-size: 19px; }
+.brandMark { background: #e1b890; color: #273347; border-radius: 10px; font-size: 19px; }
 .railAvatar { background: #41516a; color: #fff; }
 .railNav a { color: #c1ccda; position: relative; font-size: 19px; }
 .railNav a:hover, .railNav a:focus-visible, .railNav a[aria-current="page"] { background: #3c4c63; color: #fff; }
@@ -833,11 +833,11 @@
 .workspaceMenu small { color: var(--brain-muted); }
 .navGroups { padding: 12px 9px 20px; scrollbar-color: #c6d0ca transparent; }
 .navGroups section { margin-bottom: 16px; }
-.groupTitle { color: #586878; font-size: 11px; letter-spacing: .075em; }
+.groupTitle { color: #586878; font-size: 12px; letter-spacing: .04em; }
 .navGroups a { color: #405168; font-size: 14px; min-height: 38px; }
 .navGroups a:hover, .navGroups a:focus-visible, .navGroups a[aria-current="page"] { background: #e1e9e5; color: #1f5d5b; }
 .teamNavRow { color: #2f3d50; }
-.teamNavRow small, .channelGroupTitle { color: #657588; font-size: 11px; }
+.teamNavRow small, .channelGroupTitle { color: #657588; font-size: 12px; }
 .channelGroupTree { border-color: #d5dcd7; }
 .unreadBadge { background: #326e6c; color: #fff; }
 .userCard { background: #f1f3f0; }
@@ -846,18 +846,18 @@
 .mainSurface { background: var(--brain-canvas); min-height: 100vh; padding: 0 clamp(18px, 3vw, 52px) 64px; }
 .mainSurface :global(.brain-workspace-screen[hidden]) { display: none !important; }
 .topbar { min-height: 90px; border-color: var(--brain-line); margin-bottom: 23px; }
-.topbar p, .eyebrow { color: #668078; font-size: 11px; }
+.topbar p, .eyebrow { color: #668078; font-size: 12px; }
 .topbar h1 { font-size: clamp(21px, 2.3vw, 29px); line-height: 1.2; letter-spacing: -.035em; color: #233147; }
 .topbar h1:focus { outline: 2px solid #277d79; outline-offset: 5px; border-radius: 2px; }
 .liveBadge { background: #e6f1ed; border: 1px solid #c4ddd2; color: #246755; font-size: 11px; }
 .nextBadge { background: #f2f3f2; border-color: #d9dfdb; color: #596878; }
-.welcomeCard, .panel, .roleNotice { border-color: var(--brain-line); background: #fff; border-radius: 13px; box-shadow: 0 2px 12px #23314708; }
+.welcomeCard, .panel, .roleNotice { border-color: var(--brain-line); background: #fff; border-radius: 10px; box-shadow: 0 2px 12px #23314708; }
 .welcomeCard { align-items: center; padding: clamp(24px, 3vw, 40px); background: linear-gradient(110deg, #fff 65%, #edf5ef); }
 .welcomeCard h2 { max-width: 540px; font-size: clamp(25px, 3vw, 36px); letter-spacing: -.045em; line-height: 1.16; }
 .welcomeCard p:last-child, .roleNotice { color: #566578; font-size: 14px; }
 .summaryPills span { background: #fff; color: #596a78; border-color: #dce6df; font-size: 12px; }
 .summaryPills b { color: #233147; font-size: 23px; }
-.metricGrid article { background: #fff; border-color: var(--brain-line); border-radius: 12px; }
+.metricGrid article { background: #fff; border-color: var(--brain-line); border-radius: 10px; }
 .metricGrid span, .metricGrid small { color: #627184; font-size: 12px; }
 .metricGrid strong { color: #243449; }
 .roleNotice strong { color: #243449; }

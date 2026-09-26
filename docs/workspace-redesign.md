@@ -2,7 +2,7 @@
 
 ## Product alignment
 
-The root route shows a **read-only sample** until official WorkOS activation. Its data enters the same `WorkspaceShell`, `NativeChatPanel`, `DirectMessagePanel`, `ActivityPanel`, project and memory views, `EvidenceWorkspace`, `AgentWorkspacePanel`, and `AdminCenterPanel` used by `ProductionWorkspace`. The sample has no mutation endpoints or credentials. WorkOS activation replaces the root page with authenticated `ProductionWorkspace`; `/demo` remains the explicit sample route.
+The root route now requires the official WorkOS session and uses `ProductionWorkspace` to load Brain backend data. The separate `/demo` route passes labelled sample data through the same shell without mutation endpoints or credentials. If deployment settings are missing, the root goes to `/setup` rather than showing a sample account.
 
 | Existing capability | Screen | Boundary retained |
 | --- | --- | --- |
@@ -31,7 +31,7 @@ The prior long scrolling page exposed every tool at once. The new shell keeps a 
 | Brand warmth | `#e1b890` | Reserved for the mark and active rail indicator |
 | Dividers | `#e7e8e5` | Structure without stacked glowing cards |
 
-The shell uses a 62px rail, 256px sidebar, and flexible canvas; narrow widths collapse the sidebar into `Browse workspace`. Working copy and conversation bodies have larger type, while timestamps and provenance remain quieter. Focus rings, skip navigation, semantic sections, `aria-current`, reduced-motion support, and visible empty states remain intact.
+The shell uses a 62px rail, 256px sidebar, and flexible canvas; narrow widths collapse the sidebar into `Browse workspace`. The bundled Source Sans 3 variable font provides predictable readable body text without a remote font request; 15px base text and 12px navigation labels reduce squinting on dense screens. Main panel corners use a consistent 10px radius. Focus rings, skip navigation, semantic sections, `aria-current`, reduced-motion support, and visible empty states remain intact.
 
 ## Component usage and states
 
@@ -56,4 +56,4 @@ States to check with actual accounts: no visible channels, archived/revoked chan
 
 ## Verification and known gates
 
-Run `npm run build` and `node --test tests/*.test.mjs`. The route test checks that old deep links reveal the correct feature; the rendered HTML test checks sample labelling and the shared feature structure. The read-only demo does not claim that WorkOS activation, live API credentials, external integrations, or UAT have been completed. Keep the existing story board gates until those checks are performed in an authenticated environment.
+Run `npm run build` and `node --test tests/*.test.mjs`. The production root now uses AuthKit and the real Brain API through same-origin server routes; `/demo` is the labelled sample. Login, sending, and progress are not accepted until Render has genuine WorkOS settings and a reachable backend and two real users complete `UAT/F-10.27.md`. The separate Sites build remains available as `npm run build:sites`.

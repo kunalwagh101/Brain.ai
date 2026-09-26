@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getActivity } from "./activity-api";
 import { getAdminCenter } from "./admin-center-api";
 import { getAgentWorkspace } from "./agent-workspace-api";
@@ -76,6 +77,7 @@ export async function ProductionWorkspace({
       <main role="status">
         <h1>No organisation membership</h1>
         <p>Your authenticated identity is not currently a member of a Brain organisation.</p>
+        {signOutAction ? <form action={signOutAction}><button type="submit">Sign out</button></form> : null}
       </main>
     );
   }
@@ -89,6 +91,8 @@ export async function ProductionWorkspace({
       <main role="alert">
         <h1>Organisation unavailable</h1>
         <p>The requested organisation is not in your current authenticated membership list.</p>
+        <Link href="/">Go to your workspace</Link>
+        {signOutAction ? <form action={signOutAction}><button type="submit">Sign out</button></form> : null}
       </main>
     );
   }

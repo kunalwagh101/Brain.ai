@@ -33,7 +33,7 @@ BLOCKED | S-09.04.01 | F-09.04 | Performance/cost benchmark work is staged; exte
 DONE | S-10.01.01 | F-10.01 | Engineering verified on Release Gate 35789299001: native channel/message persistence, evidence projection, restricted membership, frontend contracts and PostgreSQL migration recovery passed; authenticated WorkOS/browser UAT remains UAT_PENDING
 BLOCKED | S-10.02.01 | F-10.02 | Workspace shell, real organisation switching, navigation API/client, responsive controls, tests/docs/UAT are staged; external dependency: official WorkOS activation and authenticated browser acceptance
 BLOCKED | S-10.03.01 | F-10.03 | Project/memory/company-pulse/evidence surfaces, runtime discovery and citation-first Ask Brain UI are staged; external dependency: live authenticated WorkOS/Ask Brain browser acceptance
-BLOCKED | S-10.04.01 | F-10.04 | Official WorkOS Next.js 16 templates, guarded install/activation scripts and BFF security contract are staged; external dependency: real WorkOS configuration plus authenticated browser execution
+BLOCKED | S-10.04.01 | F-10.04 | Official AuthKit installed and authenticated root/same-origin Brain BFF routes active in the branch; Next.js build and local redirect/setup smoke pass; external dependency: real Render WorkOS/backend configuration, authenticated browser and two-user permission UAT
 BLOCKED | S-10.05.01 | F-10.05 | Repository implementation is staged; external S-10.04 WorkOS activation plus executable backend/browser acceptance remain pending
 DONE | S-10.06.01 | F-10.06 | Engineering verified on Release Gate 35789299001: backend conversation regressions, frontend build/contracts, delivery verifier and PostgreSQL migration recovery passed; authenticated WorkOS multi-user UAT remains UAT_PENDING
 DONE | S-10.06.02 | F-10.06 | Engineering verified on Release Gate 35789299001: participant-only DM privacy, revocable visibility epochs, retention, frontend contracts and migrations 0022/0023/0024 passed automated verification; authenticated WorkOS multi-user UAT remains UAT_PENDING
@@ -62,7 +62,10 @@ IN_REVIEW | S-10.27.02 | F-10.27 | Existing conversation/DM feature screens reta
 IN_REVIEW | S-10.27.03 | F-10.27 | Existing Activity/Saved/Search routes retained; search now gates excerpts by exact query and organisation endpoint to prevent stale results, with local navigation usable in sample; live revoke/keyboard browser UAT remains open
 IN_REVIEW | S-10.27.04 | F-10.27 | Existing project/memory/evidence/Ask Brain views integrated in one shell; project labels and sample structured progress/confirmed blockers reconcile; live provenance, unknown-cost and role UAT remain open
 IN_REVIEW | S-10.27.05 | F-10.27 | Existing agent/Admin views integrated; denied Admin route has recovery, agent forms/status/approval details have readable contrast and scope; real Owner/Admin/member action and secret-store UAT remain open
-BLOCKED | S-10.27.06 | F-10.27 | Local build and 141 frontend tests pass; branch publication was rejected by automatic approval review pending explicit authorization for the personal GitHub remote; external S-10.04 WorkOS browser UAT and internal lint/type/verifier gates remain
+BLOCKED | S-10.27.06 | F-10.27 | Branch publication explicitly authorised and completed for prior UI tree; AuthKit/Next.js integration build and local unauthenticated smoke pass; external dependency: actual Render configuration and authenticated browser/two-user UAT; full lint/verifier gates open
+BACKLOG | S-10.28.01 | F-10.28 | Authorised repository browser and project context are specified; no in-browser repository workspace is built
+BACKLOG | S-10.28.02 | F-10.28 | Branch/file editing and reviewed commits require permission-safe persistent workspaces; not built
+BACKLOG | S-10.28.03 | F-10.28 | Code/test execution and coding agents require isolated bounded runners, egress and approval controls; not built
 
 
 
@@ -480,17 +483,17 @@ Formal state: `BLOCKED`. Ask Brain browser mutation remains deliberately inactiv
 
 ### S-10.04.01 Production WorkOS Auth + BFF — BLOCKED
 
-Repo-side staging now:
+Repo-side integration now:
 
 - official current Next.js 16 AuthKit contract reviewed;
 - official npm installer verifies real package-lock resolution/integrity and never invents package metadata;
-- reviewed templates for `authkitProxy()`, `handleAuth()`, `getSignInUrl()`, `AuthKitProvider`, protected `withAuth()` root, `signOut()`, Ask Brain BFF and evidence upload/delete BFF routes;
+- installed official AuthKit 4.x and WorkOS Node packages with generated lockfile; active `authkitProxy()`, `handleAuth()`, `getSignInUrl()`, `AuthKitProvider`, protected `withAuth()` root, `signOut()` and Brain same-origin routes;
 - guarded activation script requires installed/pinned packages plus WorkOS/Brain environment values before copying templates and running lint/build/tests;
 - same-origin BFF routes use server-side `withAuth()`, bounded request validation, membership validation and secret-safe errors;
 - evidence upload BFF additionally performs a bounded multipart stream read and preserves the 10 MB backend file contract;
 - `UAT/F-10.04.md` and `docs/WORKOS_FRONTEND_ACCEPTANCE.md` remain the authenticated security gates.
 
-Formal state: `BLOCKED`. The current environment cannot obtain the official npm packages/real lockfile, and no authenticated WorkOS browser/session execution has occurred. The active root remains the explicitly labelled preview until this external gate is satisfied.
+Formal state: `BLOCKED`. Official package install, Next.js build and local unauthenticated redirects pass. The actual Render WorkOS dashboard/secret settings, reachable Brain backend and authenticated two-user browser/session UAT have not been verified. `/demo` alone remains the explicitly labelled preview; the production root does not display its sample account.
 
 ### S-10.05.01 Governed Files & Evidence Workspace — BLOCKED
 

@@ -219,7 +219,7 @@ export function WorkspaceShell({
           <WorkspaceNavLink view="direct-messages" href="#direct-messages" label="Direct messages">↔</WorkspaceNavLink>
           <WorkspaceNavLink view="saved" href="#saved-messages" label="Saved messages">☆</WorkspaceNavLink>
           <WorkspaceNavLink view="projects" href="#projects" label="Projects">▣</WorkspaceNavLink>
-          <WorkspaceNavLink view="agents" href="#agent-workspace" label="Developer and agent workspace">⌘</WorkspaceNavLink>
+          <WorkspaceNavLink view="agents" href="#agent-workspace" label="Agent runs and approvals">⌘</WorkspaceNavLink>
           <WorkspaceNavLink view="ask" href="#ask-brain" label="Ask Brain">✦</WorkspaceNavLink>
           <WorkspaceNavLink view="files" href="#files" label="Files and evidence">▤</WorkspaceNavLink>
           {adminCenter ? <WorkspaceNavLink view="admin" href="#admin-center" label="Admin and governance">⚙</WorkspaceNavLink> : null}
@@ -272,7 +272,7 @@ export function WorkspaceShell({
               <span>☆</span> Saved
               {savedMessages.length ? <small>{savedMessages.length}</small> : null}
             </WorkspaceNavLink>
-            <WorkspaceNavLink view="agents" href="#agent-workspace"><span>⌘</span> Developer & agents</WorkspaceNavLink>
+            <WorkspaceNavLink view="agents" href="#agent-workspace"><span>⌘</span> Agent runs</WorkspaceNavLink>
             <WorkspaceNavLink view="memory" href="#memory"><span>◇</span> Decisions & blockers</WorkspaceNavLink>
             <WorkspaceNavLink view="files" href="#files"><span>▤</span> Files & evidence</WorkspaceNavLink>
             {adminCenter ? <WorkspaceNavLink view="admin" href="#admin-center"><span>⚙</span> Admin & governance</WorkspaceNavLink> : null}
@@ -474,7 +474,7 @@ export function WorkspaceShell({
                 <a href="#saved-messages">Saved</a>
                 <a href="#projects">Projects</a>
                 <a href="#ask-brain">Ask Brain</a>
-                <a href="#agent-workspace">Developer & agents</a>
+                <a href="#agent-workspace">Agent runs</a>
                 <a href="#memory">Decisions & blockers</a>
                 <a href="#files">Files & evidence</a>
                 {adminCenter ? <a href="#admin-center">Admin & governance</a> : null}
@@ -708,7 +708,7 @@ export function WorkspaceShell({
         </WorkspaceScreen>
 
         <WorkspaceScreen view="agents">
-        <section className={styles.panel} id="agent-workspace" aria-label="Developer and agent workspace">
+        <section className={styles.panel} id="agent-workspace" aria-label="Agent runs and approvals">
           <AgentWorkspacePanel
             workspace={agentWorkspace}
             projects={projects}

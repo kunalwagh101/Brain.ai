@@ -6,7 +6,7 @@ Mode: **TASK**. Role: senior frontend engineer. Branch: `increment-10-ai-provide
 
 A member lands in a focused, conversation-first Brain workspace, can move from attention to the exact authorised work, and understands why an intelligence result is trustworthy. Operators can act without guessing the scope or consequence of an agent/admin change. This increment integrates existing capabilities; it neither rebuilds the collaboration backend nor invents sample production data.
 
-The branch contains the prior redesign commits `b3e3ce2` and `f72248c` plus this integration pass. The existing read-only demo at `/demo` is evidence of composition and visual direction, not authenticated UAT. The root remains sample mode until official WorkOS activation under S-10.04.01. The already-built `ProductionWorkspace` composes the same `WorkspaceShell` with live server data when activated.
+The branch contains the prior redesign commits `b3e3ce2` and `f72248c` plus this integration pass. The existing read-only demo at `/demo` is evidence of composition and visual direction, not authenticated UAT. The root now uses official WorkOS AuthKit and `ProductionWorkspace`, but actual access depends on real Render configuration and browser UAT under S-10.04.01.
 
 ## Screen map and feature ownership
 
@@ -45,7 +45,7 @@ The branch now uses the chosen shell for both sample and `ProductionWorkspace`. 
 
 Local `npm run build` and `node --test tests/*.test.mjs` passed on the implementation working tree (142 tests, 141 passed, 1 intentional unauthenticated skip). Focused lint on newly changed shell/search/demo/agent files passed. Repository-wide lint still reports 10 React effect errors and 2 warnings in existing collaboration/presence components; `npx tsc --noEmit` still lacks Cloudflare Worker ambient types (`Fetcher`, `D1Database`, `cloudflare:workers`). `python scripts/verify_board.py` finds the mappings but cannot execute historical DONE evidence because `pytest` is not installed in this workspace. No authenticated WorkOS/browser test, independent code review or release gate was run at this checkpoint. These are explicit outstanding checks, not accepted exceptions.
 
-Publication checkpoint: local implementation commit `d506aea` sits four commits ahead of remote `663cba7` on `increment-10-ai-provider-gateway`. The push to `https://github.com/kunalwagh101/Brain.ai.git` was rejected by automatic approval review for lack of explicit authorization to export this private-repository payload to that personal GitHub destination. No retry or indirect route was used. Branch publication remains pending explicit approval for the exact destination and commits.
+Publication update (2026-09-27): after the owner explicitly authorised `kunalwagh101/Brain.ai` and `increment-10-ai-provider-gateway`, the five local file trees were published through the connected GitHub account because direct SSH could not resolve GitHub. The remote branch then pointed to `c54948b`; the remote commit IDs differ from the local ones but the final tree matched `d1ce9f4`. WorkOS/Render acceptance remains outstanding; historical push rejection is retained as an audit record.
 
 ## Work orders
 

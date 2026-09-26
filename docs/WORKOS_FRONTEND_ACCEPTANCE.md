@@ -1,6 +1,6 @@
 # WorkOS / frontend acceptance — Brain production path
 
-Status: **IMPLEMENTATION_STAGED / PACKAGE_INSTALL_BLOCKED / UAT_PENDING**
+Status: **SOURCE_ACTIVATED / RENDER_CONFIGURATION_PENDING / UAT_PENDING**
 
 This document defines the only accepted production authentication/frontend path for Brain. The existing `app/chatgpt-auth.ts` integration is a preview-host helper and is **not** an accepted production authentication mechanism.
 
@@ -48,7 +48,7 @@ npm install '@workos-inc/authkit-nextjs@^4' @workos-inc/node
 
 The installer refuses to consider the install complete unless `package.json` and `package-lock.json` contain genuine package entries with an exact resolved version, registry `resolved` URL and `integrity` hash. It also rejects an AuthKit result outside the reviewed 4.x line.
 
-Do **not** hand-edit versions, tarball URLs, transitive packages or integrity hashes if the registry is unavailable. The controlled execution environment used for this implementation has not produced a genuine WorkOS package install, so the active branch intentionally contains no fabricated WorkOS dependency metadata.
+The active branch now installs the official AuthKit 4.x and WorkOS Node packages with npm-generated integrity metadata. Do not hand-edit dependency hashes.
 
 ## Reviewed source activation
 
@@ -124,11 +124,11 @@ The backend rejects a token without a usable `urn:brain:user_email`. The optiona
 
 ## Production root behavior
 
-Before official package installation/activation, `app/page.tsx` remains the explicitly labelled product preview. This prevents a sample page from being misrepresented as the authenticated product.
+The production root is now the authenticated workspace. When WorkOS/Brain API settings are missing, `/` redirects to `/setup`; the separately labelled read-only example remains at `/demo`.
 
 After activation, the reviewed root template:
 
-- uses `withAuth({ ensureSignedIn: true })`;
+- uses `withAuth()` and redirects missing sessions to `/sign-in` (the official WorkOS initiate-login route); this avoids a Next.js 16 server-component cookie mutation error observed with `ensureSignedIn`;
 - obtains the access token only on the server;
 - derives the signed-in display name from the WorkOS user;
 - passes only the server token into `ProductionWorkspace`;
