@@ -543,7 +543,7 @@ export function uploadEvidenceSource(
     `/api/v1/organizations/${encodeURIComponent(organizationId)}/evidence/uploads`,
     {
       method: "POST",
-      body,
+      body: new Uint8Array(body).buffer,
       headers: {
         "Content-Type": contentType,
         "Idempotency-Key": idempotencyKey,
@@ -907,7 +907,7 @@ export function uploadNativeChannelAttachment(
     `/api/v1/organizations/${encodeURIComponent(organizationId)}/native-conversation/channels/${encodeURIComponent(channelId)}/attachments/uploads`,
     {
       method: "POST",
-      body,
+      body: new Uint8Array(body).buffer,
       headers: {
         "Content-Type": contentType,
         "Idempotency-Key": idempotencyKey,

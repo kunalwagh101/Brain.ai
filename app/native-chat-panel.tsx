@@ -693,6 +693,7 @@ export function NativeChatPanel({
 
   useEffect(() => {
     if (!conversationEndpoint || !threadRootId) return;
+    const activeThreadRootId = threadRootId;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let controller: AbortController | null = null;
@@ -713,7 +714,7 @@ export function NativeChatPanel({
       controller = requestController;
       try {
         const response = await fetch(
-          `${conversationEndpoint}/messages/${encodeURIComponent(threadRootId)}/replies`,
+          `${conversationEndpoint}/messages/${encodeURIComponent(activeThreadRootId)}/replies`,
           { credentials: "same-origin", cache: "no-store", signal: requestController.signal },
         );
         if (response.status === 403 || response.status === 404) {
@@ -736,7 +737,7 @@ export function NativeChatPanel({
             setThreadHasOlderHistory(refreshed.length >= 100);
           }
           const latest = refreshed[refreshed.length - 1];
-          if (latest) void persistThreadRead(threadRootId, latest.id);
+          if (latest) void persistThreadRead(activeThreadRootId, latest.id);
         }
       } catch {
         if (requestController.signal.aborted || stopped) return;

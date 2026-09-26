@@ -39,6 +39,7 @@ export function useCollaborationPresence(
       setState(EMPTY_STATE);
       return;
     }
+    const activeEndpoint = endpoint;
 
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -64,7 +65,7 @@ export function useCollaborationPresence(
       const requestController = new AbortController();
       controller = requestController;
       try {
-        const response = await fetch(endpoint, {
+        const response = await fetch(activeEndpoint, {
           credentials: "same-origin",
           cache: "no-store",
           headers: { Accept: "application/json" },

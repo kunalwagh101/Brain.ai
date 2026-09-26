@@ -1,5 +1,4 @@
 import { getActivity } from "./activity-api";
-import { ActivityDock } from "./activity-dock";
 import { getAdminCenter } from "./admin-center-api";
 import { getAgentWorkspace } from "./agent-workspace-api";
 import {
@@ -300,11 +299,6 @@ export async function ProductionWorkspace({
 
   return (
     <>
-      <ActivityDock
-        activity={activity}
-        organizationId={organization.id}
-        mutationBase={activityMutationBase}
-      />
       {liveUpdatesEndpoint ? (
         <LiveWorkspaceRefresh
           endpoint={liveUpdatesEndpoint}
@@ -341,6 +335,8 @@ export async function ProductionWorkspace({
         runtimes={runtimes}
         agentWorkspace={agentWorkspace}
         adminCenter={adminCenter}
+        activity={activity}
+        activityMutationBase={activityMutationBase}
         signedInName={signedInName}
         askBrainEndpoint={askBrainEndpoint}
         evidenceMutationBase={evidenceMutationBase}

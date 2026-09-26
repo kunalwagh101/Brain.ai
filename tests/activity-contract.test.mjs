@@ -69,10 +69,11 @@ test("Activity notification preferences are explicit, personal and same-origin",
   assert.doesNotMatch(panel, /localStorage|sessionStorage|indexedDB/i);
 });
 
-test("Activity server composition loads permission-filtered summary and exposes global dock", () => {
+test("Activity server composition loads permission-filtered summary into the workspace", () => {
   const production = read("app/production-workspace.tsx");
   assert.match(production, /getActivity\(accessToken, organization\.id\)/);
-  assert.match(production, /<ActivityDock/);
+  assert.match(production, /<WorkspaceShell[\s\S]*activity=\{activity\}/);
+  assert.match(readFileSync(new URL("../app/workspace-shell.tsx", import.meta.url), "utf8"), /<ActivityPanel activity=\{activity\}/);
   assert.match(production, /activityMutationBase/);
   assert.match(production, /enableActivityBff/);
 });

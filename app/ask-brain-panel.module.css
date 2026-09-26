@@ -12,8 +12,8 @@
 
 .eyebrow {
   margin: 0 0 5px;
-  color: #818b9a;
-  font-size: 11px;
+  color: #607084;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.09em;
@@ -30,7 +30,7 @@
 }
 
 .form label {
-  color: #aeb6c4;
+  color: #29394b;
   font-size: 12px;
   font-weight: 700;
 }
@@ -38,10 +38,10 @@
 .textarea,
 .select {
   width: 100%;
-  border: 1px solid #343b49;
+  border: 1px solid #dce5df;
   border-radius: 10px;
-  background: #11141b;
-  color: #eef1f7;
+  background: #ffffff;
+  color: #29394b;
   font: inherit;
 }
 
@@ -71,7 +71,7 @@
   border: 0;
   border-radius: 9px;
   padding: 0 15px;
-  background: #6d5dfc;
+  background: #216b69;
   color: #fff;
   font-weight: 750;
   cursor: pointer;
@@ -90,33 +90,33 @@
   margin: 0;
   border-radius: 10px;
   padding: 11px 12px;
-  color: #a4adba;
-  background: #12161e;
-  border: 1px solid #2f3541;
+  color: #29394b;
+  background: #ffffff;
+  border: 1px solid #dce5df;
   line-height: 1.5;
   font-size: 13px;
 }
 
 .error {
-  color: #f1a3aa;
-  border-color: #6a3d43;
-  background: #26171a;
+  color: #9b4047;
+  border-color: #e8bbbe;
+  background: #ffffff;
 }
 
 .insufficient strong {
-  color: #e7ebf2;
+  color: #29394b;
 }
 
 .result {
   display: grid;
   gap: 13px;
-  border-top: 1px solid #2b313c;
+  border-top: 1px solid #dce5df;
   padding-top: 16px;
 }
 
 .answer {
   margin: 0;
-  color: #dce2eb;
+  color: #29394b;
   line-height: 1.65;
 }
 
@@ -129,7 +129,7 @@
 
 .claims > li {
   padding-left: 4px;
-  color: #d6dce6;
+  color: #29394b;
 }
 
 .claims p {
@@ -146,16 +146,16 @@
 }
 
 .citation {
-  border: 1px solid #303745;
+  border: 1px solid #dce5df;
   border-radius: 9px;
-  background: #11151c;
+  background: #ffffff;
   overflow: hidden;
 }
 
 .citation summary {
   cursor: pointer;
   padding: 9px 11px;
-  color: #bfc7d3;
+  color: #29394b;
   font-size: 12px;
   font-weight: 700;
 }
@@ -163,12 +163,12 @@
 .citationBody {
   display: grid;
   gap: 8px;
-  border-top: 1px solid #2b313c;
+  border-top: 1px solid #dce5df;
   padding: 10px 11px 12px;
 }
 
 .citationBody p {
-  color: #929cab;
+  color: #607084;
   font-size: 12px;
 }
 
@@ -177,22 +177,22 @@
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 5px 10px;
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .provenance dt {
-  color: #778291;
+  color: #607084;
 }
 
 .provenance dd {
   min-width: 0;
   margin: 0;
-  color: #aeb7c5;
+  color: #29394b;
   overflow-wrap: anywhere;
 }
 
 .uncertainty {
   margin: 0;
-  color: #a9b2bf;
+  color: #29394b;
   font-size: 12px;
 }

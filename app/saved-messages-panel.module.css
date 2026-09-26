@@ -1,7 +1,7 @@
 .saved {
-  border: 1px solid #2a303b;
+  border: 1px solid #dce5df;
   border-radius: 12px;
-  background: #11151c;
+  background: #ffffff;
   overflow: hidden;
 }
 
@@ -11,7 +11,7 @@
   justify-content: space-between;
   gap: 16px;
   padding: 14px 16px;
-  border-bottom: 1px solid #292f3a;
+  border-bottom: 1px solid #dce5df;
 }
 
 .saved > header p,
@@ -21,24 +21,24 @@
 
 .saved > header p {
   margin-bottom: 3px;
-  color: #747e8d;
-  font-size: 10px;
+  color: #607084;
+  font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: .08em;
 }
 
 .saved > header h2 {
-  color: #edf0f5;
+  color: #29394b;
   font-size: 16px;
 }
 
 .saved > header > span {
-  border: 1px solid #39404c;
+  border: 1px solid #dce5df;
   border-radius: 999px;
-  color: #a4adba;
+  color: #29394b;
   padding: 3px 8px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .list {
@@ -52,7 +52,7 @@
   justify-content: space-between;
   gap: 16px;
   padding: 12px 16px;
-  border-bottom: 1px solid #252b34;
+  border-bottom: 1px solid #dce5df;
 }
 
 .list article:last-child {
@@ -66,19 +66,19 @@
 .list small {
   display: block;
   margin-bottom: 4px;
-  color: #788291;
-  font-size: 9px;
+  color: #607084;
+  font-size: 11px;
 }
 
 .list strong {
-  color: #e0e5ec;
+  color: #29394b;
   font-size: 12px;
 }
 
 .list p {
   margin: 5px 0 0;
-  color: #aeb6c2;
-  font-size: 11px;
+  color: #29394b;
+  font-size: 12px;
   line-height: 1.45;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -93,13 +93,13 @@
 .list a,
 .list button {
   min-height: 30px;
-  border: 1px solid #3a4250;
+  border: 1px solid #dce5df;
   border-radius: 7px;
-  background: #181d26;
-  color: #c1c8d2;
+  background: #ffffff;
+  color: #29394b;
   padding: 5px 9px;
   font: inherit;
-  font-size: 9px;
+  font-size: 11px;
   text-decoration: none;
   cursor: pointer;
 }
@@ -108,9 +108,9 @@
 .list a:focus-visible,
 .list button:hover,
 .list button:focus-visible {
-  border-color: #7469e8;
-  color: #fff;
-  outline: 2px solid #5148a8;
+  border-color: #8cbab1;
+  color: #205e5b;
+  outline: 2px solid #287e78;
   outline-offset: 1px;
 }
 
@@ -122,14 +122,14 @@
 .empty {
   margin: 0;
   padding: 18px 16px;
-  color: #7f8998;
-  font-size: 11px;
+  color: #607084;
+  font-size: 12px;
 }
 
 .error {
   margin: 0;
   padding: 10px 16px;
-  border-top: 1px solid #55373d;
-  color: #ef9aa2;
-  font-size: 11px;
+  border-top: 1px solid #e8bbbe;
+  color: #9b4047;
+  font-size: 12px;
 }

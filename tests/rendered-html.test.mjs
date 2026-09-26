@@ -20,10 +20,14 @@ test(
     assert.equal(response.status, 200);
     const html = await response.text();
     assert.match(html, /<title>Brain<\/title>/i);
-    assert.match(html, /Interactive product preview/i);
-    assert.match(html, /No external source or AI provider is connected/i);
-    assert.match(html, /Secure foundation before AI/i);
-    assert.match(html, /Run daily brief/i);
+    assert.match(html, /Interactive sample workspace/i);
+    assert.match(html, /Example data · Read only · No account or backend connected/i);
+    assert.match(html, /Northstar Studio/i);
+    assert.match(html, /activity-center/i);
+    assert.match(html, /native-chat/i);
+    assert.match(html, /direct-messages/i);
+    assert.match(html, /admin-center/i);
+    assert.match(html, /project-mobile-app/i);
     assert.match(
       html,
       /property="og:image"[^>]+brain-control-plane\.waghkunal1997\.chatgpt\.site\/og\.png/i,

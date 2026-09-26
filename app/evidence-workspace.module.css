@@ -10,7 +10,7 @@
   justify-content: space-between;
   gap: 24px;
   padding: 18px;
-  border-bottom: 1px solid #292f3a;
+  border-bottom: 1px solid #dce5df;
 }
 
 .header > div:first-child {
@@ -24,14 +24,14 @@
 
 .header p:last-child {
   margin-bottom: 0;
-  color: #939dac;
+  color: #607084;
   line-height: 1.55;
 }
 
 .eyebrow {
   margin: 0 0 4px;
-  color: #7f8998;
-  font-size: 11px;
+  color: #607084;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .09em;
@@ -47,25 +47,25 @@
 .summary span {
   min-width: 82px;
   padding: 8px 10px;
-  border: 1px solid #303644;
+  border: 1px solid #dce5df;
   border-radius: 9px;
-  background: #11141b;
-  color: #919aa8;
-  font-size: 11px;
+  background: #ffffff;
+  color: #607084;
+  font-size: 12px;
 }
 
 .summary b {
   display: block;
-  color: #f0f3f8;
+  color: #29394b;
   font-size: 17px;
 }
 
 .uploadForm {
   margin: 0 18px;
   padding: 16px;
-  border: 1px solid #313746;
+  border: 1px solid #dce5df;
   border-radius: 12px;
-  background: #12161e;
+  background: #ffffff;
 }
 
 .formHeading {
@@ -84,16 +84,16 @@
 
 .formHeading span,
 .supportedTypes {
-  color: #858f9e;
+  color: #607084;
   font-size: 12px;
 }
 
 .formHeading button,
 .sourceActions button {
-  border: 1px solid #3a4252;
+  border: 1px solid #dce5df;
   border-radius: 8px;
-  background: #252b38;
-  color: #eef1f7;
+  background: #f4f7f4;
+  color: #29394b;
   padding: 8px 11px;
   font: inherit;
   cursor: pointer;
@@ -123,12 +123,12 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: #a5aebb;
-  font-size: 11px;
+  color: #29394b;
+  font-size: 12px;
 }
 
 .formGrid small {
-  color: #747e8d;
+  color: #607084;
 }
 
 .formGrid input,
@@ -136,10 +136,10 @@
 .toolbar input {
   min-width: 0;
   min-height: 38px;
-  border: 1px solid #303746;
+  border: 1px solid #dce5df;
   border-radius: 8px;
-  background: #0e1219;
-  color: #eef1f7;
+  background: #ffffff;
+  color: #29394b;
   padding: 7px 9px;
   font: inherit;
 }
@@ -147,7 +147,7 @@
 .formGrid input:focus-visible,
 .formGrid select:focus-visible,
 .toolbar input:focus-visible {
-  border-color: #776bf7;
+  border-color: #8cbab1;
   outline: 2px solid #5148a8;
   outline-offset: 1px;
 }
@@ -161,21 +161,21 @@
 .mutationState {
   margin: 0 18px;
   padding: 12px 14px;
-  border: 1px solid #343a48;
+  border: 1px solid #dce5df;
   border-radius: 9px;
-  color: #9ea8b6;
-  background: #131820;
+  color: #607084;
+  background: #ffffff;
   line-height: 1.45;
 }
 
 .mutationState[data-kind="success"] {
-  border-color: #345e50;
-  color: #91d8ba;
+  border-color: #b4d6c5;
+  color: #246f57;
 }
 
 .mutationState[data-kind="error"] {
-  border-color: #70484d;
-  color: #e9a2a9;
+  border-color: #e8bbbe;
+  color: #9b4047;
 }
 
 .toolbar {
@@ -196,7 +196,7 @@
 }
 
 .toolbar > span {
-  color: #818b9a;
+  color: #607084;
   font-size: 12px;
 }
 
@@ -221,9 +221,9 @@
 
 .sourceCard {
   min-width: 0;
-  border: 1px solid #2b313d;
+  border: 1px solid #dce5df;
   border-radius: 12px;
-  background: #131820;
+  background: #ffffff;
   padding: 14px;
 }
 
@@ -255,7 +255,7 @@
 }
 
 .sourceIdentity small {
-  color: #828c9b;
+  color: #607084;
   margin-top: 3px;
 }
 
@@ -266,8 +266,8 @@
   display: grid;
   place-items: center;
   border-radius: 9px;
-  background: #282e3b;
-  color: #cfd5df;
+  background: #f4f7f4;
+  color: #29394b;
   font-weight: 800;
   font-size: 12px;
 }
@@ -280,33 +280,33 @@
 }
 
 .badges span {
-  border: 1px solid #39404d;
+  border: 1px solid #dce5df;
   border-radius: 999px;
   padding: 4px 7px;
-  color: #9ca5b4;
-  font-size: 9px;
+  color: #607084;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: .05em;
 }
 
 .badges span[data-status="active"] {
-  border-color: #356554;
-  color: #82d8b4;
+  border-color: #b4d6c5;
+  color: #246f57;
 }
 
 .badges span[data-status="unavailable"] {
-  border-color: #725a37;
-  color: #e7bf7d;
+  border-color: #ead5ad;
+  color: #84581c;
 }
 
 .badges span[data-status="failed"] {
-  border-color: #754646;
-  color: #efa0a8;
+  border-color: #e8bbbe;
+  color: #9b4047;
 }
 
 .badges span[data-status="deleted"] {
-  border-color: #4a4f5a;
-  color: #888f9b;
+  border-color: #dce5df;
+  color: #607084;
 }
 
 .metadata,
@@ -319,21 +319,21 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1px;
   overflow: hidden;
-  border: 1px solid #272d37;
+  border: 1px solid #dce5df;
   border-radius: 8px;
-  background: #272d37;
+  background: #f4f7f4;
 }
 
 .metadata div {
   min-width: 0;
   padding: 8px;
-  background: #10151c;
+  background: #ffffff;
 }
 
 .metadata dt,
 .provenance dt {
-  color: #77818f;
-  font-size: 10px;
+  color: #607084;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: .05em;
 }
@@ -342,8 +342,8 @@
 .provenance dd {
   margin: 3px 0 0;
   overflow-wrap: anywhere;
-  color: #bfc6d0;
-  font-size: 11px;
+  color: #29394b;
+  font-size: 12px;
 }
 
 .provenance {
@@ -352,17 +352,17 @@
 
 .provenance summary {
   cursor: pointer;
-  color: #9fa8b6;
+  color: #607084;
   font-size: 12px;
 }
 
 .provenance dl div {
   padding: 7px 0;
-  border-top: 1px solid #272d37;
+  border-top: 1px solid #dce5df;
 }
 
 .provenance code {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .sourceActions {
@@ -372,18 +372,18 @@
 }
 
 .dangerButton {
-  border-color: #7c454b !important;
-  color: #f0abb1 !important;
-  background: #2b191c !important;
+  border-color: #e8bbbe !important;
+  color: #9b4047 !important;
+  background: #ffffff !important;
 }
 
 .emptyState {
   grid-column: 1 / -1;
   margin: 0;
   padding: 20px;
-  border: 1px dashed #333a47;
+  border: 1px dashed #dce5df;
   border-radius: 10px;
-  color: #858f9e;
+  color: #607084;
   text-align: center;
 }
 

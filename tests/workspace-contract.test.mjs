@@ -192,7 +192,7 @@ test("reviewed WorkOS activation templates use official AuthKit and bounded BFF 
   assert.doesNotMatch(`${askBff}\n${evidenceUpload}\n${evidenceDelete}`, /localStorage|sessionStorage/);
 });
 
-test("root is preview before AuthKit activation and production workspace after activation", async () => {
+test("root uses a read-only production-shell sample before AuthKit activation and authenticated data after activation", async () => {
   const text = await source("app/page.tsx");
 
   if (authkitInstalled) {
@@ -202,7 +202,11 @@ test("root is preview before AuthKit activation and production workspace after a
     return;
   }
 
-  assert.match(text, /Interactive product preview/);
-  assert.match(text, /No external source or AI provider is connected/);
+  assert.match(text, /\.\/demo\/page/);
+  const demo = await source("app/demo/page.tsx");
+  assert.match(demo, /<WorkspaceShell/);
+  assert.match(demo, /Read only · No account or backend connected/);
+  assert.match(demo, /activityMutationBase=\{null\}/);
+  assert.match(demo, /nativeMessageEndpoint=\{null\}/);
   assert.doesNotMatch(text, /ProductionWorkspace/);
 });

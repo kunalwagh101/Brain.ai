@@ -2,9 +2,9 @@
   display: flex;
   flex-direction: column;
   min-height: 420px;
-  border: 1px solid #2a303b;
+  border: 1px solid #dce5df;
   border-radius: 12px;
-  background: #11151c;
+  background: #ffffff;
   overflow: hidden;
 }
 
@@ -14,7 +14,7 @@
   justify-content: space-between;
   gap: 20px;
   padding: 16px 18px;
-  border-bottom: 1px solid #292f3a;
+  border-bottom: 1px solid #dce5df;
 }
 
 .header h2,
@@ -28,13 +28,13 @@
 
 .header p:last-child {
   margin-bottom: 0;
-  color: #8d97a5;
+  color: #607084;
 }
 
 .eyebrow {
   margin: 0 0 3px;
-  color: #747e8d;
-  font-size: 10px;
+  color: #607084;
+  font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: .08em;
@@ -50,11 +50,11 @@
 .channelMeta span,
 .agentBadge,
 .projection {
-  border: 1px solid #39404c;
+  border: 1px solid #dce5df;
   border-radius: 999px;
   padding: 4px 7px;
-  color: #9da6b4;
-  font-size: 9px;
+  color: #607084;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: .05em;
 }
@@ -62,13 +62,13 @@
 .pinsButton,
 .jumpUnreadButton {
   min-height: 26px;
-  border: 1px solid #4a456f;
+  border: 1px solid #8cbab1;
   border-radius: 999px;
-  background: #211f38;
-  color: #c4befd;
+  background: #f4f7f4;
+  color: #29394b;
   padding: 4px 8px;
   font: inherit;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -77,20 +77,20 @@
 .pinsButton:focus-visible,
 .jumpUnreadButton:hover,
 .jumpUnreadButton:focus-visible {
-  border-color: #8075f0;
-  color: #fff;
-  outline: 2px solid #5148a8;
+  border-color: #8cbab1;
+  color: #205e5b;
+  outline: 2px solid #287e78;
   outline-offset: 1px;
 }
 
 .jumpUnreadButton {
-  border: 1px solid #6b5b35;
+  border: 1px solid #ead5ad;
   border-radius: 999px;
-  background: #2a2317;
-  color: #f1cb83;
+  background: #f4f7f4;
+  color: #84581c;
   padding: 4px 8px;
   font: inherit;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -100,8 +100,8 @@
   align-items: center;
   gap: 10px;
   padding: 7px 18px 5px;
-  color: #f0b85d;
-  font-size: 10px;
+  color: #84581c;
+  font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: .06em;
@@ -113,7 +113,7 @@
   content: "";
   flex: 1;
   height: 1px;
-  background: #7b5930;
+  background: #fff2d9;
 }
 
 .firstUnreadDivider:focus-visible {
@@ -122,22 +122,22 @@
 }
 
 .agentBadge {
-  border-color: #514993;
-  color: #b8afff;
+  border-color: #8cbab1;
+  color: #216b69;
 }
 
 .channelCreate {
   padding: 12px 16px;
-  border-bottom: 1px solid #292f3a;
-  background: #0f131a;
+  border-bottom: 1px solid #dce5df;
+  background: #ffffff;
 }
 
 .channelCreate > button,
 .channelCreate form > button {
-  border: 1px solid #3d4554;
+  border: 1px solid #dce5df;
   border-radius: 8px;
-  background: #252b38;
-  color: #edf0f5;
+  background: #f4f7f4;
+  color: #29394b;
   padding: 7px 11px;
   font: inherit;
   cursor: pointer;
@@ -145,7 +145,7 @@
 
 .channelCreate > button:focus-visible,
 .channelCreate form > button:focus-visible {
-  outline: 2px solid #5148a8;
+  outline: 2px solid #287e78;
   outline-offset: 2px;
 }
 
@@ -161,48 +161,48 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
-  color: #909aa8;
-  font-size: 10px;
+  color: #607084;
+  font-size: 12px;
 }
 
 .channelCreate input,
 .channelCreate select {
   min-width: 0;
   min-height: 36px;
-  border: 1px solid #343b48;
+  border: 1px solid #dce5df;
   border-radius: 8px;
-  background: #151a22;
-  color: #edf0f5;
+  background: #ffffff;
+  color: #29394b;
   padding: 7px 9px;
   font: inherit;
 }
 
 .channelCreate input:focus-visible,
 .channelCreate select:focus-visible {
-  outline: 2px solid #5148a8;
+  outline: 2px solid #287e78;
   outline-offset: 1px;
-  border-color: #776bf7;
+  border-color: #8cbab1;
 }
 
 .loadOlder {
   align-self: center;
   margin: 6px 12px 10px;
-  border: 1px solid #3b4350;
+  border: 1px solid #dce5df;
   border-radius: 999px;
-  background: #181d26;
-  color: #aeb6c2;
+  background: #ffffff;
+  color: #29394b;
   padding: 6px 10px;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
 }
 
 .loadOlder:hover,
 .loadOlder:focus-visible {
-  border-color: #7469e8;
-  color: #fff;
-  outline: 2px solid #5148a8;
+  border-color: #8cbab1;
+  color: #205e5b;
+  outline: 2px solid #287e78;
   outline-offset: 1px;
 }
 
@@ -222,8 +222,8 @@
 }
 
 .pinsPanel {
-  border-bottom: 1px solid #292f3a;
-  background: #0f131a;
+  border-bottom: 1px solid #dce5df;
+  background: #ffffff;
   padding: 12px 16px;
 }
 
@@ -242,12 +242,12 @@
 
 .pinsPanel > header > span {
   min-width: 26px;
-  border: 1px solid #3c4350;
+  border: 1px solid #dce5df;
   border-radius: 999px;
-  color: #9ca5b2;
+  color: #607084;
   padding: 3px 7px;
   text-align: center;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .pinList {
@@ -263,9 +263,9 @@
   justify-content: space-between;
   gap: 12px;
   padding: 9px 10px;
-  border: 1px solid #303744;
+  border: 1px solid #dce5df;
   border-radius: 8px;
-  background: #121720;
+  background: #ffffff;
 }
 
 .pinList article > div:first-child {
@@ -274,21 +274,21 @@
 
 .pinList strong {
   display: block;
-  color: #dfe4eb;
-  font-size: 11px;
+  color: #29394b;
+  font-size: 12px;
 }
 
 .pinList small {
   display: block;
   margin-top: 2px;
-  color: #788291;
-  font-size: 9px;
+  color: #607084;
+  font-size: 11px;
 }
 
 .pinList p {
   margin-top: 5px;
-  color: #aeb6c2;
-  font-size: 10px;
+  color: #29394b;
+  font-size: 12px;
   line-height: 1.4;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -302,21 +302,21 @@
 
 .pinList button {
   min-height: 29px;
-  border: 1px solid #3a4250;
+  border: 1px solid #dce5df;
   border-radius: 7px;
-  background: #181d26;
-  color: #bbc3ce;
+  background: #ffffff;
+  color: #29394b;
   padding: 4px 8px;
   font: inherit;
-  font-size: 9px;
+  font-size: 11px;
   cursor: pointer;
 }
 
 .pinList button:hover,
 .pinList button:focus-visible {
-  border-color: #7469e8;
-  color: #fff;
-  outline: 2px solid #5148a8;
+  border-color: #8cbab1;
+  color: #205e5b;
+  outline: 2px solid #287e78;
   outline-offset: 1px;
 }
 
@@ -326,8 +326,8 @@
 }
 
 .pinsEmpty {
-  color: #788291;
-  font-size: 10px;
+  color: #607084;
+  font-size: 12px;
 }
 
 .conversation {
@@ -360,7 +360,7 @@
 }
 
 .message:hover {
-  background: #151a22;
+  background: #ffffff;
 }
 
 .messageContent {
@@ -373,15 +373,15 @@
   display: grid;
   place-items: center;
   border-radius: 9px;
-  background: #29303d;
-  color: #d8dde5;
-  font-size: 10px;
+  background: #f4f7f4;
+  color: #29394b;
+  font-size: 12px;
   font-weight: 800;
 }
 
 .avatar[data-agent="true"] {
-  background: #302b59;
-  color: #c9c2ff;
+  background: #dbece6;
+  color: #216b69;
 }
 
 .messageMeta {
@@ -392,18 +392,18 @@
 }
 
 .messageMeta strong {
-  color: #edf0f5;
+  color: #29394b;
   font-size: 13px;
 }
 
 .messageMeta time {
-  color: #727c8b;
-  font-size: 10px;
+  color: #607084;
+  font-size: 12px;
 }
 
 .editedMarker {
-  color: #7f8998;
-  font-size: 10px;
+  color: #607084;
+  font-size: 12px;
   font-style: italic;
 }
 
@@ -413,18 +413,18 @@
 
 .tombstone {
   margin: 5px 0 0;
-  color: #7f8998;
+  color: #607084;
   font-style: italic;
 }
 
 .projection[data-status="failed"] {
-  border-color: #6a3f45;
-  color: #e6949c;
+  border-color: #e8bbbe;
+  color: #9b4047;
 }
 
 .body {
   margin: 4px 0 0;
-  color: #c8ced7;
+  color: #29394b;
   line-height: 1.55;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -432,8 +432,8 @@
 
 .mention {
   border-radius: 4px;
-  background: #343064;
-  color: #ddd9ff;
+  background: #dbece6;
+  color: #216b69;
   padding: 1px 3px;
 }
 
@@ -449,17 +449,17 @@
   align-items: center;
   gap: 9px;
   padding: 9px 10px;
-  border: 1px solid #303744;
+  border: 1px solid #dce5df;
   border-radius: 9px;
-  background: #10151d;
-  color: #dce2ea;
+  background: #ffffff;
+  color: #29394b;
   text-decoration: none;
 }
 
 .attachments > a:hover,
 .attachments > a:focus-visible {
-  border-color: #645bd0;
-  outline: 2px solid #5148a8;
+  border-color: #8cbab1;
+  outline: 2px solid #287e78;
   outline-offset: 1px;
 }
 
@@ -481,17 +481,17 @@
 }
 
 .attachments strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .attachments small {
-  color: #7f8998;
-  font-size: 9px;
+  color: #607084;
+  font-size: 11px;
 }
 
 .attachments em {
-  color: #9891f4;
-  font-size: 9px;
+  color: #216b69;
+  font-size: 11px;
   font-style: normal;
 }
 
@@ -507,10 +507,10 @@
 .threadHeader button,
 .memberManager button {
   min-height: 28px;
-  border: 1px solid #343b48;
+  border: 1px solid #dce5df;
   border-radius: 7px;
-  background: #181d26;
-  color: #aeb6c2;
+  background: #ffffff;
+  color: #29394b;
   padding: 3px 7px;
   font: inherit;
   cursor: pointer;
@@ -524,7 +524,7 @@
 
 .messageActions button small {
   color: inherit;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .messageActions button:hover,
@@ -533,16 +533,16 @@
 .threadHeader button:focus-visible,
 .memberManager button:hover,
 .memberManager button:focus-visible {
-  border-color: #7469e8;
-  color: #fff;
-  outline: 2px solid #5148a8;
+  border-color: #8cbab1;
+  color: #205e5b;
+  outline: 2px solid #287e78;
   outline-offset: 1px;
 }
 
 .messageActions button[data-active="true"] {
-  border-color: #645bd0;
-  background: #2b2850;
-  color: #e1ddff;
+  border-color: #8cbab1;
+  background: #dbece6;
+  color: #216b69;
 }
 
 .messageActions button:disabled {
@@ -557,8 +557,8 @@
 }
 
 .editForm label {
-  color: #8f99a7;
-  font-size: 10px;
+  color: #607084;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -566,18 +566,18 @@
   width: 100%;
   min-height: 76px;
   resize: vertical;
-  border: 1px solid #353c49;
+  border: 1px solid #dce5df;
   border-radius: 8px;
-  background: #11161e;
-  color: #edf0f5;
+  background: #ffffff;
+  color: #29394b;
   padding: 9px;
   font: inherit;
   line-height: 1.45;
 }
 
 .editForm textarea:focus-visible {
-  border-color: #776bf7;
-  outline: 2px solid #5148a8;
+  border-color: #8cbab1;
+  outline: 2px solid #287e78;
   outline-offset: 1px;
 }
 
@@ -591,17 +591,17 @@
 
 .editForm > div > span {
   margin-right: auto;
-  color: #747e8d;
-  font-size: 10px;
+  color: #607084;
+  font-size: 12px;
 }
 
 .editForm button,
 .retractConfirm button {
   min-height: 30px;
-  border: 1px solid #3a4250;
+  border: 1px solid #dce5df;
   border-radius: 7px;
-  background: #181d26;
-  color: #c2c9d3;
+  background: #ffffff;
+  color: #29394b;
   padding: 4px 9px;
   font: inherit;
   cursor: pointer;
@@ -609,34 +609,34 @@
 
 .editForm button:focus-visible,
 .retractConfirm button:focus-visible {
-  outline: 2px solid #5148a8;
+  outline: 2px solid #287e78;
   outline-offset: 1px;
 }
 
 .retractConfirm {
   margin-top: 8px;
   padding: 8px 9px;
-  border: 1px solid #55373d;
+  border: 1px solid #e8bbbe;
   border-radius: 8px;
-  background: #1a1215;
+  background: #ffffff;
 }
 
 .retractConfirm span {
   flex: 1 1 240px;
-  color: #d6b3b7;
-  font-size: 11px;
+  color: #9b4047;
+  font-size: 12px;
 }
 
 .lifecycleError {
   margin: 7px 0 0;
-  color: #ef9aa2;
-  font-size: 11px;
+  color: #9b4047;
+  font-size: 12px;
 }
 
 .threadButton {
   margin-left: 3px;
-  color: #a9a0ff !important;
-  font-size: 10px !important;
+  color: #216b69 !important;
+  font-size: 12px !important;
   font-weight: 700 !important;
 }
 
@@ -646,16 +646,16 @@
 
 .provenance summary {
   cursor: pointer;
-  color: #788291;
-  font-size: 10px;
+  color: #607084;
+  font-size: 12px;
 }
 
 .provenance dl {
   margin: 7px 0 0;
   padding: 8px;
-  border: 1px solid #272d37;
+  border: 1px solid #dce5df;
   border-radius: 8px;
-  background: #0d1117;
+  background: #ffffff;
 }
 
 .provenance dl div {
@@ -666,16 +666,16 @@
 }
 
 .provenance dt {
-  color: #747f8d;
-  font-size: 9px;
+  color: #607084;
+  font-size: 11px;
   text-transform: uppercase;
 }
 
 .provenance dd {
   min-width: 0;
   margin: 0;
-  color: #aeb6c2;
-  font-size: 10px;
+  color: #29394b;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 
@@ -687,25 +687,25 @@
   justify-content: center;
   gap: 5px;
   min-height: 180px;
-  color: #7e8998;
+  color: #607084;
   text-align: center;
 }
 
 .empty strong {
-  color: #bac1cb;
+  color: #29394b;
 }
 
 .composer {
   padding: 12px 16px 14px;
-  border-top: 1px solid #292f3a;
-  background: #0e1218;
+  border-top: 1px solid #dce5df;
+  background: #ffffff;
 }
 
 .composer label {
   display: block;
   margin-bottom: 6px;
-  color: #8f99a7;
-  font-size: 10px;
+  color: #607084;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -713,19 +713,19 @@
   width: 100%;
   resize: vertical;
   min-height: 72px;
-  border: 1px solid #353c49;
+  border: 1px solid #dce5df;
   border-radius: 9px;
-  background: #151a22;
-  color: #edf0f5;
+  background: #ffffff;
+  color: #29394b;
   padding: 10px;
   font: inherit;
   line-height: 1.45;
 }
 
 .composer textarea:focus-visible {
-  outline: 2px solid #5148a8;
+  outline: 2px solid #287e78;
   outline-offset: 1px;
-  border-color: #776bf7;
+  border-color: #8cbab1;
 }
 
 .composerFooter {
@@ -738,21 +738,21 @@
 }
 
 .composer span {
-  color: #747e8d;
-  font-size: 10px;
+  color: #607084;
+  font-size: 12px;
 }
 
 .composerHint {
   margin: 5px 0 0;
-  color: #747e8d;
-  font-size: 10px;
+  color: #607084;
+  font-size: 12px;
 }
 
 .typingStatus {
   margin: 0;
   padding: 5px 16px 0;
-  color: #9e97f2;
-  font-size: 10px;
+  color: #216b69;
+  font-size: 12px;
   min-height: 18px;
 }
 
@@ -761,9 +761,9 @@
   gap: 6px;
   margin-top: 9px;
   padding: 8px;
-  border: 1px solid #2f3643;
+  border: 1px solid #dce5df;
   border-radius: 8px;
-  background: #11161e;
+  background: #ffffff;
 }
 
 .pendingAttachments > span {
@@ -779,18 +779,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #cbd2dc;
+  color: #29394b;
 }
 
 .pendingAttachments small {
-  color: #7f8998;
-  font-size: 9px;
+  color: #607084;
+  font-size: 11px;
 }
 
 .pendingAttachments p {
   margin: 2px 0 0;
-  color: #747e8d;
-  font-size: 9px;
+  color: #607084;
+  font-size: 11px;
 }
 
 .attachButton {
@@ -799,18 +799,18 @@
   align-items: center;
   margin: 0 !important;
   min-height: 34px;
-  border: 1px solid #3a4250;
+  border: 1px solid #dce5df;
   border-radius: 8px;
-  background: #181d26;
-  color: #c5ccd6 !important;
+  background: #ffffff;
+  color: #29394b !important;
   padding: 6px 10px;
   cursor: pointer;
 }
 
 .attachButton:hover,
 .attachButton:focus-within {
-  border-color: #645bd0;
-  outline: 2px solid #5148a8;
+  border-color: #8cbab1;
+  outline: 2px solid #287e78;
   outline-offset: 1px;
 }
 
@@ -828,9 +828,9 @@
 }
 
 .composer button {
-  border: 1px solid #6157ca;
+  border: 1px solid #216b69;
   border-radius: 8px;
-  background: #5148a8;
+  background: #216b69;
   color: #fff;
   padding: 7px 14px;
   font: inherit;
@@ -847,22 +847,22 @@
 .error {
   margin: 12px 16px 14px;
   padding: 11px 12px;
-  border: 1px solid #343b48;
+  border: 1px solid #dce5df;
   border-radius: 8px;
-  background: #151a22;
-  color: #8f99a7;
+  background: #ffffff;
+  color: #607084;
   line-height: 1.45;
 }
 
 .memberManager {
-  border-bottom: 1px solid #292f3a;
+  border-bottom: 1px solid #dce5df;
   padding: 11px 16px;
-  background: #0f131a;
+  background: #ffffff;
 }
 
 .memberManager > summary {
-  color: #aeb6c2;
-  font-size: 11px;
+  color: #29394b;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -879,17 +879,17 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
-  color: #8f99a7;
-  font-size: 10px;
+  color: #607084;
+  font-size: 12px;
 }
 
 .memberManager input,
 .memberManager select {
   min-height: 36px;
-  border: 1px solid #343b48;
+  border: 1px solid #dce5df;
   border-radius: 7px;
-  background: #151a22;
-  color: #edf0f5;
+  background: #ffffff;
+  color: #29394b;
   padding: 6px 8px;
   font: inherit;
 }
@@ -906,7 +906,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: 7px 9px;
-  border: 1px solid #292f3a;
+  border: 1px solid #dce5df;
   border-radius: 7px;
 }
 
@@ -918,15 +918,15 @@
 }
 
 .memberList small {
-  color: #7f8998;
-  font-size: 10px;
+  color: #607084;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 
 .threadPane {
   max-height: 720px;
-  border-left: 1px solid #292f3a;
-  background: #0e1218;
+  border-left: 1px solid #dce5df;
+  background: #ffffff;
 }
 
 .threadHeader {
@@ -936,7 +936,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 12px 14px;
-  border-bottom: 1px solid #292f3a;
+  border-bottom: 1px solid #dce5df;
 }
 
 .threadHeader h3 {
@@ -945,7 +945,7 @@
 }
 
 .threadHeader h3:focus { outline: none; }
-.threadHeader small { color: #7f8998; }
+.threadHeader small { color: #607084; }
 .threadHeader button { min-width: 30px; font-size: 20px; }
 
 .threadFeed {
@@ -969,21 +969,21 @@
   align-items: center;
   gap: 10px;
   margin: 7px 13px;
-  color: #858f9e;
-  font-size: 10px;
+  color: #607084;
+  font-size: 12px;
 }
 
 .replyDivider::after {
   content: "";
   flex: 1;
   height: 1px;
-  background: #2a303b;
+  background: #f4f7f4;
 }
 
 .threadStatus {
   padding: 10px 14px;
-  color: #7f8998;
-  font-size: 11px;
+  color: #607084;
+  font-size: 12px;
 }
 
 .srOnly {
@@ -1005,14 +1005,14 @@
 
   .threadPane {
     max-height: 620px;
-    border-top: 1px solid #292f3a;
+    border-top: 1px solid #dce5df;
     border-left: 0;
   }
 }
 
 .error {
-  border-color: #694148;
-  color: #e6a0a7;
+  border-color: #e8bbbe;
+  color: #9b4047;
 }
 
 @media (max-width: 900px) {
@@ -1062,7 +1062,7 @@
 }
 
 .threadHeaderActions button {
-  border: 1px solid #3b4350;
+  border: 1px solid #dce5df;
   border-radius: 999px;
   background: transparent;
   color: inherit;
@@ -1098,3 +1098,8 @@
   outline: 2px solid currentColor;
   outline-offset: 2px;
 }
+
+.chat { border: 0; border-radius: 0; min-height: min(78vh, 810px); background: #fff; }
+.chat .body, .chat .composer textarea { font-size: 16px; line-height: 1.55; }
+.chat button { font-size: 13px; min-height: 32px; }
+.chat .composer button { color: #fff; }

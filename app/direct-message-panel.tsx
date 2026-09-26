@@ -593,7 +593,7 @@ export function DirectMessagePanel({
                               aria-label={`${current?.reacted_by_me ? "Remove" : "Add"} ${reaction} private reaction`}
                               aria-pressed={current?.reacted_by_me ?? false}
                               data-active={current?.reacted_by_me || undefined}
-                              disabled={reactionWorking === key}
+                              disabled={!conversationEndpoint || reactionWorking === key}
                               key={reaction}
                               onClick={() => void toggleReaction(message, reaction)}
                               type="button"
@@ -603,7 +603,7 @@ export function DirectMessagePanel({
                             </button>
                           );
                         })}
-                        {message.can_edit ? (
+                        {message.can_edit && conversationEndpoint ? (
                           <button
                             disabled={lifecycleBusyId !== null}
                             onClick={() => {
@@ -616,7 +616,7 @@ export function DirectMessagePanel({
                             Edit
                           </button>
                         ) : null}
-                        {message.can_delete && confirmRetractId !== message.id ? (
+                        {message.can_delete && conversationEndpoint && confirmRetractId !== message.id ? (
                           <button
                             disabled={lifecycleBusyId !== null}
                             onClick={() => setConfirmRetractId(message.id)}

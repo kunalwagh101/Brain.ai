@@ -431,13 +431,15 @@ Staged now:
 - typed frontend workspace-navigation client;
 - role-aware `ProductionWorkspace` that allows normal members into Brain and only gates Company Pulse itself;
 - desktop organisation picker plus responsive server-driven organisation switch form;
-- Slack/Discord-style workspace rail + navigation sidebar + main work surface + context rail;
+- focused workspace rail + Team/channel sidebar + one main work surface; contextual threads open beside conversation;
 - real visible project/track labels and status;
 - responsive CSS module, keyboard skip path and focus treatment;
 - frontend source-contract tests included in `npm test`;
 - `docs/planning/increment-22.md` and `UAT/F-10.02.md`.
+- read-only `/demo` and pre-activation root render the production component tree with labelled sample data, no mutation endpoints, and disabled sample admin controls;
+- `docs/workspace-redesign.md` maps shipped features, visual tokens and retained permission gates; hash-routing tests protect existing channel, DM, Activity, project and track links.
 
-Formal state: `BLOCKED` on S-10.04 for real authenticated root/browser execution. Frontend/backend tests and responsive/accessibility UAT are not claimed as passed.
+Formal state: `BLOCKED` on S-10.04 for real authenticated root/browser execution. The redesigned read-only shell passes the local build and frontend contract suite; authenticated, multi-role responsive/accessibility UAT is not claimed as passed.
 
 ### S-10.03.01 Live Intelligence Surfaces — BLOCKED
 

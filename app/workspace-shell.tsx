@@ -19,6 +19,8 @@ import type {
   WorkspaceNavigation,
 } from "./brain-api";
 import { AskBrainPanel } from "./ask-brain-panel";
+import type { ActivitySummary } from "./activity-api";
+import { ActivityPanel } from "./activity-panel";
 import type { DirectConversation, DirectMessage } from "./direct-message-api";
 import { DirectMessagePanel } from "./direct-message-panel";
 import { EvidenceWorkspace } from "./evidence-workspace";
@@ -29,6 +31,7 @@ import { NativeChatPanel } from "./native-chat-panel";
 import { NativeTeamManager } from "./native-team-manager";
 import { SavedMessagesPanel } from "./saved-messages-panel";
 import { WorkspaceSearch } from "./workspace-search";
+import { WorkspaceHeading, WorkspaceNavLink, WorkspaceScreen, WorkspaceViewProvider } from "./workspace-view";
 import styles from "./workspace-shell.module.css";
 
 function projectProgress(project: ProjectStatus): string {
@@ -109,6 +112,8 @@ export function WorkspaceShell({
   runtimes,
   agentWorkspace,
   adminCenter,
+  activity,
+  activityMutationBase,
   signedInName,
   askBrainEndpoint,
   evidenceMutationBase,
@@ -127,6 +132,7 @@ export function WorkspaceShell({
   directMessagePresenceEndpoint,
   agentMutationBase,
   workspaceSearchEndpoint,
+  demoMode = false,
   signOutAction,
 }: {
   organization: BrainOrganization;
@@ -155,6 +161,8 @@ export function WorkspaceShell({
   runtimes: AIRuntimeOption[];
   agentWorkspace: AgentWorkspace;
   adminCenter: AdminCenter | null;
+  activity: ActivitySummary;
+  activityMutationBase: string | null;
   signedInName: string;
   askBrainEndpoint: string | null;
   evidenceMutationBase: string | null;
@@ -173,6 +181,7 @@ export function WorkspaceShell({
   directMessagePresenceEndpoint: string | null;
   agentMutationBase: string | null;
   workspaceSearchEndpoint: string | null;
+  demoMode?: boolean;
   signOutAction?: (formData: FormData) => Promise<void>;
 }) {
   const projectById = new Map(projects.map((project) => [project.project_node_id, project]));
@@ -191,29 +200,24 @@ export function WorkspaceShell({
   const globalUnassignedChannels = nativeChannels.filter(
     (channel) => !channel.team_id || !activeTeamIds.has(channel.team_id),
   );
-  const topbarTitle = selectedDirectConversation
-    ? selectedDirectConversation.other_display_name
-    : selectedNativeChannel
-      ? `# ${selectedNativeChannel.name}`
-      : "Brain workspace";
-
   return (
+    <WorkspaceViewProvider>
     <main className={styles.shell}>
       <a className={styles.skipLink} href="#brain-workspace-main">Skip to workspace</a>
 
       <aside className={styles.workspaceRail} aria-label="Workspace shortcuts">
         <div className={styles.brandMark} aria-label="Brain">B</div>
         <nav className={styles.railNav} aria-label="Primary workspace shortcuts">
-          <a className={styles.railActive} href="#home" aria-label="Home">⌂</a>
-          <a href="#native-chat" aria-label="Brain channels">#</a>
-          <a href="#saved-messages" aria-label="Saved messages">☆</a>
-          <a href="#direct-messages" aria-label="Direct messages">↔</a>
-          <a href="#projects" aria-label="Projects">▣</a>
-          <a href="#agent-workspace" aria-label="Developer and agent workspace">⌘</a>
-          <a href="#ask-brain" aria-label="Ask Brain">✦</a>
-          <a href="#memory" aria-label="Decisions and blockers">◇</a>
-          <a href="#files" aria-label="Files and evidence">▤</a>
-          {adminCenter ? <a href="#admin-center" aria-label="Admin and governance">⚙</a> : null}
+          <WorkspaceNavLink view="home" href="#home" label="Home">⌂</WorkspaceNavLink>
+          <WorkspaceNavLink view="activity" href="#activity-center" label={`Activity, ${activity.unread_count} unread`}>◉</WorkspaceNavLink>
+          <WorkspaceNavLink view="channels" href="#native-chat" label="Brain channels">#</WorkspaceNavLink>
+          <WorkspaceNavLink view="direct-messages" href="#direct-messages" label="Direct messages">↔</WorkspaceNavLink>
+          <WorkspaceNavLink view="saved" href="#saved-messages" label="Saved messages">☆</WorkspaceNavLink>
+          <WorkspaceNavLink view="projects" href="#projects" label="Projects">▣</WorkspaceNavLink>
+          <WorkspaceNavLink view="agents" href="#agent-workspace" label="Developer and agent workspace">⌘</WorkspaceNavLink>
+          <WorkspaceNavLink view="ask" href="#ask-brain" label="Ask Brain">✦</WorkspaceNavLink>
+          <WorkspaceNavLink view="files" href="#files" label="Files and evidence">▤</WorkspaceNavLink>
+          {adminCenter ? <WorkspaceNavLink view="admin" href="#admin-center" label="Admin and governance">⚙</WorkspaceNavLink> : null}
         </nav>
         <div className={styles.railAvatar} title={signedInName}>{initials(signedInName)}</div>
       </aside>
@@ -257,11 +261,12 @@ export function WorkspaceShell({
         <nav className={styles.navGroups}>
           <section>
             <div className={styles.groupTitle}><span>Workspace</span></div>
-            <a className={styles.navActive} href="#home"><span>⌂</span> Home</a>
-            <a href="#saved-messages">
+            <WorkspaceNavLink view="home" href="#home"><span>⌂</span> Home</WorkspaceNavLink>
+            <WorkspaceNavLink view="activity" href="#activity-center"><span>◉</span> Activity {activity.unread_count ? <small>{activity.unread_count}</small> : null}</WorkspaceNavLink>
+            <WorkspaceNavLink view="saved" href="#saved-messages">
               <span>☆</span> Saved
               {savedMessages.length ? <small>{savedMessages.length}</small> : null}
-            </a>
+            </WorkspaceNavLink>
             <a href="#agent-workspace"><span>⌘</span> Developer & agents</a>
             <a href="#memory"><span>◇</span> Decisions & blockers</a>
             <a href="#files"><span>▤</span> Files & evidence</a>
@@ -301,11 +306,12 @@ export function WorkspaceShell({
                           <span>⌄</span><strong>{group.name}</strong>
                         </div>
                         {groupChannels.map((channel) => (
-                          <a
+                          <WorkspaceNavLink
+                            view="channels"
+                            activeWhen={selectedNativeChannel?.id === channel.id}
                             className={styles.nestedChannel}
                             href={`?organizationId=${encodeURIComponent(organization.id)}&channelId=${encodeURIComponent(channel.id)}#native-chat`}
                             key={channel.id}
-                            aria-current={selectedNativeChannel?.id === channel.id ? "page" : undefined}
                           >
                             <span>{channel.visibility === "restricted" ? "▣" : "#"}</span>
                             <span className={styles.channelName}>{channel.name}</span>
@@ -314,7 +320,7 @@ export function WorkspaceShell({
                                 {channel.unread_count > 99 ? "99+" : channel.unread_count}
                               </span>
                             ) : null}
-                          </a>
+                          </WorkspaceNavLink>
                         ))}
                       </div>
                     );
@@ -325,11 +331,12 @@ export function WorkspaceShell({
                         <span>⌄</span><strong>Ungrouped</strong>
                       </div>
                       {ungrouped.map((channel) => (
-                        <a
+                        <WorkspaceNavLink
+                          view="channels"
+                          activeWhen={selectedNativeChannel?.id === channel.id}
                           className={styles.nestedChannel}
                           href={`?organizationId=${encodeURIComponent(organization.id)}&channelId=${encodeURIComponent(channel.id)}#native-chat`}
                           key={channel.id}
-                          aria-current={selectedNativeChannel?.id === channel.id ? "page" : undefined}
                         >
                           <span>{channel.visibility === "restricted" ? "▣" : "#"}</span>
                           <span className={styles.channelName}>{channel.name}</span>
@@ -338,7 +345,7 @@ export function WorkspaceShell({
                               {channel.unread_count > 99 ? "99+" : channel.unread_count}
                             </span>
                           ) : null}
-                        </a>
+                        </WorkspaceNavLink>
                       ))}
                     </div>
                   ) : null}
@@ -363,10 +370,11 @@ export function WorkspaceShell({
               <span>Unassigned channels</span><small>{globalUnassignedChannels.length}</small>
             </div>
             {globalUnassignedChannels.length ? globalUnassignedChannels.map((channel) => (
-              <a
+              <WorkspaceNavLink
+                view="channels"
+                activeWhen={selectedNativeChannel?.id === channel.id}
                 href={`?organizationId=${encodeURIComponent(organization.id)}&channelId=${encodeURIComponent(channel.id)}#native-chat`}
                 key={channel.id}
-                aria-current={selectedNativeChannel?.id === channel.id ? "page" : undefined}
               >
                 <span>{channel.visibility === "restricted" ? "▣" : "#"}</span>
                 <span className={styles.channelName}>{channel.name}</span>
@@ -375,7 +383,7 @@ export function WorkspaceShell({
                     {channel.unread_count > 99 ? "99+" : channel.unread_count}
                   </span>
                 ) : null}
-              </a>
+              </WorkspaceNavLink>
             )) : <p className={styles.emptyNav}>No unassigned visible channels</p>}
           </section>
 
@@ -384,10 +392,11 @@ export function WorkspaceShell({
               <span>Direct messages</span><small>{directConversations.length}</small>
             </div>
             {directConversations.length ? directConversations.map((conversation) => (
-              <a
+              <WorkspaceNavLink
+                view="direct-messages"
+                activeWhen={selectedDirectConversation?.id === conversation.id}
                 href={`?organizationId=${encodeURIComponent(organization.id)}&dmId=${encodeURIComponent(conversation.id)}#direct-messages`}
                 key={conversation.id}
-                aria-current={selectedDirectConversation?.id === conversation.id ? "page" : undefined}
               >
                 <span>●</span>
                 <span className={styles.channelName}>{conversation.other_display_name}</span>
@@ -396,7 +405,7 @@ export function WorkspaceShell({
                     {conversation.unread_count > 99 ? "99+" : conversation.unread_count}
                   </span>
                 ) : null}
-              </a>
+              </WorkspaceNavLink>
             )) : <p className={styles.emptyNav}>No direct messages</p>}
           </section>
 
@@ -449,9 +458,31 @@ export function WorkspaceShell({
         <header className={styles.topbar}>
           <div>
             <p>{organization.name} / Brain</p>
-            <h1 id="home">{topbarTitle}</h1>
+            <WorkspaceHeading channel={selectedNativeChannel?.name ?? null} direct={selectedDirectConversation?.other_display_name ?? null} />
           </div>
           <div className={styles.topbarActions}>
+            <details className={styles.mobileNavigation} data-brain-mobile-nav>
+              <summary>Browse workspace</summary>
+              <nav aria-label="Mobile workspace navigation">
+                <a href="#home">Home</a>
+                <a href="#activity-center">Activity {activity.unread_count ? `(${activity.unread_count})` : ""}</a>
+                <a href="#saved-messages">Saved</a>
+                <a href="#projects">Projects</a>
+                <a href="#ask-brain">Ask Brain</a>
+                <a href="#agent-workspace">Developer & agents</a>
+                <a href="#memory">Decisions & blockers</a>
+                <a href="#files">Files & evidence</a>
+                {adminCenter ? <a href="#admin-center">Admin & governance</a> : null}
+                <strong>Channels</strong>
+                {nativeChannels.map((channel) => (
+                  <a key={channel.id} href={`?organizationId=${encodeURIComponent(organization.id)}&channelId=${encodeURIComponent(channel.id)}#native-chat`}># {channel.name}</a>
+                ))}
+                <strong>Direct messages</strong>
+                {directConversations.map((conversation) => (
+                  <a key={conversation.id} href={`?organizationId=${encodeURIComponent(organization.id)}&dmId=${encodeURIComponent(conversation.id)}#direct-messages`}>{conversation.other_display_name}</a>
+                ))}
+              </nav>
+            </details>
             <form className={styles.mobileOrgForm} method="get">
               <label htmlFor="mobile-organization">Organisation</label>
               <select id="mobile-organization" name="organizationId" defaultValue={organization.id}>
@@ -465,6 +496,13 @@ export function WorkspaceShell({
           </div>
         </header>
 
+        <WorkspaceScreen view="activity">
+        <section className={styles.panel} id="activity-center" aria-label="Activity and notifications">
+          <ActivityPanel activity={activity} organizationId={organization.id} mutationBase={activityMutationBase} />
+        </section>
+        </WorkspaceScreen>
+
+        <WorkspaceScreen view="saved">
         <section className={styles.panel} id="saved-messages" aria-label="Personal saved messages">
           <SavedMessagesPanel
             organizationId={organization.id}
@@ -473,7 +511,9 @@ export function WorkspaceShell({
             mutationBase={nativeSavedMutationBase}
           />
         </section>
+        </WorkspaceScreen>
 
+        <WorkspaceScreen view="channels">
         <section className={styles.panel} id="native-chat" aria-label="Brain native channels">
           {canCreateNativeChannel ? (
             <NativeChannelCreate organizationId={organization.id} endpoint={nativeChatMutationBase} />
@@ -509,7 +549,9 @@ export function WorkspaceShell({
             </div>
           )}
         </section>
+        </WorkspaceScreen>
 
+        <WorkspaceScreen view="direct-messages">
         <section className={styles.panel} id="direct-messages" aria-label="Participant-only direct messages">
           {invalidRequestedDirectMessage ? (
             <div className={styles.roleNotice} role="alert">
@@ -525,10 +567,13 @@ export function WorkspaceShell({
             messages={directMessages}
             createEndpoint={directMessageCreateEndpoint}
             messageEndpoint={directMessageSendEndpoint}
+            conversationEndpoint={directMessageConversationEndpoint}
             presenceEndpoint={directMessagePresenceEndpoint}
           />
         </section>
+        </WorkspaceScreen>
 
+        <WorkspaceScreen view="home">
         <section className={styles.welcomeCard}>
           <div>
             <p className={styles.eyebrow}>Brain workspace</p>
@@ -574,7 +619,9 @@ export function WorkspaceShell({
             <span>Your workspace remains available; Brain does not widen executive/audit access for this role.</span>
           </section>
         )}
+        </WorkspaceScreen>
 
+        <WorkspaceScreen view="tracks">
         <section className={styles.panel} id="tracks" aria-labelledby="tracks-heading">
           <header className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Connected evidence tracks</p><h2 id="tracks-heading">Visible tracks</h2></div>
@@ -592,7 +639,9 @@ export function WorkspaceShell({
             )) : <p className={styles.emptyState}>No connected tracks are currently visible to this account.</p>}
           </div>
         </section>
+        </WorkspaceScreen>
 
+        <WorkspaceScreen view="projects">
         <section className={styles.panel} id="projects" aria-labelledby="projects-heading">
           <header className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Project Command Centre</p><h2 id="projects-heading">Visible projects</h2></div>
@@ -646,7 +695,9 @@ export function WorkspaceShell({
             )) : <p className={styles.emptyState}>No projects are currently visible to this account.</p>}
           </div>
         </section>
+        </WorkspaceScreen>
 
+        <WorkspaceScreen view="agents">
         <section className={styles.panel} id="agent-workspace" aria-label="Developer and agent workspace">
           <AgentWorkspacePanel
             workspace={agentWorkspace}
@@ -655,13 +706,21 @@ export function WorkspaceShell({
             mutationBase={agentMutationBase}
           />
         </section>
+        </WorkspaceScreen>
 
+        <WorkspaceScreen view="admin">
         {adminCenter ? (
           <section className={styles.panel} id="admin-center" aria-label="Admin and governance">
-            <AdminCenterPanel admin={adminCenter} />
+            {demoMode ? (
+              <fieldset className={styles.readOnlyAdmin} disabled aria-label="Sample administration, read only">
+                <AdminCenterPanel admin={adminCenter} />
+              </fieldset>
+            ) : <AdminCenterPanel admin={adminCenter} />}
           </section>
         ) : null}
+        </WorkspaceScreen>
 
+        <WorkspaceScreen view="memory">
         <section className={styles.panel} id="memory" aria-labelledby="memory-heading">
           <header className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Organisational memory</p><h2 id="memory-heading">Confirmed decisions & blockers</h2></div>
@@ -695,7 +754,9 @@ export function WorkspaceShell({
             </div>
           </div>
         </section>
+        </WorkspaceScreen>
 
+        <WorkspaceScreen view="ask">
         <section className={styles.panel} id="ask-brain" aria-label="Ask Brain">
           {askBrainEndpoint ? (
             <div className={styles.embeddedIntelligence}>
@@ -718,7 +779,9 @@ export function WorkspaceShell({
             </>
           )}
         </section>
+        </WorkspaceScreen>
 
+        <WorkspaceScreen view="files">
         <section className={styles.panel} id="files" aria-label="Files and evidence">
           <EvidenceWorkspace
             sources={evidenceSources}
@@ -726,75 +789,10 @@ export function WorkspaceShell({
             canUpload={canUploadEvidence}
           />
         </section>
+        </WorkspaceScreen>
       </section>
 
-      <aside className={styles.contextRail} aria-label="Workspace context">
-        <section>
-          <p className={styles.eyebrow}>Context</p>
-          <h2>What Brain knows</h2>
-          <dl>
-            <div><dt>Brain channels</dt><dd>{nativeChannels.length}</dd></div>
-            <div><dt>Connected tracks</dt><dd>{navigation.tracks.length}</dd></div>
-            <div><dt>Visible projects</dt><dd>{navigation.projects.length}</dd></div>
-            <div><dt>Evidence sources</dt><dd>{evidenceSources.length}</dd></div>
-            <div><dt>Agent runs</dt><dd>{agentWorkspace.runs.length}</dd></div>
-            <div><dt>Confirmed blockers</dt><dd>{blockers.length}</dd></div>
-            <div><dt>Confirmed decisions</dt><dd>{decisions.length}</dd></div>
-          </dl>
-        </section>
-        <section>
-          <p className={styles.eyebrow}>Direct messages</p>
-          <h2>Participant-only by policy</h2>
-          <p>
-            {directConversations.length} private conversation(s) are visible to this signed-in participant. DM text is excluded from organisation-wide Search, Ask Brain, memory and executive surfaces.
-          </p>
-        </section>
-        {adminCenter ? (
-          <section>
-            <p className={styles.eyebrow}>Admin & governance</p>
-            <h2>Owner/Admin controls visible</h2>
-            <p>
-              {adminCenter.summary.member_count} member(s), {adminCenter.summary.integration_count} integration(s), {adminCenter.summary.ai_provider_count} AI provider(s) and {adminCenter.summary.active_api_grant_count} active API grant(s). Secret values are never serialized.
-            </p>
-          </section>
-        ) : null}
-        <section>
-          <p className={styles.eyebrow}>Developer & agents</p>
-          <h2>{agentMutationBase ? "Governed actions connected" : "Permission-aware read model"}</h2>
-          <p>
-            {agentMutationBase
-              ? `${agentWorkspace.agents.length} approved agent(s) can act only through their configured tool policies and approval gates.`
-              : "Agent/model/tool identity and run history are server-rendered; mutations stay disabled until the authenticated WorkOS BFF is active."}
-          </p>
-        </section>
-        <section>
-          <p className={styles.eyebrow}>Native chat</p>
-          <h2>{nativeChatMutationBase ? "Secure BFF connected" : "Secure BFF pending"}</h2>
-          <p>
-            {nativeChatMutationBase
-              ? "Human messages use the authenticated same-origin server path; agent identity remains server-controlled."
-              : "Visible channels can be composed server-side, but channel/message mutations stay disabled until AuthKit/BFF activation."}
-          </p>
-        </section>
-        <section>
-          <p className={styles.eyebrow}>Ask Brain</p>
-          <h2>{askBrainEndpoint ? "Secure BFF connected" : "Secure BFF pending"}</h2>
-          <p>
-            {askBrainEndpoint
-              ? `${runtimes.length} governed runtime(s) are available through the same-origin server path.`
-              : "The UI does not send WorkOS or Brain access tokens to browser code. AuthKit/BFF activation remains the S-10.04 gate."}
-          </p>
-        </section>
-        <section>
-          <p className={styles.eyebrow}>Evidence</p>
-          <h2>{evidenceMutationBase ? "Governed mutations connected" : "Permission-aware read model"}</h2>
-          <p>
-            {evidenceMutationBase
-              ? "Upload and deletion use the authenticated same-origin server path; source lifecycle remains authoritative in FastAPI."
-              : "Visible evidence metadata is server-rendered. Upload/delete stays disabled until the authenticated WorkOS BFF is active."}
-          </p>
-        </section>
-      </aside>
     </main>
+    </WorkspaceViewProvider>
   );
 }
