@@ -45,6 +45,8 @@ The branch now uses the chosen shell for both sample and `ProductionWorkspace`. 
 
 Local `npm run build` and `node --test tests/*.test.mjs` passed on the implementation working tree (142 tests, 141 passed, 1 intentional unauthenticated skip). Focused lint on newly changed shell/search/demo/agent files passed. Repository-wide lint still reports 10 React effect errors and 2 warnings in existing collaboration/presence components; `npx tsc --noEmit` still lacks Cloudflare Worker ambient types (`Fetcher`, `D1Database`, `cloudflare:workers`). `python scripts/verify_board.py` finds the mappings but cannot execute historical DONE evidence because `pytest` is not installed in this workspace. No authenticated WorkOS/browser test, independent code review or release gate was run at this checkpoint. These are explicit outstanding checks, not accepted exceptions.
 
+Publication checkpoint: local implementation commit `d506aea` sits four commits ahead of remote `663cba7` on `increment-10-ai-provider-gateway`. The push to `https://github.com/kunalwagh101/Brain.ai.git` was rejected by automatic approval review for lack of explicit authorization to export this private-repository payload to that personal GitHub destination. No retry or indirect route was used. Branch publication remains pending explicit approval for the exact destination and commits.
+
 ## Work orders
 
 ### S-10.27.01 — shell and design foundation (verify existing implementation)

@@ -62,7 +62,7 @@ IN_REVIEW | S-10.27.02 | F-10.27 | Existing conversation/DM feature screens reta
 IN_REVIEW | S-10.27.03 | F-10.27 | Existing Activity/Saved/Search routes retained; search now gates excerpts by exact query and organisation endpoint to prevent stale results, with local navigation usable in sample; live revoke/keyboard browser UAT remains open
 IN_REVIEW | S-10.27.04 | F-10.27 | Existing project/memory/evidence/Ask Brain views integrated in one shell; project labels and sample structured progress/confirmed blockers reconcile; live provenance, unknown-cost and role UAT remain open
 IN_REVIEW | S-10.27.05 | F-10.27 | Existing agent/Admin views integrated; denied Admin route has recovery, agent forms/status/approval details have readable contrast and scope; real Owner/Admin/member action and secret-store UAT remain open
-BLOCKED | S-10.27.06 | F-10.27 | Integration release evidence requires external S-10.04 WorkOS multi-role browser UAT plus internal full lint, Cloudflare type environment and delivery-verifier pytest gates; local build and 141 frontend tests pass
+BLOCKED | S-10.27.06 | F-10.27 | Local build and 141 frontend tests pass; branch publication was rejected by automatic approval review pending explicit authorization for the personal GitHub remote; external S-10.04 WorkOS browser UAT and internal lint/type/verifier gates remain
 
 
 
@@ -83,7 +83,7 @@ Sprint goal: make the actual product branch's conversation-first UI coherent acr
 | Agents and Admin | S-10.27.05 | IN_REVIEW | Verify action consequence, roles and safe errors |
 | Integrated acceptance/release | S-10.27.06 | BLOCKED | External WorkOS setup and browser UAT after slices |
 
-The product owner approved implementation after the story review. The chosen branch includes the earlier UI/demo commits (`b3e3ce2`, `f72248c`), with this integration pass pending publication. Sample-mode build tests do not prove authenticated feature acceptance. WIP = 0/2.
+The product owner approved implementation after the story review. The chosen local branch includes the earlier UI/demo commits (`b3e3ce2`, `f72248c`) and the integration commit `d506aea`; the remote still points to `663cba7`. Automatic approval review rejected the push of these four local commits to `https://github.com/kunalwagh101/Brain.ai.git` because explicit authorization to export this payload to that personal GitHub remote was not established. No indirect push was attempted. Sample-mode build tests do not prove authenticated feature acceptance. WIP = 0/2.
 
 ### S-10.26.01 Channel Administration — DONE
 
