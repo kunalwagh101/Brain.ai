@@ -143,7 +143,7 @@ export default async function Demo({ searchParams }: { searchParams: Promise<{ c
         savedMessages={[{ save_id: "saved-1", saved_at: stamp, message: messages[1] }]}
         requestedNativeMessage={null} selectedNativeMembers={[]}
         invalidRequestedChannel={invalidChannel} directConversations={conversations}
-        selectedDirectConversation={conversation} directMessages={directMessages}
+        selectedDirectConversation={invalidDm ? null : conversation} directMessages={invalidDm ? [] : directMessages}
         invalidRequestedDirectMessage={invalidDm} overview={overview} runtimes={[]}
         agentWorkspace={agentWorkspace} adminCenter={adminCenter} activity={activity}
         activityMutationBase={null} signedInName="Ada Chen" askBrainEndpoint={null}

@@ -47,3 +47,24 @@ test(
     assert.match(proxy, /authkitProxy/);
   },
 );
+
+test(
+  "sample route rejects unknown channel and DM selectors without exposing conversation content",
+  { skip: authkitInstalled },
+  async () => {
+    const workerUrl = new URL("../dist/server/index.js", import.meta.url);
+    workerUrl.searchParams.set("test", `invalid-demo-${process.pid}-${Date.now()}`);
+    const { default: worker } = await import(workerUrl.href);
+    const response = await worker.fetch(
+      new Request("http://localhost/demo?channelId=unseen&dmId=unseen", { headers: { accept: "text/html" } }),
+      { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
+      { waitUntil() {}, passThroughOnException() {} },
+    );
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.match(html, /Channel unavailable/);
+    assert.match(html, /Direct conversation unavailable/);
+    assert.doesNotMatch(html, /The accessibility review is underway/);
+    assert.doesNotMatch(html, /Can we review the navigation together this afternoon/);
+  },
+);
