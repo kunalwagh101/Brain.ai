@@ -13,6 +13,16 @@ A story may enter `READY` only when all conditions below are true. `IN_PROGRESS`
 - Out-of-scope items are explicit; nothing is silently removed from scope.
 - Tasks are small engineering steps and the story remains an independently shippable vertical slice.
 
+## Increment 43 readiness record — S-10.27.01–.06
+
+Decision: S-10.27.01 is `IN_REVIEW` because its local prototype (`b3e3ce2`, `f72248c`) already exists and build/frontend contracts ran before this formal record. That is process drift, not retroactive Ready compliance. S-10.27.02–.05 are `BACKLOG` pending product-owner story review, individual state/edge-case inventories and targeted acceptance-test mapping. S-10.27.06 is `BLOCKED` by the external S-10.04.01 official WorkOS configuration and authenticated browser UAT plus completion of the earlier slices. No new story is `IN_PROGRESS`.
+
+Contracts: F-10.02–.26 own the existing tenant, channel/DM, search, evidence, agent and admin models and same-origin BFF APIs. Increment 43 changes composition and presentation only; it adds no migration, backfill, new data authority or browser-held bearer. Authorization, source filtering, audit, approvals and secret policy remain enforced on the server. `docs/planning/increment-43.md` names exact files and tests; `UAT/F-10.27.md` names observable real-user checks and failure/revocation states.
+
+Pull condition: after the requested review, select at most two stories, refine the specific current UI states and Given/When/Then checks for that slice, and verify its upstream usable contracts. Existing upstream stories with pending UAT are not silently treated as feature-accepted. S-10.27.06 cannot enter Ready until its WorkOS and dependency gates have usable evidence.
+
+Value/leading indicators: exact destination and result-to-source task completion, unread-to-reply completion, provenance inspection, accessible keyboard/mobile journeys and zero unauthorised data disclosure. No synthetic demo measurement is presented as production adoption. Rollback for the frontend-only increment is a code revert preserving existing backend data; release/UAT must capture the exact tested commit.
+
 ## Increment 24 readiness record — S-10.06.01
 
 Decision: `NOT READY` under the formal dependency rule when it was pulled, now `IN_REVIEW`. The session-open audit on 2026-09-13 found no dedicated Ready record while S-10.01.01 remained `IN_REVIEW`. This is recorded process drift, not silently reclassified as compliant. The project owner directed work to continue, so the already-active item was finished rather than pulling another story.

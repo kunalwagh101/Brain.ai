@@ -393,6 +393,45 @@ Acceptance: Given the channel creator or Owner/Admin, when name/description is e
 Dependencies: S-10.25.01 hierarchy, S-10.06.01 restricted members, S-10.12.01 immutable message history, S-10.04.01. Blocking risk: repository implementation can reach IN_REVIEW; DONE requires migration/backend/frontend/verifier execution plus authenticated creator/Admin/member archive/permission UAT. Size: L. Leading indicator: channel-admin workflow success with zero stale overwrite, permission widening or content loss. Business value: E-10. Priority: P1.  
 Tasks: T-10.26.01.a settings revision migration; T-10.26.01.b lifecycle/rename + Work Graph consistency; T-10.26.01.c restricted member read/write update consistency; T-10.26.01.d same-origin BFF/settings/archived UI; T-10.26.01.e concurrency/authz/grant-invariance tests; T-10.26.01.f UAT/demo/traceability.
 
+#### F-10.27 Integrated workspace experience
+**Capability:** apply one coherent, conversation-first frontend system to the existing Brain product without replacing its server-owned permissions, evidence, or collaboration contracts. This feature integrates and verifies the existing F-10.02–F-10.26 surfaces; it does not reimplement their backend features. See `docs/planning/increment-43.md` for the screen map, work orders, status and test matrix.
+
+**S-10.27.01 — Establish the navigable workspace and visual system**
+As a member, I want a stable place for my work and a clear path to every permitted destination, so that I understand where I am and what needs my attention.
+Acceptance: Given a permission-filtered production workspace, when I select Home, Activity, Channels, DMs, Saved, Projects, Tracks, Ask Brain, Files, Agents or permitted Admin, then exactly one main view is active and its location is apparent; Given a historical supported hash link, when I open or refresh it, then the corresponding feature opens without revealing inaccessible data; Given narrow width, keyboard navigation or reduced motion, when I browse the workspace, then destinations remain reachable, focus is visible, the browser closes after selection, and content does not overflow horizontally; Given unauthenticated sample mode, when I open `/demo`, then it is labelled read-only and no mutation endpoint is available.
+Dependencies: existing S-10.02.01 navigation and S-10.04.01 authentication contracts; the latter is an external acceptance gate. Size: M. Priority: P0. Leading indicator: first-destination completion and zero hidden-label/deep-link leaks. Business value: E-10.
+Tasks: T-10.27.01.a inventory routes and actual components; T-10.27.01.b define tokens/type/spacing and rail/sidebar/content hierarchy; T-10.27.01.c implement shared shell, route selection and sample boundary; T-10.27.01.d keyboard/mobile/permission contract checks; T-10.27.01.e authenticated multi-role visual review. Existing local branch implementation covers a–c and part of d; verification and e remain open.
+
+**S-10.27.02 — Complete conversation and DM interaction quality**
+As a channel or DM participant, I want messages, unread position and thread context to remain legible while I act, so that conversation does not become a maze.
+Acceptance: Given an authorised channel or DM, when I open it, then its identity, unread position, message history, composer state and permitted actions are clear; Given a channel thread, when I open or close it, then its context remains attached to the parent message and keyboard focus returns predictably; Given a restricted channel, archived channel, revoked participant or retry/error, when I attempt an action, then the UI follows the existing server decision and exposes no hidden content or fake success; Given a small screen, when I navigate between conversation, thread and workspace browser, then I can reach the composer and return without a horizontal trap.
+Dependencies: S-10.06.01/.02 and existing F-10.12–F-10.26 collaboration contracts; authenticated interaction UAT depends externally on S-10.04.01. Size: M. Priority: P0. Leading indicator: successful unread-to-reply task completion without lost context or unauthorised disclosure. Business value: E-10.
+Tasks: T-10.27.02.a inspect channel/DM/thread/action states; T-10.27.02.b refine hierarchy and context pane; T-10.27.02.c empty/loading/failure/retry and archived/revoked states; T-10.27.02.d keyboard/mobile/permission regression; T-10.27.02.e two-user browser UAT.
+
+**S-10.27.03 — Unify attention, saved work and search**
+As a member, I want to move from a notification, saved item or search result to the exact authorised context, so that I can resume work quickly.
+Acceptance: Given Activity, Saved or Search, when I select a result, then the correct channel/message/thread/project opens with a meaningful back path; Given a deleted item or revoked access, when I open its previous deep link, then the view fails safely with a clear recovery action and no content excerpt; Given a keyboard-only user, when quick switcher or search opens, then focus and dismissal work without trapping navigation; Given DM content, when I search the organisation, then participant-private message text is not indexed or shown.
+Dependencies: S-10.09.01, S-10.11.01, S-10.15.01, S-10.16.01 and exact-message routes. Size: M. Priority: P0. Leading indicator: result-to-context completion with zero stale/revoked excerpts. Business value: E-10.
+Tasks: T-10.27.03.a map result types/deep links; T-10.27.03.b refine Activity/Saved/Search hierarchy; T-10.27.03.c unavailable-result recovery and focus management; T-10.27.03.d privacy/permission and route tests; T-10.27.03.e multi-role UAT.
+
+**S-10.27.04 — Make company intelligence understandable and verifiable**
+As an authorised member, I want projects, decisions, evidence and Ask Brain to state what is known and why, so that I can act on facts rather than attractive guesses.
+Acceptance: Given a permitted project or track, when I enter from the workspace, then status, structured progress and evidence are legible and provenance can be opened; Given a confirmed decision/blocker, when I inspect it, then its human-confirmed state and source identifiers are visible; Given unknown cost, missing evidence or insufficient Ask Brain evidence, when I view the result, then the UI expresses unknown/no-answer and never invents a zero or claim; Given a normal member, when I open Home, then the rest of Brain is usable without executive access, while Company Pulse remains role gated.
+Dependencies: S-10.03.01, S-10.05.01, S-05.02.01, S-07.01.01 and S-07.02.01; live Ask Brain browser acceptance depends externally on S-10.04.01. Size: M. Priority: P0. Leading indicator: source-to-claim verification completion; no hidden-resource labels or unsupported claims. Business value: E-10.
+Tasks: T-10.27.04.a map source/read models and roles; T-10.27.04.b refine project/memory/Files/Ask Brain hierarchy; T-10.27.04.c loading/empty/unknown/error/citation states; T-10.27.04.d provenance/permission contracts; T-10.27.04.e real-data reconciliation UAT.
+
+**S-10.27.05 — Clarify governed actions and administration**
+As an authorised operator, I want agent runs, approvals and settings to show consequence and status before action, so that I can operate Brain safely.
+Acceptance: Given an agent run, when I inspect a proposed action, then its scope, approval requirement, current status and outcome are understandable; Given an Owner/Admin, when I enter Admin, then members, integrations, providers and API grants have clear grouping, status and safe next actions; Given a member without permission, when I navigate, then Admin is not offered as an actionable destination and direct access fails closed; Given a failed/expired/revoked mutation, when I retry, then state is refreshed from the server and no secret or misleading success is shown.
+Dependencies: S-10.07.01, S-10.08.01 and S-10.04.01. Size: M. Priority: P1. Leading indicator: correct approval/admin task completion and zero permission widening. Business value: E-10.
+Tasks: T-10.27.05.a map operator tasks and role gates; T-10.27.05.b refine agent/Admin information architecture; T-10.27.05.c pending/error/secret/approval states; T-10.27.05.d role/action contract tests; T-10.27.05.e Owner/Admin/member browser UAT.
+
+**S-10.27.06 — Verify and accept the integrated frontend**
+As the product owner, I want reproducible evidence that the redesign works on the actual branch, so that I can decide whether to release it.
+Acceptance: Given the selected branch, when build, frontend contracts, delivery verifier and applicable backend permission tests run, then failures are fixed or recorded by story without claiming a pass; Given authenticated Member, Admin and two-user sessions, when the `UAT/F-10.27.md` matrix runs at desktop/tablet/mobile and with keyboard, then navigation, conversation, intelligence, governance, empty/error states and revocation have recorded results; Given a defect, when fixed, then the affected checks run again; Given approval of release, when the branch is published, then the demo and traceability identify the exact tested commit and any remaining external gate.
+Dependencies: S-10.27.01–.05 and external S-10.04.01 WorkOS configuration/browser acceptance. Size: M. Priority: P0 release gate. Leading indicator: scenario pass rate and zero critical privacy/accessibility defects. Business value: E-10.
+Tasks: T-10.27.06.a CI/local build and contract matrix; T-10.27.06.b authenticated multi-role browser UAT; T-10.27.06.c defect fixes and reruns; T-10.27.06.d evidence/board/traceability/demo update; T-10.27.06.e reviewed branch publication. No release is claimed from a read-only sample.
+
 ## Requirements -> Backlog coverage
 
 | Requirement | Backlog IDs |
@@ -464,6 +503,12 @@ Tasks: T-10.26.01.a settings revision migration; T-10.26.01.b lifecycle/rename +
 
 | Workspace → Teams → channel groups → channels hierarchy | S-10.24.01, S-10.25.01 |
 | Channel settings/archive/member-access administration | S-10.26.01 |
+| Coherent navigable workspace and visual system | S-10.27.01 |
+| Conversation and DM experience across existing collaboration features | S-10.27.02 |
+| Attention, saved work and exact-result search journeys | S-10.27.03 |
+| Evidence-first intelligence and honest unknown states | S-10.27.04 |
+| Governed agent and administration action clarity | S-10.27.05 |
+| Integrated responsive/accessibility/security verification | S-10.27.06 |
 
 Orphan requirements: **0**.
 

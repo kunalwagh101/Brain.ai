@@ -57,12 +57,33 @@ IN_REVIEW | S-10.23.01 | F-10.23 | Private allow-listed/idempotent DM reactions,
 DONE | S-10.24.01 | F-10.24 | Engineering verified on Release Gate 35786803759; navigation-only Teams, atomic audit rollback and migration/build contracts passed; authenticated WorkOS UAT remains UAT_PENDING
 DONE | S-10.25.01 | F-10.25 | Engineering verified on Release Gate 35786803759; ACL-neutral Team groups/navigation and audit rollback contracts passed; authenticated WorkOS UAT remains UAT_PENDING
 DONE | S-10.26.01 | F-10.26 | Engineering verified on Release Gate 35786803759; channel settings/archive/member-access and atomic rollback contracts passed; authenticated WorkOS UAT remains UAT_PENDING
+IN_REVIEW | S-10.27.01 | F-10.27 | Conversation-first shared shell, route selection, visual tokens and read-only demo staged locally at f72248c; local build/contracts pass; authenticated accessibility, permission and responsive UAT remain open
+BACKLOG | S-10.27.02 | F-10.27 | Conversation and DM interaction audit, state polish, keyboard/mobile regressions and two-user UAT planned; existing collaboration implementations are tracked by F-10.06 and F-10.12–F-10.26
+BACKLOG | S-10.27.03 | F-10.27 | Activity/Saved/Search result-to-context journeys, revoked-result recovery and keyboard/privacy verification planned; existing capabilities are tracked by F-10.09/.11/.15/.16
+BACKLOG | S-10.27.04 | F-10.27 | Project/memory/evidence/Ask Brain hierarchy, provenance and unknown-state verification planned; existing capabilities are tracked by F-10.03/.05 and E-05/E-07
+BACKLOG | S-10.27.05 | F-10.27 | Governed agent/Admin action clarity, roles, secret-safe error states and operator UAT planned; existing capabilities are tracked by F-10.07/.08
+BLOCKED | S-10.27.06 | F-10.27 | Integration release evidence requires S-10.27.01–.05 plus external S-10.04 official WorkOS configuration and authenticated multi-role browser UAT
 
 
 
 
 
 
+
+### Increment 43 — integrated workspace experience
+
+Sprint goal: make the actual product branch's conversation-first UI coherent across all implemented capabilities, then verify its real authenticated journeys. Work orders, paths and dependencies live in `docs/planning/increment-43.md`; acceptance scenarios live in `UAT/F-10.27.md`. The user requested a story review before further implementation, so no new story is `IN_PROGRESS`.
+
+| Feature slice | Story | State | Next check |
+| --- | --- | --- | --- |
+| Shared shell, routes, visual system | S-10.27.01 | IN_REVIEW | Authenticated responsive/accessibility and permission review |
+| Channels, DMs, threads | S-10.27.02 | BACKLOG | Audit existing flows, then refine states and test |
+| Activity, Saved, Search | S-10.27.03 | BACKLOG | Verify result-to-context and revoke paths |
+| Projects, memory, evidence, Ask Brain | S-10.27.04 | BACKLOG | Reconcile provenance/unknown states with live data |
+| Agents and Admin | S-10.27.05 | BACKLOG | Verify action consequence, roles and safe errors |
+| Integrated acceptance/release | S-10.27.06 | BLOCKED | External WorkOS setup and browser UAT after slices |
+
+Local `increment-10-ai-provider-gateway` is ahead of its remote by two existing UI/demo commits (`b3e3ce2`, `f72248c`). This planning pass does not change the remote branch or claim that sample-mode build tests prove authenticated feature acceptance. WIP = 0/2.
 
 ### S-10.26.01 Channel Administration — DONE
 
