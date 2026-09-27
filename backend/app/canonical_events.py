@@ -6,11 +6,21 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.data_governance_models import (
+    DataDeletionRequest,
+    DeletionScope,
+    DeletionStatus,
+    DerivedRetentionTombstone,
+)
 from app.identity_resolution import observe_canonical_actor
 from app.models import CanonicalEvent, RawEvent, RawEventStatus
 from app.work_graph import project_canonical_event
 
 CANONICAL_EVENT_SCHEMA_VERSION = 1
+_DELETION_SUPPRESSION_STATES = (
+    DeletionStatus.PROCESSING,
+    DeletionStatus.COMPLETED,
+)
 
 
 class CanonicalizationError(RuntimeError):
@@ -289,11 +299,87 @@ def _observe_persisted_actor(db: Session, event: CanonicalEvent) -> None:
     project_canonical_event(db, event)
 
 
+def _raw_event_has_derived_tombstone(db: Session, raw_event: RawEvent) -> bool:
+    return (
+        db.scalar(
+            select(DerivedRetentionTombstone.id).where(
+                DerivedRetentionTombstone.raw_event_id == raw_event.id
+            )
+        )
+        is not None
+    )
+
+
+def _integration_deletion_suppresses(db: Session, raw_event: RawEvent) -> bool:
+    return (
+        db.scalar(
+            select(DataDeletionRequest.id)
+            .where(
+                DataDeletionRequest.organization_id == raw_event.organization_id,
+                DataDeletionRequest.scope == DeletionScope.INTEGRATION,
+                DataDeletionRequest.integration_connection_id
+                == raw_event.integration_connection_id,
+                DataDeletionRequest.status.in_(_DELETION_SUPPRESSION_STATES),
+            )
+            .limit(1)
+        )
+        is not None
+    )
+
+
+def _source_deletion_suppresses(
+    db: Session,
+    *,
+    organization_id,
+    integration_connection_id,
+    provider: str,
+    object_type: str,
+    object_external_id: str,
+) -> bool:
+    return (
+        db.scalar(
+            select(DataDeletionRequest.id)
+            .where(
+                DataDeletionRequest.organization_id == organization_id,
+                DataDeletionRequest.scope == DeletionScope.SOURCE_OBJECT,
+                DataDeletionRequest.integration_connection_id
+                == integration_connection_id,
+                DataDeletionRequest.source_provider == provider,
+                DataDeletionRequest.object_type == object_type,
+                DataDeletionRequest.object_external_id == object_external_id,
+                DataDeletionRequest.status.in_(_DELETION_SUPPRESSION_STATES),
+            )
+            .limit(1)
+        )
+        is not None
+    )
+
+
+def _delete_suppressed_raw_event(db: Session, raw_event: RawEvent) -> CanonicalizeResult:
+    db.delete(raw_event)
+    db.commit()
+    return CanonicalizeResult(event=None, created=False, quarantined=False)
+
+
 def canonicalize_raw_event(db: Session, raw_event: RawEvent) -> CanonicalizeResult:
+    if _raw_event_has_derived_tombstone(db, raw_event):
+        return CanonicalizeResult(event=None, created=False, quarantined=False)
+    if _integration_deletion_suppresses(db, raw_event):
+        return _delete_suppressed_raw_event(db, raw_event)
+
     existing = db.scalar(
         select(CanonicalEvent).where(CanonicalEvent.raw_event_id == raw_event.id)
     )
     if existing is not None:
+        if _source_deletion_suppresses(
+            db,
+            organization_id=existing.organization_id,
+            integration_connection_id=existing.integration_connection_id,
+            provider=existing.source_provider,
+            object_type=existing.object_type,
+            object_external_id=existing.object_external_id,
+        ):
+            return _delete_suppressed_raw_event(db, raw_event)
         if raw_event.processing_status != RawEventStatus.PROCESSED:
             raw_event.processing_status = RawEventStatus.PROCESSED
             raw_event.last_error_code = None
@@ -316,6 +402,16 @@ def canonicalize_raw_event(db: Session, raw_event: RawEvent) -> CanonicalizeResu
         db.commit()
         db.refresh(raw_event)
         return CanonicalizeResult(event=None, created=False, quarantined=True)
+
+    if _source_deletion_suppresses(
+        db,
+        organization_id=raw_event.organization_id,
+        integration_connection_id=raw_event.integration_connection_id,
+        provider=raw_event.provider,
+        object_type=str(data["object_type"]),
+        object_external_id=str(data["object_external_id"]),
+    ):
+        return _delete_suppressed_raw_event(db, raw_event)
 
     canonical = CanonicalEvent(
         organization_id=raw_event.organization_id,

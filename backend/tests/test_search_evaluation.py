@@ -20,7 +20,6 @@ from app.search import (
     search_documents,
 )
 
-
 CONCEPTS = (
     ("authentication", "login"),
     ("postgres", "database"),
@@ -193,3 +192,4 @@ def test_hybrid_retrieval_synthetic_recall_at_3_is_at_least_90_percent(
 
     recall_at_3 = relevant_found / len(evaluation)
     assert recall_at_3 >= 0.90
+

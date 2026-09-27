@@ -1,0 +1,42 @@
+.status {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: Canvas;
+  color: CanvasText;
+  font-size: 0.78rem;
+  line-height: 1;
+  box-shadow: 0 0.3rem 1.2rem rgb(0 0 0 / 12%);
+}
+
+.status span {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.status[data-state="reconnecting"] {
+  opacity: 0.72;
+}
+
+@media (max-width: 700px) {
+  .status {
+    right: 0.65rem;
+    bottom: 0.65rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status {
+    scroll-behavior: auto;
+  }
+}

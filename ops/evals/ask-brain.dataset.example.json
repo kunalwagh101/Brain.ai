@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "dataset_id": "example-only-replace-before-uat",
+  "production_labelled": false,
+  "retrieval_labels_human_reviewed": false,
+  "cases": [
+    {
+      "id": "grounded-answer-example",
+      "question": "What changed in authentication?",
+      "expected_status": "answer",
+      "supporting_canonical_event_ids": [
+        "00000000-0000-0000-0000-000000000001"
+      ],
+      "forbidden_canonical_event_ids": []
+    },
+    {
+      "id": "no-answer-example",
+      "question": "What evidence exists for a deliberately unknown event?",
+      "expected_status": "insufficient_evidence",
+      "supporting_canonical_event_ids": [],
+      "forbidden_canonical_event_ids": []
+    }
+  ]
+}

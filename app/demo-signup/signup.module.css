@@ -1,0 +1,16 @@
+.page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f5f6f2; color: #182d35; }
+.panel { width: min(100%, 560px); background: white; padding: clamp(28px, 5vw, 50px); border: 1px solid #dbe4df; border-radius: 14px; box-shadow: 0 12px 35px #1b34320b; }
+.brand { font-size: 20px; color: #1f615b; font-weight: 760; text-decoration: none; }
+.eyebrow { margin: 42px 0 10px; color: #94622c; font-size: 12px; font-weight: 750; letter-spacing: .075em; }
+.panel h1 { margin: 0; font-size: clamp(30px, 5vw, 42px); line-height: 1.13; letter-spacing: -.045em; }
+.panel p { line-height: 1.55; color: #4b5c60; }
+.panel form { margin: 30px 0 24px; display: grid; gap: 12px; }
+.panel label { font-weight: 700; }
+.panel input { width: 100%; padding: 12px; border: 1px solid #9eafa9; border-radius: 8px; font: inherit; }
+.panel input:focus-visible, .panel button:focus-visible, .panel a:focus-visible { outline: 3px solid #bf8b40; outline-offset: 3px; }
+.panel button { display: flex; justify-content: space-between; gap: 12px; padding: 13px 17px; border: 0; border-radius: 8px; background: #205f59; color: white; font: inherit; font-weight: 750; cursor: pointer; }
+.panel button:hover { background: #164b46; }
+.panel a { color: #145d55; font-weight: 700; text-underline-offset: 3px; }
+.note { font-size: 13px; border-top: 1px solid #e4e9e3; padding-top: 17px; }
+.error { padding: 12px; border: 1px solid #e4ada1; border-radius: 7px; background: #fff5f2; }
+.status { padding: 12px; border: 1px solid #adcab6; border-radius: 7px; background: #eff8f1; }

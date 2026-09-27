@@ -1,0 +1,70 @@
+.workspace { display:flex; flex-direction:column; gap:14px; }
+.header { display:flex; justify-content:space-between; gap:20px; padding:18px; border-bottom:1px solid #dce5df; }
+.header h2,.header p { margin-top:0; }
+.header p:last-child { margin-bottom:0; color:#607084; line-height:1.5; max-width:760px; }
+.eyebrow { margin:0 0 4px; color:#607084; font-size: 12px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+.summary { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+.summary span { min-width:110px; padding:8px 10px; border:1px solid #dce5df; border-radius:9px; background:#ffffff; color:#607084; font-size: 12px; }
+.summary b { display:block; color:#29394b; font-size:17px; }
+.launcher { margin:0 18px; padding:16px; border:1px solid #f4f7f4; border-radius:12px; background:#ffffff; }
+.formGrid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.formGrid label,.objectiveLabel,.resumeBox label { display:flex; flex-direction:column; gap:6px; color:#29394b; font-size: 12px; }
+.formGrid select,.objectiveLabel textarea,.resumeBox textarea { min-width:0; border:1px solid #cad9d3; border-radius:8px; background:#ffffff; color:#253247; padding:8px 9px; font:inherit; }
+.objectiveLabel { margin-top:12px; }
+.objectiveLabel textarea,.resumeBox textarea { resize:vertical; line-height:1.45; }
+.formGrid select:focus-visible,.objectiveLabel textarea:focus-visible,.resumeBox textarea:focus-visible,.workspace button:focus-visible { outline:2px solid #236a69; outline-offset:2px; }
+.agentContract { display:flex; justify-content:space-between; gap:14px; margin-top:12px; padding:12px; border:1px solid #f4f7f4; border-radius:9px; background:#ffffff; }
+.agentContract>div:first-child { display:flex; flex-direction:column; gap:3px; }
+.agentContract small { color:#607084; }
+.policyList { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:5px; }
+.policyList span { border:1px solid #dce5df; border-radius:999px; padding:4px 7px; color:#4a5d70; font-size: 11px; }
+.policyList span[data-approval="true"] { border-color:#84581c; color:#84581c; }
+.launchActions { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:10px; }
+.launchActions small { color:#607084; }
+.workspace button { border:1px solid #cbd9d2; border-radius:8px; background:#f4f7f4; color:#253247; padding:8px 11px; font:inherit; cursor:pointer; }
+.workspace button:disabled { opacity:.55; cursor:default; }
+.workspace .primaryButton { border-color:#236a69; background:#236a69; color:#ffffff; }
+.notice,.error { margin:0 18px; padding:11px 13px; border:1px solid #dce5df; border-radius:8px; background:#ffffff; color:#536475; }
+.error { border-color:#9b4047; color:#9b4047; }
+.runList { display:flex; flex-direction:column; gap:12px; padding:0 18px 18px; }
+.runCard { border:1px solid #f4f7f4; border-radius:12px; background:#ffffff; padding:14px; }
+.runHeader { display:flex; justify-content:space-between; gap:14px; }
+.runHeader h3 { margin:2px 0 4px; color:#29394b; }
+.runHeader small { color:#607084; }
+.runStatus { align-self:flex-start; border:1px solid #3a4252; border-radius:999px; padding:4px 8px; color:#607084; font-size: 11px; text-transform:uppercase; }
+.runStatus[data-status="completed"] { border-color:#246f57; color:#246f57; }
+.runStatus[data-status="waiting_approval"] { border-color:#84581c; color:#84581c; }
+.runStatus[data-status="failed"],.runStatus[data-status="cancelled"] { border-color:#9b4047; color:#9b4047; }
+.contextGrid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1px; margin-top:12px; overflow:hidden; border:1px solid #f4f7f4; border-radius:8px; background:#f4f7f4; }
+.contextGrid>div { display:flex; flex-direction:column; gap:3px; padding:9px; background:#ffffff; }
+.contextGrid span { color:#607084; font-size: 11px; text-transform:uppercase; }
+.contextGrid strong { color:#29394b; font-size:12px; }
+.contextGrid small { color:#607084; overflow-wrap:anywhere; }
+.timeline,.artifacts { margin-top:14px; }
+.timeline h4,.artifacts h4 { margin:0 0 8px; color:#29394b; font-size: 12px; text-transform:uppercase; }
+.step { margin-top:8px; padding:11px; border:1px solid #f4f7f4; border-radius:9px; background:#ffffff; }
+.step>header { display:flex; justify-content:space-between; gap:10px; }
+.step>header>div:first-child { display:flex; align-items:center; gap:8px; }
+.sequence { color:#607084; font-size: 11px; text-transform:uppercase; }
+.stepBadges { display:flex; flex-wrap:wrap; gap:5px; }
+.stepBadges span { border:1px solid #dce5df; border-radius:999px; padding:3px 6px; color:#4a5d70; font-size:11px; text-transform:uppercase; }
+.stepBadges span[data-status="waiting_approval"] { border-color:#84581c; color:#84581c; }
+.step p { color:#607084; }
+.step details { margin-top:8px; }
+.step summary { cursor:pointer; color:#607084; font-size: 12px; }
+.step pre { overflow:auto; max-height:260px; padding:9px; border-radius:7px; background:#f3f6f3; color:#253247; font-size: 12px; }
+.step small { color:#607084; overflow-wrap:anywhere; }
+.approvalActions { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:10px; padding-top:10px; border-top:1px solid #dce5df; }
+.approvalActions strong { color:#84581c; font-size: 12px; }
+.approvalActions>div { display:flex; gap:7px; }
+.artifacts>div { display:grid; grid-template-columns:100px minmax(0,1fr) minmax(160px,auto); gap:8px; padding:8px; border-top:1px solid #dce5df; }
+.artifacts span { color:#607084; font-size: 11px; text-transform:uppercase; }
+.artifacts code { color:#607084; overflow-wrap:anywhere; }
+.resumeBox { display:flex; align-items:flex-end; gap:10px; margin-top:12px; padding:11px; border:1px solid #f4f7f4; border-radius:9px; background:#ffffff; }
+.resumeBox label { flex:1; }
+.runFooter { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid #dce5df; }
+.runFooter code { color:#607084; font-size: 11px; overflow-wrap:anywhere; }
+.errorText { display:block; margin-top:6px; color:#9b4047!important; }
+.empty { padding:24px; border:1px dashed #c6d4cc; border-radius:10px; color:#607084; text-align:center; }
+.empty strong { display:block; color:#29394b; margin-bottom:4px; }
+@media (max-width:900px) { .formGrid,.contextGrid { grid-template-columns:1fr; } .agentContract,.launchActions,.approvalActions,.resumeBox,.header { align-items:flex-start; flex-direction:column; } .summary,.policyList { justify-content:flex-start; } .artifacts>div { grid-template-columns:1fr; } }

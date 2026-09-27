@@ -282,7 +282,12 @@ def sync_source_identity_node(
     return source_node
 
 
-def project_canonical_event(db: Session, event: CanonicalEvent) -> WorkGraphNode:
+def project_canonical_event(
+    db: Session,
+    event: CanonicalEvent,
+    *,
+    commit: bool = True,
+) -> WorkGraphNode:
     metadata = event.event_metadata or {}
     evidence_attributes: dict[str, object] = {
         "event_type": event.event_type,
@@ -426,8 +431,11 @@ def project_canonical_event(db: Session, event: CanonicalEvent) -> WorkGraphNode
                     edge_type=WorkGraphEdgeType.SUPPORTED_BY,
                 )
 
-    db.commit()
-    db.refresh(evidence)
+    if commit:
+        db.commit()
+        db.refresh(evidence)
+    else:
+        db.flush()
     return evidence
 
 
@@ -470,6 +478,7 @@ def create_manual_edge(
     edge_type: WorkGraphEdgeType,
     actor_user_id: uuid.UUID,
     reason: str,
+    commit: bool = True,
 ) -> WorkGraphEdge:
     if edge_type not in MANUAL_EDGE_TYPES:
         raise WorkGraphError("This edge type cannot be created manually")
@@ -506,8 +515,11 @@ def create_manual_edge(
         },
         created_by_user_id=actor_user_id,
     )
-    db.commit()
-    db.refresh(edge)
+    if commit:
+        db.commit()
+        db.refresh(edge)
+    else:
+        db.flush()
     return edge
 
 

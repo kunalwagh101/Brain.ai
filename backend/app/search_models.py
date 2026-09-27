@@ -81,13 +81,13 @@ class SearchDocument(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     organization_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+        ForeignKey("organizations.id", ondelete="CASCADE")
     )
     canonical_event_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("canonical_events.id", ondelete="CASCADE"), nullable=False
     )
     integration_connection_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("integration_connections.id", ondelete="CASCADE"), index=True
+        ForeignKey("integration_connections.id", ondelete="CASCADE")
     )
     work_graph_node_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("work_graph_nodes.id", ondelete="SET NULL"), index=True, nullable=True

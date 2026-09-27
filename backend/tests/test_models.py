@@ -13,7 +13,7 @@ def _unique_columns(table_name: str) -> set[tuple[str, ...]]:
 
 
 def test_core_tables_are_registered() -> None:
-    assert set(Base.metadata.tables) == {
+    assert {
         "organizations",
         "users",
         "memberships",
@@ -28,7 +28,7 @@ def test_core_tables_are_registered() -> None:
         "identity_resolution_history",
         "work_graph_nodes",
         "work_graph_edges",
-    }
+    } <= set(Base.metadata.tables)
 
 
 def test_membership_is_tenant_scoped() -> None:

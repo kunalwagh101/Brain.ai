@@ -4,7 +4,6 @@ from app.decision_memory import extract_decision_blocker_candidates
 from app.decision_memory_models import MemoryKind
 from app.search_models import SearchDocument
 
-
 _CASES: tuple[tuple[str, set[MemoryKind]], ...] = (
     ("Decision: use PostgreSQL as the primary store", {MemoryKind.DECISION}),
     ("Final decision: keep the modular monolith", {MemoryKind.DECISION}),
@@ -54,3 +53,4 @@ def test_synthetic_fixture_contains_both_positive_and_negative_examples() -> Non
     assert any(MemoryKind.DECISION in expected for _, expected in _CASES)
     assert any(MemoryKind.BLOCKER in expected for _, expected in _CASES)
     assert any(not expected for _, expected in _CASES)
+

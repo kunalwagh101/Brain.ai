@@ -20,6 +20,8 @@ __pycache__/
 /coverage
 .coverage
 htmlcov/
+/.local/
+/.evaluation/
 
 # next.js
 /.next/
@@ -44,6 +46,7 @@ yarn-error.log*
 
 # typescript
 next-env.d.ts
+*.tsbuildinfo
 /dist/
 /.wrangler/
 /.sites-runtime/

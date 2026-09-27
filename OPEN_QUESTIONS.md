@@ -8,26 +8,58 @@ Reason: Brain is B2B/multi-tenant; WorkOS provides organisations, memberships, S
 Revisit trigger: measured product/customer requirement that WorkOS cannot satisfy, unacceptable unit economics, or provider availability/compliance issue.
 
 ## OQ-002 Slack private-message policy — RESOLVED 2026-09-06
-Decision: Brain may ingest only Slack channels explicitly authorised by a workspace administrator. Public/shared channels still require explicit authorisation; private channels are opt-in; direct messages are excluded from the production MVP. Brain must preserve source visibility and apply its own tenant/resource ACL before retrieval.  
+Decision: Brain may ingest only Slack channels explicitly authorised by a workspace administrator. Public/shared channels still require explicit authorisation; private channels are opt-in; Slack direct messages are excluded from the production MVP. Brain must preserve source visibility and apply its own tenant/resource ACL before retrieval.  
 Reason: explicit opt-in is the smallest permission surface that still supports useful company memory without normalising employee surveillance or silently widening Slack visibility.  
-Revisit trigger: a customer has a documented compliance/consent requirement for private-message ingestion and the connector, retention, audit and ACL design has been reviewed for that use case.
+Revisit trigger: a customer has a documented compliance/consent requirement for Slack private-message ingestion and the connector, retention, audit and ACL design has been reviewed for that use case.
 
 ## OQ-003 Secrets manager — RESOLVED 2026-09-06
 Decision: AWS Secrets Manager is the first production credential backend. PostgreSQL stores only the secret ARN/reference and non-secret connection metadata. Brain uses the AWS SDK credential chain and a small `SecretStore` contract so provider-specific connector code never persists OAuth/API tokens in application tables. Revocation first moves the connection out of ACTIVE state, then schedules secret deletion; connector workers may sync ACTIVE connections only.  
 Reason: the planned production architecture is AWS-based, Secrets Manager provides managed encryption, IAM control, versioning and auditability, and this avoids inventing our own secret encryption/storage system.  
 Revisit trigger: deployment moves to another cloud, customer-managed Vault/KMS is required, or measured cost/compliance constraints justify another backend.
 
-## OQ-004 First meeting/document provider
-Ambiguity: whether first evidence adapter targets Google Drive, Loom, Zoom/Meet transcript export, or generic upload.  
-Recommended default: generic file/transcript ingestion first, then one customer-driven provider.  
-Blast radius: OAuth scopes, file formats, transcription responsibility and storage cost.
+## OQ-004 First meeting/document provider — RESOLVED 2026-09-10
+Decision: ship a Brain-managed generic file/transcript evidence adapter before choosing Google Drive, Loom, Zoom/Meet or another provider-specific connector. The first slice accepts bounded authorised uploads, stores the immutable-addressed source and provenance, extracts/chunks supported text-bearing formats, projects chunks into canonical evidence/Work Graph/search, and uses the existing ACL, audit, revocation and deletion machinery. Provider-specific OAuth adapters remain separate future work and must feed the same evidence contract rather than create a second retrieval path.  
+Reason: this gives Brain useful meeting/document evidence without prematurely locking source permissions, OAuth scopes or product behavior to one vendor. It also gives future connectors a tested internal target contract.  
+Initial format boundary: UTF-8 text/Markdown/CSV/JSON/VTT/SRT, text-extractable PDF and DOCX. OCR, audio/video transcription and provider sync are intentionally outside this first adapter and require their own data-policy/performance review.  
+Revisit trigger: a real customer workflow identifies the first provider-specific source, or format/transcription requirements materially exceed the generic adapter.
 
-## OQ-005 First AI provider policy
-Ambiguity: which provider/model becomes the first production RAG generation default and what data-retention terms are required.  
-Recommended default: provider-neutral gateway; choose the first model from measured eval quality/cost/latency and customer policy, not preference.  
-Blast radius: eval baselines, compliance, cost and latency.
+## OQ-005 First AI provider policy — RESOLVED 2026-09-10
+Decision: OpenAI API is the first production RAG generation provider. `gpt-5.6-terra` is the first model candidate and becomes the Brain default only after it passes the checked-in Ask Brain gates: retrieval recall >=90%, human-reviewed claim/citation correctness >=98%, zero unauthorised evidence exposure, acceptable deployed p95/error rate, and recorded exact cost. Brain keeps the provider-neutral gateway; no feature code may depend directly on OpenAI-specific business logic.  
+Data policy: API input/output sharing must remain disabled. OpenAI API business data is not used for model training by default. Normal API retention may be up to 30 days for eligible service/abuse purposes; when a customer contract or policy requires no post-request content retention, the OpenAI organisation/project must have eligible Zero Data Retention enabled before Brain enables that provider for the customer. Brain itself does not persist Ask Brain prompt/completion plaintext in `AIRequestRecord`.  
+Security/configuration: credentials remain only in AWS Secrets Manager; production egress is HTTPS and allowlisted to the configured OpenAI API host; use a paid business/API project rather than consumer/free-tier traffic for customer evidence; do not opt the project into API input/output or evaluation-data sharing.  
+Model escalation: if Terra fails the quality gate, evaluate `gpt-5.6-sol` on the identical labelled set before changing the default. `gpt-5.6-luna` may be considered for cost-sensitive traffic only after it independently passes the same quality/security gates. No silent model fallback is allowed because it would invalidate quality and cost evidence.  
+Compatibility: the current gateway retains its provider-neutral OpenAI-compatible adapter. The selected model must pass a real compatibility smoke before production activation; if OpenAI requires a newer API contract, add a dedicated adapter rather than weakening the gateway or silently changing semantics.  
+Sources reviewed 2026-09-10: OpenAI Enterprise Privacy; OpenAI Business Data Privacy/Security/Compliance; OpenAI Zero Data Retention announcement (2026-08-19); OpenAI API model catalogue.  
+Revisit trigger: model retirement, material pricing/privacy/retention-policy change, customer contractual requirement, quality regression below the gates, or a measured provider with materially better quality/cost/latency under the same data policy.
 
 ## OQ-006 Retention defaults
-Ambiguity: default raw-event, derived-content and audit-log retention periods.  
-Recommended default: configurable per organisation; do not hard-code a legal/compliance duration without customer/regulatory evidence.  
-Blast radius: storage cost, deletion design, compliance commitments and backup lifecycle.
+Ambiguity: the customer/legal default raw-event, derived-content, audit-log and Brain-native private-message retention periods remain unresolved.  
+Engineering-safe behavior: all four durations are independently configurable per organisation and `NULL` means no automatic age-based purge for that class. `private_message_days` is intentionally separate from `derived_content_days`; Brain does not silently treat private conversations as organisation-wide derived evidence. Brain does not invent a legal/compliance period when an organisation has not configured one.  
+Recommended product default: obtain the customer's contractual/regulatory policy during onboarding, configure each applicable class explicitly, and separately align managed-database backup/PITR retention.  
+Blast radius: storage cost, private-message privacy, deletion design, compliance commitments and backup lifecycle.
+
+## OQ-007 Production runtime and image registry
+Ambiguity: the production container runtime, image registry, managed PostgreSQL service and network topology have not been explicitly selected for Brain. AWS Secrets Manager is already the credential backend, but that does not by itself decide whether the API runs on ECS/Fargate, App Runner, another AWS runtime or a non-AWS platform.  
+Engineering-safe behavior: the repository builds one OCI image and validates migrations, rollback/forward recovery, production-mode readiness and PostgreSQL backup/restore in a provider-neutral Release Gate. No cloud-specific deployment credential or command is guessed.  
+Recommended default: if the AWS direction remains, evaluate ECR + ECS/Fargate + managed PostgreSQL/RDS in the production environment and choose it only after networking, IAM, backup/PITR, deployment rollback and expected cost are reviewed.  
+Blast radius: IAM, VPC/networking, TLS/domain termination, registry permissions, deployment strategy, database backup/PITR, secret access, rollback mechanics and operating cost.
+
+## OQ-008 Brain-native direct-message privacy — RESOLVED 2026-09-16
+Decision: Brain-native direct messages are a participant-scoped collaboration surface, not an employer-wide evidence source. Only explicit participants may list or read a DM conversation or its messages. Owner/Admin/Executive roles receive no DM-content override merely because of role. Brain-native DM content is excluded from organisation-wide Search, Ask Brain, Decision Memory, Project Command Centre and Executive Overview by default. No DM message is projected into the organisation-wide canonical evidence/Search pipeline. Any future participant-scoped AI retrieval over DMs requires a separately reviewed permission contract, explicit participant context and its own UAT; it must not reuse organisation-wide retrieval.  
+Initial product boundary: production MVP supports one-to-one Brain-native DMs between two current active members of the same organisation. Group DMs, external guests, Slack DM ingestion and employer-wide DM search are outside this first slice.  
+Retention/deletion boundary: private-message retention is independently configurable through `private_message_days`; `NULL` means no automatic age-based DM purge. Legal hold blocks DM retention purges. Brain does not reuse raw/derived/audit retention semantics or invent a legal retention period. Membership removal immediately removes the user's ability to open the organisation or any DMs there.  
+Audit boundary: normal DM creation and sends do not create organisation-wide per-message/per-conversation audit records, because that would expose private activity metadata to privileged audit roles. Aggregate retention-run accounting may record the number of private messages deleted, but must not copy DM body, participant pair, target email or per-message hash into organisation-wide audit metadata.  
+Reason: this preserves a familiar private collaboration UX without turning Brain's company-intelligence layer into employee surveillance or granting privileged roles silent access to private conversations.  
+Revisit trigger: explicit customer requirement for group DMs, participant-scoped AI over DMs, legal/compliance retention rules, eDiscovery requirements or external-user messaging.
+
+## OQ-009 Team/group permission inheritance
+Ambiguity: the product hierarchy is Workspace → Teams → channel groups → channels, but no accepted rule says that team or group membership grants access to a restricted channel.  
+Engineering-safe behavior for S-10.24/S-10.25: teams and channel groups are navigation/organisation metadata only. They never create, widen, copy or revoke channel membership, ResourceGrant, evidence or Search access. Restricted-channel access remains explicit under the existing channel ACL.  
+Revisit trigger: the product owner explicitly requires inherited team/group access and defines how grant, revoke, migration, audit and restricted evidence propagation must behave.  
+Blast radius: tenant/resource authorization, evidence grants, Search/Ask Brain visibility, revocation, audit and membership administration.
+
+## OQ-010 Shared team groups and participant-private DMs
+Ambiguity: the desired hierarchy mentions channels/DMs below channel groups, but OQ-008 makes Brain-native DMs participant-private and no accepted rule says a shared team/group may expose DM counterpart metadata or membership.  
+Engineering-safe behavior for S-10.24/S-10.25: shared teams/groups organise Brain channels only. DMs remain in the personal participant-only Direct messages section and are never inserted into shared navigation containers.  
+Revisit trigger: an explicit participant-scoped design defines whether DM shortcuts are personal or shared, who can see counterpart identity, how removal/revocation behaves and how OQ-008 privacy is preserved.  
+Blast radius: private relationship metadata, participant privacy, navigation visibility, notifications and access revocation.

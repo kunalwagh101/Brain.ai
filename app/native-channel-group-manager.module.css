@@ -1,0 +1,68 @@
+.manager {
+  margin: 0.35rem 0 0.6rem;
+}
+
+.manager > summary {
+  cursor: pointer;
+  font-size: 0.78rem;
+  opacity: 0.8;
+}
+
+.body,
+.assignments {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+}
+
+.form,
+.assignment {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.55rem;
+  border: 1px solid rgba(128, 128, 128, 0.28);
+  border-radius: 0.6rem;
+}
+
+.form input,
+.form select,
+.assignment select {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+}
+
+.form small,
+.assignment span {
+  font-size: 0.72rem;
+  opacity: 0.78;
+}
+
+.actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.assignment {
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) auto;
+  align-items: center;
+}
+
+.error {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.manager button:focus-visible,
+.manager input:focus-visible,
+.manager select:focus-visible,
+.manager summary:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .assignment {
+    grid-template-columns: 1fr;
+  }
+}

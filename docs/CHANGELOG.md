@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Increment 43 — integrated workspace frontend
+
+- Brought the conversation-first `/demo` shell into the selected product branch with accurate sample status, mobile navigation/focus, permission-denied Admin recovery and clearer project progress states. The sample's blocker/progress totals now reconcile with its structured work.
+- Improved channel-thread focus return, kept a channel draft during same-channel live refresh, and improved DM unread contrast, agent form/button readability and approval context. Removed setup jargon from unavailable user actions.
+- Kept Search suggestions tied to the exact query and organisation endpoint that returned them; older excerpts no longer appear beneath a new query. Added focused result-state and rendered-page checks.
+- Production authentication and real-data acceptance still require official WorkOS activation and the scenarios in `UAT/F-10.27.md`. No release/UAT pass is claimed by the read-only demo.
+
+### Increment 24 — Slack/Discord-quality Brain conversations
+
+- Added tenant-safe root threads, exact permitted-member `@email` mentions, five allow-listed idempotent reactions and per-user unread state over the existing native message/evidence store.
+- Added an atomic per-channel message sequence so read cursors remain monotonic under fast/concurrent writes, plus batched unread summaries and scoped database foreign keys.
+- Made the selected channel the primary responsive workspace surface with unread badges, server-resolved mention highlighting, distinct agent labels, reaction toggles and an accessible thread pane.
+- Added complete secure WorkOS BFF templates for messages, replies, reactions, reads and restricted membership changes.
+- Added migration `20260912_0020`, architecture/rollback notes, focused backend/frontend contracts, demo commands and `UAT/F-10.06.md`.
+
+Repository-wide Ruff, all 299 backend tests, frontend lint/build, 12 frontend tests with 1 intentional unauthenticated skip, focused conversation tests and offline PostgreSQL SQL generation passed on 2026-09-13. The delivery verifier was deliberately not completed, so no verifier PASS is claimed. S-10.06.01 remains `IN_REVIEW`; verifier, live PostgreSQL migration/recovery and authenticated WorkOS browser/accessibility UAT are still required.
+
 ### Increment 7 — typed tenant-safe Work Graph
 
 - Added PostgreSQL `work_graph_nodes` and `work_graph_edges` as a rebuildable projection over canonical evidence; no graph database dependency was introduced.

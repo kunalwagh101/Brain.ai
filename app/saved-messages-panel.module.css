@@ -1,0 +1,135 @@
+.saved {
+  border: 1px solid #dce5df;
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.saved > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #dce5df;
+}
+
+.saved > header p,
+.saved > header h2 {
+  margin: 0;
+}
+
+.saved > header p {
+  margin-bottom: 3px;
+  color: #607084;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.saved > header h2 {
+  color: #29394b;
+  font-size: 16px;
+}
+
+.saved > header > span {
+  border: 1px solid #dce5df;
+  border-radius: 999px;
+  color: #29394b;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.list {
+  display: grid;
+  gap: 0;
+}
+
+.list article {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #dce5df;
+}
+
+.list article:last-child {
+  border-bottom: 0;
+}
+
+.list article > div:first-child {
+  min-width: 0;
+}
+
+.list small {
+  display: block;
+  margin-bottom: 4px;
+  color: #607084;
+  font-size: 11px;
+}
+
+.list strong {
+  color: #29394b;
+  font-size: 12px;
+}
+
+.list p {
+  margin: 5px 0 0;
+  color: #29394b;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.list article > div:last-child {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.list a,
+.list button {
+  min-height: 30px;
+  border: 1px solid #dce5df;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #29394b;
+  padding: 5px 9px;
+  font: inherit;
+  font-size: 11px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.list a:hover,
+.list a:focus-visible,
+.list button:hover,
+.list button:focus-visible {
+  border-color: #8cbab1;
+  color: #205e5b;
+  outline: 2px solid #287e78;
+  outline-offset: 1px;
+}
+
+.list button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.empty {
+  margin: 0;
+  padding: 18px 16px;
+  color: #607084;
+  font-size: 12px;
+}
+
+.error {
+  margin: 0;
+  padding: 10px 16px;
+  border-top: 1px solid #e8bbbe;
+  color: #9b4047;
+  font-size: 12px;
+}

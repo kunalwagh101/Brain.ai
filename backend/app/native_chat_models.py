@@ -1,0 +1,367 @@
+import uuid
+from datetime import datetime
+from enum import StrEnum
+
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    DateTime,
+    Enum,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.models import Base, ResourceAccessLevel
+
+
+def _enum_values(enum_type):
+    return [item.value for item in enum_type]
+
+
+class NativeChannelVisibility(StrEnum):
+    ORGANIZATION = "organization"
+    RESTRICTED = "restricted"
+
+
+class NativeChannelStatus(StrEnum):
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+
+
+class NativeMessageActorKind(StrEnum):
+    USER = "user"
+    AGENT = "agent"
+
+
+class NativeMessageProjectionStatus(StrEnum):
+    PENDING = "pending"
+    READY = "ready"
+    FAILED = "failed"
+
+
+class NativeMessageRevisionAction(StrEnum):
+    EDIT = "edit"
+    RETRACT = "retract"
+
+
+class NativeChannel(Base):
+    __tablename__ = "native_channels"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "slug",
+            name="uq_native_channel_org_slug",
+        ),
+        UniqueConstraint(
+            "work_graph_node_id",
+            name="uq_native_channel_work_graph_node",
+        ),
+        UniqueConstraint(
+            "organization_id",
+            "id",
+            name="uq_native_channel_org_id",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "team_id"],
+            ["native_teams.organization_id", "native_teams.id"],
+            name="fk_native_channel_team_scope",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "team_id", "channel_group_id"],
+            [
+                "native_channel_groups.organization_id",
+                "native_channel_groups.team_id",
+                "native_channel_groups.id",
+            ],
+            name="fk_native_channel_group_scope",
+        ),
+        CheckConstraint(
+            "channel_group_id IS NULL OR team_id IS NOT NULL",
+            name="ck_native_channel_group_requires_team",
+        ),
+        CheckConstraint(
+            "settings_revision >= 1",
+            name="ck_native_channel_settings_revision_positive",
+        ),
+        Index(
+            "ix_native_channel_org_status_created",
+            "organization_id",
+            "status",
+            "created_at",
+        ),
+        Index(
+            "ix_native_channel_org_team_group",
+            "organization_id",
+            "team_id",
+            "channel_group_id",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    work_graph_node_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("work_graph_nodes.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    slug: Mapped[str] = mapped_column(String(96), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    team_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    channel_group_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    visibility: Mapped[NativeChannelVisibility] = mapped_column(
+        Enum(
+            NativeChannelVisibility,
+            native_enum=False,
+            length=24,
+            values_callable=_enum_values,
+        ),
+        nullable=False,
+    )
+    status: Mapped[NativeChannelStatus] = mapped_column(
+        Enum(
+            NativeChannelStatus,
+            native_enum=False,
+            length=24,
+            values_callable=_enum_values,
+        ),
+        default=NativeChannelStatus.ACTIVE,
+        nullable=False,
+    )
+    created_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    settings_revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default="1", nullable=False
+    )
+    last_message_sequence: Mapped[int] = mapped_column(
+        BigInteger,
+        default=0,
+        server_default="0",
+        nullable=False,
+    )
+
+
+class NativeChannelMembership(Base):
+    __tablename__ = "native_channel_memberships"
+    __table_args__ = (
+        UniqueConstraint(
+            "channel_id",
+            "user_id",
+            name="uq_native_channel_membership_channel_user",
+        ),
+        Index(
+            "ix_native_channel_membership_org_user_active",
+            "organization_id",
+            "user_id",
+            "revoked_at",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    channel_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("native_channels.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    access: Mapped[ResourceAccessLevel] = mapped_column(
+        Enum(ResourceAccessLevel, native_enum=False, length=16), nullable=False
+    )
+    granted_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class NativeMessage(Base):
+    __tablename__ = "native_messages"
+    __table_args__ = (
+        UniqueConstraint(
+            "channel_id",
+            "idempotency_key",
+            name="uq_native_message_channel_idempotency",
+        ),
+        UniqueConstraint(
+            "canonical_event_id",
+            name="uq_native_message_canonical_event",
+        ),
+        UniqueConstraint(
+            "organization_id",
+            "channel_id",
+            "id",
+            name="uq_native_message_org_channel_id",
+        ),
+        UniqueConstraint(
+            "channel_id",
+            "message_sequence",
+            name="uq_native_message_channel_sequence",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "channel_id", "thread_root_id"],
+            [
+                "native_messages.organization_id",
+                "native_messages.channel_id",
+                "native_messages.id",
+            ],
+            name="fk_native_message_thread_root_scope",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("body_char_count >= 0", name="ck_native_message_body_chars"),
+        CheckConstraint("revision >= 1", name="ck_native_message_revision_positive"),
+        CheckConstraint(
+            "(actor_kind = 'user' AND author_user_id IS NOT NULL AND agent_run_id IS NULL) OR "
+            "(actor_kind = 'agent' AND author_user_id IS NULL AND agent_run_id IS NOT NULL)",
+            name="ck_native_message_actor_identity",
+        ),
+        Index(
+            "ix_native_message_org_channel_created",
+            "organization_id",
+            "channel_id",
+            "created_at",
+        ),
+        Index(
+            "ix_native_message_thread_created",
+            "organization_id",
+            "channel_id",
+            "thread_root_id",
+            "message_sequence",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    channel_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("native_channels.id", ondelete="CASCADE"), nullable=False
+    )
+    thread_root_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    message_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    actor_kind: Mapped[NativeMessageActorKind] = mapped_column(
+        Enum(
+            NativeMessageActorKind,
+            native_enum=False,
+            length=16,
+            values_callable=_enum_values,
+        ),
+        nullable=False,
+    )
+    author_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    agent_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("agent_runs.id", ondelete="RESTRICT"), nullable=True
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    body_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    body_char_count: Mapped[int] = mapped_column(nullable=False)
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default="1", nullable=False
+    )
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    raw_event_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("raw_events.id", ondelete="SET NULL"), nullable=True
+    )
+    canonical_event_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("canonical_events.id", ondelete="SET NULL"), nullable=True
+    )
+    projection_status: Mapped[NativeMessageProjectionStatus] = mapped_column(
+        Enum(
+            NativeMessageProjectionStatus,
+            native_enum=False,
+            length=16,
+            values_callable=_enum_values,
+        ),
+        default=NativeMessageProjectionStatus.PENDING,
+        nullable=False,
+    )
+    last_error_code: Mapped[str | None] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class NativeMessageRevision(Base):
+    __tablename__ = "native_message_revisions"
+    __table_args__ = (
+        UniqueConstraint(
+            "message_id",
+            "revision",
+            name="uq_native_message_revision_message_revision",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "channel_id", "message_id"],
+            [
+                "native_messages.organization_id",
+                "native_messages.channel_id",
+                "native_messages.id",
+            ],
+            name="fk_native_message_revision_message_scope",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("revision >= 1", name="ck_native_message_revision_snapshot_positive"),
+        CheckConstraint("body_char_count >= 0", name="ck_native_message_revision_body_chars"),
+        Index(
+            "ix_native_message_revision_org_message_created",
+            "organization_id",
+            "message_id",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    channel_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    message_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    action: Mapped[NativeMessageRevisionAction] = mapped_column(
+        Enum(
+            NativeMessageRevisionAction,
+            native_enum=False,
+            length=16,
+            values_callable=_enum_values,
+        ),
+        nullable=False,
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    body_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    body_char_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    raw_event_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("raw_events.id", ondelete="SET NULL"), nullable=True
+    )
+    canonical_event_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("canonical_events.id", ondelete="SET NULL"), nullable=True
+    )
+    changed_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

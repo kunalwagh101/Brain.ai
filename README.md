@@ -51,4 +51,14 @@ pytest
 - Apply Alembic migrations before serving a new release.
 - Permission checks must happen before retrieval or LLM access.
 
-The current frontend still contains preview/sample data. It is intentionally not presented as live company evidence. The next slice replaces preview identity/state with real organisation and authentication flows.
+## Web workspace on Render
+
+`npm run build` and `npm run start` use Next.js 16. The root is the authenticated Brain workspace: it redirects unauthenticated visitors to `/sign-in` and loads organisation-scoped data from FastAPI through the server session. `/demo` is a separate read-only example. If authentication settings are missing, `/` leads to `/setup` and Brain mutation routes return 503 instead of showing a sample user.
+
+Configure `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_COOKIE_PASSWORD` (32+ characters), `NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://<frontend-host>/auth/callback`, and `BRAIN_API_BASE_URL=https://<backend-host>` on the **frontend Render service before building**. Set `BRAIN_WORKOS_CLIENT_ID` on the backend to the same WorkOS application; configure the JWT template claim and callback/login/logout URIs in `docs/WORKOS_FRONTEND_ACCEPTANCE.md`. Use separate backend service and PostgreSQL as documented in `render.yaml`. Restart after updating settings.
+
+`npm run build:sites` and `npm run start:sites` preserve the separate vinext/Sites sample workflow. The production WorkOS path is verified with Next.js; vinext produced a server error for this authenticated root in local smoke tests. Official WorkOS credentials, a working backend, a real organisation membership and two-user browser testing are still required before calling the deployment operational.
+
+The `/setup` page now lists missing or invalid **variable names**, never values. It cannot configure Render or WorkOS on its own. With valid settings, the owner can sign in, create a Brain organisation from the empty-workspace screen, and create channels through the real backend.
+
+For two-user testing, `scripts/provision-staging-users.mjs` creates `brain-demo-owner@example.com` and `brain-demo-member@example.com` through the **WorkOS staging API only**. It requires `BRAIN_DEMO_PROVISION=1`, a `sk_test_` API key and two distinct operator-supplied passwords (`BRAIN_DEMO_OWNER_PASSWORD`, `BRAIN_DEMO_MEMBER_PASSWORD`, each 16+ characters). Run it from your private terminal; do not commit or paste passwords. It never creates production users or changes an existing password. Then sign in as owner, create the Brain organisation, sign in once as member, and use the owner's Admin screen to add that email as a member. Use an isolated staging database and the matching WorkOS staging client ID. This is a real two-account test path; neither accounts nor the backend deployment are created just by shipping this repository.

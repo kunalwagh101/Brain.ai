@@ -1,0 +1,8 @@
+.page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f5f6f2; }
+.panel { width: min(100%, 620px); padding: clamp(28px, 5vw, 52px); border: 1px solid #e0e5df; border-radius: 14px; background: white; }
+.brand { font-size: 18px; font-weight: 750; color: #215d57; }
+.eyebrow { margin: 48px 0 12px; font-size: 12px; font-weight: 750; letter-spacing: .05em; color: #687976; overflow-wrap: anywhere; }
+.panel h1 { margin: 0; font-size: clamp(30px, 5vw, 42px); letter-spacing: -.05em; line-height: 1.15; }
+.panel > p:not(.eyebrow) { max-width: 510px; color: #4b5c60; line-height: 1.55; }
+.signOut { margin-top: 36px; padding-top: 20px; border-top: 1px solid #e0e5df; }
+.signOut button { border: 0; background: transparent; color: #48685f; padding: 6px 0; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
