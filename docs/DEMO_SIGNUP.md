@@ -6,7 +6,7 @@ This staging-only flow starts at `/demo-signup` when WorkOS is not set up. It cr
 
 ## Render setup
 
-1. Deploy the separate `brain-api-staging` and `brain-staging-db` services from `render.yaml`, with migration `20260927_0041` applied. Check that `https://<staging-api-host>/health/ready` returns 200. The blueprint runs in `BRAIN_ENVIRONMENT=staging`, enables `BRAIN_DEMO_SIGNUP_ENABLED=true`, generates `BRAIN_APP_SECRET`, and disables AWS instance metadata access. Keep this database isolated from production and customer data.
+1. Deploy the separate `brain-api-staging` and `brain-staging-db` services from `render.yaml`, with migration `20260927_0041` applied. Check that `https://<staging-api-host>/health/ready` returns 200. The blueprint runs in `BRAIN_ENVIRONMENT=staging`, enables `BRAIN_DEMO_SIGNUP_ENABLED=true`, generates `BRAIN_APP_SECRET`, and disables AWS instance metadata access. WorkOS and AWS provider credentials can be configured later; the demo channel flow does not need them. Keep this database isolated from production and customer data.
 2. On the **existing frontend Render service** running `increment-10-ai-provider-gateway`, set `BRAIN_ENVIRONMENT=staging`, `BRAIN_DEMO_SIGNUP_ENABLED=true`, and `BRAIN_API_BASE_URL=https://<staging-api-host>` (the actual API origin, without a trailing path). Redeploy. WorkOS values may remain unset until the real sign-in is configured.
 3. Visit `/`: it should lead to `/demo-signup`. Enter a name. The new account should open the real workspace, allow creating a channel and sending a message. Refresh and confirm the message persists. Sign out and confirm the same session cannot be used again. Use a separate browser session to verify a second tester cannot access the first organisation.
 

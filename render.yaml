@@ -21,20 +21,10 @@ services:
         fromDatabase:
           name: brain-staging-db
           property: connectionString
-      - key: BRAIN_CORS_ORIGINS
-        sync: false
       - key: BRAIN_APP_SECRET
         generateValue: true
-      - key: BRAIN_WORKOS_CLIENT_ID
-        sync: false
-      - key: BRAIN_AWS_REGION
-        sync: false
       - key: BRAIN_SECRETS_PREFIX
         value: brain
-      - key: AWS_ACCESS_KEY_ID
-        sync: false
-      - key: AWS_SECRET_ACCESS_KEY
-        sync: false
       - key: BRAIN_AI_PROVIDER_ALLOWED_HOSTS
         value: api.openai.com
       - key: BRAIN_AI_PROVIDER_TIMEOUT_SECONDS
