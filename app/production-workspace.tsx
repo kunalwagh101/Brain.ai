@@ -27,6 +27,8 @@ import { computeLiveRevision } from "./live-updates-api";
 import { LiveWorkspaceRefresh } from "./live-workspace-refresh";
 import { PresenceHeartbeat } from "./presence-heartbeat";
 import { WorkspaceShell } from "./workspace-shell";
+import { CreateWorkspaceForm, type CreateWorkspaceState } from "./create-workspace-form";
+import onboarding from "./workspace-onboarding.module.css";
 
 const ADMIN_ROLES = new Set(["owner", "admin"]);
 const EXECUTIVE_ROLES = new Set(["owner", "admin", "executive"]);
@@ -53,6 +55,7 @@ export async function ProductionWorkspace({
   enableWorkspaceSearchBff = false,
   enableCollaborationPresenceBff = false,
   signOutAction,
+  createWorkspaceAction,
 }: {
   accessToken: string;
   signedInName: string;
@@ -70,14 +73,20 @@ export async function ProductionWorkspace({
   enableWorkspaceSearchBff?: boolean;
   enableCollaborationPresenceBff?: boolean;
   signOutAction?: (formData: FormData) => Promise<void>;
+  createWorkspaceAction?: (state: CreateWorkspaceState, data: FormData) => Promise<CreateWorkspaceState>;
 }) {
   const organizations = await listOrganizations(accessToken);
   if (!organizations.length) {
     return (
-      <main role="status">
-        <h1>No organisation membership</h1>
-        <p>Your authenticated identity is not currently a member of a Brain organisation.</p>
-        {signOutAction ? <form action={signOutAction}><button type="submit">Sign out</button></form> : null}
+      <main className={onboarding.page}>
+        <section className={onboarding.panel} aria-labelledby="onboarding-title">
+          <span className={onboarding.brand}>✳ Brain</span>
+          <p className={onboarding.eyebrow}>WELCOME, {signedInName.toUpperCase()}</p>
+          <h1 id="onboarding-title">Make room for your team.</h1>
+          <p>You are signed in, but you are not yet a member of a Brain organisation. Create one to start a real workspace. You will become its owner.</p>
+          {createWorkspaceAction && <CreateWorkspaceForm action={createWorkspaceAction} />}
+          {signOutAction ? <form className={onboarding.signOut} action={signOutAction}><button type="submit">Sign out</button></form> : null}
+        </section>
       </main>
     );
   }

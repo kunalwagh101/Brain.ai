@@ -509,6 +509,17 @@ export function listOrganizations(accessToken: string): Promise<BrainOrganizatio
   return brainApiFetch(accessToken, "/api/v1/organizations");
 }
 
+export function createOrganization(
+  accessToken: string,
+  name: string,
+  slug: string,
+): Promise<{ id: string; name: string; slug: string }> {
+  return brainApiFetch(accessToken, "/api/v1/organizations", {
+    method: "POST",
+    body: JSON.stringify({ name, slug }),
+  });
+}
+
 export function listWorkspaceNavigation(
   accessToken: string,
   organizationId: string,

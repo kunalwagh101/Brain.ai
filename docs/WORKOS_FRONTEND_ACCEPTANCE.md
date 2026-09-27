@@ -2,6 +2,18 @@
 
 Status: **SOURCE_ACTIVATED / RENDER_CONFIGURATION_PENDING / UAT_PENDING**
 
+## Current Render setup blocker
+
+On 2026-09-27 the live frontend at `https://brain-ai-1qqb.onrender.com/` redirected to `/setup`: its required WorkOS/Brain API settings are absent or invalid. The public setup page lists only setting names and does not show their values. This is an intentional fail-closed state, not a working login. Add the five frontend values below to the Render frontend service **before rebuilding**, set the matching backend values and WorkOS dashboard settings, and verify the Brain backend `/health/ready` endpoint. Do not add a hard-coded demo session or a locally minted WorkOS token to bypass this gate.
+
+Use `NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://brain-ai-1qqb.onrender.com/auth/callback` if that is the final frontend origin. `BRAIN_API_BASE_URL` must be the deployed backend's HTTPS origin, with no path, query or URL credentials. The repository's `render.yaml` defines a separate `brain-api-staging` service and Postgres; deploying only the frontend does not deploy those services.
+
+### Real staging test users
+
+The optional `scripts/provision-staging-users.mjs` provisions two **real WorkOS staging** password users (`brain-demo-owner@example.com` and `brain-demo-member@example.com`). The script requires a `sk_test_` key, explicit `BRAIN_DEMO_PROVISION=1`, and distinct passwords of 16 or more characters supplied in the operator's environment. It rejects live keys and does not print or save passwords. Enable Email + Password for the staging WorkOS application first. [WorkOS staging guidance](https://workos.com/docs/authkit/environments) says example.com test addresses are accepted without emails being sent. Keep the staging frontend, WorkOS app and Brain PostgreSQL database separate from production.
+
+After provisioning, sign in as owner and create a Brain organisation in the actual workspace. Sign in once as member so Brain creates their local user. Sign out, sign in as owner and add the member email in Admin. Then test new channel, messages in both directions, DM privacy and sign out with two browser sessions. Current Admin membership creation requires the target user to have signed in first; it is not a pending invitation. Neither a WorkOS user nor a Brain organisation is silently created on deploy. Do not label this UAT passed until those real steps run.
+
 This document defines the only accepted production authentication/frontend path for Brain. The existing `app/chatgpt-auth.ts` integration is a preview-host helper and is **not** an accepted production authentication mechanism.
 
 ## Security boundary
