@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     workos_client_id: str | None = None
     workos_issuer: str = "https://api.workos.com"
     workos_audience: str | None = None
+    demo_signup_enabled: bool = False
     aws_region: str = "us-east-1"
     secrets_prefix: str = "brain"
     slack_client_id: str | None = None
@@ -102,6 +103,8 @@ class Settings(BaseSettings):
             raise ValueError("BRAIN_OTEL_SERVICE_NAME must not be empty")
 
         if self.environment.lower() == "production":
+            if self.demo_signup_enabled:
+                raise ValueError("Demo signup cannot be enabled in production")
             if self.app_secret == "dev-only-change-me":
                 raise ValueError("BRAIN_APP_SECRET must be changed in production")
             if "*" in self.allowed_origins:

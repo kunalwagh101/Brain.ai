@@ -1,4 +1,4 @@
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { getBrainSession } from "../../../../../../../../brain-session";
 import { NextRequest } from "next/server";
 import {
   handleNativeMemberAccessBff,
@@ -19,7 +19,7 @@ export async function PUT(
 ) {
   const crossSite = rejectCrossSiteMutation(request);
   if (crossSite) return crossSite;
-  const auth = await withAuth();
+  const auth = await getBrainSession();
   if (!auth.user || !auth.accessToken) {
     return nativeChatJson({ detail: "Authentication required" }, 401);
   }
@@ -46,7 +46,7 @@ export async function DELETE(
 ) {
   const crossSite = rejectCrossSiteMutation(request);
   if (crossSite) return crossSite;
-  const auth = await withAuth();
+  const auth = await getBrainSession();
   if (!auth.user || !auth.accessToken) {
     return nativeChatJson({ detail: "Authentication required" }, 401);
   }

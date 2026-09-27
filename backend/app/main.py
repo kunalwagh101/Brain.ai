@@ -24,6 +24,7 @@ from app.routes.auth import router as auth_router
 from app.routes.collaboration_presence import router as collaboration_presence_router
 from app.routes.data_governance import router as data_governance_router
 from app.routes.decision_memory import router as decision_memory_router
+from app.routes.demo_sessions import router as demo_sessions_router
 from app.routes.direct_messages import router as direct_messages_router
 from app.routes.evidence import router as evidence_router
 from app.routes.executive_overview import router as executive_overview_router
@@ -87,6 +88,7 @@ def metrics(request: Request):
 
 app.include_router(health_router)
 app.include_router(auth_router, prefix=settings.api_prefix)
+app.include_router(demo_sessions_router, prefix=settings.api_prefix)
 app.include_router(runtime_discovery_router, prefix=settings.api_prefix)
 app.include_router(organizations_router, prefix=settings.api_prefix)
 app.include_router(integrations_router, prefix=settings.api_prefix)

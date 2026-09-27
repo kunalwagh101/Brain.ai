@@ -138,6 +138,7 @@ export function WorkspaceShell({
   agentMutationBase,
   workspaceSearchEndpoint,
   demoMode = false,
+  temporarySession = false,
   signOutAction,
 }: {
   organization: BrainOrganization;
@@ -187,6 +188,7 @@ export function WorkspaceShell({
   agentMutationBase: string | null;
   workspaceSearchEndpoint: string | null;
   demoMode?: boolean;
+  temporarySession?: boolean;
   signOutAction?: (formData: FormData) => Promise<void>;
 }) {
   const projectById = new Map(projects.map((project) => [project.project_node_id, project]));
@@ -450,7 +452,7 @@ export function WorkspaceShell({
 
         <footer className={styles.userCard}>
           <span>{initials(signedInName)}</span>
-          <div><strong>{signedInName}</strong><small>{demoMode ? "Sample profile" : "Signed in"}</small></div>
+          <div><strong>{signedInName}</strong><small>{demoMode ? "Sample profile" : temporarySession ? "Temporary test account" : "Signed in"}</small></div>
           {signOutAction ? (
             <form action={signOutAction}>
               <button className={styles.signOutButton} type="submit">Sign out</button>
@@ -497,7 +499,7 @@ export function WorkspaceShell({
               </select>
               <button type="submit">Switch</button>
             </form>
-            <span className={styles.liveBadge}>{demoMode ? "Read-only example" : "Permission-aware live data"}</span>
+            <span className={styles.liveBadge}>{demoMode ? "Read-only example" : temporarySession ? "Temporary test workspace · Real data" : "Permission-aware live data"}</span>
           </div>
         </header>
 

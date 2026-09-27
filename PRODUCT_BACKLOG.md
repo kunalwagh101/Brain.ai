@@ -236,6 +236,11 @@ As a company user, I want production sign-in and a secure same-origin frontend, 
 Acceptance: official WorkOS AuthKit Next.js 16 integration supplies the authenticated server session; server-side access token is used for FastAPI calls; the browser talks to same-origin BFF routes for mutations such as Ask Brain; no client-supplied role/email/token is trusted; logout/session expiry is handled; production root cannot silently fall back to ChatGPT preview headers or sample credentials.  
 Dependencies: S-01.02.01, official WorkOS package installation and real lockfile. Size: M. Indicator: authenticated-browser UAT pass rate. Value: E-10. Priority: P0.
 
+**S-10.04.02 — Temporary staging sign-up through the real Brain workspace**
+As a tester while WorkOS is being configured, I want a short-lived, isolated account so I can create channels and send real messages in Brain.
+Acceptance: staging-only opt-in on both services; frontend opens a labelled demo sign-up instead of the setup dead end; backend atomically creates a real user, organisation, owner membership and revocable 12-hour session in PostgreSQL; bearer stays in an HTTP-only browser cookie and server-side BFF calls; every read/write uses current Brain permission checks; logout/expiry/revocation fail closed; public sign-ups are rate limited; production forbids the bypass; `/demo` remains clearly read-only; local and live sign-up, channel/message, isolation and logout are verified. Session expiry does not imply test-data deletion.
+Dependencies: S-10.04.01 active BFF path, S-10.01.01 native channels, staging Brain API and database. Size: M. Indicator: successful live sign-up-to-message and logout checks. Value: E-10. Priority: P0. Status: IN_REVIEW (code and local HTTP round trip passed; Render setup and live checks outstanding).
+
 #### F-10.05 Evidence and files experience
 **S-10.05.01 — Upload, browse and inspect governed documents/transcripts from the workspace**  
 As a team member, I want documents and meeting transcripts available in the workspace with provenance and permissions, so that non-chat context can be used without leaving Brain.  

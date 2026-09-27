@@ -46,9 +46,10 @@ test(
   async () => {
     const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
     const proxy = await readFile(new URL("../proxy.ts", import.meta.url), "utf8");
-    assert.match(page, /withAuth\(\)/);
-    assert.match(page, /if \(!user \|\| !accessToken\) redirect\("\/sign-in"\)/);
+    assert.match(page, /getBrainSession\(\)/);
+    assert.match(page, /if \(!user \|\| !accessToken\) redirect\(demoAvailable\(\) \? "\/demo-signup" : "\/sign-in"\)/);
     assert.match(page, /ProductionWorkspace/);
+    assert.match(page, /revokeDemoSession/);
     assert.match(proxy, /authkitProxy/);
   },
 );

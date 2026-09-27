@@ -4,6 +4,13 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${repo_root}"
 
+# AuthKit is already active in the current product. This legacy installer copies
+# pre-demo templates over live routes; refuse to erase the integrated staging path.
+if [[ -f app/brain-session.ts ]]; then
+  echo "WorkOS is already active. Configure its environment variables; do not overwrite the demo-aware live routes with activation templates." >&2
+  exit 65
+fi
+
 command -v node >/dev/null 2>&1 || {
   echo "Node.js is required." >&2
   exit 69

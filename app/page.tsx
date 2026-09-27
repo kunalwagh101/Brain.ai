@@ -1,9 +1,12 @@
-import { signOut, withAuth } from "@workos-inc/authkit-nextjs";
+import { signOut } from "@workos-inc/authkit-nextjs";
 import { redirect } from "next/navigation";
+import { demoAvailable, getBrainSession, revokeDemoSession } from "./brain-session";
 import { ProductionWorkspace } from "./production-workspace";
 import { BrainApiError, createOrganization } from "./brain-api";
 import { workspaceCreationInput } from "./workspace-creation-input";
 import type { CreateWorkspaceState } from "./create-workspace-form";
+
+export const dynamic = "force-dynamic";
 
 export default async function Home({
   searchParams,
@@ -15,8 +18,8 @@ export default async function Home({
     messageId?: string;
   }>;
 }) {
-  const { user, accessToken } = await withAuth();
-  if (!user || !accessToken) redirect("/sign-in");
+  const { user, accessToken, isDemo } = await getBrainSession();
+  if (!user || !accessToken) redirect(demoAvailable() ? "/demo-signup" : "/sign-in");
   const params = await searchParams;
   const signedInName = [user.firstName, user.lastName].filter(Boolean).join(" ")
     || user.email
@@ -25,6 +28,11 @@ export default async function Home({
   async function signOutAction(formData: FormData) {
     "use server";
     void formData;
+    const current = await getBrainSession();
+    if (current.isDemo && current.accessToken) {
+      await revokeDemoSession(current.accessToken);
+      redirect("/demo-signup?ended=1");
+    }
     await signOut();
   }
 
@@ -42,8 +50,8 @@ export default async function Home({
     } catch {
       return { error: "Enter an organisation name of up to 160 characters." };
     }
-    const session = await withAuth();
-    if (!session.user || !session.accessToken) redirect("/sign-in");
+    const session = await getBrainSession();
+    if (!session.user || !session.accessToken) redirect(demoAvailable() ? "/demo-signup" : "/sign-in");
     let organization;
     try {
       organization = await createOrganization(session.accessToken, input.name, input.slug);
@@ -73,6 +81,7 @@ export default async function Home({
       enableLiveUpdatesBff
       enableWorkspaceSearchBff
       enableCollaborationPresenceBff
+      demoSession={isDemo}
       signOutAction={signOutAction}
       createWorkspaceAction={createWorkspaceAction}
     />

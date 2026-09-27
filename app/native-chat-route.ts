@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BrainApiError } from "./brain-api";
 import { NativeChatBffRequestError } from "./native-chat-bff";
+import { browserOrigin } from "./same-origin";
 
 const SAFE_UPSTREAM_STATUSES = new Set([
   400, 401, 403, 404, 409, 413, 415, 422, 429, 503,
@@ -16,7 +17,7 @@ export function nativeChatJson(body: object, status: number) {
 export function rejectCrossSiteMutation(request: NextRequest) {
   const origin = request.headers.get("origin");
   const fetchSite = request.headers.get("sec-fetch-site");
-  if (origin !== request.nextUrl.origin || (fetchSite && fetchSite !== "same-origin")) {
+  if (origin !== browserOrigin(request) || (fetchSite && fetchSite !== "same-origin")) {
     return nativeChatJson({ detail: "Cross-site mutation rejected" }, 403);
   }
   return null;

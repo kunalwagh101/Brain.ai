@@ -1,4 +1,5 @@
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { browserOrigin } from "../../../../../../../../same-origin";
+import { getBrainSession } from "../../../../../../../../brain-session";
 import { NextRequest, NextResponse } from "next/server";
 import { BrainApiError } from "../../../../../../../../brain-api";
 import {
@@ -25,7 +26,7 @@ function requireSameOrigin(request: NextRequest) {
     throw new DirectMessageBffError(403, "Cross-site DM mutation denied");
   }
   const origin = request.headers.get("origin");
-  if (origin && origin !== request.nextUrl.origin) {
+  if (origin && origin !== browserOrigin(request)) {
     throw new DirectMessageBffError(403, "Cross-origin DM mutation denied");
   }
 }
@@ -72,7 +73,7 @@ export async function GET(
     }>;
   },
 ) {
-  const auth = await withAuth();
+  const auth = await getBrainSession();
   if (!auth.user || !auth.accessToken) {
     return json({ detail: "Authentication required" }, 401);
   }
@@ -100,7 +101,7 @@ export async function PATCH(
     }>;
   },
 ) {
-  const auth = await withAuth();
+  const auth = await getBrainSession();
   if (!auth.user || !auth.accessToken) {
     return json({ detail: "Authentication required" }, 401);
   }
@@ -129,7 +130,7 @@ export async function DELETE(
     }>;
   },
 ) {
-  const auth = await withAuth();
+  const auth = await getBrainSession();
   if (!auth.user || !auth.accessToken) {
     return json({ detail: "Authentication required" }, 401);
   }

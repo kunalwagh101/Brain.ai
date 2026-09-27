@@ -1,4 +1,5 @@
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { browserOrigin } from "../../../../../../same-origin";
+import { getBrainSession } from "../../../../../../brain-session";
 import { NextRequest, NextResponse } from "next/server";
 import {
   ActivityBffError,
@@ -21,7 +22,7 @@ function requireSameOrigin(request: NextRequest) {
     throw new ActivityBffError(403, "Cross-site activity mutation denied");
   }
   const origin = request.headers.get("origin");
-  if (origin && origin !== request.nextUrl.origin) {
+  if (origin && origin !== browserOrigin(request)) {
     throw new ActivityBffError(403, "Cross-origin activity mutation denied");
   }
 }
@@ -41,7 +42,7 @@ export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ organizationId: string }> },
 ) {
-  const auth = await withAuth();
+  const auth = await getBrainSession();
   if (!auth.user || !auth.accessToken) {
     return json({ detail: "Authentication required" }, 401);
   }
@@ -57,7 +58,7 @@ export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ organizationId: string }> },
 ) {
-  const auth = await withAuth();
+  const auth = await getBrainSession();
   if (!auth.user || !auth.accessToken) {
     return json({ detail: "Authentication required" }, 401);
   }

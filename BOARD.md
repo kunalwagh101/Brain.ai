@@ -34,6 +34,7 @@ DONE | S-10.01.01 | F-10.01 | Engineering verified on Release Gate 35789299001: 
 BLOCKED | S-10.02.01 | F-10.02 | Workspace shell, real organisation switching, navigation API/client, responsive controls, tests/docs/UAT are staged; external dependency: official WorkOS activation and authenticated browser acceptance
 BLOCKED | S-10.03.01 | F-10.03 | Project/memory/company-pulse/evidence surfaces, runtime discovery and citation-first Ask Brain UI are staged; external dependency: live authenticated WorkOS/Ask Brain browser acceptance
 BLOCKED | S-10.04.01 | F-10.04 | AuthKit and server BFF active; missing/invalid Render settings shown by name; authenticated empty-workspace creation and staging WorkOS two-user provisioning path implemented locally; external dependency: real Render/WorkOS/backend configuration and two-user browser UAT
+IN_REVIEW | S-10.04.02 | F-10.04 | Staging demo signup, 12-hour revocable backend session, shared BFF and local signup-to-channel-message HTTP flow implemented; Render API/database/frontend configuration, PostgreSQL migration and live browser/logout UAT remain open
 BLOCKED | S-10.05.01 | F-10.05 | Repository implementation is staged; external S-10.04 WorkOS activation plus executable backend/browser acceptance remain pending
 DONE | S-10.06.01 | F-10.06 | Engineering verified on Release Gate 35789299001: backend conversation regressions, frontend build/contracts, delivery verifier and PostgreSQL migration recovery passed; authenticated WorkOS multi-user UAT remains UAT_PENDING
 DONE | S-10.06.02 | F-10.06 | Engineering verified on Release Gate 35789299001: participant-only DM privacy, revocable visibility epochs, retention, frontend contracts and migrations 0022/0023/0024 passed automated verification; authenticated WorkOS multi-user UAT remains UAT_PENDING
@@ -86,7 +87,7 @@ Sprint goal: make the actual product branch's conversation-first UI coherent acr
 | Agents and Admin | S-10.27.05 | IN_REVIEW | Verify action consequence, roles and safe errors |
 | Integrated acceptance/release | S-10.27.06 | BLOCKED | External WorkOS setup and browser UAT after slices |
 
-The product owner approved implementation after the story review. The chosen local branch includes the earlier UI/demo commits (`b3e3ce2`, `f72248c`) and the integration commit `d506aea`; the remote still points to `663cba7`. Automatic approval review rejected the push of these four local commits to `https://github.com/kunalwagh101/Brain.ai.git` because explicit authorization to export this payload to that personal GitHub remote was not established. No indirect push was attempted. Sample-mode build tests do not prove authenticated feature acceptance. WIP = 0/2.
+The product owner approved and the earlier workspace redesign and auth integration were published to `increment-10-ai-provider-gateway`. The temporary staging sign-up in S-10.04.02 has local request and frontend-to-backend evidence, while Render setup and live browser acceptance remain pending. Sample-mode build tests do not prove authenticated feature acceptance. WIP = 0/2.
 
 ### S-10.26.01 Channel Administration — DONE
 

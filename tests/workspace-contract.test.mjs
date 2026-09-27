@@ -76,7 +76,7 @@ test("native channel BFF validates membership, identifiers and bounded inputs", 
   assert.match(bff, /ALLOWED_REACTIONS/);
   assert.match(bff, /normalizeIdempotencyKey/);
   assert.match(bff, /normalizedUuid\(rootMessageId/);
-  assert.match(route, /origin !== request\.nextUrl\.origin/);
+  assert.match(route, /origin !== browserOrigin\(request\)/);
   assert.match(route, /fetchSite !== "same-origin"/);
   assert.match(route, /TextEncoder/);
   assert.match(route, /SAFE_UPSTREAM_STATUSES/);
@@ -197,8 +197,8 @@ test("root uses a read-only production-shell sample before AuthKit activation an
   const text = await source("app/page.tsx");
 
   if (authkitInstalled) {
-    assert.match(text, /withAuth\(\)/);
-    assert.match(text, /if \(!user \|\| !accessToken\) redirect\("\/sign-in"\)/);
+    assert.match(text, /getBrainSession\(\)/);
+    assert.match(text, /if \(!user \|\| !accessToken\) redirect\(demoAvailable\(\) \? "\/demo-signup" : "\/sign-in"\)/);
     assert.match(text, /ProductionWorkspace/);
     assert.doesNotMatch(text, /Interactive product preview/);
     return;

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Annotated
+from uuid import UUID
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -12,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_db
+from app.demo_session_models import DemoSession
 from app.models import ExternalIdentity, User
 
 _bearer = HTTPBearer(auto_error=False)
@@ -25,6 +27,7 @@ class AuthPrincipal:
     provider_organization_id: str | None
     provider_role: str | None
     permissions: tuple[str, ...]
+    provider: str = "workos"
 
 
 @lru_cache
@@ -76,9 +79,7 @@ def _workos_subject_email(claims: dict[str, object]) -> str:
     # {"urn:brain:user_email": {{ user.email }}}
     value = claims.get(_WORKOS_EMAIL_CLAIM)
     if not isinstance(value, str):
-        raise InvalidTokenError(
-            f"Verified token is missing required {_WORKOS_EMAIL_CLAIM} claim"
-        )
+        raise InvalidTokenError(f"Verified token is missing required {_WORKOS_EMAIL_CLAIM} claim")
     email = value.strip().lower()
     if "@" not in email or len(email) > 320:
         raise InvalidTokenError("Verified token contains an invalid Brain user email claim")
@@ -123,11 +124,29 @@ def verify_access_token(token: str) -> AuthPrincipal:
 
 def get_current_principal(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> AuthPrincipal:
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required",
+        )
+    if credentials.credentials.startswith("brdemo_"):
+        from app.routes.demo_sessions import verify_demo_session
+
+        session = verify_demo_session(db, credentials.credentials)
+        if session is None:
+            raise HTTPException(status_code=401, detail="Invalid access token")
+        user = db.get(User, session.user_id)
+        if user is None or user.status != "active":
+            raise HTTPException(status_code=401, detail="Invalid access token")
+        return AuthPrincipal(
+            subject=str(session.id),
+            email=user.email,
+            provider_organization_id=None,
+            provider_role=None,
+            permissions=(),
+            provider="demo",
         )
     try:
         return verify_access_token(credentials.credentials)
@@ -152,6 +171,14 @@ def get_current_user(
     principal: Annotated[AuthPrincipal, Depends(get_current_principal)],
     db: Annotated[Session, Depends(get_db)],
 ) -> User:
+    if principal.provider == "demo":
+        session = db.get(DemoSession, UUID(principal.subject))
+        if session is None:
+            raise HTTPException(status_code=401, detail="Invalid access token")
+        user = db.get(User, session.user_id)
+        if user is None:
+            raise HTTPException(status_code=401, detail="Invalid access token")
+        return user
     identity = db.scalar(
         select(ExternalIdentity).where(
             ExternalIdentity.provider == "workos",

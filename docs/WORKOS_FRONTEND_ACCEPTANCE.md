@@ -14,7 +14,7 @@ The optional `scripts/provision-staging-users.mjs` provisions two **real WorkOS 
 
 After provisioning, sign in as owner and create a Brain organisation in the actual workspace. Sign in once as member so Brain creates their local user. Sign out, sign in as owner and add the member email in Admin. Then test new channel, messages in both directions, DM privacy and sign out with two browser sessions. Current Admin membership creation requires the target user to have signed in first; it is not a pending invitation. Neither a WorkOS user nor a Brain organisation is silently created on deploy. Do not label this UAT passed until those real steps run.
 
-This document defines the only accepted production authentication/frontend path for Brain. The existing `app/chatgpt-auth.ts` integration is a preview-host helper and is **not** an accepted production authentication mechanism.
+This document defines the only accepted production authentication/frontend path for Brain. Temporary staging-only accounts are tracked separately in `docs/DEMO_SIGNUP.md` and are never accepted as production sign-in or WorkOS UAT. The existing `app/chatgpt-auth.ts` integration is a preview-host helper and is **not** an accepted production authentication mechanism.
 
 ## Security boundary
 
@@ -82,7 +82,7 @@ The activation script fails closed before changing the live frontend unless all 
 8. callback/sign-in templates still use the reviewed official SDK helpers;
 9. target auth/root/BFF paths contain no uncommitted changes.
 
-Only then does activation copy the reviewed templates under `docs/workos-activation/` and run frontend lint, build and all `tests/*.test.mjs` contracts.
+The installed branch already has WorkOS routes active. The legacy source-copy activation command now refuses to overwrite the demo-aware BFF routes; configure the active code and run lint, build and tests directly. Its templates remain historical review material.
 
 A successful activation build is **not** production UAT.
 

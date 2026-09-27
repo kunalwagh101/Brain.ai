@@ -12,7 +12,11 @@ services:
     healthCheckPath: /health/ready
     envVars:
       - key: BRAIN_ENVIRONMENT
-        value: production
+        value: staging
+      - key: BRAIN_DEMO_SIGNUP_ENABLED
+        value: "true"
+      - key: AWS_EC2_METADATA_DISABLED
+        value: "true"
       - key: BRAIN_DATABASE_URL
         fromDatabase:
           name: brain-staging-db

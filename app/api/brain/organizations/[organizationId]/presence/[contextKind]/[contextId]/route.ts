@@ -1,4 +1,4 @@
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { getBrainSession } from "../../../../../../../brain-session";
 import { NextRequest, NextResponse } from "next/server";
 import { BrainApiError } from "../../../../../../../brain-api";
 import {
@@ -27,7 +27,7 @@ type Params = Promise<{
 }>;
 
 export async function GET(_request: NextRequest, context: { params: Params }) {
-  const auth = await withAuth();
+  const auth = await getBrainSession();
   if (!auth.user || !auth.accessToken) {
     return json({ detail: "Authentication required" }, 401);
   }
@@ -59,7 +59,7 @@ async function mutate(
 ) {
   const crossSite = rejectCrossSiteMutation(request);
   if (crossSite) return crossSite;
-  const auth = await withAuth();
+  const auth = await getBrainSession();
   if (!auth.user || !auth.accessToken) {
     return json({ detail: "Authentication required" }, 401);
   }

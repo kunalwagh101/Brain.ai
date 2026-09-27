@@ -1,4 +1,4 @@
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { getBrainSession } from "../../../../../brain-session";
 import { NextRequest, NextResponse } from "next/server";
 import { BrainApiError } from "../../../../../brain-api";
 import {
@@ -22,7 +22,7 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ organizationId: string }> },
 ) {
-  const auth = await withAuth();
+  const auth = await getBrainSession();
   if (!auth.user || !auth.accessToken) {
     return json({ detail: "Authentication required" }, 401);
   }

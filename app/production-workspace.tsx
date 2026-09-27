@@ -54,6 +54,7 @@ export async function ProductionWorkspace({
   enableLiveUpdatesBff = false,
   enableWorkspaceSearchBff = false,
   enableCollaborationPresenceBff = false,
+  demoSession = false,
   signOutAction,
   createWorkspaceAction,
 }: {
@@ -72,6 +73,7 @@ export async function ProductionWorkspace({
   enableLiveUpdatesBff?: boolean;
   enableWorkspaceSearchBff?: boolean;
   enableCollaborationPresenceBff?: boolean;
+  demoSession?: boolean;
   signOutAction?: (formData: FormData) => Promise<void>;
   createWorkspaceAction?: (state: CreateWorkspaceState, data: FormData) => Promise<CreateWorkspaceState>;
 }) {
@@ -322,6 +324,7 @@ export async function ProductionWorkspace({
         <PresenceHeartbeat endpoint={presenceHeartbeatEndpoint} />
       ) : null}
       <WorkspaceShell
+        temporarySession={demoSession}
         organization={organization}
         organizations={organizations}
         navigation={navigation}

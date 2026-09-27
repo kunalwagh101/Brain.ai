@@ -7,6 +7,20 @@ const required = [
   "BRAIN_API_BASE_URL",
 ] as const;
 
+export function demoModeReady(
+  env: Record<string, string | undefined>,
+  production: boolean,
+): boolean {
+  if (env.BRAIN_ENVIRONMENT !== "staging" || env.BRAIN_DEMO_SIGNUP_ENABLED !== "true") return false;
+  try {
+    const url = new URL(env.BRAIN_API_BASE_URL ?? "");
+    return !url.username && !url.password && !url.search && !url.hash
+      && url.pathname === "/" && (production ? url.protocol === "https:" : ["http:", "https:"].includes(url.protocol));
+  } catch {
+    return false;
+  }
+}
+
 export function configurationIssues(
   env: Record<string, string | undefined>,
   production: boolean,

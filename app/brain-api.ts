@@ -477,7 +477,7 @@ async function brainApiFetch<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  if (!accessToken.trim()) throw new Error("A server-side WorkOS access token is required");
+  if (!accessToken.trim()) throw new Error("A server-side access token is required");
   if (!path.startsWith("/api/v1/")) throw new Error("Brain API path must be under /api/v1/");
 
   const response = await fetch(`${apiBaseUrl()}${path}`, {

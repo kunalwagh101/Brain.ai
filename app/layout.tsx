@@ -1,5 +1,6 @@
 import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import type { Metadata } from "next";
+import { configurationIssues } from "./workspace-configuration";
 import "./globals.css";
 
 const siteUrl = new URL("https://brain-control-plane.waghkunal1997.chatgpt.site");
@@ -31,9 +32,10 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const workosReady = !configurationIssues(process.env, process.env.NODE_ENV === "production").length;
   return (
     <html lang="en">
-      <body><AuthKitProvider>{children}</AuthKitProvider></body>
+      <body>{workosReady ? <AuthKitProvider>{children}</AuthKitProvider> : children}</body>
     </html>
   );
 }
